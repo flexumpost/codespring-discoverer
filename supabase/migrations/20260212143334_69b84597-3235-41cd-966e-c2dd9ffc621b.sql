@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_mail_items_stamp_number_unique ON public.mail_items (stamp_number) WHERE stamp_number IS NOT NULL;
