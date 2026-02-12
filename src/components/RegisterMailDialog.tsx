@@ -469,7 +469,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       const { error } = await supabase.from("mail_items").insert({
         operator_id: user.id,
         mail_type: mailType,
-        sender_name: senderName || null,
+        sender_name: senderName.trim() || "Ukendt afsender",
         stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
         tenant_id: selectedTenantId,
         notes: notes || null,
