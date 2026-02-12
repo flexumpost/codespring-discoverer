@@ -131,6 +131,14 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const handleSubmit = async () => {
     if (!user) return;
+    if (!selectedTenantId) {
+      toast.error("Vælg venligst en lejer");
+      return;
+    }
+    if (!stampNumber) {
+      toast.error("Indtast venligst et forsendelsesnr.");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -251,21 +259,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         </RadioGroup>
       </div>
 
-      {/* Forsendelsesnr */}
-      <div className="space-y-2">
-        <Label htmlFor="stamp">Forsendelsesnr. (valgfrit)</Label>
-        <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
-      </div>
-
-      {/* Afsender */}
-      <div className="space-y-2">
-        <Label htmlFor="sender">Afsender</Label>
-        <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
-      </div>
-
-      {/* Lejer søgefelt */}
+      {/* Lejer (obligatorisk) */}
       <div className="space-y-2 relative">
-        <Label>Lejer (valgfrit)</Label>
+        <Label>Lejer</Label>
         {selectedTenantId ? (
           <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
             <span className="flex-1">{selectedTenantName}</span>
@@ -301,6 +297,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             ))}
           </div>
         )}
+      </div>
+
+      {/* Forsendelsesnr (obligatorisk) */}
+      <div className="space-y-2">
+        <Label htmlFor="stamp">Forsendelsesnr.</Label>
+        <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
+      </div>
+
+      {/* Afsender (valgfrit) */}
+      <div className="space-y-2">
+        <Label htmlFor="sender">Afsender (valgfrit)</Label>
+        <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
       </div>
 
       {/* Noter */}
