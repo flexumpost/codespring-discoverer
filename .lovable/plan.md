@@ -1,53 +1,75 @@
 
 
-## Intelligent afsender/modtager-korrektion via tenant-krydscheck
+## Intelligent validering af forsendelsesnummer via historik
 
 ### Problem
-OCR-modellen forveksler nogle gange afsender og modtager. I det konkrete tilfaelde blev "ROADRUNNERCARGO APS" (som er en kendt lejer) returneret som `sender_name`, mens "DANICA RAADGIVNING APS" (den reelle afsender) blev returneret som `recipient_name`.
+OCR-modellen aflaeser nogle gange et forkert nummer -- f.eks. en lang stregkode (28 cifre) i stedet for det korrekte forsendelsesnummer (4 cifre). De faktiske forsendelsesnumre i systemet er korte, fortloebende numre (2778, 2789, 2791, 2792).
 
 ### Loesning
-Tilfoej en post-processing logik paa klientsiden der krydstjekker OCR-resultatet mod den kendte lejer-liste. Hvis `sender_name` matcher en lejer men `recipient_name` ikke goer, byttes de to vaerdier automatisk.
+Hent de seneste forsendelsesnumre fra databasen og brug dem til at validere OCR-resultatet. Hvis det aflaeeste nummer afviger markant i laengde eller vaerdi fra de kendte numre, forkastes det.
 
-Logikken:
+Valideringslogik:
 
 ```text
-1. Proev at matche recipient_name mod lejerlisten -> recipientMatch
-2. Proev at matche sender_name mod lejerlisten -> senderMatch
-3. Hvis recipientMatch IKKE fundet, men senderMatch fundet:
-   -> Byt: recipient_name = sender_name, sender_name = original recipient_name
-4. Ellers: behold som OCR returnerede
+1. Hent seneste 20 forsendelsesnumre fra mail_items (sorteret efter created_at desc)
+2. Beregn median-laengden af de kendte numre
+3. Naar OCR returnerer et stamp_number:
+   a. Hvis nummeret har mere end 2x median-laengden -> forkast (sandsynligvis stregkode)
+   b. Hvis numre er numeriske og fortloebende: tjek om OCR-nummeret ligger
+      inden for et rimeligt interval (seneste nummer +/- 1000)
+   c. Hvis validering fejler: vis besked "Aflæst nummer virker usandsynligt - kontrollér venligst"
+      og udfyld IKKE feltet automatisk
 ```
 
 ### Filer der aendres
 
 **1. `src/components/RegisterMailDialog.tsx`**
-- I `runOcr`-funktionen (efter OCR-resultatet modtages, ca. linje 168-200): tilfoej krydscheck-logik der bytter sender/recipient hvis sender matcher en lejer men recipient ikke goer
-- Brug den eksisterende `fuzzyMatchTenant`-funktion til begge tjek
+- Tilfoej en `useEffect` eller query der henter de seneste stamp_numbers fra databasen ved komponent-load
+- Efter OCR returnerer `stamp_number`: valider mod historikken foer auto-udfyldning
+- Hvis nummeret fejler valideringen: vis en advarsel i stedet for at indsaette det
 
 **2. `src/pages/BulkUploadPage.tsx`**
-- I OCR-resultat-haaandteringen (ca. linje 144-161): tilfoej samme krydscheck-logik foer tenant-matching og item-opdatering
-- Brug den eksisterende `fuzzyMatchTenant`-funktion
+- Samme validering i bulk upload flowet
+- Hent seneste stamp_numbers een gang naar siden loader
+- Valider hvert OCR-resultat foer det indsaettes i review-tabellen
 
-### Teknisk detalje
-
-Krydscheck-funktionen der tilfoeejes begge steder:
+**3. Ny hjælpefunktion (kan placeres i en delt fil eller inline begge steder)**
 
 ```text
-function smartSwapSenderRecipient(
-  recipientName: string,
-  senderName: string,
-  tenants: TenantList
-): { recipientName: string; senderName: string } {
-  const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
-  const senderMatch = fuzzyMatchTenant(senderName, tenants);
+function validateStampNumber(
+  ocrNumber: string,
+  recentNumbers: number[]
+): { valid: boolean; reason?: string } {
+  if (recentNumbers.length === 0) return { valid: true };
 
-  if (!recipientMatch && senderMatch) {
-    // Sender er en kendt lejer -> byt
-    return { recipientName: senderName, senderName: recipientName };
+  // Beregn typisk laengde
+  const lengths = recentNumbers.map(n => String(n).length);
+  const medianLength = lengths.sort()[Math.floor(lengths.length / 2)];
+
+  // Forkast hvis mere end dobbelt saa langt
+  if (ocrNumber.length > medianLength * 2) {
+    return { valid: false, reason: "Nummer er for langt - muligvis stregkode" };
   }
-  return { recipientName, senderName };
+
+  // Tjek om det er taet paa seneste numre (fortloebende sekvens)
+  const num = parseInt(ocrNumber, 10);
+  if (!isNaN(num)) {
+    const maxRecent = Math.max(...recentNumbers);
+    const minRecent = Math.min(...recentNumbers);
+    if (num > maxRecent + 1000 || num < minRecent - 1000) {
+      return { valid: false, reason: "Nummer ligger langt fra kendte forsendelsesnumre" };
+    }
+  }
+
+  return { valid: true };
 }
 ```
 
-Ingen aendringer til edge function eller database.
+### Brugeroplevelse
+- Gyldigt nummer: auto-udfyldes som i dag med groenn toast
+- Ugyldigt nummer: feltet forbliver tomt, og en gul advarsel vises: "Aflæst nr. [X] virker usandsynligt - kontrollér venligst"
+- Operatoeren kan altid manuelt indtaste det korrekte nummer
+
+### Ingen database-aendringer
+Kun en SELECT-query mod eksisterende data. Ingen nye tabeller eller kolonner.
 
