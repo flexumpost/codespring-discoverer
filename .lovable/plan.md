@@ -1,17 +1,28 @@
 
-# Logo og velkomsttekst i headeren
+
+# Opdater dashboard-kort for lejere
 
 ## Hvad der aendres
-Teksten "Flexum Posthaandtering" i headeren erstattes med Flexum-logoet efterfulgt af "Hej [brugernavn]".
+De 3 eksisterende kort paa TenantDashboard erstattes med 4 nye kort der viser mere praecise statusoversigter.
 
-## Aendringer
+## Nye kort
 
-### 1. Kopier logo til projektet
-- Kopier det uploadede logo til `src/assets/flexum-logo.png`
+| Kort | Beskrivelse | Query-filter |
+|------|-------------|--------------|
+| Ny post | Post lejeren ikke har taget stilling til | `status = 'ny'` |
+| Ulaeste breve | Scannede breve lejeren ikke har aabnet | `status = 'ulaest'` |
+| Laeste breve | Scannede breve lejeren har aabnet | `status = 'laest'` |
+| Arkiveret | Breve og pakker lejeren har arkiveret | `status = 'arkiveret'` |
 
-### 2. Opdater `src/components/AppLayout.tsx`
-- Importér logoet: `import flexumLogo from "@/assets/flexum-logo.png"`
-- Importér `useAuth` fra `@/hooks/useAuth`
-- Erstat `<h1>Flexum Posthaandtering</h1>` med:
-  - Et `<img>` tag der viser logoet (hoejde ca. 28px)
-  - Teksten "Hej [brugernavn]" til hoejre, hvor brugernavnet hentes fra `user?.user_metadata?.full_name` eller `user?.email` som fallback
+## Tekniske detaljer
+
+### Fil: `src/pages/TenantDashboard.tsx`
+- Udvid `stats` state til 4 vaerdier: `ny`, `ulaest`, `laest`, `arkiveret`
+- Opdater `fetchStats` til 4 parallelle queries med de korrekte statusfiltre
+- Opdater `cards` arrayet til 4 kort med passende ikoner:
+  - Ny post: `Mail` ikon
+  - Ulaeste breve: `Clock` ikon
+  - Laeste breve: `Eye` ikon (importeres fra lucide-react)
+  - Arkiveret: `Archive` ikon
+- Aendr grid fra `md:grid-cols-3` til `md:grid-cols-4` for at vise alle 4 kort
+
