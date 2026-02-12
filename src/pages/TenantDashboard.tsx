@@ -85,7 +85,7 @@ const TenantDashboard = () => {
     queryFn: async () => {
       let query = supabase
         .from("mail_items")
-        .select(hasMultipleTenants ? "*, tenants(company_name)" : "*")
+        .select("*, tenants(company_name)")
         .eq("tenant_id", selectedTenantId!)
         .order("received_at", { ascending: false });
 
@@ -233,6 +233,7 @@ const TenantDashboard = () => {
             <TableRow>
               <TableHead className="w-[60px]">Foto</TableHead>
               <TableHead>Type</TableHead>
+              {hasMultipleTenants && <TableHead>Virksomhed</TableHead>}
               <TableHead>Forsendelsesnr.</TableHead>
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
@@ -265,6 +266,11 @@ const TenantDashboard = () => {
                     {item.mail_type === "pakke" ? "Pakke" : "Brev"}
                   </Badge>
                 </TableCell>
+                {hasMultipleTenants && (
+                  <TableCell className="text-sm">
+                    {item.tenants?.company_name ?? "—"}
+                  </TableCell>
+                )}
                 <TableCell>{item.stamp_number ?? "—"}</TableCell>
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
