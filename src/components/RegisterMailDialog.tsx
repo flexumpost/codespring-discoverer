@@ -54,7 +54,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name, tenant_type_id")
+        .select("id, company_name, contact_name, tenant_type_id")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;
@@ -73,9 +73,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     enabled: open,
   });
 
-  const filteredTenants = tenants?.filter((t) =>
-    t.company_name.toLowerCase().includes(tenantSearch.toLowerCase())
-  ) ?? [];
+  const filteredTenants = tenants?.filter((t) => {
+    const search = tenantSearch.toLowerCase();
+    return t.company_name.toLowerCase().includes(search) ||
+      (t.contact_name?.toLowerCase().includes(search) ?? false);
+  }) ?? [];
 
   const handleCreateTenant = async () => {
     if (!newTenantName.trim() || !newTenantTypeId) {
@@ -372,7 +374,10 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   setShowTenantList(false);
                 }}
               >
-                {t.company_name}
+                <span>{t.company_name}</span>
+                {t.contact_name && (
+                  <span className="text-muted-foreground ml-1">({t.contact_name})</span>
+                )}
               </button>
             ))}
             {tenantSearch.trim() && filteredTenants.length === 0 && (
