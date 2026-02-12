@@ -1,37 +1,38 @@
 
+# Opret ny lejer direkte fra registreringsformularen
 
-# Automatisk stempelnummer via OCR paa foto
-
-## Overblik
-Naar operatoeren tager eller uploader et foto af en forsendelse, sendes billedet automatisk til en AI-model (Gemini Flash med billedgenkendelse) som laeser forsendelsesnummeret fra billedet og udfylder feltet automatisk.
-
-## Hvordan det virker for brugeren
-1. Operatoer tager billede eller uploader foto af forsendelsen
-2. En "Laeser nummer..."-indikator vises ved forsendelsesnr.-feltet
-3. Nummeret udfyldes automatisk naar OCR er faerdigt
-4. Operatoer kan altid rette nummeret manuelt
+## Hvad det goer for brugeren
+Naar operatoeren soeger efter en lejer og der ikke findes nogen match, vises en knap "Opret [navn] som ny lejer". Ved klik aabnes en dialog hvor operatoeren kan udfylde de noedvendige oplysninger og oprette lejeren med det samme - uden at forlade registreringsformularen.
 
 ## Teknisk implementering
 
-### 1. Ny backend-funktion: `supabase/functions/ocr-stamp/index.ts`
-- Modtager base64-kodet billede fra klienten
-- Sender billedet til Lovable AI Gateway med `google/gemini-2.5-flash` (multimodal)
-- System-prompt beder modellen om KUN at returnere forsendelsesnummeret (tal) fra billedet
-- Returnerer det fundne nummer som JSON `{ stamp_number: "12345" }` eller `{ stamp_number: null }` hvis intet findes
+### Fil: `src/components/RegisterMailDialog.tsx`
 
-### 2. Opdatering af `src/components/RegisterMailDialog.tsx`
-- Ny state: `ocrLoading` (boolean) for loading-indikator
-- Ny funktion `runOcr(file: File)`:
-  - Konverterer filen til base64
-  - Kalder edge-funktionen `/functions/v1/ocr-stamp`
-  - Hvis et nummer returneres og feltet er tomt, udfyldes `stampNumber` automatisk
-  - Viser toast ved fejl
-- Kald `runOcr()` automatisk efter:
-  - `handlePhotoChange` (fil-upload)
-  - `capturePhoto` (kamera)
-- Vis spinner/tekst "Laeser nummer..." ved forsendelsesnr.-feltet mens OCR koerer
+1. **Vis "Opret ny lejer"-mulighed i soegeresultater**
+   - Naar `tenantSearch` har tekst men `filteredTenants` er tom (ingen match), vis en knap i dropdown-listen: "Opret '[soege-tekst]' som ny lejer"
+   - Klik paa knappen aabner en ny dialog til oprettelse
 
-### 3. Konfiguration
-- Opdater `supabase/config.toml` med den nye funktion (verify_jwt = false for simpelhed, da den kun bruges internt)
-- LOVABLE_API_KEY er allerede tilgaengelig som secret
+2. **Ny state-variabler**
+   - `showCreateTenant: boolean` - styrer om opret-dialogen vises
+   - `newTenantName: string` - pre-udfyldt med soege-teksten
+   - `creatingTenant: boolean` - loading-state under oprettelse
 
+3. **Ny komponent/sektion: Opret Lejer-dialog**
+   - En nested `Dialog` med felter for:
+     - Firmanavn (pre-udfyldt fra soege-teksten)
+     - Kontaktperson (valgfrit)
+     - Kontakt-email (valgfrit)
+     - Adresse (valgfrit)
+     - Lejertype (vaelges fra `tenant_types`-tabellen)
+   - Hent `tenant_types` med en ekstra useQuery
+   - Ved submit: indsaet ny lejer i `tenants`-tabellen, vælg automatisk den nye lejer i formularen, og luk dialogen
+
+4. **Flow efter oprettelse**
+   - Den nye lejer vaelges automatisk (`setSelectedTenantId` / `setSelectedTenantName`)
+   - `tenants-active` query invalideres saa listen opdateres
+   - Operatoeren kan fortsaette med at udfylde resten af postregistreringen
+
+### Forudsaetninger
+- RLS-politikker tillader allerede operatoerer at indsaette i `tenants`-tabellen
+- `tenant_types` kan allerede laeses af autentificerede brugere
+- Ingen database-aendringer er noedvendige
