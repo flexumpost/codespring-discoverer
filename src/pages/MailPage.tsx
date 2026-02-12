@@ -4,11 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ImageIcon, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { RegisterMailDialog } from "@/components/RegisterMailDialog";
+import { ImageIcon } from "lucide-react";
 import type { Tables, Database } from "@/integrations/supabase/types";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
@@ -22,8 +20,6 @@ const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> 
 };
 
 const MailPage = () => {
-  const navigate = useNavigate();
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
@@ -49,14 +45,6 @@ const MailPage = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Post</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/bulk-upload")} className="gap-2">
-            <Upload className="h-4 w-4" /> Bulk upload
-          </Button>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Registrer post
-          </Button>
-        </div>
       </div>
 
       <div className="flex gap-3 mb-4">
@@ -131,7 +119,7 @@ const MailPage = () => {
         </Table>
       )}
 
-      <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      
     </div>
     </AppLayout>
   );
