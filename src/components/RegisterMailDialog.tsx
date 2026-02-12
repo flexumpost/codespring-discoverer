@@ -328,9 +328,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           </DialogHeader>
 
           {photo ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>{photoSection}</div>
-              <div>{formFields}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="sm:col-span-2 h-full">{photoSection}</div>
+              <div className="sm:col-span-1">{formFields}</div>
             </div>
           ) : (
             <div className="space-y-4">
