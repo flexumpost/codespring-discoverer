@@ -1,13 +1,31 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useAuth } from "@/hooks/useAuth";
+import { AppLayout } from "@/components/AppLayout";
+import OperatorDashboard from "./OperatorDashboard";
+import TenantDashboard from "./TenantDashboard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
+  const { role, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+            <Skeleton className="h-32" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <AppLayout>
+      {role === "operator" ? <OperatorDashboard /> : <TenantDashboard />}
+    </AppLayout>
   );
 };
 
