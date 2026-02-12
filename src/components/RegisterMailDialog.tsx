@@ -54,7 +54,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name")
+        .select("id, company_name, tenant_type_id")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;
@@ -396,6 +396,34 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           </div>
         )}
       </div>
+
+      {/* Lejertype info-boks */}
+      {(() => {
+        const tenantTypeColorMap: Record<string, string> = {
+          "Lite": "bg-blue-100 text-blue-800 border-blue-200",
+          "Standard": "bg-green-100 text-green-800 border-green-200",
+          "Plus": "bg-purple-100 text-purple-800 border-purple-200",
+          "Fastlejer": "bg-amber-100 text-amber-800 border-amber-200",
+          "Nabo": "bg-cyan-100 text-cyan-800 border-cyan-200",
+          "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
+        };
+        const selectedTenant = tenants?.find((t) => t.id === selectedTenantId);
+        const tenantType = selectedTenant
+          ? tenantTypes?.find((tt) => tt.id === selectedTenant.tenant_type_id)
+          : null;
+        const typeName = tenantType?.name ?? null;
+        const colorClasses = typeName ? (tenantTypeColorMap[typeName] ?? "bg-gray-100 text-gray-800 border-gray-200") : "";
+
+        return (
+          <div
+            className={`rounded-md border px-3 py-2 text-sm font-medium min-h-[36px] flex items-center ${
+              typeName ? colorClasses : "bg-white border-border text-muted-foreground"
+            }`}
+          >
+            {typeName ?? "Ingen lejer valgt"}
+          </div>
+        );
+      })()}
 
       {/* Forsendelsesnr (obligatorisk) */}
       <div className="space-y-2">
