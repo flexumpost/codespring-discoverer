@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/hooks/useAuth";
 import flexumLogo from "@/assets/flexum-logo.png";
 
@@ -19,6 +20,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
             {displayName && (
               <span className="ml-4 text-sm text-muted-foreground">Hej {displayName}</span>
             )}
+            <div className="ml-auto">
+              <NotificationBell />
+            </div>
           </header>
           <div className="flex-1 p-6">
             {children}
