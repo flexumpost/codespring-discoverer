@@ -1,61 +1,62 @@
 
 
-## Fase 3: Lejer-portal -- komplet plan
+## Multi-tenant UI: Virksomhedsvaelger og separate indstillinger
 
-### Status: Hvad er allerede implementeret?
-Lejer-dashboardet (`TenantDashboard.tsx`) har allerede en solid base:
-- Statistik-kort med filtrering (ny, ulaest, laest, arkiveret)
-- Post-tabel med foto, type, forsendelsesnr., status, handlinger, modtaget-dato
-- Handlingsvalg baseret paa lejertype (allowed_actions)
-- Foto-preview dialog
-- Bekraeft-destruering dialog
+### Oversigt
+Brugere med flere virksomheder kan i dag kun se den foerste. Vi tilfojer en virksomhedsvaelger, saa de kan skifte mellem deres virksomheder i dashboardet og paa indstillingssiden.
 
-### Hvad mangler?
+### Problem i dag
+- `TenantDashboard` henter kun en enkelt tenant via `.maybeSingle()`
+- `SettingsPage` goer det samme
+- Post-tabellen viser al post for alle brugerens virksomheder uden at vise hvilken virksomhed posten tilhoerer
+- Statistik er samlet paa tvaers af virksomheder
 
-**1. Indstillinger-side (`/settings`) -- sidebaren linker til den, men den eksisterer ikke**
-- Opret `src/pages/SettingsPage.tsx` med lejerens profil-info (navn, email, virksomhed)
-- Vis lejertype (Lite, Standard, Plus osv.) som read-only badge
-- Mulighed for at opdatere `contact_name` og `contact_email` paa `tenants`-tabellen
-- Tilfoej ruten i `App.tsx`
+### Aendringer
 
-**2. Detaljevisning for enkelt forsendelse**
-- Klik paa en raekke i tabellen aabner en dialog med fuld info:
-  - Stort foto (hvis tilgaengeligt)
-  - Type, forsendelsesnr., afsender, status, valgt handling
-  - Modtaget-dato
-  - Noter fra operatoer
-- Naar en lejer aabner en forsendelse med status "ny" eller "ulaest", opdateres status automatisk til "laest"
+**1. Ny hook: `src/hooks/useTenants.tsx`**
+- Henter alle virksomheder for den aktuelle bruger (ikke `.maybeSingle()` men alle raeekker)
+- Holder styr paa den valgte virksomhed (`selectedTenantId`) i state
+- Eksporterer `tenants`, `selectedTenant`, `setSelectedTenantId`
+- Henter ogsaa `tenant_types(name, allowed_actions)` med i select
 
-**3. Markering som laest (statusovergang)**
-- Naar lejeren aabner en forsendelse, kald en mutation der opdaterer status:
-  - "ny" -> "laest" (hvis ingen handling er valgt endnu, forbliv "ny" men vis som laest visuelt, eller skift til "ulaest" foerst)
-  - "ulaest" -> "laest"
-- Invalidate stats og mail-queries
+**2. Ny komponent: `src/components/TenantSelector.tsx`**
+- Dropdown (Select) der viser alle brugerens virksomheder med firmanavn
+- Vises kun naar brugeren har mere end 1 virksomhed
+- Naar der kun er 1 virksomhed, vises intet (eller virksomhedsnavnet som tekst)
 
-**4. Arkivering**
-- Tilfoej en "Arkiver" knap i detaljevisningen for forsendelser med status "laest" eller "afventer_handling"
-- Opdaterer status til "arkiveret"
+**3. Opdatering: `src/pages/TenantDashboard.tsx`**
+- Brug `useTenants` hook i stedet for den nuvaerende tenant-query
+- Vis `TenantSelector` oeverst paa siden (naar relevant)
+- Filtrér stats-queries paa `tenant_id` for den valgte virksomhed
+- Filtrér mail_items-query paa `tenant_id`
+- Hent `allowed_actions` fra den valgte tenants type
+- Vis virksomhedsnavn i tabellen (kun naar brugeren har flere)
+
+**4. Opdatering: `src/pages/SettingsPage.tsx`**
+- Brug `useTenants` hook
+- Vis `TenantSelector` oeverst
+- Vis info og redigeringsformular for den valgte virksomhed
+- Naar brugeren skifter virksomhed, opdateres formularen
 
 ### Tekniske detaljer
 
-**Ny fil: `src/pages/SettingsPage.tsx`**
-- Hent lejer-data via `supabase.from("tenants").select("*, tenant_types(name)").eq("user_id", user.id)`
-- Formular med `contact_name`, `contact_email` felter
-- Gem-knap der kalder `supabase.from("tenants").update(...)` 
-- Wrapped i `AppLayout`
+**`useTenants` hook:**
+```text
+- Query: supabase.from("tenants").select("*, tenant_types(name, allowed_actions)").eq("user_id", user.id)
+- State: selectedTenantId (default: foerste tenant)
+- Return: { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading }
+```
 
-**Opdatering: `src/App.tsx`**
-- Tilfoej route: `<Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />`
+**Dashboard mail-query filter:**
+```text
+query = query.eq("tenant_id", selectedTenantId)
+```
 
-**Opdatering: `src/pages/TenantDashboard.tsx`**
-- Tilfoej state `selectedMailItem` for detalje-dialog
-- Klik paa raekke aabner dialog (ikke kun foto-klik)
-- Ved aabning: kald mutation til at opdatere status til "laest" hvis "ny" eller "ulaest"
-- Tilfoej "Arkiver" knap i detalje-dialogen
-- Tilfoej visning af afsender (`sender_name`) og noter (`notes`) i detalje-dialog
+**Filer der oprettes/aendres:**
+- `src/hooks/useTenants.tsx` (ny)
+- `src/components/TenantSelector.tsx` (ny)
+- `src/pages/TenantDashboard.tsx` (opdateret)
+- `src/pages/SettingsPage.tsx` (opdateret)
 
-**Filer der aendres/oprettes:**
-- `src/pages/SettingsPage.tsx` (ny)
-- `src/App.tsx` (ny route)
-- `src/pages/TenantDashboard.tsx` (detaljevisning, laest-markering, arkivering)
+Ingen database-aendringer er noedvendige -- datamodellen understoetter allerede flere virksomheder per bruger.
 
