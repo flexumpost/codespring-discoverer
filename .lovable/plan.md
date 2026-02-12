@@ -1,52 +1,32 @@
 
 
-## Flyt post-listen ind paa dashboardet og fjern "Post" menupunktet
+## Vis alle forsendelser når intet kort er valgt
 
-### Oversigt
-Post-listen fra `/mail`-siden flyttes ind paa operatoer-dashboardet, saa den vises under kortene naar et kort klikkes. "Post"-menupunktet fjernes fra sidebaren.
+### Ændring
 
-### Aendringer
+**`src/pages/OperatorDashboard.tsx`**
 
-**1. `src/pages/OperatorDashboard.tsx`**
-- Aendr den filtrerede tabel (som allerede vises ved klik paa kort) til at bruge det rigere tabelformat fra MailPage med: Foto-thumbnail, Type, Lejer, Forsendelsesnr., Status, Modtaget
-- Fjern den separate "fuld side"-visning (if-blokken der returnerer tidligt) -- vis i stedet tabellen under kortene paa samme side
-- Naar et kort er valgt, vis kortets titel og tabellen under kort-raeekken. Klik paa samme kort igen for at skjule tabellen
-- Importer ImageIcon og STATUS_LABELS fra MailPage-logikken
-- Behold knapperne "Bulk upload" og "Registrer post" synlige hele tiden
+Når `selectedCard` er `null`, vises alle forsendelser i tabellen i stedet for en tom visning. Listen sorteres efter `stamp_number` (forsendelsesnr.).
 
-**2. `src/components/AppSidebar.tsx`**
-- Fjern "Post"-linjen (`{ title: "Post", url: "/mail", icon: Mail }`) fra `operatorItems`
+Konkret:
+- Ændr `filteredItems` logikken: hvis intet kort er valgt, brug alle `mailItems` i stedet for en tom liste
+- Sortér `filteredItems` efter `stamp_number` (numerisk/alfabetisk, med tomme værdier sidst)
+- Vis tabellen altid (med overskriften "Alle forsendelser" når intet kort er valgt, ellers kortets titel)
+- Fjern betingelsen `selectedCard && activeFilter` fra tabelvisningen, så tabellen altid renderes
 
-**3. `src/App.tsx`**
-- Fjern `/mail`-ruten og importen af `MailPage`
+### Teknisk detalje
 
-**4. `src/pages/MailPage.tsx`**
-- Filen kan slettes da funktionaliteten nu lever i dashboardet
-
-### Tekniske detaljer
-
-**Dashboard layout efter aendringen:**
 ```text
-[Header: "Operatoer-dashboard"  |  Bulk upload | Registrer post]
+const filteredItems = activeFilter
+  ? mailItems.filter(activeFilter.filter)
+  : mailItems;
 
-[Kort 1] [Kort 2] [Kort 3] [Kort 4] [Kort 5] [Kort 6]
-
---- Naar et kort er valgt: ---
-[Tilbage-knap + "Ikke tildelt" overskrift]
-[Tabel med Foto | Type | Lejer | Forsendelsesnr. | Status | Modtaget]
+const sortedItems = [...filteredItems].sort((a, b) => {
+  if (!a.stamp_number) return 1;
+  if (!b.stamp_number) return -1;
+  return a.stamp_number.localeCompare(b.stamp_number, "da-DK", { numeric: true });
+});
 ```
 
-**Tabel-kolonner i den nye visning:**
-- Foto (40x40px thumbnail eller placeholder-ikon)
-- Type (Brev/Pakke badge)
-- Lejer (virksomhedsnavn)
-- Forsendelsesnr.
-- Status (badge med dansk label)
-- Modtaget (dato)
-
-**Filer der aendres:**
-- `src/pages/OperatorDashboard.tsx` (opdateret -- udvidet tabel)
-- `src/components/AppSidebar.tsx` (opdateret -- fjern Post)
-- `src/App.tsx` (opdateret -- fjern /mail route)
-- `src/pages/MailPage.tsx` (slettet)
+Kun én fil ændres: `src/pages/OperatorDashboard.tsx`
 
