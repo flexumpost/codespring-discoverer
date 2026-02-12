@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Plus, ImageIcon } from "lucide-react";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 import type { Tables, Database } from "@/integrations/supabase/types";
 
@@ -87,8 +87,8 @@ const MailPage = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[60px]">Foto</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Afsender</TableHead>
               <TableHead>Lejer</TableHead>
               <TableHead>Forsendelsesnr.</TableHead>
               <TableHead>Status</TableHead>
@@ -99,11 +99,19 @@ const MailPage = () => {
             {mailItems.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
+                  {item.photo_url ? (
+                    <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
                     {item.mail_type === "pakke" ? "Pakke" : "Brev"}
                   </Badge>
                 </TableCell>
-                <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
                 <TableCell>{item.stamp_number ?? "—"}</TableCell>
                 <TableCell>
