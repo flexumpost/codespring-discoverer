@@ -142,15 +142,24 @@ const BulkUploadPage = () => {
             break;
           }
         } else {
-          const match = fuzzyMatchTenant(result.recipientName, tenants);
+          // Smart swap: if sender matches a tenant but recipient doesn't, swap them
+          let { recipientName, senderName } = result;
+          const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
+          const senderMatch = fuzzyMatchTenant(senderName, tenants);
+          if (!recipientMatch && senderMatch) {
+            const tmp = recipientName;
+            recipientName = senderName;
+            senderName = tmp;
+          }
+          const match = recipientMatch || senderMatch;
           setItems((prev) => {
             const copy = [...prev];
             if (copy[itemIdx]) {
               copy[itemIdx] = {
                 ...copy[itemIdx],
                 stampNumber: result.stampNumber,
-                recipientName: result.recipientName,
-                senderName: result.senderName,
+                recipientName,
+                senderName,
                 tenantId: match?.id ?? null,
                 tenantName: match?.company_name ?? "",
                 status: "ok",
