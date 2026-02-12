@@ -13,6 +13,7 @@ export type BulkItem = {
   preview: string;
   stampNumber: string;
   recipientName: string;
+  senderName: string;
   tenantId: string | null;
   tenantName: string;
   mailType: MailType;
@@ -45,6 +46,7 @@ export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem
             <TableHead className="w-[60px]">Foto</TableHead>
             <TableHead>Forsendelsesnr.</TableHead>
             <TableHead>Modtager</TableHead>
+            <TableHead>Afsender</TableHead>
             <TableHead>Lejer</TableHead>
             <TableHead className="w-[110px]">Type</TableHead>
             <TableHead className="w-[50px]">Status</TableHead>
@@ -74,6 +76,14 @@ export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem
                   value={item.recipientName}
                   onChange={(e) => onUpdateItem(idx, { recipientName: e.target.value })}
                   placeholder="Modtager"
+                  className="h-8 w-36"
+                />
+              </TableCell>
+              <TableCell>
+                <Input
+                  value={item.senderName}
+                  onChange={(e) => onUpdateItem(idx, { senderName: e.target.value })}
+                  placeholder="Afsender"
                   className="h-8 w-36"
                 />
               </TableCell>
