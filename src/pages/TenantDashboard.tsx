@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Clock, Archive } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Mail, Clock, Archive, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const TenantDashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [stats, setStats] = useState({ total: 0, pending: 0, archived: 0 });
 
@@ -50,6 +53,11 @@ const TenantDashboard = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+      <div className="mt-6">
+        <Button onClick={() => navigate("/my-mail")} className="gap-2">
+          Se al post <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
