@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useTenants } from "@/hooks/useTenants";
+import { TenantSelector } from "@/components/TenantSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -37,21 +39,35 @@ type FilterStatus = "ny" | "ulaest" | "laest" | "arkiveret" | null;
 const TenantDashboard = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId } = useTenants();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<MailItem | null>(null);
 
-  // Fetch stats
+  const hasMultipleTenants = tenants.length > 1;
+
+  // Derive allowed actions from selected tenant's type
+  const allowedActions: string[] =
+    (selectedTenant?.tenant_types as any)?.allowed_actions as string[] ?? [];
+
+  // Fetch stats filtered by selected tenant
   const { data: stats = { ny: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
-    queryKey: ["tenant-stats"],
-    enabled: !!user,
+    queryKey: ["tenant-stats", selectedTenantId],
+    enabled: !!user && !!selectedTenantId,
     queryFn: async () => {
+      const base = (status: MailStatus) =>
+        supabase
+          .from("mail_items")
+          .select("id", { count: "exact", head: true })
+          .eq("status", status)
+          .eq("tenant_id", selectedTenantId!);
+
       const [nyRes, ulaestRes, laestRes, arkiveretRes] = await Promise.all([
-        supabase.from("mail_items").select("id", { count: "exact", head: true }).eq("status", "ny"),
-        supabase.from("mail_items").select("id", { count: "exact", head: true }).eq("status", "ulaest"),
-        supabase.from("mail_items").select("id", { count: "exact", head: true }).eq("status", "laest"),
-        supabase.from("mail_items").select("id", { count: "exact", head: true }).eq("status", "arkiveret"),
+        base("ny"),
+        base("ulaest"),
+        base("laest"),
+        base("arkiveret"),
       ]);
       return {
         ny: nyRes.count ?? 0,
@@ -62,44 +78,15 @@ const TenantDashboard = () => {
     },
   });
 
-  // Fetch tenant info
-  const { data: tenant } = useQuery({
-    queryKey: ["my-tenant", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("id, tenant_type_id")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch allowed actions
-  const { data: allowedActions = [] } = useQuery({
-    queryKey: ["tenant-type-actions", tenant?.tenant_type_id],
-    enabled: !!tenant?.tenant_type_id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tenant_types")
-        .select("allowed_actions")
-        .eq("id", tenant!.tenant_type_id)
-        .single();
-      if (error) throw error;
-      return (data?.allowed_actions as string[]) ?? [];
-    },
-  });
-
-  // Fetch mail items based on active filter
+  // Fetch mail items filtered by selected tenant
   const { data: mailItems = [], isLoading } = useQuery({
-    queryKey: ["tenant-mail", activeFilter],
-    enabled: !!user,
+    queryKey: ["tenant-mail", activeFilter, selectedTenantId],
+    enabled: !!user && !!selectedTenantId,
     queryFn: async () => {
       let query = supabase
         .from("mail_items")
-        .select("*")
+        .select(hasMultipleTenants ? "*, tenants(company_name)" : "*")
+        .eq("tenant_id", selectedTenantId!)
         .order("received_at", { ascending: false });
 
       if (activeFilter) {
@@ -182,7 +169,6 @@ const TenantDashboard = () => {
 
   const handleRowClick = (item: MailItem) => {
     setSelectedItem(item);
-    // Mark as read if status is "ny" or "ulaest"
     if (item.status === "ny" || item.status === "ulaest") {
       markAsRead.mutate(item.id);
     }
@@ -191,7 +177,6 @@ const TenantDashboard = () => {
   const canArchive =
     selectedItem &&
     (selectedItem.status === "laest" || selectedItem.status === "afventer_handling" ||
-      // Also allow archiving if we just marked it as read
       selectedItem.status === "ny" || selectedItem.status === "ulaest");
 
   const cards = [
@@ -203,7 +188,14 @@ const TenantDashboard = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Min post</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Min post</h2>
+        <TenantSelector
+          tenants={tenants}
+          selectedTenantId={selectedTenantId}
+          onSelect={setSelectedTenantId}
+        />
+      </div>
 
       {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">
@@ -249,7 +241,7 @@ const TenantDashboard = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mailItems.map((item) => (
+            {mailItems.map((item: any) => (
               <TableRow
                 key={item.id}
                 className="cursor-pointer hover:bg-muted/50"
@@ -276,7 +268,7 @@ const TenantDashboard = () => {
                 <TableCell>{item.stamp_number ?? "—"}</TableCell>
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
+                  <Badge variant="outline">{STATUS_LABELS[item.status as MailStatus]}</Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {item.status === "ny" ? (
