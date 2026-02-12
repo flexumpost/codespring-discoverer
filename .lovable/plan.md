@@ -1,58 +1,53 @@
 
 
-## Udvid OCR til at aflaese afsender (tekst og logo-genkendelse)
+## Intelligent afsender/modtager-korrektion via tenant-krydscheck
 
-### Oversigt
-OCR-funktionen udvides til ogsaa at identificere afsenderen paa forsendelser -- baade via tekst og logo-genkendelse. Resultatet vises i dashboardet og i bulk upload.
+### Problem
+OCR-modellen forveksler nogle gange afsender og modtager. I det konkrete tilfaelde blev "ROADRUNNERCARGO APS" (som er en kendt lejer) returneret som `sender_name`, mens "DANICA RAADGIVNING APS" (den reelle afsender) blev returneret som `recipient_name`.
 
-Databasen har allerede kolonnen `sender_name` paa `mail_items`, saa der kraeves ingen database-aendringer.
+### Loesning
+Tilfoej en post-processing logik paa klientsiden der krydstjekker OCR-resultatet mod den kendte lejer-liste. Hvis `sender_name` matcher en lejer men `recipient_name` ikke goer, byttes de to vaerdier automatisk.
 
-### Aendringer
+Logikken:
 
-**1. `supabase/functions/ocr-stamp/index.ts`**
-- Udvid tool-calling skemaet med et nyt felt `sender_name` (afsenderens navn, firma eller logo-tekst)
-- Opdater system-prompten til at bede modellen om ogsaa at identificere afsenderen -- baade som trykt tekst og som genkendt logo (f.eks. PostNord, DHL, GLS, DPD)
-- Returner `sender_name` sammen med `stamp_number` og `recipient_name`
-
-Prompt-tilfoejelse:
 ```text
-Find ogsaa afsenderens navn eller firma. Hvis der er et logo (f.eks. PostNord, DHL, GLS),
-returner logoets firmanavn. Returner tom streng hvis ikke fundet.
+1. Proev at matche recipient_name mod lejerlisten -> recipientMatch
+2. Proev at matche sender_name mod lejerlisten -> senderMatch
+3. Hvis recipientMatch IKKE fundet, men senderMatch fundet:
+   -> Byt: recipient_name = sender_name, sender_name = original recipient_name
+4. Ellers: behold som OCR returnerede
 ```
 
-Tool-skema udvides med:
-```text
-sender_name: {
-  type: "string",
-  description: "Afsenderens navn eller firmanavn (inkl. logo-genkendelse). Tom streng hvis ikke fundet."
-}
-```
+### Filer der aendres
 
-**2. `src/components/RegisterMailDialog.tsx`**
-- Naar OCR returnerer `sender_name`, prae-udfyld `senderName`-feltet automatisk
-- Vis en toast ved succes: "Afsender fundet: [navn]"
+**1. `src/components/RegisterMailDialog.tsx`**
+- I `runOcr`-funktionen (efter OCR-resultatet modtages, ca. linje 168-200): tilfoej krydscheck-logik der bytter sender/recipient hvis sender matcher en lejer men recipient ikke goer
+- Brug den eksisterende `fuzzyMatchTenant`-funktion til begge tjek
 
-**3. `src/components/BulkMailReviewTable.tsx`**
-- Tilfoej en ny kolonne "Afsender" med et redigerbart input-felt
-
-**4. `src/pages/BulkUploadPage.tsx`**
-- Udvid `BulkItem`-typen med `senderName: string`
-- Gem OCR-resultatet for `sender_name` i itemet
-- Ved gem: indsaet `sender_name` i `mail_items`-inserten
-
-**5. `src/pages/OperatorDashboard.tsx`**
-- Tilfoej en kolonne "Afsender" i tabellen, der viser `item.sender_name`
+**2. `src/pages/BulkUploadPage.tsx`**
+- I OCR-resultat-haaandteringen (ca. linje 144-161): tilfoej samme krydscheck-logik foer tenant-matching og item-opdatering
+- Brug den eksisterende `fuzzyMatchTenant`-funktion
 
 ### Teknisk detalje
 
-Ingen database-migration noeodvendig -- `sender_name` (text, nullable) findes allerede paa `mail_items`.
+Krydscheck-funktionen der tilfoeejes begge steder:
 
-Gemini Flash er multimodal og kan baade laese tekst og genkende velkendte logoer (PostNord, DHL, GLS, DPD, FedEx osv.) direkte fra billedet. Der tilfoeejes ingen ny model eller API -- kun prompten udvides.
+```text
+function smartSwapSenderRecipient(
+  recipientName: string,
+  senderName: string,
+  tenants: TenantList
+): { recipientName: string; senderName: string } {
+  const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
+  const senderMatch = fuzzyMatchTenant(senderName, tenants);
 
-**Filer der aendres:**
-- `supabase/functions/ocr-stamp/index.ts` (udvid prompt og tool-skema)
-- `src/components/RegisterMailDialog.tsx` (prae-udfyld afsender)
-- `src/components/BulkMailReviewTable.tsx` (ny kolonne)
-- `src/pages/BulkUploadPage.tsx` (udvid BulkItem + gem sender_name)
-- `src/pages/OperatorDashboard.tsx` (ny kolonne i tabel)
+  if (!recipientMatch && senderMatch) {
+    // Sender er en kendt lejer -> byt
+    return { recipientName: senderName, senderName: recipientName };
+  }
+  return { recipientName, senderName };
+}
+```
+
+Ingen aendringer til edge function eller database.
 
