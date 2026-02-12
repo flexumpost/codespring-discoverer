@@ -23,7 +23,6 @@ const operatorItems = [
 
 const tenantItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Min post", url: "/my-mail", icon: Mail },
   { title: "Indstillinger", url: "/settings", icon: Settings },
 ];
 

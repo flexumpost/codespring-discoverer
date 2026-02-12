@@ -7,7 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import MailPage from "./pages/MailPage";
-import TenantMailPage from "./pages/TenantMailPage";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,14 +40,7 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     />
-    <Route
-      path="/my-mail"
-      element={
-        <ProtectedRoute>
-          <TenantMailPage />
-        </ProtectedRoute>
-      }
-    />
+    <Route path="*" element={<NotFound />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
