@@ -322,15 +322,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={photo ? "sm:max-w-3xl" : "sm:max-w-md"}>
+        <DialogContent className={photo ? "sm:max-w-4xl" : "sm:max-w-md"}>
           <DialogHeader>
             <DialogTitle>Registrer ny post</DialogTitle>
           </DialogHeader>
 
           {photo ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="sm:col-span-2 h-full">{photoSection}</div>
-              <div className="sm:col-span-1">{formFields}</div>
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex-1 min-w-0 h-full">{photoSection}</div>
+              <div className="sm:w-[400px] sm:flex-shrink-0">{formFields}</div>
             </div>
           ) : (
             <div className="space-y-4">
