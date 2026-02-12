@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import MailPage from "./pages/MailPage";
+import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,14 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <MailPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/bulk-upload"
+      element={
+        <ProtectedRoute>
+          <BulkUploadPage />
         </ProtectedRoute>
       }
     />
