@@ -322,7 +322,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={photo ? "sm:max-w-4xl" : "sm:max-w-md"}>
+        <DialogContent className={photo ? "max-w-[1300px]" : "sm:max-w-md"}>
           <DialogHeader>
             <DialogTitle>Registrer ny post</DialogTitle>
           </DialogHeader>
