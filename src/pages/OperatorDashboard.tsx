@@ -122,21 +122,21 @@ const OperatorDashboard = () => {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">Operatør-dashboard</h2>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 grid-cols-3 md:grid-cols-6">
         {counts.map((card) => (
           <Card
             key={card.title}
             className="cursor-pointer transition-shadow hover:shadow-md"
             onClick={() => setSelectedCard(card.title)}
           >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
+              <CardTitle className="text-xs font-medium text-muted-foreground">
                 {card.title}
               </CardTitle>
-              <card.icon className={`h-5 w-5 ${card.color}`} />
+              <card.icon className={`h-4 w-4 ${card.color}`} />
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{card.count}</div>
+            <CardContent className="p-3 pt-0">
+              <div className="text-2xl font-bold">{card.count}</div>
             </CardContent>
           </Card>
         ))}
