@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { validateStampNumber } from "@/lib/validateStampNumber";
 
 function fuzzyMatchTenant(
   name: string,
@@ -50,6 +51,20 @@ const BulkUploadPage = () => {
         .order("company_name");
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: recentStampNumbers = [] } = useQuery({
+    queryKey: ["recent-stamp-numbers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mail_items")
+        .select("stamp_number")
+        .not("stamp_number", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data.map((r) => r.stamp_number as number);
     },
   });
 
@@ -152,12 +167,25 @@ const BulkUploadPage = () => {
             senderName = tmp;
           }
           const match = recipientMatch || senderMatch;
+
+          // Validate stamp number against recent history
+          let validatedStampNumber = result.stampNumber;
+          if (validatedStampNumber) {
+            const validation = validateStampNumber(validatedStampNumber, recentStampNumbers);
+            if (!validation.valid) {
+              toast.warning(`Aflæst nr. "${validatedStampNumber}" virker usandsynligt – kontrollér venligst`, {
+                description: validation.reason,
+              });
+              validatedStampNumber = "";
+            }
+          }
+
           setItems((prev) => {
             const copy = [...prev];
             if (copy[itemIdx]) {
               copy[itemIdx] = {
                 ...copy[itemIdx],
-                stampNumber: result.stampNumber,
+                stampNumber: validatedStampNumber,
                 recipientName,
                 senderName,
                 tenantId: match?.id ?? null,
