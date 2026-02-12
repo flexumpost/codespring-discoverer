@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X, Video, VideoOff } from "lucide-react";
+import { Camera, Upload, X, Video, VideoOff, ZoomIn } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
@@ -34,6 +34,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [submitting, setSubmitting] = useState(false);
   const [showTenantList, setShowTenantList] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [showZoom, setShowZoom] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -77,7 +78,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
       setShowCamera(true);
-      // Wait for video element to mount, then attach stream
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -109,7 +109,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }, "image/jpeg", 0.9);
   };
 
-  // Cleanup camera when dialog closes
   useEffect(() => {
     if (!open) {
       stopCamera();
@@ -126,6 +125,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setNotes("");
     setPhoto(null);
     setPhotoPreview(null);
+    setShowZoom(false);
     stopCamera();
   };
 
@@ -173,160 +173,184 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Registrer ny post</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Posttype */}
-          <div className="space-y-2">
-            <Label>Posttype</Label>
-            <RadioGroup value={mailType} onValueChange={(v) => setMailType(v as MailType)} className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="brev" id="brev" />
-                <Label htmlFor="brev" className="cursor-pointer">Brev</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pakke" id="pakke" />
-                <Label htmlFor="pakke" className="cursor-pointer">Pakke</Label>
-              </div>
-            </RadioGroup>
+  const photoSection = (
+    <div className="space-y-2">
+      <Label>Foto (valgfrit)</Label>
+      {photoPreview ? (
+        <div
+          className="relative w-full rounded-md overflow-hidden border border-border cursor-zoom-in group"
+          onClick={() => setShowZoom(true)}
+        >
+          <img src={photoPreview} alt="Preview" className="w-full h-auto object-contain" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+            <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
           </div>
-
-          {/* Foto */}
-          <div className="space-y-2">
-            <Label>Foto (valgfrit)</Label>
-            {photoPreview ? (
-              <div className="relative w-full h-32 rounded-md overflow-hidden border border-border">
-                <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-1 right-1 h-6 w-6"
-                  onClick={() => { setPhoto(null); setPhotoPreview(null); }}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : showCamera ? (
-              <div className="space-y-2">
-                <div className="relative w-full rounded-md overflow-hidden border border-border bg-black aspect-video">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" className="flex-1" onClick={capturePhoto}>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Tag billede
-                  </Button>
-                  <Button type="button" variant="outline" onClick={stopCamera}>
-                    <VideoOff className="h-4 w-4 mr-2" />
-                    Annuller
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <label className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors">
-                    <Upload className="h-4 w-4" />
-                    Upload foto
-                  </div>
-                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                </label>
-                <button
-                  type="button"
-                  className="flex-1 flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
-                  onClick={handleTakePhoto}
-                >
-                  <Camera className="h-4 w-4" />
-                  Tag billede
-                </button>
-              </div>
-            )}
-            <canvas ref={canvasRef} className="hidden" />
-          </div>
-
-          {/* Felter vises kun efter foto er uploadet */}
-          {photo && (
-            <>
-              {/* Forsendelsesnr */}
-              <div className="space-y-2">
-                <Label htmlFor="stamp">Forsendelsesnr. (valgfrit)</Label>
-                <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
-              </div>
-
-              {/* Afsender */}
-              <div className="space-y-2">
-                <Label htmlFor="sender">Afsender</Label>
-                <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
-              </div>
-
-              {/* Lejer søgefelt */}
-              <div className="space-y-2 relative">
-                <Label>Lejer (valgfrit)</Label>
-                {selectedTenantId ? (
-                  <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                    <span className="flex-1">{selectedTenantName}</span>
-                    <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setSelectedTenantId(null); setSelectedTenantName(""); setTenantSearch(""); }}>
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Input
-                    value={tenantSearch}
-                    onChange={(e) => { setTenantSearch(e.target.value); setShowTenantList(true); }}
-                    onFocus={() => setShowTenantList(true)}
-                    onBlur={() => setTimeout(() => setShowTenantList(false), 200)}
-                    placeholder="Søg lejer..."
-                  />
-                )}
-                {showTenantList && !selectedTenantId && filteredTenants.length > 0 && (
-                  <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
-                    {filteredTenants.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                        onMouseDown={() => {
-                          setSelectedTenantId(t.id);
-                          setSelectedTenantName(t.company_name);
-                          setTenantSearch("");
-                          setShowTenantList(false);
-                        }}
-                      >
-                        {t.company_name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Noter */}
-              <div className="space-y-2">
-                <Label htmlFor="notes">Noter (valgfrit)</Label>
-                <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuelle noter..." rows={2} />
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Gemmer..." : "Registrer"}
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon"
+            className="absolute top-1 right-1 h-6 w-6"
+            onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); }}
+          >
+            <X className="h-3 w-3" />
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      ) : showCamera ? (
+        <div className="space-y-2">
+          <div className="relative w-full rounded-md overflow-hidden border border-border bg-black aspect-video">
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+          </div>
+          <div className="flex gap-2">
+            <Button type="button" className="flex-1" onClick={capturePhoto}>
+              <Camera className="h-4 w-4 mr-2" />
+              Tag billede
+            </Button>
+            <Button type="button" variant="outline" onClick={stopCamera}>
+              <VideoOff className="h-4 w-4 mr-2" />
+              Annuller
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <label className="flex-1 cursor-pointer">
+            <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors">
+              <Upload className="h-4 w-4" />
+              Upload foto
+            </div>
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+          </label>
+          <button
+            type="button"
+            className="flex-1 flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
+            onClick={handleTakePhoto}
+          >
+            <Camera className="h-4 w-4" />
+            Tag billede
+          </button>
+        </div>
+      )}
+      <canvas ref={canvasRef} className="hidden" />
+    </div>
+  );
+
+  const formFields = (
+    <div className="space-y-4">
+      {/* Posttype */}
+      <div className="space-y-2">
+        <Label>Posttype</Label>
+        <RadioGroup value={mailType} onValueChange={(v) => setMailType(v as MailType)} className="flex gap-4">
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="brev" id="brev" />
+            <Label htmlFor="brev" className="cursor-pointer">Brev</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="pakke" id="pakke" />
+            <Label htmlFor="pakke" className="cursor-pointer">Pakke</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {/* Forsendelsesnr */}
+      <div className="space-y-2">
+        <Label htmlFor="stamp">Forsendelsesnr. (valgfrit)</Label>
+        <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
+      </div>
+
+      {/* Afsender */}
+      <div className="space-y-2">
+        <Label htmlFor="sender">Afsender</Label>
+        <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
+      </div>
+
+      {/* Lejer søgefelt */}
+      <div className="space-y-2 relative">
+        <Label>Lejer (valgfrit)</Label>
+        {selectedTenantId ? (
+          <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
+            <span className="flex-1">{selectedTenantName}</span>
+            <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setSelectedTenantId(null); setSelectedTenantName(""); setTenantSearch(""); }}>
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        ) : (
+          <Input
+            value={tenantSearch}
+            onChange={(e) => { setTenantSearch(e.target.value); setShowTenantList(true); }}
+            onFocus={() => setShowTenantList(true)}
+            onBlur={() => setTimeout(() => setShowTenantList(false), 200)}
+            placeholder="Søg lejer..."
+          />
+        )}
+        {showTenantList && !selectedTenantId && filteredTenants.length > 0 && (
+          <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
+            {filteredTenants.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                onMouseDown={() => {
+                  setSelectedTenantId(t.id);
+                  setSelectedTenantName(t.company_name);
+                  setTenantSearch("");
+                  setShowTenantList(false);
+                }}
+              >
+                {t.company_name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Noter */}
+      <div className="space-y-2">
+        <Label htmlFor="notes">Noter (valgfrit)</Label>
+        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuelle noter..." rows={2} />
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className={photo ? "sm:max-w-3xl" : "sm:max-w-md"}>
+          <DialogHeader>
+            <DialogTitle>Registrer ny post</DialogTitle>
+          </DialogHeader>
+
+          {photo ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>{photoSection}</div>
+              <div>{formFields}</div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {photoSection}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Gemmer..." : "Registrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Zoom overlay */}
+      <Dialog open={showZoom} onOpenChange={setShowZoom}>
+        <DialogContent className="sm:max-w-[90vw] max-h-[95vh] p-2">
+          {photoPreview && (
+            <img
+              src={photoPreview}
+              alt="Zoom"
+              className="w-full h-auto max-h-[90vh] object-contain rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
