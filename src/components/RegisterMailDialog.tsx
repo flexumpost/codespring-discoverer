@@ -169,69 +169,74 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     <Camera className="h-4 w-4" />
                     Tag billede
                   </div>
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
+                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
                 </label>
               </div>
             )}
           </div>
 
-          {/* Forsendelsesnr */}
-          <div className="space-y-2">
-            <Label htmlFor="stamp">Forsendelsesnr. (valgfrit)</Label>
-            <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
-          </div>
-
-          {/* Afsender */}
-          <div className="space-y-2">
-            <Label htmlFor="sender">Afsender</Label>
-            <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
-          </div>
-
-          {/* Lejer søgefelt */}
-          <div className="space-y-2 relative">
-            <Label>Lejer (valgfrit)</Label>
-            {selectedTenantId ? (
-              <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
-                <span className="flex-1">{selectedTenantName}</span>
-                <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setSelectedTenantId(null); setSelectedTenantName(""); setTenantSearch(""); }}>
-                  <X className="h-3 w-3" />
-                </Button>
+          {/* Felter vises kun efter foto er uploadet */}
+          {photo && (
+            <>
+              {/* Forsendelsesnr */}
+              <div className="space-y-2">
+                <Label htmlFor="stamp">Forsendelsesnr. (valgfrit)</Label>
+                <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
               </div>
-            ) : (
-              <Input
-                value={tenantSearch}
-                onChange={(e) => { setTenantSearch(e.target.value); setShowTenantList(true); }}
-                onFocus={() => setShowTenantList(true)}
-                onBlur={() => setTimeout(() => setShowTenantList(false), 200)}
-                placeholder="Søg lejer..."
-              />
-            )}
-            {showTenantList && !selectedTenantId && filteredTenants.length > 0 && (
-              <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
-                {filteredTenants.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
-                    onMouseDown={() => {
-                      setSelectedTenantId(t.id);
-                      setSelectedTenantName(t.company_name);
-                      setTenantSearch("");
-                      setShowTenantList(false);
-                    }}
-                  >
-                    {t.company_name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
-          {/* Noter */}
-          <div className="space-y-2">
-            <Label htmlFor="notes">Noter (valgfrit)</Label>
-            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuelle noter..." rows={2} />
-          </div>
+              {/* Afsender */}
+              <div className="space-y-2">
+                <Label htmlFor="sender">Afsender</Label>
+                <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
+              </div>
+
+              {/* Lejer søgefelt */}
+              <div className="space-y-2 relative">
+                <Label>Lejer (valgfrit)</Label>
+                {selectedTenantId ? (
+                  <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
+                    <span className="flex-1">{selectedTenantName}</span>
+                    <Button type="button" variant="ghost" size="icon" className="h-5 w-5" onClick={() => { setSelectedTenantId(null); setSelectedTenantName(""); setTenantSearch(""); }}>
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <Input
+                    value={tenantSearch}
+                    onChange={(e) => { setTenantSearch(e.target.value); setShowTenantList(true); }}
+                    onFocus={() => setShowTenantList(true)}
+                    onBlur={() => setTimeout(() => setShowTenantList(false), 200)}
+                    placeholder="Søg lejer..."
+                  />
+                )}
+                {showTenantList && !selectedTenantId && filteredTenants.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
+                    {filteredTenants.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                        onMouseDown={() => {
+                          setSelectedTenantId(t.id);
+                          setSelectedTenantName(t.company_name);
+                          setTenantSearch("");
+                          setShowTenantList(false);
+                        }}
+                      >
+                        {t.company_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Noter */}
+              <div className="space-y-2">
+                <Label htmlFor="notes">Noter (valgfrit)</Label>
+                <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuelle noter..." rows={2} />
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
