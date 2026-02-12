@@ -64,7 +64,7 @@ const BulkUploadPage = () => {
   const runOcrForItem = async (
     file: File,
     retries = 0
-  ): Promise<{ stampNumber: string; recipientName: string } | { error: string; fatal?: boolean }> => {
+  ): Promise<{ stampNumber: string; recipientName: string; senderName: string } | { error: string; fatal?: boolean }> => {
     try {
       const base64 = await fileToBase64(file);
       const { data, error } = await supabase.functions.invoke("ocr-stamp", {
@@ -90,6 +90,7 @@ const BulkUploadPage = () => {
       return {
         stampNumber: data?.stamp_number ?? "",
         recipientName: data?.recipient_name ?? "",
+        senderName: data?.sender_name ?? "",
       };
     } catch (err: any) {
       return { error: err.message || "OCR fejlede" };
@@ -105,6 +106,7 @@ const BulkUploadPage = () => {
         preview: URL.createObjectURL(file),
         stampNumber: "",
         recipientName: "",
+        senderName: "",
         tenantId: null,
         tenantName: "",
         mailType: "brev" as const,
@@ -148,6 +150,7 @@ const BulkUploadPage = () => {
                 ...copy[itemIdx],
                 stampNumber: result.stampNumber,
                 recipientName: result.recipientName,
+                senderName: result.senderName,
                 tenantId: match?.id ?? null,
                 tenantName: match?.company_name ?? "",
                 status: "ok",
@@ -201,6 +204,7 @@ const BulkUploadPage = () => {
           operator_id: user.id,
           mail_type: item.mailType,
           stamp_number: item.stampNumber ? parseInt(item.stampNumber, 10) : null,
+          sender_name: item.senderName || null,
           tenant_id: item.tenantId,
           photo_url: urlData.publicUrl,
         });

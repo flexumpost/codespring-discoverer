@@ -178,6 +178,12 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
       }
 
+      // Handle sender name
+      if (data?.sender_name && !senderName) {
+        setSenderName(data.sender_name);
+        toast.success("Afsender fundet: " + data.sender_name);
+      }
+
       // Handle recipient name
       if (data?.recipient_name) {
         setOcrRecipient(data.recipient_name);

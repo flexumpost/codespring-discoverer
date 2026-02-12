@@ -142,6 +142,7 @@ const OperatorDashboard = () => {
               <TableRow>
                 <TableHead className="w-[60px]">Foto</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Afsender</TableHead>
                 <TableHead>Lejer</TableHead>
                 <TableHead>Forsendelsesnr.</TableHead>
                 <TableHead>Status</TableHead>
@@ -165,6 +166,7 @@ const OperatorDashboard = () => {
                       {item.mail_type === "pakke" ? "Pakke" : "Brev"}
                     </Badge>
                   </TableCell>
+                  <TableCell>{item.sender_name ?? "—"}</TableCell>
                   <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>

@@ -97,14 +97,14 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Du er en OCR-assistent der analyserer fotos af forsendelser (breve og pakker). Find forsendelsesnummeret (tracking number / stempelnummer) OG modtagerens navn. Brug funktionen extract_mail_info til at returnere resultaterne.",
+              "Du er en OCR-assistent der analyserer fotos af forsendelser (breve og pakker). Find forsendelsesnummeret (tracking number / stempelnummer), modtagerens navn OG afsenderens navn eller firma. Hvis der er et logo (f.eks. PostNord, DHL, GLS, DPD, FedEx, UPS, Bring, DAO), returner logoets firmanavn som afsender. Brug funktionen extract_mail_info til at returnere resultaterne.",
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Analysér dette billede af en forsendelse. Find forsendelsesnummeret og modtagerens navn.",
+                text: "Analysér dette billede af en forsendelse. Find forsendelsesnummeret, modtagerens navn og afsenderens navn/firma (inkl. logoer).",
               },
               {
                 type: "image_url",
@@ -130,8 +130,12 @@ serve(async (req) => {
                     type: "string",
                     description: "Modtagerens fulde navn som står på forsendelsen. Returner tom streng hvis ikke fundet.",
                   },
+                  sender_name: {
+                    type: "string",
+                    description: "Afsenderens navn eller firmanavn (inkl. logo-genkendelse, f.eks. PostNord, DHL, GLS). Returner tom streng hvis ikke fundet.",
+                  },
                 },
-                required: ["stamp_number", "recipient_name"],
+                required: ["stamp_number", "recipient_name", "sender_name"],
                 additionalProperties: false,
               },
             },
@@ -164,6 +168,7 @@ serve(async (req) => {
     // Parse tool call result
     let stamp_number: string | null = null;
     let recipient_name: string | null = null;
+    let sender_name: string | null = null;
 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
@@ -172,6 +177,7 @@ serve(async (req) => {
         const digits = (args.stamp_number || "").replace(/\D/g, "");
         stamp_number = digits.length > 0 ? digits : null;
         recipient_name = args.recipient_name?.trim() || null;
+        sender_name = args.sender_name?.trim() || null;
       } catch (parseErr) {
         console.error("Failed to parse tool call args:", parseErr);
       }
@@ -184,10 +190,10 @@ serve(async (req) => {
       stamp_number = digits.length > 0 ? digits : null;
     }
 
-    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name);
+    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name);
 
     return new Response(
-      JSON.stringify({ stamp_number, recipient_name }),
+      JSON.stringify({ stamp_number, recipient_name, sender_name }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
