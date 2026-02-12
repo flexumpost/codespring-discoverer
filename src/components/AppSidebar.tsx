@@ -1,4 +1,4 @@
-import { Mail, Users, Settings, LayoutDashboard, LogOut } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 
 const operatorItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Post", url: "/mail", icon: Mail },
   { title: "Lejere", url: "/tenants", icon: Users },
   { title: "Indstillinger", url: "/settings", icon: Settings },
 ];

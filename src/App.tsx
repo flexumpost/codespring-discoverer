@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import MailPage from "./pages/MailPage";
+
 import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -31,14 +31,6 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <Index />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/mail"
-      element={
-        <ProtectedRoute>
-          <MailPage />
         </ProtectedRoute>
       }
     />
