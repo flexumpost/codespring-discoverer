@@ -144,7 +144,7 @@ const TenantDashboard = () => {
   };
 
   const cards = [
-    { title: "Ny post", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
+    { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
     { title: "Ulæste breve", value: stats.ulaest, icon: Clock, status: "ulaest" as FilterStatus },
     { title: "Læste breve", value: stats.laest, icon: Eye, status: "laest" as FilterStatus },
     { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
