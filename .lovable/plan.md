@@ -1,75 +1,55 @@
 
 
-## Intelligent validering af forsendelsesnummer via historik
+## Forbedring af OCR-prompt for korrekt aflæsning
 
 ### Problem
-OCR-modellen aflaeser nogle gange et forkert nummer -- f.eks. en lang stregkode (28 cifre) i stedet for det korrekte forsendelsesnummer (4 cifre). De faktiske forsendelsesnumre i systemet er korte, fortloebende numre (2778, 2789, 2791, 2792).
+Fra edge function logs:
+- `stamp_number: "7130037715377456713081181228"` (stregkode i stedet for stemplet "2789")
+- `recipient_name: "DANICA RÅDGIVNING APS"` (er faktisk afsenderen)
+- `sender_name: "PostNord"` (er transportoeren, ikke afsenderen)
+- ROADRUNNERCARGO APS (den reelle modtager) blev helt overset
+
+### Aarsag
+Prompten giver ikke nok kontekst til at skelne mellem:
+- Stregkodenumre (lange) vs. stempelnumre (korte, 3-5 cifre, ofte haandstemplet)
+- Transportoer-logoer (PostNord, DHL) vs. den faktiske afsender
+- Afsender (retur-adresse, typisk oeverst/i vindue) vs. modtager (primaer adresse, typisk stoerre)
 
 ### Loesning
-Hent de seneste forsendelsesnumre fra databasen og brug dem til at validere OCR-resultatet. Hvis det aflaeeste nummer afviger markant i laengde eller vaerdi fra de kendte numre, forkastes det.
+Opdater system-prompten i edge function med tydelige instruktioner.
 
-Valideringslogik:
+### Fil der aendres
 
-```text
-1. Hent seneste 20 forsendelsesnumre fra mail_items (sorteret efter created_at desc)
-2. Beregn median-laengden af de kendte numre
-3. Naar OCR returnerer et stamp_number:
-   a. Hvis nummeret har mere end 2x median-laengden -> forkast (sandsynligvis stregkode)
-   b. Hvis numre er numeriske og fortloebende: tjek om OCR-nummeret ligger
-      inden for et rimeligt interval (seneste nummer +/- 1000)
-   c. Hvis validering fejler: vis besked "Aflæst nummer virker usandsynligt - kontrollér venligst"
-      og udfyld IKKE feltet automatisk
-```
+**`supabase/functions/ocr-stamp/index.ts`** (linje 98-100, system prompt)
 
-### Filer der aendres
-
-**1. `src/components/RegisterMailDialog.tsx`**
-- Tilfoej en `useEffect` eller query der henter de seneste stamp_numbers fra databasen ved komponent-load
-- Efter OCR returnerer `stamp_number`: valider mod historikken foer auto-udfyldning
-- Hvis nummeret fejler valideringen: vis en advarsel i stedet for at indsaette det
-
-**2. `src/pages/BulkUploadPage.tsx`**
-- Samme validering i bulk upload flowet
-- Hent seneste stamp_numbers een gang naar siden loader
-- Valider hvert OCR-resultat foer det indsaettes i review-tabellen
-
-**3. Ny hjælpefunktion (kan placeres i en delt fil eller inline begge steder)**
+Ny system-prompt:
 
 ```text
-function validateStampNumber(
-  ocrNumber: string,
-  recentNumbers: number[]
-): { valid: boolean; reason?: string } {
-  if (recentNumbers.length === 0) return { valid: true };
+Du er en OCR-assistent der analyserer fotos af forsendelser (breve og pakker).
 
-  // Beregn typisk laengde
-  const lengths = recentNumbers.map(n => String(n).length);
-  const medianLength = lengths.sort()[Math.floor(lengths.length / 2)];
+FORSENDELSESNUMMER (stamp_number):
+- Find det KORTE stempelnummer (typisk 3-6 cifre) som er trykt eller stemplet paa forsendelsen.
+- Ignorer LANGE stregkode-numre (10+ cifre) - disse er IKKE forsendelsesnummeret.
+- Stempelnummeret staar ofte alene, tydeligt synligt, og kan vaere haandskrevet eller stemplet.
 
-  // Forkast hvis mere end dobbelt saa langt
-  if (ocrNumber.length > medianLength * 2) {
-    return { valid: false, reason: "Nummer er for langt - muligvis stregkode" };
-  }
+MODTAGER (recipient_name):
+- Modtageren er den person eller virksomhed forsendelsen er ADRESSERET TIL.
+- Modtageradressen er typisk den STOERSTE adresseblok, ofte placeret centralt eller nederst paa forsendelsen.
 
-  // Tjek om det er taet paa seneste numre (fortloebende sekvens)
-  const num = parseInt(ocrNumber, 10);
-  if (!isNaN(num)) {
-    const maxRecent = Math.max(...recentNumbers);
-    const minRecent = Math.min(...recentNumbers);
-    if (num > maxRecent + 1000 || num < minRecent - 1000) {
-      return { valid: false, reason: "Nummer ligger langt fra kendte forsendelsesnumre" };
-    }
-  }
+AFSENDER (sender_name):
+- Afsenderen er den person eller virksomhed der har SENDT forsendelsen.
+- Afsenderadressen er typisk MINDRE og placeret oeverst til venstre, i et adressevindue, eller paa bagsiden.
+- VIGTIGT: Transportoer-logoer (PostNord, DHL, GLS, DPD, FedEx, UPS, Bring, DAO) er IKKE afsenderen.
+  Afsenderen er firmaet/personen i retur-adressen.
 
-  return { valid: true };
-}
+Brug funktionen extract_mail_info til at returnere resultaterne.
 ```
 
-### Brugeroplevelse
-- Gyldigt nummer: auto-udfyldes som i dag med groenn toast
-- Ugyldigt nummer: feltet forbliver tomt, og en gul advarsel vises: "Aflæst nr. [X] virker usandsynligt - kontrollér venligst"
-- Operatoeren kan altid manuelt indtaste det korrekte nummer
+### Forventet resultat med det aktuelle billede
+- `stamp_number`: "2789" (det korte stempelnummer)
+- `recipient_name`: "ROADRUNNERCARGO APS" (primaer adresseblok)
+- `sender_name`: "DANICA RAADGIVNING APS" (retur-adresse i vinduet)
 
-### Ingen database-aendringer
-Kun en SELECT-query mod eksisterende data. Ingen nye tabeller eller kolonner.
+### Ingen andre filaendringer
+Kun edge function prompten opdateres. Smart swap og validering fungerer allerede korrekt.
 
