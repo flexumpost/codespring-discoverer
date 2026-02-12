@@ -437,7 +437,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     stopCamera();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (closeAfter = true) => {
     if (!user) return;
     if (!selectedTenantId) {
       toast.error("Vælg venligst en lejer");
@@ -481,7 +481,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       toast.success("Post registreret");
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
       resetForm();
-      onOpenChange(false);
+      if (closeAfter) {
+        onOpenChange(false);
+      } else {
+        handleTakePhoto();
+      }
     } catch (err: any) {
       toast.error("Kunne ikke registrere post: " + err.message);
     } finally {
@@ -587,6 +591,22 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   >
                     <Crop className="h-4 w-4 mr-2" />
                     Markér forsendelsesnr.
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      setPhoto(null);
+                      setPhotoPreview(null);
+                      setCropTarget(null);
+                      setCropRect(null);
+                      handleTakePhoto();
+                    }}
+                  >
+                    <Camera className="h-4 w-4 mr-2" />
+                    Tag nyt billede
                   </Button>
                 </div>
               ) : (
@@ -807,7 +827,10 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button variant="secondary" onClick={() => handleSubmit(false)} disabled={submitting}>
+              {submitting ? "Gemmer..." : "Registrer og næste"}
+            </Button>
+            <Button onClick={() => handleSubmit(true)} disabled={submitting}>
               {submitting ? "Gemmer..." : "Registrer"}
             </Button>
           </DialogFooter>
