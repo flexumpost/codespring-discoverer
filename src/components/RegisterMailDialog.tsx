@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X, Video, VideoOff, ZoomIn } from "lucide-react";
+import { Camera, Upload, X, Video, VideoOff, ZoomIn, Loader2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
@@ -32,6 +32,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [showTenantList, setShowTenantList] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
@@ -57,11 +58,42 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     t.company_name.toLowerCase().includes(tenantSearch.toLowerCase())
   ) ?? [];
 
+  const runOcr = async (file: File) => {
+    setOcrLoading(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("ocr-stamp", {
+        body: { image_base64: base64 },
+      });
+
+      if (error) throw error;
+
+      if (data?.stamp_number && !stampNumber) {
+        setStampNumber(data.stamp_number);
+        toast.success("Forsendelsesnr. fundet: " + data.stamp_number);
+      } else if (!data?.stamp_number) {
+        toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
+      }
+    } catch (err: any) {
+      console.error("OCR error:", err);
+      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setPhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
+      runOcr(file);
     }
   };
 
@@ -105,6 +137,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         setPhoto(file);
         setPhotoPreview(URL.createObjectURL(file));
         stopCamera();
+        runOcr(file);
       }
     }, "image/jpeg", 0.9);
   };
@@ -302,7 +335,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       {/* Forsendelsesnr (obligatorisk) */}
       <div className="space-y-2">
         <Label htmlFor="stamp">Forsendelsesnr.</Label>
-        <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" />
+        <div className="relative">
+          <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" disabled={ocrLoading} />
+          {ocrLoading && (
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Læser nr...
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Afsender (valgfrit) */}
