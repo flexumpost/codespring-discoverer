@@ -13,6 +13,7 @@ import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop } from "lu
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
+import { validateStampNumber } from "@/lib/validateStampNumber";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
 
@@ -103,6 +104,21 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     enabled: open,
   });
 
+  const { data: recentStampNumbers = [] } = useQuery({
+    queryKey: ["recent-stamp-numbers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mail_items")
+        .select("stamp_number")
+        .not("stamp_number", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data.map((r) => r.stamp_number as number);
+    },
+    enabled: open,
+  });
+
   const filteredTenants = tenants?.filter((t) => {
     const search = tenantSearch.toLowerCase();
     return t.company_name.toLowerCase().includes(search) ||
@@ -172,8 +188,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       if (error) throw error;
 
       if (data?.stamp_number && !stampNumber) {
-        setStampNumber(data.stamp_number);
-        toast.success("Forsendelsesnr. fundet: " + data.stamp_number);
+        const validation = validateStampNumber(String(data.stamp_number), recentStampNumbers);
+        if (validation.valid) {
+          setStampNumber(data.stamp_number);
+          toast.success("Forsendelsesnr. fundet: " + data.stamp_number);
+        } else {
+          toast.warning(`Aflæst nr. "${data.stamp_number}" virker usandsynligt – kontrollér venligst`, {
+            description: validation.reason,
+          });
+        }
       } else if (!data?.stamp_number) {
         toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
       }
