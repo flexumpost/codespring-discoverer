@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, ArrowLeft } from "lucide-react";
+import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, ArrowLeft, Plus, Upload } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Tables } from "@/integrations/supabase/types";
+import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
 
@@ -56,8 +58,10 @@ const CARD_FILTERS: CardFilter[] = [
 ];
 
 const OperatorDashboard = () => {
+  const navigate = useNavigate();
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchMail = async () => {
@@ -121,7 +125,17 @@ const OperatorDashboard = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Operatør-dashboard</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Operatør-dashboard</h2>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/bulk-upload")} className="gap-2">
+            <Upload className="h-4 w-4" /> Bulk upload
+          </Button>
+          <Button onClick={() => setDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Registrer post
+          </Button>
+        </div>
+      </div>
       <div className="grid gap-3 grid-cols-3 md:grid-cols-6">
         {counts.map((card) => (
           <Card
@@ -141,6 +155,7 @@ const OperatorDashboard = () => {
           </Card>
         ))}
       </div>
+      <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 };
