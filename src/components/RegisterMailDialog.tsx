@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X } from "lucide-react";
+import { Camera, Upload, X, Video, VideoOff } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
@@ -33,6 +33,10 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showTenantList, setShowTenantList] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const { data: tenants } = useQuery({
     queryKey: ["tenants-active"],
@@ -60,6 +64,58 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }
   };
 
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setShowCamera(false);
+  }, []);
+
+  const handleTakePhoto = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      setShowCamera(true);
+      // Wait for video element to mount, then attach stream
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      toast.error("Kunne ikke aktivere kamera. Tjek at du har givet tilladelse.");
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+        setPhoto(file);
+        setPhotoPreview(URL.createObjectURL(file));
+        stopCamera();
+      }
+    }, "image/jpeg", 0.9);
+  };
+
+  // Cleanup camera when dialog closes
+  useEffect(() => {
+    if (!open) {
+      stopCamera();
+    }
+  }, [open, stopCamera]);
+
   const resetForm = () => {
     setMailType("brev");
     setSenderName("");
@@ -70,6 +126,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setNotes("");
     setPhoto(null);
     setPhotoPreview(null);
+    stopCamera();
   };
 
   const handleSubmit = async () => {
@@ -155,6 +212,28 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   <X className="h-3 w-3" />
                 </Button>
               </div>
+            ) : showCamera ? (
+              <div className="space-y-2">
+                <div className="relative w-full rounded-md overflow-hidden border border-border bg-black aspect-video">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" className="flex-1" onClick={capturePhoto}>
+                    <Camera className="h-4 w-4 mr-2" />
+                    Tag billede
+                  </Button>
+                  <Button type="button" variant="outline" onClick={stopCamera}>
+                    <VideoOff className="h-4 w-4 mr-2" />
+                    Annuller
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <label className="flex-1 cursor-pointer">
@@ -164,15 +243,17 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   </div>
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 </label>
-                <label className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors">
-                    <Camera className="h-4 w-4" />
-                    Tag billede
-                  </div>
-                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
-                </label>
+                <button
+                  type="button"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors"
+                  onClick={handleTakePhoto}
+                >
+                  <Camera className="h-4 w-4" />
+                  Tag billede
+                </button>
               </div>
             )}
+            <canvas ref={canvasRef} className="hidden" />
           </div>
 
           {/* Felter vises kun efter foto er uploadet */}
