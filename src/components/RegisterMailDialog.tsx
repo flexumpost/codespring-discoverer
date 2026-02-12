@@ -66,7 +66,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   // Crop mode state
-  const [cropTarget, setCropTarget] = useState<"tenant" | "stamp" | null>(null);
+  const [cropTarget, setCropTarget] = useState<"tenant" | "stamp" | "sender" | null>(null);
   const [cropLoading, setCropLoading] = useState(false);
   const [cropRect, setCropRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [isCropping, setIsCropping] = useState(false);
@@ -287,6 +287,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           } else {
             toast.info("Ingen cifre fundet i det markerede område");
           }
+        } else if (cropTarget === "sender") {
+          setSenderName(ocrText);
+          toast.success("Afsender sat: " + ocrText);
         } else {
           // tenant matching (existing logic)
           if (tenants) {
@@ -336,6 +339,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const handleCropMouseUp = () => {
     setIsCropping(false);
+    // Auto-start OCR when a valid selection is made
+    if (cropRect) {
+      const w = Math.abs(cropRect.endX - cropRect.startX);
+      const h = Math.abs(cropRect.endY - cropRect.startY);
+      if (w > 10 && h > 10) {
+        // Use setTimeout to let state settle before calling OCR
+        setTimeout(() => handleCropOcr(), 0);
+      }
+    }
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -525,7 +537,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             {cropMode && !cropRect && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="bg-black/60 text-white px-3 py-1.5 rounded-md text-sm font-medium">
-                  {cropTarget === "stamp" ? "Tegn en boks omkring forsendelsesnr." : "Tegn en boks omkring navnet"}
+                  {cropTarget === "stamp" ? "Tegn en boks omkring forsendelsesnr." : cropTarget === "sender" ? "Tegn en boks omkring afsenderen" : "Tegn en boks omkring navnet"}
                 </span>
               </div>
             )}
@@ -543,7 +555,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           {photoPreview && (
             <div className="space-y-1">
               {!cropMode ? (
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {noAutoMatch && !selectedTenantId && (
                     <Button
                       type="button"
@@ -561,6 +573,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     variant="outline"
                     size="sm"
                     className="flex-1"
+                    onClick={() => { setCropTarget("sender"); setCropRect(null); }}
+                  >
+                    <Crop className="h-4 w-4 mr-2" />
+                    Markér afsender
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
                     onClick={() => { setCropTarget("stamp"); setCropRect(null); }}
                   >
                     <Crop className="h-4 w-4 mr-2" />
@@ -568,23 +590,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   </Button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="flex-1"
-                    disabled={!cropRect || cropLoading}
-                    onClick={handleCropOcr}
-                  >
-                    {cropLoading ? (
-                      <>
-                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                        Læser...
-                      </>
-                    ) : (
-                      "Aflæs markering"
-                    )}
-                  </Button>
+                <div className="flex gap-2 items-center">
+                  {cropLoading && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Læser...
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
