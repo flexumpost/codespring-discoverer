@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X, Video, VideoOff, ZoomIn, Loader2, UserPlus } from "lucide-react";
+import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
@@ -19,6 +19,25 @@ type MailType = Database["public"]["Enums"]["mail_type"];
 interface RegisterMailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function fuzzyMatchTenant(
+  name: string,
+  tenants: { id: string; company_name: string; contact_name: string | null }[]
+): { id: string; company_name: string } | null {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  // Exact match first
+  for (const t of tenants) {
+    if (t.company_name.toLowerCase() === lower) return t;
+    if (t.contact_name?.toLowerCase() === lower) return t;
+  }
+  // Partial match
+  for (const t of tenants) {
+    if (t.company_name.toLowerCase().includes(lower) || lower.includes(t.company_name.toLowerCase())) return t;
+    if (t.contact_name && (t.contact_name.toLowerCase().includes(lower) || lower.includes(t.contact_name.toLowerCase()))) return t;
+  }
+  return null;
 }
 
 export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogProps) {
@@ -45,8 +64,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [creatingTenant, setCreatingTenant] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
+  // Crop mode state
+  const [cropMode, setCropMode] = useState(false);
+  const [cropLoading, setCropLoading] = useState(false);
+  const [cropRect, setCropRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+  const [isCropping, setIsCropping] = useState(false);
+  const [ocrRecipient, setOcrRecipient] = useState<string | null>(null);
+  const [noAutoMatch, setNoAutoMatch] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cropImageRef = useRef<HTMLImageElement>(null);
+  const cropContainerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const { data: tenants } = useQuery({
@@ -107,6 +136,24 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }
   };
 
+  const tryAutoMatchTenant = useCallback((recipientName: string) => {
+    if (!tenants || !recipientName) {
+      setNoAutoMatch(true);
+      return;
+    }
+    const match = fuzzyMatchTenant(recipientName, tenants);
+    if (match) {
+      setSelectedTenantId(match.id);
+      setSelectedTenantName(match.company_name);
+      setTenantSearch("");
+      toast.success(`Lejer matchet automatisk: ${match.company_name}`);
+      setNoAutoMatch(false);
+    } else {
+      setNoAutoMatch(true);
+      toast.info(`Modtager "${recipientName}" matchede ingen lejer`);
+    }
+  }, [tenants]);
+
   const runOcr = async (file: File) => {
     setOcrLoading(true);
     try {
@@ -129,6 +176,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       } else if (!data?.stamp_number) {
         toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
       }
+
+      // Handle recipient name
+      if (data?.recipient_name) {
+        setOcrRecipient(data.recipient_name);
+        tryAutoMatchTenant(data.recipient_name);
+      } else {
+        setOcrRecipient(null);
+        setNoAutoMatch(true);
+      }
     } catch (err: any) {
       console.error("OCR error:", err);
       toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
@@ -137,11 +193,107 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }
   };
 
+  const handleCropOcr = async () => {
+    if (!cropRect || !photoPreview || !cropImageRef.current) return;
+    setCropLoading(true);
+
+    try {
+      const img = cropImageRef.current;
+      const displayW = img.clientWidth;
+      const displayH = img.clientHeight;
+      const naturalW = img.naturalWidth;
+      const naturalH = img.naturalHeight;
+
+      const scaleX = naturalW / displayW;
+      const scaleY = naturalH / displayH;
+
+      const x = Math.min(cropRect.startX, cropRect.endX) * scaleX;
+      const y = Math.min(cropRect.startY, cropRect.endY) * scaleY;
+      const w = Math.abs(cropRect.endX - cropRect.startX) * scaleX;
+      const h = Math.abs(cropRect.endY - cropRect.startY) * scaleY;
+
+      if (w < 10 || h < 10) {
+        toast.error("Markér et større område");
+        setCropLoading(false);
+        return;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context error");
+      ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+
+      const cropBase64 = canvas.toDataURL("image/jpeg", 0.9);
+
+      const { data, error } = await supabase.functions.invoke("ocr-stamp", {
+        body: { crop_base64: cropBase64 },
+      });
+
+      if (error) throw error;
+
+      const ocrText = data?.ocr_text;
+      if (ocrText) {
+        toast.success(`Aflæst tekst: "${ocrText}"`);
+        // Try to match against tenants
+        if (tenants) {
+          const match = fuzzyMatchTenant(ocrText, tenants);
+          if (match) {
+            setSelectedTenantId(match.id);
+            setSelectedTenantName(match.company_name);
+            setTenantSearch("");
+            toast.success(`Lejer matchet: ${match.company_name}`);
+          } else {
+            setTenantSearch(ocrText);
+            setShowTenantList(true);
+            toast.info("Ingen match – teksten er sat som søgning");
+          }
+        }
+      } else {
+        toast.info("Kunne ikke aflæse tekst i det markerede område");
+      }
+
+      setCropMode(false);
+      setCropRect(null);
+    } catch (err: any) {
+      console.error("Crop OCR error:", err);
+      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+    } finally {
+      setCropLoading(false);
+    }
+  };
+
+  const handleCropMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cropMode) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setCropRect({ startX: x, startY: y, endX: x, endY: y });
+    setIsCropping(true);
+  };
+
+  const handleCropMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isCropping || !cropRect) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+    setCropRect((prev) => prev ? { ...prev, endX: x, endY: y } : null);
+  };
+
+  const handleCropMouseUp = () => {
+    setIsCropping(false);
+  };
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setPhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
+      setCropMode(false);
+      setCropRect(null);
+      setNoAutoMatch(false);
+      setOcrRecipient(null);
       runOcr(file);
     }
   };
@@ -186,6 +338,10 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         setPhoto(file);
         setPhotoPreview(URL.createObjectURL(file));
         stopCamera();
+        setCropMode(false);
+        setCropRect(null);
+        setNoAutoMatch(false);
+        setOcrRecipient(null);
         runOcr(file);
       }
     }, "image/jpeg", 0.9);
@@ -208,6 +364,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setPhoto(null);
     setPhotoPreview(null);
     setShowZoom(false);
+    setCropMode(false);
+    setCropRect(null);
+    setCropLoading(false);
+    setOcrRecipient(null);
+    setNoAutoMatch(false);
     stopCamera();
   };
 
@@ -263,27 +424,112 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     }
   };
 
+  const cropOverlayStyle = cropRect
+    ? {
+        left: Math.min(cropRect.startX, cropRect.endX),
+        top: Math.min(cropRect.startY, cropRect.endY),
+        width: Math.abs(cropRect.endX - cropRect.startX),
+        height: Math.abs(cropRect.endY - cropRect.startY),
+      }
+    : null;
+
   const photoSection = (
     <div className="space-y-2">
       <Label>Foto (valgfrit)</Label>
       {photoPreview ? (
-        <div
-          className="relative w-full rounded-md overflow-hidden border border-border cursor-zoom-in group"
-          onClick={() => setShowZoom(true)}
-        >
-          <img src={photoPreview} alt="Preview" className="w-full h-auto object-contain" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-            <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-          </div>
-          <Button
-            type="button"
-            variant="destructive"
-            size="icon"
-            className="absolute top-1 right-1 h-6 w-6"
-            onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); }}
+        <div className="space-y-2">
+          <div
+            ref={cropContainerRef}
+            className={`relative w-full rounded-md overflow-hidden border border-border group ${
+              cropMode ? "cursor-crosshair" : "cursor-zoom-in"
+            }`}
+            onClick={cropMode ? undefined : () => setShowZoom(true)}
+            onMouseDown={cropMode ? handleCropMouseDown : undefined}
+            onMouseMove={cropMode ? handleCropMouseMove : undefined}
+            onMouseUp={cropMode ? handleCropMouseUp : undefined}
           >
-            <X className="h-3 w-3" />
-          </Button>
+            <img
+              ref={cropImageRef}
+              src={photoPreview}
+              alt="Preview"
+              className="w-full h-auto object-contain select-none"
+              draggable={false}
+            />
+            {/* Crop selection overlay */}
+            {cropMode && cropOverlayStyle && (
+              <div
+                className="absolute border-2 border-primary bg-primary/20 pointer-events-none"
+                style={cropOverlayStyle}
+              />
+            )}
+            {/* Zoom hint when not in crop mode */}
+            {!cropMode && (
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+              </div>
+            )}
+            {/* Crop mode hint */}
+            {cropMode && !cropRect && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="bg-black/60 text-white px-3 py-1.5 rounded-md text-sm font-medium">
+                  Tegn en boks omkring navnet
+                </span>
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute top-1 right-1 h-6 w-6"
+              onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); setCropMode(false); setCropRect(null); }}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+          {/* Crop mode controls */}
+          {noAutoMatch && !selectedTenantId && photoPreview && (
+            <div className="space-y-1">
+              {!cropMode ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => { setCropMode(true); setCropRect(null); }}
+                >
+                  <Crop className="h-4 w-4 mr-2" />
+                  Markér navn på billedet
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="flex-1"
+                    disabled={!cropRect || cropLoading}
+                    onClick={handleCropOcr}
+                  >
+                    {cropLoading ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        Læser...
+                      </>
+                    ) : (
+                      "Aflæs markering"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setCropMode(false); setCropRect(null); }}
+                  >
+                    Annuller
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : showCamera ? (
         <div className="space-y-2">
@@ -344,6 +590,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       {/* Lejer (obligatorisk) */}
       <div className="space-y-2 relative">
         <Label>Lejer</Label>
+        {ocrRecipient && !selectedTenantId && (
+          <p className="text-xs text-muted-foreground">OCR fandt: "{ocrRecipient}"</p>
+        )}
         {selectedTenantId ? (
           <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
             <span className="flex-1">{selectedTenantName}</span>
