@@ -837,12 +837,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
-            <Button variant="secondary" onClick={() => handleSubmit(false)} disabled={submitting}>
-              {submitting ? "Gemmer..." : "Registrer og næste"}
-            </Button>
-            <Button onClick={() => handleSubmit(true)} disabled={submitting}>
-              {submitting ? "Gemmer..." : "Registrer"}
-            </Button>
+            {photo && (
+              <>
+                <Button variant="secondary" onClick={() => handleSubmit(false)} disabled={submitting}>
+                  {submitting ? "Gemmer..." : "Registrer og næste"}
+                </Button>
+                <Button onClick={() => handleSubmit(true)} disabled={submitting}>
+                  {submitting ? "Gemmer..." : "Registrer"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
