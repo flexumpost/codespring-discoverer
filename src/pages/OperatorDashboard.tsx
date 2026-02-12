@@ -2,14 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, ArrowLeft, Plus, Upload } from "lucide-react";
+import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
+
+const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> = {
+  ny: "Ny",
+  afventer_handling: "Afventer handling",
+  ulaest: "Ulæst",
+  laest: "Læst",
+  arkiveret: "Arkiveret",
+};
 
 type CardFilter = {
   title: string;
@@ -82,46 +90,9 @@ const OperatorDashboard = () => {
   const activeFilter = CARD_FILTERS.find((cf) => cf.title === selectedCard);
   const filteredItems = activeFilter ? mailItems.filter(activeFilter.filter) : [];
 
-  if (selectedCard && activeFilter) {
-    return (
-      <div>
-        <Button variant="ghost" className="mb-4 gap-2" onClick={() => setSelectedCard(null)}>
-          <ArrowLeft className="h-4 w-4" /> Tilbage til oversigt
-        </Button>
-        <h2 className="text-2xl font-bold mb-4">{selectedCard}</h2>
-        {filteredItems.length === 0 ? (
-          <p className="text-muted-foreground">Ingen elementer.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Afsender</TableHead>
-                <TableHead>Lejer</TableHead>
-                <TableHead>Stempel nr.</TableHead>
-                <TableHead>Modtaget</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
-                      {item.mail_type === "pakke" ? "Pakke" : "Brev"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{item.sender_name ?? "—"}</TableCell>
-                  <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
-                  <TableCell>{item.stamp_number ?? "—"}</TableCell>
-                  <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
-    );
-  }
+  const handleCardClick = (title: string) => {
+    setSelectedCard((prev) => (prev === title ? null : title));
+  };
 
   return (
     <div>
@@ -140,8 +111,8 @@ const OperatorDashboard = () => {
         {counts.map((card) => (
           <Card
             key={card.title}
-            className="cursor-pointer transition-shadow hover:shadow-md"
-            onClick={() => setSelectedCard(card.title)}
+            className={`cursor-pointer transition-shadow hover:shadow-md ${selectedCard === card.title ? "ring-2 ring-primary" : ""}`}
+            onClick={() => handleCardClick(card.title)}
           >
             <CardHeader className="flex flex-row items-center justify-between p-3 pb-1">
               <CardTitle className="text-xs font-medium text-muted-foreground">
@@ -155,6 +126,55 @@ const OperatorDashboard = () => {
           </Card>
         ))}
       </div>
+
+      {selectedCard && activeFilter && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-3">{selectedCard}</h3>
+          {filteredItems.length === 0 ? (
+            <p className="text-muted-foreground">Ingen elementer.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[60px]">Foto</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Lejer</TableHead>
+                  <TableHead>Forsendelsesnr.</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Modtaget</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      {item.photo_url ? (
+                        <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
+                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
+                        {item.mail_type === "pakke" ? "Pakke" : "Brev"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
+                    <TableCell>{item.stamp_number ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
+                    </TableCell>
+                    <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      )}
+
       <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
