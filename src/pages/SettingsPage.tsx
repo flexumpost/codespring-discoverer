@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useTenants } from "@/hooks/useTenants";
+import { TenantSelector } from "@/components/TenantSelector";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,42 +22,28 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const SettingsPage = () => {
-  const { user } = useAuth();
+  const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
 
-  const { data: tenant, isLoading } = useQuery({
-    queryKey: ["my-tenant-settings", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("*, tenant_types(name)")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-
   useEffect(() => {
-    if (tenant) {
-      setContactName(tenant.contact_name ?? "");
-      setContactEmail(tenant.contact_email ?? "");
+    if (selectedTenant) {
+      setContactName(selectedTenant.contact_name ?? "");
+      setContactEmail(selectedTenant.contact_email ?? "");
     }
-  }, [tenant]);
+  }, [selectedTenant]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from("tenants")
         .update({ contact_name: contactName, contact_email: contactEmail })
-        .eq("id", tenant!.id);
+        .eq("id", selectedTenant!.id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-tenant-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       toast.success("Indstillinger gemt");
     },
     onError: () => {
@@ -64,19 +51,26 @@ const SettingsPage = () => {
     },
   });
 
-  const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
+  const typeName = (selectedTenant?.tenant_types as any)?.name as string | undefined;
   const hasChanges =
-    tenant &&
-    (contactName !== (tenant.contact_name ?? "") ||
-      contactEmail !== (tenant.contact_email ?? ""));
+    selectedTenant &&
+    (contactName !== (selectedTenant.contact_name ?? "") ||
+      contactEmail !== (selectedTenant.contact_email ?? ""));
 
   return (
     <AppLayout>
-      <h2 className="text-2xl font-bold mb-6">Indstillinger</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Indstillinger</h2>
+        <TenantSelector
+          tenants={tenants}
+          selectedTenantId={selectedTenantId}
+          onSelect={setSelectedTenantId}
+        />
+      </div>
 
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
-      ) : !tenant ? (
+      ) : !selectedTenant ? (
         <p className="text-muted-foreground">
           Ingen lejer-profil fundet for din konto.
         </p>
@@ -90,12 +84,12 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div>
                 <Label className="text-muted-foreground text-xs">Firmanavn</Label>
-                <p className="font-medium">{tenant.company_name}</p>
+                <p className="font-medium">{selectedTenant.company_name}</p>
               </div>
-              {tenant.address && (
+              {selectedTenant.address && (
                 <div>
                   <Label className="text-muted-foreground text-xs">Adresse</Label>
-                  <p className="font-medium">{tenant.address}</p>
+                  <p className="font-medium">{selectedTenant.address}</p>
                 </div>
               )}
               {typeName && (
