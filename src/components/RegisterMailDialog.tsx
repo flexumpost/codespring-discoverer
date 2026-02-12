@@ -65,10 +65,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   // Crop mode state
-  const [cropMode, setCropMode] = useState(false);
+  const [cropTarget, setCropTarget] = useState<"tenant" | "stamp" | null>(null);
   const [cropLoading, setCropLoading] = useState(false);
   const [cropRect, setCropRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [isCropping, setIsCropping] = useState(false);
+  const cropMode = cropTarget !== null;
   const [ocrRecipient, setOcrRecipient] = useState<string | null>(null);
   const [noAutoMatch, setNoAutoMatch] = useState(false);
 
@@ -236,25 +237,35 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       const ocrText = data?.ocr_text;
       if (ocrText) {
         toast.success(`Aflæst tekst: "${ocrText}"`);
-        // Try to match against tenants
-        if (tenants) {
-          const match = fuzzyMatchTenant(ocrText, tenants);
-          if (match) {
-            setSelectedTenantId(match.id);
-            setSelectedTenantName(match.company_name);
-            setTenantSearch("");
-            toast.success(`Lejer matchet: ${match.company_name}`);
+        if (cropTarget === "stamp") {
+          const digits = ocrText.replace(/\D/g, "");
+          if (digits) {
+            setStampNumber(digits);
+            toast.success("Forsendelsesnr. sat: " + digits);
           } else {
-            setTenantSearch(ocrText);
-            setShowTenantList(true);
-            toast.info("Ingen match – teksten er sat som søgning");
+            toast.info("Ingen cifre fundet i det markerede område");
+          }
+        } else {
+          // tenant matching (existing logic)
+          if (tenants) {
+            const match = fuzzyMatchTenant(ocrText, tenants);
+            if (match) {
+              setSelectedTenantId(match.id);
+              setSelectedTenantName(match.company_name);
+              setTenantSearch("");
+              toast.success(`Lejer matchet: ${match.company_name}`);
+            } else {
+              setTenantSearch(ocrText);
+              setShowTenantList(true);
+              toast.info("Ingen match – teksten er sat som søgning");
+            }
           }
         }
       } else {
         toast.info("Kunne ikke aflæse tekst i det markerede område");
       }
 
-      setCropMode(false);
+      setCropTarget(null);
       setCropRect(null);
     } catch (err: any) {
       console.error("Crop OCR error:", err);
@@ -290,7 +301,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     if (file) {
       setPhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
-      setCropMode(false);
+      setCropTarget(null);
       setCropRect(null);
       setNoAutoMatch(false);
       setOcrRecipient(null);
@@ -338,7 +349,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         setPhoto(file);
         setPhotoPreview(URL.createObjectURL(file));
         stopCamera();
-        setCropMode(false);
+        setCropTarget(null);
         setCropRect(null);
         setNoAutoMatch(false);
         setOcrRecipient(null);
@@ -364,7 +375,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setPhoto(null);
     setPhotoPreview(null);
     setShowZoom(false);
-    setCropMode(false);
+    setCropTarget(null);
     setCropRect(null);
     setCropLoading(false);
     setOcrRecipient(null);
@@ -472,7 +483,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             {cropMode && !cropRect && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="bg-black/60 text-white px-3 py-1.5 rounded-md text-sm font-medium">
-                  Tegn en boks omkring navnet
+                  {cropTarget === "stamp" ? "Tegn en boks omkring forsendelsesnr." : "Tegn en boks omkring navnet"}
                 </span>
               </div>
             )}
@@ -481,25 +492,39 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               variant="destructive"
               size="icon"
               className="absolute top-1 right-1 h-6 w-6"
-              onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); setCropMode(false); setCropRect(null); }}
+              onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); setCropTarget(null); setCropRect(null); }}
             >
               <X className="h-3 w-3" />
             </Button>
           </div>
           {/* Crop mode controls */}
-          {noAutoMatch && !selectedTenantId && photoPreview && (
+          {photoPreview && (
             <div className="space-y-1">
               {!cropMode ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => { setCropMode(true); setCropRect(null); }}
-                >
-                  <Crop className="h-4 w-4 mr-2" />
-                  Markér navn på billedet
-                </Button>
+                <div className="flex gap-2">
+                  {noAutoMatch && !selectedTenantId && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => { setCropTarget("tenant"); setCropRect(null); }}
+                    >
+                      <Crop className="h-4 w-4 mr-2" />
+                      Markér navn
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => { setCropTarget("stamp"); setCropRect(null); }}
+                  >
+                    <Crop className="h-4 w-4 mr-2" />
+                    Markér forsendelsesnr.
+                  </Button>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   <Button
@@ -522,7 +547,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => { setCropMode(false); setCropRect(null); }}
+                    onClick={() => { setCropTarget(null); setCropRect(null); }}
                   >
                     Annuller
                   </Button>
