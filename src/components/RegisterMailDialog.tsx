@@ -178,16 +178,29 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
       }
 
+      // Smart swap: if sender matches a tenant but recipient doesn't, swap them
+      let recipientName = data?.recipient_name ?? "";
+      let detectedSender = data?.sender_name ?? "";
+      if (tenants && recipientName && detectedSender) {
+        const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
+        const senderMatch = fuzzyMatchTenant(detectedSender, tenants);
+        if (!recipientMatch && senderMatch) {
+          const tmp = recipientName;
+          recipientName = detectedSender;
+          detectedSender = tmp;
+        }
+      }
+
       // Handle sender name
-      if (data?.sender_name && !senderName) {
-        setSenderName(data.sender_name);
-        toast.success("Afsender fundet: " + data.sender_name);
+      if (detectedSender && !senderName) {
+        setSenderName(detectedSender);
+        toast.success("Afsender fundet: " + detectedSender);
       }
 
       // Handle recipient name
-      if (data?.recipient_name) {
-        setOcrRecipient(data.recipient_name);
-        tryAutoMatchTenant(data.recipient_name);
+      if (recipientName) {
+        setOcrRecipient(recipientName);
+        tryAutoMatchTenant(recipientName);
       } else {
         setOcrRecipient(null);
         setNoAutoMatch(true);
