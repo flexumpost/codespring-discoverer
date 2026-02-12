@@ -1,38 +1,31 @@
 
-# Opret ny lejer direkte fra registreringsformularen
+# Lejertype info-boks efter lejer-feltet
 
 ## Hvad det goer for brugeren
-Naar operatoeren soeger efter en lejer og der ikke findes nogen match, vises en knap "Opret [navn] som ny lejer". Ved klik aabnes en dialog hvor operatoeren kan udfylde de noedvendige oplysninger og oprette lejeren med det samme - uden at forlade registreringsformularen.
+Efter lejer-feltet vises en info-boks der angiver lejerens type (f.eks. "Standard", "Plus", "Fastlejer"). Hver lejertype faar sin egen baggrundsfarve saa operatoeren hurtigt kan se hvilken type lejer der er valgt. Inden en lejer er valgt, vises en tom hvid boks.
 
 ## Teknisk implementering
 
 ### Fil: `src/components/RegisterMailDialog.tsx`
 
-1. **Vis "Opret ny lejer"-mulighed i soegeresultater**
-   - Naar `tenantSearch` har tekst men `filteredTenants` er tom (ingen match), vis en knap i dropdown-listen: "Opret '[soege-tekst]' som ny lejer"
-   - Klik paa knappen aabner en ny dialog til oprettelse
+1. **Udvid tenants-queryen** (linje 55-58)
+   - Aendr `.select("id, company_name")` til `.select("id, company_name, tenant_type_id")` saa vi har adgang til lejertypen
 
-2. **Ny state-variabler**
-   - `showCreateTenant: boolean` - styrer om opret-dialogen vises
-   - `newTenantName: string` - pre-udfyldt med soege-teksten
-   - `creatingTenant: boolean` - loading-state under oprettelse
+2. **Definér farvekort for lejertyper**
+   - Et objekt der mapper lejertype-navn til Tailwind-baggrundsfarver:
+     - Lite: `bg-blue-100 text-blue-800`
+     - Standard: `bg-green-100 text-green-800`
+     - Plus: `bg-purple-100 text-purple-800`
+     - Fastlejer: `bg-amber-100 text-amber-800`
+     - Nabo: `bg-cyan-100 text-cyan-800`
+     - Retur til afsender: `bg-red-100 text-red-800`
 
-3. **Ny komponent/sektion: Opret Lejer-dialog**
-   - En nested `Dialog` med felter for:
-     - Firmanavn (pre-udfyldt fra soege-teksten)
-     - Kontaktperson (valgfrit)
-     - Kontakt-email (valgfrit)
-     - Adresse (valgfrit)
-     - Lejertype (vaelges fra `tenant_types`-tabellen)
-   - Hent `tenant_types` med en ekstra useQuery
-   - Ved submit: indsaet ny lejer i `tenants`-tabellen, vælg automatisk den nye lejer i formularen, og luk dialogen
+3. **Hent tenant_types data** (allerede hentet via `tenantTypes`-queryen paa linje 66-74)
+   - Brug den eksisterende query til at slaaa op hvilken type den valgte lejer har
 
-4. **Flow efter oprettelse**
-   - Den nye lejer vaelges automatisk (`setSelectedTenantId` / `setSelectedTenantName`)
-   - `tenants-active` query invalideres saa listen opdateres
-   - Operatoeren kan fortsaette med at udfylde resten af postregistreringen
+4. **Tilfoej info-boks i `formFields`** (efter lejer-sektionen, linje 398)
+   - Naar `selectedTenantId` er sat: find lejerens `tenant_type_id` fra `tenants`-arrayet, slaaa op i `tenantTypes` for at faa navnet, og vis det i en farvet boks
+   - Naar ingen lejer er valgt: vis en tom hvid boks med tynd border og teksten "Ingen lejer valgt" i lysegraat
 
-### Forudsaetninger
-- RLS-politikker tillader allerede operatoerer at indsaette i `tenants`-tabellen
-- `tenant_types` kan allerede laeses af autentificerede brugere
-- Ingen database-aendringer er noedvendige
+### Ingen database-aendringer
+Alt data er allerede tilgaengeligt - vi tilfoeger blot `tenant_type_id` til den eksisterende select-query.
