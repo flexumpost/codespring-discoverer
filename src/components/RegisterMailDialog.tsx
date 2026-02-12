@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop } from "lucide-react";
+import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop, ArrowDownToLine } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
@@ -690,7 +690,17 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       <div className="space-y-2 relative">
         <Label>Lejer</Label>
         {ocrRecipient && !selectedTenantId && (
-          <p className="text-xs text-muted-foreground">OCR fandt: "{ocrRecipient}"</p>
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
+            onClick={() => {
+              setTenantSearch(ocrRecipient);
+              setShowTenantList(true);
+            }}
+          >
+            OCR fandt: "{ocrRecipient}"
+            <ArrowDownToLine className="h-3 w-3" />
+          </button>
         )}
         {selectedTenantId ? (
           <div className="flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm">
