@@ -1,58 +1,27 @@
-# Fase 2: Post-registrering for operatorer
 
-## Hvad bygger vi?
+# Webcam-integration for "Tag billede"-knappen
 
-En "/mail"-side hvor operatorer kan registrere indkommende post (breve og pakker) og se en oversigt over al post.
+## Hvad aendres?
+"Tag billede"-knappen skal aabne webcam direkte i dialogen i stedet for at aabne filvaelgeren. Brugeren ser et live video-feed og kan klikke en knap for at tage billedet.
 
-## Funktionalitet
+## Brugeroplevelse
+1. Klik "Tag billede" -- webcam aktiveres og vises i dialogen
+2. Live video-feed vises med en "Tag billede"-knap
+3. Klik for at tage billedet -- billedet fanges og vises som preview
+4. Brugeren kan slette billedet og tage et nyt
 
-### 1. Oversigt over al post (tabel)
+## Teknisk implementering
 
-- Viser alle registrerede forsendelser med kolonner: Type, Afsender, Lejer, Forsendelsesnr., Status, Modtaget
-- Filtreringsmuligheder (status, type)
-- Knap til at registrere ny post
+### Aendringer i `src/components/RegisterMailDialog.tsx`:
 
-### 2. Registrer ny post (dialog/formular)
+1. **Ny state**: `showCamera` (boolean) og en `useRef` til video-elementet og canvas
 
-- **Posttype**: Brev eller Pakke (radio-valg - standard er brev)
-- **Foto-upload**: Tag billede eller upload foto af forsendelsen (Lovable Cloud Storage)
-- **Forsendelsesnr.**: Valgfrit numerisk felt
-- **Afsender**: Fritekstfelt
-- **Lejer**: Søgefelt som søger alle aktive lejere (fra `tenants`-tabellen) 
-- **Noter**: Valgfrit tekstfelt
-- Gemmer i `mail_items` med status "ny"
+2. **`handleTakePhoto` funktion**: Kaldt direkte fra knappens `onClick` (kritisk for browser-sikkerhed). Kalder `navigator.mediaDevices.getUserMedia({ video: true })` med det samme i click-handleren
 
-### 3. Routing
+3. **`capturePhoto` funktion**: Tegner video-frame til et skjult canvas, konverterer til blob/fil, saetter `photo` og `photoPreview` state, og stopper kamera-stream
 
-- Tilfoej `/mail`-rute i App.tsx (beskyttet, kun operator)
+4. **`stopCamera` funktion**: Stopper alle video-tracks og nulstiller camera-state
 
----
+5. **UI-tilstand**: Naar `showCamera` er true, vises et `<video>` element med live feed og en "Tag billede"/"Annuller" knap i stedet for upload-knapperne
 
-## Tekniske detaljer
-
-### Storage bucket
-
-- Opret en `mail-photos` storage bucket til foto-uploads
-- RLS-politik: Operatorer kan uploade og laese, lejere kan laese egne
-
-### Database
-
-- Ingen skemaandringer -- `mail_items`-tabellen er klar med alle nodvendige kolonner (`photo_url`, `stamp_number`, `sender_name`, `tenant_id`, `mail_type`, `notes`)
-
-### Nye filer
-
-- `src/pages/MailPage.tsx` -- Hovedside med tabel-oversigt og "Registrer post"-knap
-- `src/components/RegisterMailDialog.tsx` -- Dialog med formular til registrering af ny post
-
-### Redigerede filer
-
-- `src/App.tsx` -- Tilfoej `/mail`-rute med ProtectedRoute
-- `src/components/AppSidebar.tsx` -- Ingen andring nodvendig (linket til `/mail` findes allerede)
-
-### Formular-flow
-
-1. Operator klikker "Registrer post"
-2. Dialog aabner med formular
-3. Operator udfylder felter og uploader evt. foto
-4. Ved submit: Upload foto til storage bucket, indsaet raekke i `mail_items`
-5. Tabellen opdateres automatisk
+6. **Oprydning**: `useEffect` cleanup der stopper kamera-stream naar dialogen lukkes
