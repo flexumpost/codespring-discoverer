@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Camera, Upload, X, Video, VideoOff, ZoomIn, Loader2 } from "lucide-react";
+import { Camera, Upload, X, Video, VideoOff, ZoomIn, Loader2, UserPlus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
@@ -34,6 +36,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [submitting, setSubmitting] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [showTenantList, setShowTenantList] = useState(false);
+  const [showCreateTenant, setShowCreateTenant] = useState(false);
+  const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantContact, setNewTenantContact] = useState("");
+  const [newTenantEmail, setNewTenantEmail] = useState("");
+  const [newTenantAddress, setNewTenantAddress] = useState("");
+  const [newTenantTypeId, setNewTenantTypeId] = useState("");
+  const [creatingTenant, setCreatingTenant] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -54,9 +63,47 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     enabled: open,
   });
 
+  const { data: tenantTypes } = useQuery({
+    queryKey: ["tenant-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_types").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
   const filteredTenants = tenants?.filter((t) =>
     t.company_name.toLowerCase().includes(tenantSearch.toLowerCase())
   ) ?? [];
+
+  const handleCreateTenant = async () => {
+    if (!newTenantName.trim() || !newTenantTypeId) {
+      toast.error("Udfyld venligst firmanavn og lejertype");
+      return;
+    }
+    setCreatingTenant(true);
+    try {
+      const { data, error } = await supabase.from("tenants").insert({
+        company_name: newTenantName.trim(),
+        contact_name: newTenantContact || null,
+        contact_email: newTenantEmail || null,
+        address: newTenantAddress || null,
+        tenant_type_id: newTenantTypeId,
+      }).select("id, company_name").single();
+      if (error) throw error;
+      setSelectedTenantId(data.id);
+      setSelectedTenantName(data.company_name);
+      setTenantSearch("");
+      setShowCreateTenant(false);
+      queryClient.invalidateQueries({ queryKey: ["tenants-active"] });
+      toast.success(`Lejer "${data.company_name}" oprettet`);
+    } catch (err: any) {
+      toast.error("Kunne ikke oprette lejer: " + err.message);
+    } finally {
+      setCreatingTenant(false);
+    }
+  };
 
   const runOcr = async (file: File) => {
     setOcrLoading(true);
@@ -311,7 +358,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             placeholder="Søg lejer..."
           />
         )}
-        {showTenantList && !selectedTenantId && filteredTenants.length > 0 && (
+        {showTenantList && !selectedTenantId && (
           <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
             {filteredTenants.map((t) => (
               <button
@@ -328,6 +375,24 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 {t.company_name}
               </button>
             ))}
+            {tenantSearch.trim() && filteredTenants.length === 0 && (
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-primary font-medium"
+                onMouseDown={() => {
+                  setNewTenantName(tenantSearch.trim());
+                  setNewTenantContact("");
+                  setNewTenantEmail("");
+                  setNewTenantAddress("");
+                  setNewTenantTypeId("");
+                  setShowCreateTenant(true);
+                  setShowTenantList(false);
+                }}
+              >
+                <UserPlus className="h-4 w-4" />
+                Opret "{tenantSearch.trim()}" som ny lejer
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -398,6 +463,53 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               className="w-full h-auto max-h-[90vh] object-contain rounded-md"
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Opret ny lejer dialog */}
+      <Dialog open={showCreateTenant} onOpenChange={setShowCreateTenant}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Opret ny lejer</DialogTitle>
+            <DialogDescription>Udfyld oplysningerne for den nye lejer</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-tenant-name">Firmanavn *</Label>
+              <Input id="new-tenant-name" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} placeholder="Firmanavn" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-tenant-type">Lejertype *</Label>
+              <Select value={newTenantTypeId} onValueChange={setNewTenantTypeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vælg lejertype" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenantTypes?.map((tt) => (
+                    <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-tenant-contact">Kontaktperson</Label>
+              <Input id="new-tenant-contact" value={newTenantContact} onChange={(e) => setNewTenantContact(e.target.value)} placeholder="Valgfrit" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-tenant-email">Kontakt-email</Label>
+              <Input id="new-tenant-email" type="email" value={newTenantEmail} onChange={(e) => setNewTenantEmail(e.target.value)} placeholder="Valgfrit" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-tenant-address">Adresse</Label>
+              <Input id="new-tenant-address" value={newTenantAddress} onChange={(e) => setNewTenantAddress(e.target.value)} placeholder="Valgfrit" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateTenant(false)}>Annuller</Button>
+            <Button onClick={handleCreateTenant} disabled={creatingTenant}>
+              {creatingTenant ? "Opretter..." : "Opret lejer"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
