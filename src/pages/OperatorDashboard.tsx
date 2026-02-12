@@ -88,7 +88,12 @@ const OperatorDashboard = () => {
   }));
 
   const activeFilter = CARD_FILTERS.find((cf) => cf.title === selectedCard);
-  const filteredItems = activeFilter ? mailItems.filter(activeFilter.filter) : [];
+  const filteredItems = activeFilter ? mailItems.filter(activeFilter.filter) : mailItems;
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    if (a.stamp_number == null) return 1;
+    if (b.stamp_number == null) return -1;
+    return a.stamp_number - b.stamp_number;
+  });
 
   const handleCardClick = (title: string) => {
     setSelectedCard((prev) => (prev === title ? null : title));
@@ -127,53 +132,51 @@ const OperatorDashboard = () => {
         ))}
       </div>
 
-      {selectedCard && activeFilter && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-3">{selectedCard}</h3>
-          {filteredItems.length === 0 ? (
-            <p className="text-muted-foreground">Ingen elementer.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">Foto</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Lejer</TableHead>
-                  <TableHead>Forsendelsesnr.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Modtaget</TableHead>
+      <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-3">{selectedCard ?? "Alle forsendelser"}</h3>
+        {sortedItems.length === 0 ? (
+          <p className="text-muted-foreground">Ingen elementer.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[60px]">Foto</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Lejer</TableHead>
+                <TableHead>Forsendelsesnr.</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Modtaget</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    {item.photo_url ? (
+                      <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
+                      {item.mail_type === "pakke" ? "Pakke" : "Brev"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
+                  <TableCell>{item.stamp_number ?? "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
+                  </TableCell>
+                  <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      {item.photo_url ? (
-                        <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
-                        {item.mail_type === "pakke" ? "Pakke" : "Brev"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
-                    <TableCell>{item.stamp_number ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
-                    </TableCell>
-                    <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      )}
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
 
       <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
