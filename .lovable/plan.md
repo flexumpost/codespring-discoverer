@@ -1,31 +1,57 @@
 
-# Lejertype info-boks efter lejer-feltet
+# Lejer-portal: Se post og vaelg handling
 
-## Hvad det goer for brugeren
-Efter lejer-feltet vises en info-boks der angiver lejerens type (f.eks. "Standard", "Plus", "Fastlejer"). Hver lejertype faar sin egen baggrundsfarve saa operatoeren hurtigt kan se hvilken type lejer der er valgt. Inden en lejer er valgt, vises en tom hvid boks.
+## Hvad det goer for lejeren
+Naar en lejer logger ind, ser de en oversigt over al deres modtagne post. For forsendelser med status "ny" kan de vaelge en handling (f.eks. scan, videresend, opbevar, destruer, daglig) - men KUN de handlinger der er tilladt for deres lejertype. Naar en handling vaelges, skifter status til "afventer_handling".
 
-## Teknisk implementering
+## Overblik over aendringer
 
-### Fil: `src/components/RegisterMailDialog.tsx`
+### 1. Ny side: `src/pages/TenantMailPage.tsx`
+- Viser lejerens post i en tabel med kolonnerne: Foto, Type, Forsendelsesnr., Status, Handling, Modtaget
+- Filtreringsmuligheder for status
+- For post med status "ny": vis handlingsknapper baseret paa lejerens tilladte handlinger fra `tenant_types.allowed_actions`
+- For post med valgt handling: vis den valgte handling som badge
+- Klik paa et foto aabner det i stor visning
 
-1. **Udvid tenants-queryen** (linje 55-58)
-   - Aendr `.select("id, company_name")` til `.select("id, company_name, tenant_type_id")` saa vi har adgang til lejertypen
+### 2. Opdater `src/pages/TenantDashboard.tsx`
+- Tilfoej post-tabellen under statistik-kortene saa lejeren ser alt paa dashboardet
+- Alternativt: link til den dedikerede post-side
 
-2. **Definér farvekort for lejertyper**
-   - Et objekt der mapper lejertype-navn til Tailwind-baggrundsfarver:
-     - Lite: `bg-blue-100 text-blue-800`
-     - Standard: `bg-green-100 text-green-800`
-     - Plus: `bg-purple-100 text-purple-800`
-     - Fastlejer: `bg-amber-100 text-amber-800`
-     - Nabo: `bg-cyan-100 text-cyan-800`
-     - Retur til afsender: `bg-red-100 text-red-800`
+### 3. Opdater navigation i `src/components/AppSidebar.tsx`
+- Tilfoej "Min post" som separat side i tenant-menuen med url `/my-mail`
 
-3. **Hent tenant_types data** (allerede hentet via `tenantTypes`-queryen paa linje 66-74)
-   - Brug den eksisterende query til at slaaa op hvilken type den valgte lejer har
+### 4. Opdater routing i `src/App.tsx`
+- Tilfoej `/my-mail` route med `ProtectedRoute`
 
-4. **Tilfoej info-boks i `formFields`** (efter lejer-sektionen, linje 398)
-   - Naar `selectedTenantId` er sat: find lejerens `tenant_type_id` fra `tenants`-arrayet, slaaa op i `tenantTypes` for at faa navnet, og vis det i en farvet boks
-   - Naar ingen lejer er valgt: vis en tom hvid boks med tynd border og teksten "Ingen lejer valgt" i lysegraat
+### 5. Ingen database-aendringer nødvendige
+- RLS-politikker tillader allerede lejere at laese deres egen post (`tenant_id IN my_tenant_ids()`)
+- RLS-politikken "Tenants update own mail action" tillader allerede lejere at opdatere deres egen post
+- `chosen_action` og `status` felter findes allerede paa `mail_items`
+- `tenant_types.allowed_actions` indeholder allerede de tilladte handlinger per type
 
-### Ingen database-aendringer
-Alt data er allerede tilgaengeligt - vi tilfoeger blot `tenant_type_id` til den eksisterende select-query.
+## Tekniske detaljer
+
+### `TenantMailPage.tsx` - Hovedkomponent
+- **Hent lejerens tenant-data**: Query `tenants` med `user_id = auth.uid()` for at faa `tenant_type_id`
+- **Hent tilladte handlinger**: Query `tenant_types` med det fundne `tenant_type_id` for at faa `allowed_actions`
+- **Hent post**: Query `mail_items` med sortering og valgfri statusfiltrering (RLS sikrer kun egen post vises)
+- **Handling-knapper**: For hver post med status "ny", vis knapper for de tilladte handlinger
+- **Vaelg handling**: Update `mail_items` med `chosen_action` og saet `status` til `afventer_handling`
+- Vis bekraeftelsesdialog foer destruering
+
+### Handlings-labels paa dansk
+- scan: "Scan"
+- videresend: "Videresend"
+- opbevar: "Opbevar"
+- destruer: "Destruer"
+- daglig: "Daglig scanning"
+- prioritet: "Prioritet"
+- retur: "Retur til afsender"
+
+### Eksempel paa allowed_actions per type
+- Lite: opbevar, destruer
+- Standard: videresend, scan, opbevar, destruer
+- Plus: videresend, scan, opbevar, destruer, prioritet
+- Fastlejer: videresend, scan, opbevar, destruer, prioritet, daglig
+- Nabo: opbevar
+- Retur til afsender: retur
