@@ -345,7 +345,11 @@ const TenantDashboard = () => {
                 <TableCell>{item.stamp_number ?? "—"}</TableCell>
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">{STATUS_LABELS[item.status as MailStatus]}</Badge>
+                  <Badge variant="outline">
+                    {item.chosen_action === "scan" && !item.scan_url
+                      ? "Afventer scanning"
+                      : STATUS_LABELS[item.status as MailStatus]}
+                  </Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {item.status !== "arkiveret" && allowedActions.length > 0 ? (
@@ -436,7 +440,11 @@ const TenantDashboard = () => {
                 <div>
                   <span className="text-muted-foreground">Status</span>
                   <p>
-                    <Badge variant="outline">{STATUS_LABELS[selectedItem.status]}</Badge>
+                    <Badge variant="outline">
+                      {selectedItem.chosen_action === "scan" && !selectedItem.scan_url
+                        ? "Afventer scanning"
+                        : STATUS_LABELS[selectedItem.status]}
+                    </Badge>
                   </p>
                 </div>
                 <div>
