@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +35,50 @@ const ACTION_LABELS: Record<string, string> = {
 
 type FilterStatus = "ny" | "afventer_scanning" | "ulaest" | "laest" | "arkiveret" | null;
 
+/* ── Date helpers ── */
+
+const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
+const DANISH_MONTHS = [
+  "januar", "februar", "marts", "april", "maj", "juni",
+  "juli", "august", "september", "oktober", "november", "december",
+];
+
+function formatDanishDate(date: Date): string {
+  const day = DANISH_DAYS[date.getDay()];
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  return `${day} den ${d}. ${month}`;
+}
+
+/** First Thursday of the month AFTER today */
+function getFirstThursdayOfNextMonth(): Date {
+  const now = new Date();
+  const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+  const month = (now.getMonth() + 1) % 12;
+  const first = new Date(year, month, 1);
+  const dayOfWeek = first.getDay(); // 0=Sun
+  const offset = (4 - dayOfWeek + 7) % 7; // days until Thursday
+  return new Date(year, month, 1 + offset);
+}
+
+/** The upcoming Thursday (if today is Thursday, return today) */
+function getNextThursday(): Date {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu use next
+  const d = new Date(now);
+  if (dayOfWeek === 4) return d; // today is Thursday
+  d.setDate(d.getDate() + daysUntil);
+  return d;
+}
+
+function getNextShippingDate(tenantType: string | undefined, mailType: string): Date {
+  if (tenantType === "Lite" && mailType === "brev") {
+    return getFirstThursdayOfNextMonth();
+  }
+  return getNextThursday();
+}
+
 const TenantDashboard = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -46,9 +90,10 @@ const TenantDashboard = () => {
 
   const hasMultipleTenants = tenants.length > 1;
 
-  // Derive allowed actions from selected tenant's type
+  // Derive allowed actions and tenant type name
   const allowedActions: string[] =
     (selectedTenant?.tenant_types as any)?.allowed_actions as string[] ?? [];
+  const tenantTypeName: string | undefined = (selectedTenant?.tenant_types as any)?.name;
 
   // Fetch stats filtered by selected tenant
   const { data: stats = { ny: 0, afventer_scanning: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
@@ -303,24 +348,39 @@ const TenantDashboard = () => {
                   <Badge variant="outline">{STATUS_LABELS[item.status as MailStatus]}</Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.status === "ny" && allowedActions.length > 0 ? (
-                    <Select
-                      onValueChange={(value) => handleAction(item.id, value)}
-                      disabled={chooseAction.isPending}
-                    >
-                      <SelectTrigger className="h-8 w-[160px] text-xs">
-                        <SelectValue placeholder="Vælg handling" />
-                      </SelectTrigger>
-                      <SelectContent className="z-50 bg-popover">
-                        {allowedActions
-                          .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
-                          .map((action) => (
-                          <SelectItem key={action} value={action} className="text-xs">
-                            {ACTION_LABELS[action] ?? action}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  {item.status !== "arkiveret" && allowedActions.length > 0 ? (
+                    <div className="space-y-1">
+                      <Select
+                        value={item.chosen_action ?? undefined}
+                        onValueChange={(value) => handleAction(item.id, value)}
+                        disabled={chooseAction.isPending}
+                      >
+                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectValue placeholder="Vælg handling" />
+                        </SelectTrigger>
+                        <SelectContent className="z-50 bg-popover">
+                          {allowedActions
+                            .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
+                            .map((action) => (
+                            <SelectItem key={action} value={action} className="text-xs">
+                              {ACTION_LABELS[action] ?? action}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {!item.chosen_action && (
+                        tenantTypeName === "Fastlejer" ? (
+                          <p className="text-[11px] text-muted-foreground">Lægges på kontoret</p>
+                        ) : ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") ? (
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Sendes på næste forsendelsesdag</p>
+                            <p className="text-[11px] font-medium text-muted-foreground">
+                              {formatDanishDate(getNextShippingDate(tenantTypeName, item.mail_type))}
+                            </p>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
                   ) : item.chosen_action ? (
                     <Badge className="bg-primary/10 text-primary border-primary/20">
                       {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
