@@ -12,6 +12,24 @@ import { ScanUploadButton } from "@/components/ScanUploadButton";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
 
+const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
+const DANISH_MONTHS = [
+  "januar", "februar", "marts", "april", "maj", "juni",
+  "juli", "august", "september", "oktober", "november", "december",
+];
+
+function parsePickupFromNotes(notes: string | null): string | null {
+  if (!notes || !notes.startsWith("PICKUP:")) return null;
+  const isoStr = notes.replace("PICKUP:", "");
+  const date = new Date(isoStr);
+  if (isNaN(date.getTime())) return null;
+  const dayName = DANISH_DAYS[date.getDay()];
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  const hour = date.getHours();
+  return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
+}
+
 const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> = {
   ny: "Ny",
   afventer_handling: "Afventer handling",
@@ -181,6 +199,12 @@ const OperatorDashboard = () => {
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
+                    {item.chosen_action === "afhentning" && (() => {
+                      const pickupText = parsePickupFromNotes(item.notes);
+                      return pickupText ? (
+                        <p className="text-[11px] text-muted-foreground mt-1">{pickupText}</p>
+                      ) : null;
+                    })()}
                   </TableCell>
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
