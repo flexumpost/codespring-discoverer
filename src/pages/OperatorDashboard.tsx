@@ -99,14 +99,18 @@ const OperatorDashboard = () => {
   };
 
   useEffect(() => {
-    const fetchMail = async () => {
-      const { data } = await supabase
-        .from("mail_items")
-        .select("*, tenants(company_name)")
-        .in("status", ["ny", "afventer_handling"]);
-      setMailItems(data ?? []);
-    };
-    fetchMail();
+    refreshMail();
+
+    const channel = supabase
+      .channel('operator-mail-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'mail_items' },
+        () => { refreshMail(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const counts = CARD_FILTERS.map((cf) => ({
