@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Mail, Clock, Archive, Eye, ImageIcon } from "lucide-react";
+import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -238,6 +238,7 @@ const TenantDashboard = () => {
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Handling</TableHead>
+              <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
           </TableHeader>
@@ -296,6 +297,13 @@ const TenantDashboard = () => {
                     <Badge className="bg-primary/10 text-primary border-primary/20">
                       {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
                     </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {(item as any).scan_url ? (
+                    <ScanLine className="h-4 w-4 text-primary" />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
@@ -362,6 +370,31 @@ const TenantDashboard = () => {
                 <div className="text-sm">
                   <span className="text-muted-foreground">Noter fra operatør</span>
                   <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
+                </div>
+              )}
+              {(selectedItem as any).scan_url && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Scanning</span>
+                  <div className="mt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={async () => {
+                        const { data, error } = await supabase.storage
+                          .from("mail-scans")
+                          .createSignedUrl((selectedItem as any).scan_url, 60);
+                        if (error || !data?.signedUrl) {
+                          toast.error("Kunne ikke hente scanning");
+                          return;
+                        }
+                        window.open(data.signedUrl, "_blank");
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                      Download scanning
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
