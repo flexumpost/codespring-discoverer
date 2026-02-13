@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
+import { AssignTenantDialog } from "@/components/AssignTenantDialog";
 import { ScanUploadButton } from "@/components/ScanUploadButton";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
@@ -94,6 +95,7 @@ const OperatorDashboard = () => {
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
 
   const refreshMail = async () => {
     const { data } = await supabase
@@ -197,7 +199,16 @@ const OperatorDashboard = () => {
                       {item.mail_type === "pakke" ? "Pakke" : "Brev"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
+                  <TableCell
+                    className="cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); setAssignTenantItem(item); }}
+                  >
+                    {item.tenants?.company_name ? (
+                      <span className="text-primary hover:underline">{item.tenants.company_name}</span>
+                    ) : (
+                      <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
+                    )}
+                  </TableCell>
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
@@ -232,6 +243,15 @@ const OperatorDashboard = () => {
       </div>
 
       <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      {assignTenantItem && (
+        <AssignTenantDialog
+          mailItemId={assignTenantItem.id}
+          currentTenantId={assignTenantItem.tenant_id}
+          open={!!assignTenantItem}
+          onOpenChange={(v) => { if (!v) setAssignTenantItem(null); }}
+          onAssigned={() => { refreshMail(); setAssignTenantItem(null); }}
+        />
+      )}
     </div>
   );
 };
