@@ -1,46 +1,36 @@
 
 
-## Tydeligere farver og groen status for scannede/laeste breve
+## Opdater "Scannet post"-kort og ulæst-farve
 
-### Aendringer
+### 1. "Scannet post"-kort viser kun ulæste (`src/pages/TenantDashboard.tsx`, linje 356)
 
-**`src/lib/mailRowColor.ts`** - Opdater farvefunktionen med to aendringer:
+AEndr value fra `stats.ulaest + stats.laest` til kun `stats.ulaest`, saa kortet kun viser antallet af ulaeeste (nye scannede) breve.
 
-1. **Goer "Laest" groen**: AEndr linjen for `status === "laest"` saa den returnerer groen i stedet for tom streng. Paa lejer-siden betyder dette at scannede og laeeste breve ogsaa bliver groenne.
+**Foer:** `value: stats.ulaest + stats.laest`
+**Efter:** `value: stats.ulaest`
 
-2. **Tilfoej check for scan_url**: Tilfoej en ny regel: Hvis `scan_url` er sat (uanset status), returner groen. Dette sikrer at operatoer-siden ogsaa ser groent naar de har uploadet en PDF.
+### 2. Ulaeeste breve faar farven #fef18b (`src/lib/mailRowColor.ts`, linje 34-37)
 
-3. **Goer alle farver kraeftigere**: Skift fra `-50` (meget lys/pastel) til `-200` for alle baggrunde. Mork tilstand skiftes fra `-950/30` til `-900/40`.
+AEndr baggrundfarven for status `ulaest` fra groen til den specifikke gule farve `#fef18b`.
 
-### Ny farveoversigt
-
-| Stadie | Foer (pastel) | Efter (tydeligere) |
-|--------|---------------|---------------------|
-| Destruer | `bg-red-50` | `bg-red-200 dark:bg-red-900/40` |
-| Ikke tildelt / Ny | `bg-yellow-50` | `bg-yellow-200 dark:bg-yellow-900/40` |
-| Afventer scan | `bg-blue-50` | `bg-blue-200 dark:bg-blue-900/40` |
-| Scannet (uleast + laest + har scan_url) | `bg-green-50` | `bg-green-200 dark:bg-green-900/40` |
-| Send/Afhentning/Daglig | `bg-purple-50` | `bg-purple-200 dark:bg-purple-900/40` |
-| Arkiveret | `bg-gray-50` | `bg-gray-200 dark:bg-gray-900/40` |
-
-### Opdateret logik i `getMailRowColor`
-
+**Foer:**
 ```text
-1. chosen_action === "destruer"        -> roed
-2. !tenant_id                          -> gul
-3. scan && !scan_url                   -> blaa
-4. scan_url er sat (uploaded PDF)      -> groen  (NY - fanger baade ulaest og laest)
-5. status === "arkiveret"              -> graa
-6. send/afhentning/daglig              -> lilla
-7. ny / afventer_handling              -> gul
+if (item.status === "ulaest") {
+  return "bg-green-200 dark:bg-green-900/40";
+}
 ```
 
-Noegle-aendringen er at punkt 4 nu fanger alle breve med en uploadet scan (baade ulaeeste og laeeste), og at farverne er markant kraeftigere.
+**Efter:**
+```text
+if (item.status === "ulaest") {
+  return "bg-[#fef18b] dark:bg-yellow-700/50";
+}
+```
 
 ### Filer der aendres
 
 | Fil | AEndring |
 |-----|---------|
-| `src/lib/mailRowColor.ts` | Opdater alle farver fra -50 til -200, tilfoej scan_url-regel, goer laest groen |
+| `TenantDashboard.tsx` | Kort-vaerdi aendres til kun `stats.ulaest` |
+| `mailRowColor.ts` | Ulaest-farve aendres fra groen til `#fef18b` |
 
-Ingen andre filer aendres - begge dashboards bruger allerede `getMailRowColor`.
