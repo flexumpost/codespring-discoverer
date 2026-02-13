@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download, CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -79,6 +80,71 @@ function getNextShippingDate(tenantType: string | undefined, mailType: string): 
   return getNextThursday();
 }
 
+/* ── Pickup helpers ── */
+
+function parsePickupFromNotes(notes: string | null): string | null {
+  if (!notes || !notes.startsWith("PICKUP:")) return null;
+  const isoStr = notes.replace("PICKUP:", "");
+  const date = new Date(isoStr);
+  if (isNaN(date.getTime())) return null;
+  const dayName = DANISH_DAYS[date.getDay()];
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  const hour = date.getHours();
+  return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
+}
+
+function getStatusDisplay(
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null },
+  tenantTypeName: string | undefined
+): [string, string?] {
+  if (item.chosen_action === "scan" && !item.scan_url) {
+    return ["Afventer scanning", "Scannes inden for 24 timer"];
+  }
+  if (item.chosen_action === "scan" && item.scan_url) {
+    return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
+  }
+  if (item.chosen_action === "send") {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+  }
+  if (item.chosen_action === "afhentning") {
+    const pickupText = parsePickupFromNotes(item.notes);
+    return ["Bestilt afhentning", pickupText ?? undefined];
+  }
+  if (item.chosen_action === "destruer") {
+    return ["Destrueret"];
+  }
+  if (item.chosen_action === "daglig") {
+    return ["Lægges på kontoret"];
+  }
+  // No action chosen
+  if (tenantTypeName === "Fastlejer") {
+    return ["Lægges på kontoret"];
+  }
+  if (["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "")) {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+  }
+  return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
+}
+
+function getPickupHours(date: Date | undefined): string[] {
+  if (!date) return [];
+  const day = date.getDay(); // 5 = Friday
+  const maxHour = day === 5 ? 14 : 16;
+  const hours: string[] = [];
+  for (let h = 9; h <= maxHour; h++) {
+    hours.push(`${h.toString().padStart(2, "0")}:00-${(h + 1).toString().padStart(2, "0")}:00`);
+  }
+  return hours;
+}
+
+function isWeekend(date: Date): boolean {
+  const d = date.getDay();
+  return d === 0 || d === 6;
+}
+
 const TenantDashboard = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -87,6 +153,9 @@ const TenantDashboard = () => {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<MailItem | null>(null);
+  const [pickupDialogItem, setPickupDialogItem] = useState<string | null>(null);
+  const [pickupDate, setPickupDate] = useState<Date | undefined>();
+  const [pickupHour, setPickupHour] = useState<string | undefined>();
 
   const hasMultipleTenants = tenants.length > 1;
 
@@ -211,12 +280,40 @@ const TenantDashboard = () => {
   });
 
   const handleAction = (id: string, action: string) => {
-    if (action === "destruer") {
+    if (action === "afhentning") {
+      setPickupDialogItem(id);
+    } else if (action === "destruer") {
       setConfirmDestroy(id);
     } else {
       chooseAction.mutate({ id, action });
     }
   };
+
+  // Pickup mutation
+  const choosePickup = useMutation({
+    mutationFn: async ({ id, pickupIso }: { id: string; pickupIso: string }) => {
+      const { error } = await supabase
+        .from("mail_items")
+        .update({
+          chosen_action: "afhentning",
+          status: "afventer_handling" as MailStatus,
+          notes: `PICKUP:${pickupIso}`,
+        })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
+      setPickupDialogItem(null);
+      setPickupDate(undefined);
+      setPickupHour(undefined);
+      toast.success("Afhentning bestilt");
+    },
+    onError: () => {
+      toast.error("Kunne ikke bestille afhentning");
+    },
+  });
 
   const handleCardClick = (status: FilterStatus) => {
     setActiveFilter((prev) => (prev === status ? null : status));
@@ -345,46 +442,36 @@ const TenantDashboard = () => {
                 <TableCell>{item.stamp_number ?? "—"}</TableCell>
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant="outline">
-                    {item.chosen_action === "scan" && !item.scan_url
-                      ? "Afventer scanning"
-                      : STATUS_LABELS[item.status as MailStatus]}
-                  </Badge>
+                  {(() => {
+                    const [line1, line2] = getStatusDisplay(item, tenantTypeName);
+                    return (
+                      <div>
+                        <Badge variant="outline">{line1}</Badge>
+                        {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
+                      </div>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {item.status !== "arkiveret" && allowedActions.length > 0 ? (
-                    <div className="space-y-1">
-                      <Select
-                        value={item.chosen_action ?? undefined}
-                        onValueChange={(value) => handleAction(item.id, value)}
-                        disabled={chooseAction.isPending}
-                      >
-                        <SelectTrigger className="h-8 w-[180px] text-xs">
-                          <SelectValue placeholder="Vælg handling" />
-                        </SelectTrigger>
-                        <SelectContent className="z-50 bg-popover">
-                          {allowedActions
-                            .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
-                            .map((action) => (
-                            <SelectItem key={action} value={action} className="text-xs">
-                              {ACTION_LABELS[action] ?? action}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!item.chosen_action && (
-                        tenantTypeName === "Fastlejer" ? (
-                          <p className="text-[11px] text-muted-foreground">Lægges på kontoret</p>
-                        ) : ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") ? (
-                          <div>
-                            <p className="text-[11px] text-muted-foreground">Sendes på næste forsendelsesdag</p>
-                            <p className="text-[11px] font-medium text-muted-foreground">
-                              {formatDanishDate(getNextShippingDate(tenantTypeName, item.mail_type))}
-                            </p>
-                          </div>
-                        ) : null
-                      )}
-                    </div>
+                    <Select
+                      value={item.chosen_action ?? undefined}
+                      onValueChange={(value) => handleAction(item.id, value)}
+                      disabled={chooseAction.isPending}
+                    >
+                      <SelectTrigger className="h-8 w-[180px] text-xs">
+                        <SelectValue placeholder="Vælg handling" />
+                      </SelectTrigger>
+                      <SelectContent className="z-50 bg-popover">
+                        {allowedActions
+                          .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
+                          .map((action) => (
+                          <SelectItem key={action} value={action} className="text-xs">
+                            {ACTION_LABELS[action] ?? action}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : item.chosen_action ? (
                     <Badge className="bg-primary/10 text-primary border-primary/20">
                       {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
@@ -439,13 +526,15 @@ const TenantDashboard = () => {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Status</span>
-                  <p>
-                    <Badge variant="outline">
-                      {selectedItem.chosen_action === "scan" && !selectedItem.scan_url
-                        ? "Afventer scanning"
-                        : STATUS_LABELS[selectedItem.status]}
-                    </Badge>
-                  </p>
+                  {(() => {
+                    const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName);
+                    return (
+                      <div>
+                        <Badge variant="outline">{line1}</Badge>
+                        {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <span className="text-muted-foreground">Valgt handling</span>
@@ -539,6 +628,85 @@ const TenantDashboard = () => {
               }}
             >
               Destruer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pickup calendar dialog */}
+      <Dialog
+        open={!!pickupDialogItem}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPickupDialogItem(null);
+            setPickupDate(undefined);
+            setPickupHour(undefined);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Vælg afhentningstidspunkt</DialogTitle>
+            <DialogDescription>
+              Vælg dato og tidsrum for afhentning.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Calendar
+              mode="single"
+              selected={pickupDate}
+              onSelect={(date) => {
+                setPickupDate(date);
+                setPickupHour(undefined);
+              }}
+              disabled={(date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return date < today || isWeekend(date);
+              }}
+              className="p-3 pointer-events-auto"
+            />
+            {pickupDate && (
+              <Select value={pickupHour} onValueChange={setPickupHour}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vælg tidsrum" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  {getPickupHours(pickupDate).map((slot) => (
+                    <SelectItem key={slot} value={slot}>
+                      {slot}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPickupDialogItem(null);
+                setPickupDate(undefined);
+                setPickupHour(undefined);
+              }}
+            >
+              Annuller
+            </Button>
+            <Button
+              disabled={!pickupDate || !pickupHour || choosePickup.isPending}
+              onClick={() => {
+                if (pickupDialogItem && pickupDate && pickupHour) {
+                  const hour = parseInt(pickupHour.split(":")[0], 10);
+                  const dt = new Date(pickupDate);
+                  dt.setHours(hour, 0, 0, 0);
+                  choosePickup.mutate({
+                    id: pickupDialogItem,
+                    pickupIso: dt.toISOString(),
+                  });
+                }
+              }}
+            >
+              {choosePickup.isPending ? "Bestiller..." : "Bestil afhentning"}
             </Button>
           </DialogFooter>
         </DialogContent>
