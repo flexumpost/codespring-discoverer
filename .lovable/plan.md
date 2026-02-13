@@ -1,62 +1,76 @@
 
 
-## "Registrer og naeste" + "Tag billede" i dialogen
+## Fase 6: Scanning-funktionalitet
 
-### Hvad aendres
+### Overblik
 
-**`src/components/RegisterMailDialog.tsx`** - to aendringer:
+Lejere kan allerede vaelge "Scan" som handling paa deres post. Denne fase tilfojer den fulde scanning-workflow: operatoerer kan uploade scannede dokumenter, og lejere kan downloade dem.
 
-**1. Ny "Registrer og naeste" knap i DialogFooter (linje 808-813)**
+### Database-aendringer
 
-Tilfoej en tredje knap mellem "Annuller" og "Registrer":
+**1. Ny kolonne paa `mail_items`:**
+- `scan_url` (text, nullable) - URL til det scannede dokument i storage
+
+**2. Ny storage-bucket:**
+- `mail-scans` (privat bucket) - til opbevaring af scannede PDF/billeder
+
+**3. RLS-politikker for `mail-scans` bucket:**
+- Operatoerer kan uploade og laese alle filer
+- Lejere kan kun laese filer tilknyttet deres egne forsendelser
+
+### Operator-side aendringer
+
+**`src/pages/OperatorDashboard.tsx`:**
+- Tilfoej en "Upload scan" knap paa raekkerne hvor `chosen_action = 'scan'` og `scan_url` er null
+- Knappen aabner en fil-vaelger (PDF/billede)
+- Filen uploades til `mail-scans` bucket og `scan_url` opdateres paa mail_item
+- Naar scan er uploadet, vises et ikon/badge der indikerer "Scannet"
+- En notifikation sendes automatisk til lejeren
+
+**Ny komponent: `src/components/ScanUploadButton.tsx`:**
+- Fil-input (accepterer PDF, PNG, JPG)
+- Upload til storage med unik sti: `{tenant_id}/{mail_item_id}.{ext}`
+- Opdaterer `mail_items.scan_url` med den offentlige URL
+- Opretter notifikation til lejeren
+
+### Lejer-side aendringer
+
+**`src/pages/TenantDashboard.tsx`:**
+- I detalje-dialogen: hvis `scan_url` er sat, vis en "Download scan" knap
+- I tabellen: vis et ikon (f.eks. ScanLine) naar scannet dokument er tilgaengeligt
+
+### Notifikationer
+
+**Ny database-trigger: `notify_tenant_on_scan`:**
+- Trigger paa UPDATE af `mail_items` naar `scan_url` aendres fra NULL til en vaerdi
+- Opretter en notifikation: "Din forsendelse er blevet scannet og er klar til download"
+
+### Teknisk plan
 
 ```text
-DialogFooter:
-  [Annuller]  [Registrer og naeste]  [Registrer]
-```
+1. SQL-migration:
+   - ALTER TABLE mail_items ADD COLUMN scan_url text;
+   - Opret mail-scans bucket
+   - RLS: operatoerer INSERT/SELECT, lejere SELECT (kun egne)
 
-- "Registrer og naeste" koerer samme logik som `handleSubmit`, men i stedet for at lukke dialogen (`onOpenChange(false)`) efter succes, nulstiller den kun formularen via `resetForm()` og viser kameraet med det samme.
-- Implementeres ved at refaktorere `handleSubmit` til at tage en parameter `closeAfter: boolean`. Naar `closeAfter` er `false`, forbliver dialogen aaben og kameraet startes automatisk.
+2. ScanUploadButton.tsx (ny fil):
+   - Props: mailItemId, tenantId, onUploaded callback
+   - Haandterer fil-upload til storage
+   - Opdaterer mail_items.scan_url
+   - Sender notifikation
 
-**2. "Tag nyt billede" knap naar foto allerede er taget (linje 555-590)**
+3. OperatorDashboard.tsx:
+   - Import ScanUploadButton
+   - Vis knappen paa rækker med chosen_action='scan' og scan_url=null
+   - Vis "Scannet" badge naar scan_url er sat
 
-Tilfoej en knap i crop-kontrol-omraadet (naar `!cropMode`) der giver mulighed for at tage et nyt billede uden at forlade dialogen:
-
-```text
-[Marker navn]  [Marker afsender]  [Marker forsendelsesnr.]
-[Tag nyt billede]
-```
-
-- Knappen nulstiller foto-state (`setPhoto(null)`, `setPhotoPreview(null)`, etc.) og starter kameraet via `handleTakePhoto`.
-
-### Teknisk detalje
-
-`handleSubmit` refaktoreres:
-
-```text
-handleSubmit(closeAfter = true):
-  ... eksisterende logik ...
-  efter succes:
-    resetForm()
-    if (closeAfter):
-      onOpenChange(false)
-    else:
-      handleTakePhoto()  // start kamera med det samme
-```
-
-DialogFooter bliver:
-
-```text
-<Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
-<Button variant="secondary" onClick={() => handleSubmit(false)} disabled={submitting}>
-  Registrer og naeste
-</Button>
-<Button onClick={() => handleSubmit(true)} disabled={submitting}>
-  Registrer
-</Button>
+4. TenantDashboard.tsx:
+   - Tilfoej ScanLine ikon i tabel naar scan_url er sat
+   - Tilfoej "Download scan" knap i detalje-dialog
 ```
 
 ### Resultat
-- Operatoeren kan registrere post og straks tage naeste billede uden at lukke dialogen
-- "Tag nyt billede" knap giver mulighed for at gentage billedet hvis det foerste var daarligt
-- Ingen database-aendringer
+- Operatoerer kan uploade scannede dokumenter direkte fra dashboardet
+- Lejere faar notifikation og kan downloade scanningen
+- Filer gemmes sikkert med korrekt adgangskontrol
+
