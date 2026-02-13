@@ -131,7 +131,7 @@ const OperatorDashboard = () => {
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.stamp_number == null) return 1;
     if (b.stamp_number == null) return -1;
-    return a.stamp_number - b.stamp_number;
+    return b.stamp_number - a.stamp_number;
   });
 
   const handleCardClick = (title: string) => {
