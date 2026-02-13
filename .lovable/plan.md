@@ -1,55 +1,46 @@
 
 
-## 1. Slå "Ulæste breve" og "Læste breve" sammen til "Scannet post"
+## Tydeligere farver og groen status for scannede/laeste breve
 
-### Lejer-dashboard kort-ændringer
+### Aendringer
 
-De nuværende 5 kort reduceres til 4:
+**`src/lib/mailRowColor.ts`** - Opdater farvefunktionen med to aendringer:
 
-| Før | Efter |
-|-----|-------|
-| Ny forsendelse | Ny forsendelse |
-| Afventer scanning | Afventer scanning |
-| Ulæste breve | **Scannet post** (sum af ulæst + læst) |
-| Læste breve | *(fjernet, slået sammen ovenfor)* |
-| Arkiveret | Arkiveret |
+1. **Goer "Laest" groen**: AEndr linjen for `status === "laest"` saa den returnerer groen i stedet for tom streng. Paa lejer-siden betyder dette at scannede og laeeste breve ogsaa bliver groenne.
 
-Kortet "Scannet post" viser summen `stats.ulaest + stats.laest`. Når man klikker på det, filtreres tabellen til forsendelser med status `ulaest` ELLER `laest`. Hver række beholder sin originale status-badge ("Ulæst"/"Læst") i status-kolonnen.
+2. **Tilfoej check for scan_url**: Tilfoej en ny regel: Hvis `scan_url` er sat (uanset status), returner groen. Dette sikrer at operatoer-siden ogsaa ser groent naar de har uploadet en PDF.
 
-Grid ændres fra `md:grid-cols-5` til `md:grid-cols-4`.
+3. **Goer alle farver kraeftigere**: Skift fra `-50` (meget lys/pastel) til `-200` for alle baggrunde. Mork tilstand skiftes fra `-950/30` til `-900/40`.
 
----
+### Ny farveoversigt
 
-## 2. Farver på tabelrækker (begge dashboards)
+| Stadie | Foer (pastel) | Efter (tydeligere) |
+|--------|---------------|---------------------|
+| Destruer | `bg-red-50` | `bg-red-200 dark:bg-red-900/40` |
+| Ikke tildelt / Ny | `bg-yellow-50` | `bg-yellow-200 dark:bg-yellow-900/40` |
+| Afventer scan | `bg-blue-50` | `bg-blue-200 dark:bg-blue-900/40` |
+| Scannet (uleast + laest + har scan_url) | `bg-green-50` | `bg-green-200 dark:bg-green-900/40` |
+| Send/Afhentning/Daglig | `bg-purple-50` | `bg-purple-200 dark:bg-purple-900/40` |
+| Arkiveret | `bg-gray-50` | `bg-gray-200 dark:bg-gray-900/40` |
 
-Forslag til farvepaletten baseret på forsendelsens stadie:
+### Opdateret logik i `getMailRowColor`
 
-| Stadie | Baggrund (Tailwind) | Hvornår |
-|--------|---------------------|---------|
-| Ny / ikke tildelt | `bg-yellow-50` | Ingen handling valgt endnu -- kræver opmærksomhed |
-| Afventer scanning | `bg-blue-50` | Lejer har bedt om scan, operatør har ikke scannet endnu |
-| Scannet / Ulæst | `bg-green-50` | Scan klar, lejer har ikke åbnet |
-| Læst | Ingen ekstra farve (standard hvid) | Lejer har åbnet -- ingen handling nødvendig |
-| Send / Afhentning / Daglig | `bg-purple-50` | Anden handling valgt, afventer håndtering |
-| Destruer | `bg-red-50` | Markeret til destruktion |
-| Arkiveret | `bg-gray-50` | Afsluttet |
+```text
+1. chosen_action === "destruer"        -> roed
+2. !tenant_id                          -> gul
+3. scan && !scan_url                   -> blaa
+4. scan_url er sat (uploaded PDF)      -> groen  (NY - fanger baade ulaest og laest)
+5. status === "arkiveret"              -> graa
+6. send/afhentning/daglig              -> lilla
+7. ny / afventer_handling              -> gul
+```
 
-Farverne anvendes som betinget `className` på `TableRow` i begge dashboards. Mørk tilstand-varianter (dark:bg-xxx-950/30) tilføjes også for kontrast.
+Noegle-aendringen er at punkt 4 nu fanger alle breve med en uploadet scan (baade ulaeeste og laeeste), og at farverne er markant kraeftigere.
 
----
+### Filer der aendres
 
-## Teknisk opsummering
+| Fil | AEndring |
+|-----|---------|
+| `src/lib/mailRowColor.ts` | Opdater alle farver fra -50 til -200, tilfoej scan_url-regel, goer laest groen |
 
-### Filer der ændres
-
-**`src/pages/TenantDashboard.tsx`**
-- Fjern det separate "Læste breve"-kort, erstat med kombineret "Scannet post"-kort
-- Tilføj ny filtertype `"scannet"` der matcher status `ulaest` eller `laest`
-- Opdater grid til `md:grid-cols-4`
-- Tilføj betinget baggrundfarve-logik på `TableRow` baseret på forsendelsens stadie
-
-**`src/pages/OperatorDashboard.tsx`**
-- Tilføj betinget baggrundfarve-logik på `TableRow` baseret på forsendelsens stadie (samme farveskema)
-
-Ingen nye afhængigheder eller databaseændringer.
-
+Ingen andre filer aendres - begge dashboards bruger allerede `getMailRowColor`.
