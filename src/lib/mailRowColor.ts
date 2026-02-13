@@ -13,42 +13,47 @@ export function getMailRowColor(item: {
 }): string {
   // Destroy
   if (item.chosen_action === "destruer") {
-    return "bg-red-50 dark:bg-red-950/30";
+    return "bg-red-200 dark:bg-red-900/40";
   }
 
   // Not assigned to a tenant
   if (!item.tenant_id) {
-    return "bg-yellow-50 dark:bg-yellow-950/30";
+    return "bg-yellow-200 dark:bg-yellow-900/40";
   }
 
   // Awaiting scan (action=scan but no scan uploaded yet)
   if (item.chosen_action === "scan" && !item.scan_url) {
-    return "bg-blue-50 dark:bg-blue-950/30";
+    return "bg-blue-200 dark:bg-blue-900/40";
   }
 
-  // Scanned / unread
+  // Scanned — has uploaded PDF (covers both ulaest and laest)
+  if (item.scan_url) {
+    return "bg-green-200 dark:bg-green-900/40";
+  }
+
+  // Scanned / unread (no scan_url but status is ulaest)
   if (item.status === "ulaest") {
-    return "bg-green-50 dark:bg-green-950/30";
+    return "bg-green-200 dark:bg-green-900/40";
   }
 
-  // Read — no extra color
+  // Read
   if (item.status === "laest") {
-    return "";
+    return "bg-green-200 dark:bg-green-900/40";
   }
 
   // Archived
   if (item.status === "arkiveret") {
-    return "bg-gray-50 dark:bg-gray-950/30";
+    return "bg-gray-200 dark:bg-gray-900/40";
   }
 
   // Other actions (send, pickup, daily)
   if (item.chosen_action && ["send", "afhentning", "daglig"].includes(item.chosen_action)) {
-    return "bg-purple-50 dark:bg-purple-950/30";
+    return "bg-purple-200 dark:bg-purple-900/40";
   }
 
   // New / no action
   if (item.status === "ny" || item.status === "afventer_handling") {
-    return "bg-yellow-50 dark:bg-yellow-950/30";
+    return "bg-yellow-200 dark:bg-yellow-900/40";
   }
 
   return "";
