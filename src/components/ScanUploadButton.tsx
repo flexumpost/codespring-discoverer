@@ -37,7 +37,7 @@ export function ScanUploadButton({ mailItemId, tenantId, onUploaded }: ScanUploa
       // Store the path reference (not a public URL since bucket is private)
       const { error: updateError } = await supabase
         .from("mail_items")
-        .update({ scan_url: path } as any)
+        .update({ scan_url: path, status: "ulaest" as any })
         .eq("id", mailItemId);
 
       if (updateError) throw updateError;

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download, CalendarIcon } from "lucide-react";
+import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -482,7 +483,7 @@ const TenantDashboard = () => {
                 </TableCell>
                 <TableCell>
                   {item.scan_url ? (
-                    <ScanLine className="h-4 w-4 text-primary" />
+                    <ScanThumbnail scanUrl={item.scan_url} />
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
