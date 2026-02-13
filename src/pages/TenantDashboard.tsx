@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -160,6 +160,23 @@ const TenantDashboard = () => {
   const [pickupDialogItem, setPickupDialogItem] = useState<string | null>(null);
   const [pickupDate, setPickupDate] = useState<Date | undefined>();
   const [pickupHour, setPickupHour] = useState<string | undefined>();
+  const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
+
+  // Generate signed URL for scan preview when dialog opens
+  useEffect(() => {
+    setScanSignedUrl(null);
+    if (!selectedItem?.scan_url) return;
+    let cancelled = false;
+    supabase.storage
+      .from("mail-scans")
+      .createSignedUrl(selectedItem.scan_url, 300)
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data?.signedUrl) {
+          setScanSignedUrl(data.signedUrl);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [selectedItem?.scan_url]);
 
   const hasMultipleTenants = tenants.length > 1;
 
@@ -496,17 +513,32 @@ const TenantDashboard = () => {
             <DialogTitle>Forsendelsesdetaljer</DialogTitle>
           </DialogHeader>
           {selectedItem && (
-            <div className={selectedItem.photo_url ? "grid grid-cols-3 gap-6" : ""}>
-              {selectedItem.photo_url && (
-                <div className="col-span-2 flex items-center justify-center">
-                  <img
-                    src={selectedItem.photo_url}
-                    alt="Forsendelse"
-                    className="w-full max-h-[70vh] object-contain rounded border"
-                  />
+            <div className={selectedItem.scan_url ? "grid grid-cols-3 gap-6" : ""}>
+              {selectedItem.scan_url && (
+                <div className="col-span-2 flex items-center justify-center bg-muted/30 rounded border min-h-[300px]">
+                  {scanSignedUrl ? (
+                    selectedItem.scan_url.toLowerCase().endsWith(".pdf") ? (
+                      <iframe
+                        src={scanSignedUrl}
+                        title="Scannet dokument"
+                        className="w-full h-[70vh] rounded"
+                      />
+                    ) : (
+                      <img
+                        src={scanSignedUrl}
+                        alt="Scannet dokument"
+                        className="w-full max-h-[70vh] object-contain rounded"
+                      />
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <ScanLine className="h-8 w-8 animate-pulse" />
+                      <span className="text-sm">Indlæser forhåndsvisning…</span>
+                    </div>
+                  )}
                 </div>
               )}
-              <div className={`space-y-4 ${selectedItem.photo_url ? "col-span-1" : ""}`}>
+              <div className={`space-y-4 ${selectedItem.scan_url ? "col-span-1" : ""}`}>
                 <div className="space-y-3 text-sm">
                   <div>
                     <span className="text-muted-foreground">Type</span>
@@ -555,26 +587,21 @@ const TenantDashboard = () => {
                     <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
                   </div>
                 )}
-                {selectedItem.scan_url && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Scanning</span>
-                    <div className="mt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-2"
-                        onClick={handleDownloadScan}
-                      >
-                        <Download className="h-4 w-4" />
-                        Download scanning
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
           <DialogFooter>
+            {selectedItem?.scan_url && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={handleDownloadScan}
+              >
+                <Download className="h-4 w-4" />
+                Download scanning
+              </Button>
+            )}
             {canArchive && selectedItem!.status !== "arkiveret" && (
               <Button
                 variant="outline"
