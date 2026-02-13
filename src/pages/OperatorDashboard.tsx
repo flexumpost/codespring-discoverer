@@ -245,8 +245,7 @@ const OperatorDashboard = () => {
       <RegisterMailDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       {assignTenantItem && (
         <AssignTenantDialog
-          mailItemId={assignTenantItem.id}
-          currentTenantId={assignTenantItem.tenant_id}
+          mailItem={assignTenantItem}
           open={!!assignTenantItem}
           onOpenChange={(v) => { if (!v) setAssignTenantItem(null); }}
           onAssigned={() => { refreshMail(); setAssignTenantItem(null); }}
