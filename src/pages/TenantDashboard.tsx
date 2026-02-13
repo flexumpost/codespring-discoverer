@@ -27,12 +27,10 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Åben og scan",
-  videresend: "Videresend",
-  opbevar: "Opbevar",
+  send: "Send",
+  afhentning: "Afhentning",
   destruer: "Destruer",
-  daglig: "Daglig scanning",
-  prioritet: "Prioritet",
-  retur: "Retur til afsender",
+  daglig: "Lig på kontoret",
 };
 
 type FilterStatus = "ny" | "afventer_scanning" | "ulaest" | "laest" | "arkiveret" | null;
@@ -314,7 +312,9 @@ const TenantDashboard = () => {
                         <SelectValue placeholder="Vælg handling" />
                       </SelectTrigger>
                       <SelectContent className="z-50 bg-popover">
-                        {allowedActions.map((action) => (
+                        {allowedActions
+                          .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
+                          .map((action) => (
                           <SelectItem key={action} value={action} className="text-xs">
                             {ACTION_LABELS[action] ?? action}
                           </SelectItem>
