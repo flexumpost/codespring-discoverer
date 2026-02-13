@@ -1,27 +1,41 @@
-## Hover-preview på fotos + ensartet størrelse
 
-Begge sider bruger allerede samme foto-størrelse (`h-10 w-10`), så der er ingen ændring nødvendig der.
+## Omlayout af "Forsendelsesdetaljer"-popup til 2-kolonner
 
-Hovedændringen er at tilføje en hover-effekt der viser billedet i stort format, når musen holdes over thumbnailet. Dette implementeres med den eksisterende `HoverCard`-komponent fra Radix UI.
+Ændrer popup-dialogen i lejer-dashboardet fra et enkelt-kolonne layout til et 2-kolonner layout, hvor billedet fylder venstre side og info fylder højre side.
 
-### Ny komponent: `src/components/PhotoHoverPreview.tsx`
+### Ændringer i `src/pages/TenantDashboard.tsx`
 
-En genbrugelig komponent der wrapper et foto-thumbnail og viser en stor version ved hover:
+**DialogContent** udvides fra `max-w-lg` til `max-w-4xl` for at give plads til 2 kolonner.
 
-- Viser thumbnailet (h-10 w-10) som trigger
-- Ved hover vises billedet i stort format (ca. 600x600px) i en flydende popup
-- Hvis der ikke er noget foto, vises det grå ImageIcon-placeholder (uden hover-effekt)
+Indholdet ændres fra en enkelt `space-y-4` div til et `grid grid-cols-3 gap-6` layout:
 
-### Filer der ændres
-
-
-| Fil                                    | Ændring                                          |
-| -------------------------------------- | ------------------------------------------------ |
-| `src/components/PhotoHoverPreview.tsx` | **Ny fil** - genbrugelig komponent med HoverCard |
-| `src/pages/OperatorDashboard.tsx`      | Erstat foto-celle med `PhotoHoverPreview`        |
-| `src/pages/TenantDashboard.tsx`        | Erstat foto-celle med `PhotoHoverPreview`        |
-
+- **Venstre kolonne (col-span-2)**: Viser forhåndsvisning af det scannede dokument (foto) i fuld størrelse
+- **Højre kolonne (col-span-1)**: Viser alle info-felterne (Type, Forsendelsesnr., Afsender, Status, Valgt handling, Modtaget, Noter, Scanning/download)
 
 ### Tekniske detaljer
 
-Komponenten bruger `@radix-ui/react-hover-card` (allerede installeret) til at vise et stort billede ved mouseover. Popup'en har en bredde på 600px og viser billedet med korrekt aspect ratio. Der tilføjes en lille cursor-ændring (`cursor-zoom-in`) på thumbnailet for at signalere hover-funktionaliteten.
+| Fil | Ændring |
+|-----|---------|
+| `src/pages/TenantDashboard.tsx` | Ændring af dialog-layout fra 1-kolonne til 2-kolonner (linjer 494-571) |
+
+Strukturen bliver:
+
+```text
++----------------------------------+------------------+
+|                                  | Type: Brev       |
+|                                  | Forsendelsesnr.  |
+|   Forhåndsvisning af scannet     | Afsender         |
+|   dokument (2/3 bredde)          | Status           |
+|                                  | Valgt handling   |
+|                                  | Modtaget         |
+|                                  | Noter            |
+|                                  | Download scan    |
++----------------------------------+------------------+
+|          Arkiver  |  Luk                             |
++-----------------------------------------------------|
+```
+
+- `max-w-4xl` giver tilstrækkelig bredde til begge kolonner
+- Billedet bruger `object-contain` og `max-h-[70vh]` for at passe inden for vinduet
+- Info-felterne stables vertikalt (ikke i et 2-kolonne grid som nu) for bedre læsbarhed i den smallere højre kolonne
+- Hvis der ikke er noget foto, vises kun info-kolonnen i fuld bredde
