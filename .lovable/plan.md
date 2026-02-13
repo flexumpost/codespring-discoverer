@@ -1,66 +1,53 @@
 
 
-## Tildel/skift lejer på forsendelser fra operatør-dashboardet
+## Udvid "Tildel lejer"-dialogen med fotovisning og OCR
 
-Tilføjer muligheden for at klikke på lejer-kolonnen i operatør-tabellen for at tildele eller skifte lejer på en forsendelse.
+Når operatøren klikker på en forsendelse uden tildelt lejer (eller vil skifte lejer), åbnes en udvidet dialog der viser forsendelsens foto og kan køre OCR for at hjælpe med at identificere modtageren.
 
-### Ny komponent: `src/components/AssignTenantDialog.tsx`
+### Ændringer i `src/components/AssignTenantDialog.tsx`
 
-En dialog der åbnes når operatøren klikker på lejer-cellen i tabellen. Dialogen indeholder:
+Dialogen udvides fra en simpel søge-dialog til en 2-kolonne dialog (ligesom RegisterMailDialog-mønsteret):
 
-- Søgefelt til at finde lejere (filtrerer på firmanavn og kontaktperson)
-- Liste over matchende lejere der kan klikkes på for at tildele
-- Knap til at oprette ny lejer (åbner inline-formular ligesom i RegisterMailDialog)
-- Gem-knap der opdaterer `tenant_id` på forsendelsen
-
-Dialogen genbruger det samme mønster som lejer-søgningen i `RegisterMailDialog` med søgefelt og klikbar liste.
+1. **Ny prop**: Modtager nu også `photoUrl` og `mailItem` (med stamp_number, sender_name) fra OperatorDashboard
+2. **Venstre kolonne (2/3)**: Viser forsendelsens foto (`photo_url`) med mulighed for crop-OCR (drag-to-select) for lejer, forsendelsesnr. og afsender - genbruger samme mønster som RegisterMailDialog
+3. **Højre kolonne (1/3)**: Indeholder den eksisterende lejer-søgning, OCR-resultater og "Opret ny lejer"-formular
+4. **Auto-OCR**: Når dialogen åbnes med et foto, køres OCR automatisk for at finde modtager og foreslå en lejer-match
+5. **Opdater flere felter**: Ud over `tenant_id` kan OCR-resultater også opdatere `stamp_number` og `sender_name` på forsendelsen
 
 ### Ændringer i `src/pages/OperatorDashboard.tsx`
 
-- Tilføj state for den valgte forsendelse (`assignTenantItem`) og dialog-synlighed
-- Gør lejer-cellen klikbar med en `cursor-pointer` og understregning/hover-effekt
-- "Ikke tildelt" vises som et klikbart link med rød farve
-- Eksisterende lejernavne vises med blå hover-effekt for at indikere de kan klikkes
+- Send hele `mailItem`-objektet til AssignTenantDialog (i stedet for kun `mailItemId` og `currentTenantId`), så dialogen har adgang til `photo_url`, `stamp_number` og `sender_name`
 
 ### Tekniske detaljer
 
 | Fil | Ændring |
 |-----|---------|
-| `src/components/AssignTenantDialog.tsx` | **Ny fil** - dialog til at søge og tildele lejer |
-| `src/pages/OperatorDashboard.tsx` | Tilføj klikbar lejer-celle + state til dialog |
+| `src/components/AssignTenantDialog.tsx` | Udvid med foto-visning, OCR-integration, crop-funktionalitet og mulighed for at opdatere stamp_number/sender_name |
+| `src/pages/OperatorDashboard.tsx` | Send hele mail-item objektet til AssignTenantDialog |
 
-### AssignTenantDialog funktionalitet
-
-1. Modtager `mailItemId`, `currentTenantId`, `open`, `onOpenChange`, og `onAssigned` som props
-2. Henter aktive lejere fra databasen (samme query som RegisterMailDialog)
-3. Søgefelt filtrerer listen med fuzzy match
-4. Klik på en lejer kalder `supabase.from("mail_items").update({ tenant_id }).eq("id", mailItemId)`
-5. Viser den nuværende lejer med et markeret badge, hvis der allerede er tildelt en
-6. Mulighed for at oprette ny lejer inline (samme mønster som RegisterMailDialog)
-7. Efter tildeling kaldes `onAssigned()` callback, som trigger `refreshMail()`
-
-### UI-flow
+### Dialog-layout
 
 ```text
-Operatør klikker "Ikke tildelt" eller lejer-navnet
-         |
-         v
-+---------------------------+
-| Tildel lejer              |
-|                           |
-| [Søg lejer...          ]  |
-|                           |
-| Firma A                   |
-| Firma B         (aktuel)  |
-| Firma C                   |
-|                           |
-| [+ Opret ny lejer]        |
-|                           |
-|        [Annuller]          |
-+---------------------------+
++----------------------------------+---------------------+
+|                                  | [Søg lejer...]      |
+|                                  |                     |
+|   Foto af forsendelsen           | Firma A             |
+|   (med drag-to-select OCR)       | Firma B    (aktuel) |
+|                                  | Firma C             |
+|   [Lejer] [Nr.] [Afsender]      |                     |
+|   (crop-knapper under foto)      | [+ Opret ny lejer]  |
+|                                  |                     |
++----------------------------------+---------------------+
+|                        [Annuller]                      |
++--------------------------------------------------------+
 ```
 
-- Klik direkte på et firma-navn tildeler lejeren og lukker dialogen
-- Den aktuelle lejer er markeret med "(aktuel)" badge
-- "Opret ny lejer" åbner inline-formular med firmanavn, kontakt, e-mail, adresse og lejertype
+### OCR-flow
+
+1. Dialogen åbnes og viser fotoet i venstre kolonne
+2. OCR køres automatisk og forsøger at matche modtageren med en lejer
+3. Hvis match findes, fremhæves lejeren i listen med en "foreslået" badge
+4. Operatøren kan klikke direkte på en lejer for at tildele
+5. Alternativt kan operatøren bruge crop-knapperne til at markere specifik tekst på fotoet
+6. Hvis der ikke er noget foto, vises kun lejer-søgningen i fuld bredde (som nu)
 
