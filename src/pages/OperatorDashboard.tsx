@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
+import { ScanUploadButton } from "@/components/ScanUploadButton";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
 
@@ -70,6 +71,14 @@ const OperatorDashboard = () => {
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const refreshMail = async () => {
+    const { data } = await supabase
+      .from("mail_items")
+      .select("*, tenants(company_name)")
+      .in("status", ["ny", "afventer_handling"]);
+    setMailItems(data ?? []);
+  };
 
   useEffect(() => {
     const fetchMail = async () => {
@@ -147,6 +156,7 @@ const OperatorDashboard = () => {
                 <TableHead>Forsendelsesnr.</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Modtaget</TableHead>
+                <TableHead>Scan</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -173,6 +183,20 @@ const OperatorDashboard = () => {
                     <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
                   </TableCell>
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
+                      <ScanUploadButton
+                        mailItemId={item.id}
+                        tenantId={item.tenant_id}
+                        onUploaded={refreshMail}
+                      />
+                    )}
+                    {(item as any).scan_url && (
+                      <Badge className="bg-primary/10 text-primary border-primary/20">
+                        <ScanLine className="h-3 w-3 mr-1" /> Scannet
+                      </Badge>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
