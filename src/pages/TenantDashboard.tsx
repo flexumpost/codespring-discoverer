@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -25,7 +26,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  scan: "Scan",
+  scan: "Åben og scan",
   videresend: "Videresend",
   opbevar: "Opbevar",
   destruer: "Destruer",
@@ -34,7 +35,7 @@ const ACTION_LABELS: Record<string, string> = {
   retur: "Retur til afsender",
 };
 
-type FilterStatus = "ny" | "ulaest" | "laest" | "arkiveret" | null;
+type FilterStatus = "ny" | "afventer_scanning" | "ulaest" | "laest" | "arkiveret" | null;
 
 const TenantDashboard = () => {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ const TenantDashboard = () => {
     (selectedTenant?.tenant_types as any)?.allowed_actions as string[] ?? [];
 
   // Fetch stats filtered by selected tenant
-  const { data: stats = { ny: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
+  const { data: stats = { ny: 0, afventer_scanning: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
     queryKey: ["tenant-stats", selectedTenantId],
     enabled: !!user && !!selectedTenantId,
     queryFn: async () => {
@@ -63,6 +64,14 @@ const TenantDashboard = () => {
           .eq("status", status)
           .eq("tenant_id", selectedTenantId!);
 
+      // Count items awaiting scanning: chosen_action='scan' and scan_url is null
+      const scanPendingRes = await supabase
+        .from("mail_items")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", selectedTenantId!)
+        .eq("chosen_action", "scan")
+        .is("scan_url", null);
+
       const [nyRes, ulaestRes, laestRes, arkiveretRes] = await Promise.all([
         base("ny"),
         base("ulaest"),
@@ -71,6 +80,7 @@ const TenantDashboard = () => {
       ]);
       return {
         ny: nyRes.count ?? 0,
+        afventer_scanning: scanPendingRes.count ?? 0,
         ulaest: ulaestRes.count ?? 0,
         laest: laestRes.count ?? 0,
         arkiveret: arkiveretRes.count ?? 0,
@@ -89,7 +99,9 @@ const TenantDashboard = () => {
         .eq("tenant_id", selectedTenantId!)
         .order("received_at", { ascending: false });
 
-      if (activeFilter) {
+      if (activeFilter === "afventer_scanning") {
+        query = query.eq("chosen_action", "scan").is("scan_url", null);
+      } else if (activeFilter) {
         query = query.eq("status", activeFilter as MailStatus);
       } else {
         query = query.neq("status", "arkiveret" as MailStatus);
@@ -169,8 +181,22 @@ const TenantDashboard = () => {
 
   const handleRowClick = (item: MailItem) => {
     setSelectedItem(item);
-    if (item.status === "ny" || item.status === "ulaest") {
-      markAsRead.mutate(item.id);
+    // Do NOT auto-mark as read here — only on scan download
+  };
+
+  const handleDownloadScan = async () => {
+    if (!selectedItem?.scan_url) return;
+    const { data, error } = await supabase.storage
+      .from("mail-scans")
+      .createSignedUrl(selectedItem.scan_url, 60);
+    if (error || !data?.signedUrl) {
+      toast.error("Kunne ikke hente scanning");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+    // Mark as read only when scan is downloaded
+    if (selectedItem.status === "ulaest" || selectedItem.status === "ny") {
+      markAsRead.mutate(selectedItem.id);
     }
   };
 
@@ -181,6 +207,7 @@ const TenantDashboard = () => {
 
   const cards = [
     { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
+    { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
     { title: "Ulæste breve", value: stats.ulaest, icon: Clock, status: "ulaest" as FilterStatus },
     { title: "Læste breve", value: stats.laest, icon: Eye, status: "laest" as FilterStatus },
     { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
@@ -198,7 +225,7 @@ const TenantDashboard = () => {
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 md:grid-cols-5 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
@@ -237,7 +264,7 @@ const TenantDashboard = () => {
               <TableHead>Forsendelsesnr.</TableHead>
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Handling</TableHead>
+              <TableHead>Vælg handling</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
@@ -278,21 +305,22 @@ const TenantDashboard = () => {
                   <Badge variant="outline">{STATUS_LABELS[item.status as MailStatus]}</Badge>
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.status === "ny" ? (
-                    <div className="flex flex-wrap gap-1">
-                      {allowedActions.map((action) => (
-                        <Button
-                          key={action}
-                          size="sm"
-                          variant={action === "destruer" ? "destructive" : "outline"}
-                          onClick={() => handleAction(item.id, action)}
-                          disabled={chooseAction.isPending}
-                          className="text-xs h-7 px-2"
-                        >
-                          {ACTION_LABELS[action] ?? action}
-                        </Button>
-                      ))}
-                    </div>
+                  {item.status === "ny" && allowedActions.length > 0 ? (
+                    <Select
+                      onValueChange={(value) => handleAction(item.id, value)}
+                      disabled={chooseAction.isPending}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] text-xs">
+                        <SelectValue placeholder="Vælg handling" />
+                      </SelectTrigger>
+                      <SelectContent className="z-50 bg-popover">
+                        {allowedActions.map((action) => (
+                          <SelectItem key={action} value={action} className="text-xs">
+                            {ACTION_LABELS[action] ?? action}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   ) : item.chosen_action ? (
                     <Badge className="bg-primary/10 text-primary border-primary/20">
                       {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
@@ -302,7 +330,7 @@ const TenantDashboard = () => {
                   )}
                 </TableCell>
                 <TableCell>
-                  {(item as any).scan_url ? (
+                  {item.scan_url ? (
                     <ScanLine className="h-4 w-4 text-primary" />
                   ) : (
                     <span className="text-muted-foreground">—</span>
@@ -372,7 +400,7 @@ const TenantDashboard = () => {
                   <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
                 </div>
               )}
-              {(selectedItem as any).scan_url && (
+              {selectedItem.scan_url && (
                 <div className="text-sm">
                   <span className="text-muted-foreground">Scanning</span>
                   <div className="mt-1">
@@ -380,16 +408,7 @@ const TenantDashboard = () => {
                       size="sm"
                       variant="outline"
                       className="gap-2"
-                      onClick={async () => {
-                        const { data, error } = await supabase.storage
-                          .from("mail-scans")
-                          .createSignedUrl((selectedItem as any).scan_url, 60);
-                        if (error || !data?.signedUrl) {
-                          toast.error("Kunne ikke hente scanning");
-                          return;
-                        }
-                        window.open(data.signedUrl, "_blank");
-                      }}
+                      onClick={handleDownloadScan}
                     >
                       <Download className="h-4 w-4" />
                       Download scanning
@@ -400,7 +419,7 @@ const TenantDashboard = () => {
             </div>
           )}
           <DialogFooter>
-            {canArchive && selectedItem.status !== "arkiveret" && (
+            {canArchive && selectedItem!.status !== "arkiveret" && (
               <Button
                 variant="outline"
                 onClick={() => archiveMutation.mutate(selectedItem!.id)}
