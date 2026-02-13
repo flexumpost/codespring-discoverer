@@ -11,6 +11,7 @@ import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 import { ScanUploadButton } from "@/components/ScanUploadButton";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
+import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
 
@@ -189,13 +190,7 @@ const OperatorDashboard = () => {
               {sortedItems.map((item) => (
                 <TableRow key={item.id} className={cn(getMailRowColor(item))}>
                   <TableCell>
-                    {item.photo_url ? (
-                      <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
-                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
+                    <PhotoHoverPreview photoUrl={item.photo_url} />
                   </TableCell>
                   <TableCell>
                     <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
