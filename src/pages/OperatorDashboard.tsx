@@ -177,10 +177,10 @@ const OperatorDashboard = () => {
               <TableRow>
                 <TableHead className="w-[60px]">Foto</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Afsender</TableHead>
                 <TableHead>Lejer</TableHead>
                 <TableHead>Forsendelsesnr.</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Afsender</TableHead>
                 <TableHead>Modtaget</TableHead>
                 <TableHead>Scan</TableHead>
               </TableRow>
@@ -202,7 +202,6 @@ const OperatorDashboard = () => {
                       {item.mail_type === "pakke" ? "Pakke" : "Brev"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{item.sender_name ?? "—"}</TableCell>
                   <TableCell>{item.tenants?.company_name ?? "Ikke tildelt"}</TableCell>
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>
@@ -214,6 +213,7 @@ const OperatorDashboard = () => {
                       ) : null;
                     })()}
                   </TableCell>
+                  <TableCell>{item.sender_name ?? "—"}</TableCell>
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
