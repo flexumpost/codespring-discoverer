@@ -43,6 +43,7 @@ type CardFilter = {
   icon: typeof Mail;
   color: string;
   filter: (item: MailItem) => boolean;
+  countFilter?: (item: MailItem) => boolean;
 };
 
 const CARD_FILTERS: CardFilter[] = [
@@ -57,6 +58,7 @@ const CARD_FILTERS: CardFilter[] = [
     icon: ScanLine,
     color: "text-primary",
     filter: (item) => item.chosen_action === "scan",
+    countFilter: (item) => item.chosen_action === "scan" && !item.scan_url,
   },
   {
     title: "Send",
@@ -115,7 +117,7 @@ const OperatorDashboard = () => {
 
   const counts = CARD_FILTERS.map((cf) => ({
     ...cf,
-    count: mailItems.filter(cf.filter).length,
+    count: mailItems.filter(cf.countFilter ?? cf.filter).length,
   }));
 
   const activeFilter = CARD_FILTERS.find((cf) => cf.title === selectedCard);
