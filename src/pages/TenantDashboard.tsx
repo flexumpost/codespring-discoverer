@@ -356,8 +356,8 @@ const TenantDashboard = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Min post</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+        <h2 className="text-xl md:text-2xl font-bold">Min post</h2>
         <TenantSelector
           tenants={tenants}
           selectedTenantId={selectedTenantId}
@@ -366,7 +366,7 @@ const TenantDashboard = () => {
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-5 mb-8">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
@@ -396,7 +396,7 @@ const TenantDashboard = () => {
       ) : mailItems.length === 0 ? (
         <p className="text-muted-foreground">Ingen post fundet.</p>
       ) : (
-        <Table>
+        <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[60px]">Foto</TableHead>
@@ -460,7 +460,7 @@ const TenantDashboard = () => {
                       onValueChange={(value) => handleAction(item.id, value)}
                       disabled={chooseAction.isPending}
                     >
-                      <SelectTrigger className="h-8 w-[180px] text-xs">
+                      <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
                         <SelectValue placeholder="Vælg handling" />
                       </SelectTrigger>
                       <SelectContent className="z-50 bg-popover">
