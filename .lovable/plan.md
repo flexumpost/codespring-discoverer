@@ -1,55 +1,55 @@
 
 
-## Goer lejer- og operatoer-dashboardet responsivt
+## 1. Slå "Ulæste breve" og "Læste breve" sammen til "Scannet post"
 
-### Problemet
+### Lejer-dashboard kort-ændringer
 
-Begge dashboards bruger brede tabeller (8-9 kolonner) uden nogen form for horisontal scroll eller mobil-tilpasning. Paa smaa skaerme flyder indholdet ud over skaermen eller bliver ulaeseligt.
+De nuværende 5 kort reduceres til 4:
 
-### Loesning
+| Før | Efter |
+|-----|-------|
+| Ny forsendelse | Ny forsendelse |
+| Afventer scanning | Afventer scanning |
+| Ulæste breve | **Scannet post** (sum af ulæst + læst) |
+| Læste breve | *(fjernet, slået sammen ovenfor)* |
+| Arkiveret | Arkiveret |
 
-Tilfoej responsiv haandtering paa begge sider med en konsistent tilgang:
+Kortet "Scannet post" viser summen `stats.ulaest + stats.laest`. Når man klikker på det, filtreres tabellen til forsendelser med status `ulaest` ELLER `laest`. Hver række beholder sin originale status-badge ("Ulæst"/"Læst") i status-kolonnen.
 
----
-
-### 1. Operatoer-dashboardet (`src/pages/OperatorDashboard.tsx`)
-
-**Header-sektion (linje 137-146)**
-- Tilfoej `flex-wrap` saa titel og knapper kan bryde over paa smaa skaerme
-- Goer titlen mindre paa mobil: `text-xl md:text-2xl`
-
-**Status-kort (linje 148)**
-- AEndr grid fra `grid-cols-3 md:grid-cols-6` til `grid-cols-2 sm:grid-cols-3 md:grid-cols-6` saa de stacker bedre paa mobil
-
-**Tabel (linje 173-233)**
-- Pak tabellen i en `<div className="overflow-x-auto">` wrapper saa den kan scrolles horisontalt paa smaa skaerme
-- Tilfoej `min-w-[700px]` paa selve `<Table>` elementet saa kolonnerne ikke klemmes sammen
+Grid ændres fra `md:grid-cols-5` til `md:grid-cols-4`.
 
 ---
 
-### 2. Lejer-dashboardet (`src/pages/TenantDashboard.tsx`)
+## 2. Farver på tabelrækker (begge dashboards)
 
-**Header-sektion (linje 359-366)**
-- Tilfoej `flex-wrap gap-2` saa TenantSelector bryder ned under titlen paa mobil
+Forslag til farvepaletten baseret på forsendelsens stadie:
 
-**Stats-kort (linje 369)**
-- AEndr fra `md:grid-cols-5` til `grid-cols-2 sm:grid-cols-3 md:grid-cols-5` for bedre stacking
+| Stadie | Baggrund (Tailwind) | Hvornår |
+|--------|---------------------|---------|
+| Ny / ikke tildelt | `bg-yellow-50` | Ingen handling valgt endnu -- kræver opmærksomhed |
+| Afventer scanning | `bg-blue-50` | Lejer har bedt om scan, operatør har ikke scannet endnu |
+| Scannet / Ulæst | `bg-green-50` | Scan klar, lejer har ikke åbnet |
+| Læst | Ingen ekstra farve (standard hvid) | Lejer har åbnet -- ingen handling nødvendig |
+| Send / Afhentning / Daglig | `bg-purple-50` | Anden handling valgt, afventer håndtering |
+| Destruer | `bg-red-50` | Markeret til destruktion |
+| Arkiveret | `bg-gray-50` | Afsluttet |
 
-**Tabel (linje 399-495)**
-- Pak tabellen i `<div className="overflow-x-auto">`
-- Tilfoej `min-w-[800px]` paa `<Table>` elementet (lejer-tabellen har flere kolonner)
-
-**Dropdown (linje 463)**
-- AEndr `w-[180px]` til `w-[140px] sm:w-[180px]` for bedre plads paa smaa skaerme
+Farverne anvendes som betinget `className` på `TableRow` i begge dashboards. Mørk tilstand-varianter (dark:bg-xxx-950/30) tilføjes også for kontrast.
 
 ---
 
-### Teknisk opsummering
+## Teknisk opsummering
 
-| Fil | AEndring |
-|-----|---------|
-| `OperatorDashboard.tsx` | flex-wrap header, grid-cols-2 kort, overflow-x-auto tabel |
-| `TenantDashboard.tsx` | flex-wrap header, grid-cols-2 kort, overflow-x-auto tabel, responsiv dropdown |
+### Filer der ændres
 
-Ingen nye komponenter eller afhaengigheder. Kun Tailwind-klasser tilfojes/aendres.
+**`src/pages/TenantDashboard.tsx`**
+- Fjern det separate "Læste breve"-kort, erstat med kombineret "Scannet post"-kort
+- Tilføj ny filtertype `"scannet"` der matcher status `ulaest` eller `laest`
+- Opdater grid til `md:grid-cols-4`
+- Tilføj betinget baggrundfarve-logik på `TableRow` baseret på forsendelsens stadie
+
+**`src/pages/OperatorDashboard.tsx`**
+- Tilføj betinget baggrundfarve-logik på `TableRow` baseret på forsendelsens stadie (samme farveskema)
+
+Ingen nye afhængigheder eller databaseændringer.
 
