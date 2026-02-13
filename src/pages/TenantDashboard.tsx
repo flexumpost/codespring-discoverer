@@ -491,83 +491,87 @@ const TenantDashboard = () => {
 
       {/* Detail dialog */}
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Forsendelsesdetaljer</DialogTitle>
           </DialogHeader>
           {selectedItem && (
-            <div className="space-y-4">
+            <div className={selectedItem.photo_url ? "grid grid-cols-3 gap-6" : ""}>
               {selectedItem.photo_url && (
-                <img
-                  src={selectedItem.photo_url}
-                  alt="Forsendelse"
-                  className="w-full rounded border"
-                />
-              )}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Type</span>
-                  <p className="font-medium">
-                    {selectedItem.mail_type === "pakke" ? "Pakke" : "Brev"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Forsendelsesnr.</span>
-                  <p className="font-medium">{selectedItem.stamp_number ?? "—"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Afsender</span>
-                  <p className="font-medium">{selectedItem.sender_name ?? "Ukendt"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Status</span>
-                  {(() => {
-                    const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName);
-                    return (
-                      <div>
-                        <Badge variant="outline">{line1}</Badge>
-                        {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Valgt handling</span>
-                  <p className="font-medium">
-                    {selectedItem.chosen_action
-                      ? ACTION_LABELS[selectedItem.chosen_action] ?? selectedItem.chosen_action
-                      : "Ingen"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Modtaget</span>
-                  <p className="font-medium">
-                    {new Date(selectedItem.received_at).toLocaleDateString("da-DK")}
-                  </p>
-                </div>
-              </div>
-              {selectedItem.notes && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Noter fra operatør</span>
-                  <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
+                <div className="col-span-2 flex items-center justify-center">
+                  <img
+                    src={selectedItem.photo_url}
+                    alt="Forsendelse"
+                    className="w-full max-h-[70vh] object-contain rounded border"
+                  />
                 </div>
               )}
-              {selectedItem.scan_url && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Scanning</span>
-                  <div className="mt-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      onClick={handleDownloadScan}
-                    >
-                      <Download className="h-4 w-4" />
-                      Download scanning
-                    </Button>
+              <div className={`space-y-4 ${selectedItem.photo_url ? "col-span-1" : ""}`}>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Type</span>
+                    <p className="font-medium">
+                      {selectedItem.mail_type === "pakke" ? "Pakke" : "Brev"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Forsendelsesnr.</span>
+                    <p className="font-medium">{selectedItem.stamp_number ?? "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Afsender</span>
+                    <p className="font-medium">{selectedItem.sender_name ?? "Ukendt"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Status</span>
+                    {(() => {
+                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName);
+                      return (
+                        <div>
+                          <Badge variant="outline">{line1}</Badge>
+                          {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Valgt handling</span>
+                    <p className="font-medium">
+                      {selectedItem.chosen_action
+                        ? ACTION_LABELS[selectedItem.chosen_action] ?? selectedItem.chosen_action
+                        : "Ingen"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Modtaget</span>
+                    <p className="font-medium">
+                      {new Date(selectedItem.received_at).toLocaleDateString("da-DK")}
+                    </p>
                   </div>
                 </div>
-              )}
+                {selectedItem.notes && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Noter fra operatør</span>
+                    <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
+                  </div>
+                )}
+                {selectedItem.scan_url && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Scanning</span>
+                    <div className="mt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        onClick={handleDownloadScan}
+                      >
+                        <Download className="h-4 w-4" />
+                        Download scanning
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <DialogFooter>
