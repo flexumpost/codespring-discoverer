@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon } from "lucide-react";
+import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,7 @@ const OperatorDashboard = () => {
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
 
   const refreshMail = async () => {
@@ -127,7 +129,16 @@ const OperatorDashboard = () => {
   }));
 
   const activeFilter = CARD_FILTERS.find((cf) => cf.title === selectedCard);
-  const filteredItems = activeFilter ? mailItems.filter(activeFilter.filter) : mailItems;
+  const cardFiltered = activeFilter ? mailItems.filter(activeFilter.filter) : mailItems;
+  const filteredItems = searchQuery
+    ? cardFiltered.filter((item) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          item.tenants?.company_name?.toLowerCase().includes(q) ||
+          item.stamp_number?.toString().includes(q)
+        );
+      })
+    : cardFiltered;
   const sortedItems = [...filteredItems].sort((a, b) => {
     if (a.stamp_number == null) return 1;
     if (b.stamp_number == null) return -1;
@@ -172,7 +183,18 @@ const OperatorDashboard = () => {
       </div>
 
       <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-3">{selectedCard ?? "Alle forsendelser"}</h3>
+        <div className="flex items-center justify-between mb-3 gap-4">
+          <h3 className="text-lg font-semibold">{selectedCard ?? "Alle forsendelser"}</h3>
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Søg lejer eller nr..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+        </div>
         {sortedItems.length === 0 ? (
           <p className="text-muted-foreground">Ingen elementer.</p>
         ) : (
