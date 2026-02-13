@@ -1,31 +1,25 @@
 
 
-## Fix: Scannede forsendelser forsvinder fra operatoer-dashboardet
+## Fix: Scannede forsendelser med status "laest" forsvinder fra operatoer-dashboardet
 
 ### Problem
 
-Naar operatoeren uploader en scanning, saettes forsendelsens status til `"ulaest"`. Men `refreshMail()` henter kun forsendelser med status `"ny"` eller `"afventer_handling"`. Derfor forsvinder den scannede forsendelse helt fra operatoer-dashboardet.
+Brev 2800 har status `"laest"` fordi lejeren har aabnet scanningen. Men operatoer-dashboardet henter kun forsendelser med status `"ny"`, `"afventer_handling"` og `"ulaest"`. Derfor vises brevet slet ikke.
 
 ### Loesning
 
-Udvid status-filtret i `refreshMail()` til ogsaa at inkludere `"ulaest"`, saa scannede forsendelser (med `chosen_action === "scan"`) forbliver synlige.
+Udvid status-filtret i `refreshMail()` til ogsaa at inkludere `"laest"`:
 
-### Aendring
-
-**Fil: `src/pages/OperatorDashboard.tsx` (linje 99)**
-
-Aendr:
 ```text
-.in("status", ["ny", "afventer_handling"])
+.in("status", ["ny", "afventer_handling", "ulaest", "laest"])
 ```
 
-til:
-```text
-.in("status", ["ny", "afventer_handling", "ulaest"])
-```
+Dette sikrer at alle aktive forsendelser (inklusive laeste) forbliver synlige paa operatoer-dashboardet. Kun `"arkiveret"` forsendelser udelades.
+
+### Fil der aendres
+- `src/pages/OperatorDashboard.tsx` — linje 99: tilfoej `"laest"` til status-arrayet
 
 ### Resultat
-
-- Forsendelse 2800 (scannet, status "ulaest") forbliver synlig i tabellen under "Aaben og scan"
-- Kort-taelleren viser stadig kun ventende scanninger (takket vaere `countFilter`)
-- Ingen andre filer aendres
+- Brev 2800 (status "laest", chosen_action "scan", har scan_url) vises igen under "Aaben og scan"
+- Kort-taelleren forbliver 0 (korrekt, da brevet allerede er scannet — countFilter checker `!scan_url`)
+- Forsendelser forsvinder foerst naar de arkiveres
