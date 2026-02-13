@@ -134,8 +134,8 @@ const OperatorDashboard = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Operatør-dashboard</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+        <h2 className="text-xl md:text-2xl font-bold">Operatør-dashboard</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/bulk-upload")} className="gap-2">
             <Upload className="h-4 w-4" /> Bulk upload
@@ -145,7 +145,7 @@ const OperatorDashboard = () => {
           </Button>
         </div>
       </div>
-      <div className="grid gap-3 grid-cols-3 md:grid-cols-6">
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-6">
         {counts.map((card) => (
           <Card
             key={card.title}
@@ -170,7 +170,7 @@ const OperatorDashboard = () => {
         {sortedItems.length === 0 ? (
           <p className="text-muted-foreground">Ingen elementer.</p>
         ) : (
-          <Table>
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[60px]">Foto</TableHead>
