@@ -1,53 +1,26 @@
 
 
-## Udvid "Tildel lejer"-dialogen med fotovisning og OCR
+## Skift farve fra #6ec1e4 til #00aaeb
 
-Når operatøren klikker på en forsendelse uden tildelt lejer (eller vil skifte lejer), åbnes en udvidet dialog der viser forsendelsens foto og kan køre OCR for at hjælpe med at identificere modtageren.
+Erstatter alle forekomster af `#6ec1e4` med `#00aaeb` og justerer den tilhørende tekstfarve for bedre visuelt match.
 
-### Ændringer i `src/components/AssignTenantDialog.tsx`
+### Kontrastanalyse
 
-Dialogen udvides fra en simpel søge-dialog til en 2-kolonne dialog (ligesom RegisterMailDialog-mønsteret):
+| Kontekst | Baggrund | Tekst | Kontrast |
+|----------|----------|-------|----------|
+| Plus-badge (lys) | #00aaeb ved 20% opacity (meget lys blå) | #006d9e (mørk blå) | God (ca. 5:1) |
+| Tabel-række (lys) | #00aaeb ved 30% opacity | Standard foreground (mørk) | God |
+| Tabel-række (mørk) | #00aaeb ved 20% opacity | Standard foreground (lys) | God |
 
-1. **Ny prop**: Modtager nu også `photoUrl` og `mailItem` (med stamp_number, sender_name) fra OperatorDashboard
-2. **Venstre kolonne (2/3)**: Viser forsendelsens foto (`photo_url`) med mulighed for crop-OCR (drag-to-select) for lejer, forsendelsesnr. og afsender - genbruger samme mønster som RegisterMailDialog
-3. **Højre kolonne (1/3)**: Indeholder den eksisterende lejer-søgning, OCR-resultater og "Opret ny lejer"-formular
-4. **Auto-OCR**: Når dialogen åbnes med et foto, køres OCR automatisk for at finde modtager og foreslå en lejer-match
-5. **Opdater flere felter**: Ud over `tenant_id` kan OCR-resultater også opdatere `stamp_number` og `sender_name` på forsendelsen
+Ingen kontrastproblemer identificeret. Farven er mere mættet men bruges altid med lav opacity, så baggrundene forbliver lyse nok.
 
-### Ændringer i `src/pages/OperatorDashboard.tsx`
-
-- Send hele `mailItem`-objektet til AssignTenantDialog (i stedet for kun `mailItemId` og `currentTenantId`), så dialogen har adgang til `photo_url`, `stamp_number` og `sender_name`
-
-### Tekniske detaljer
+### Ændringer
 
 | Fil | Ændring |
 |-----|---------|
-| `src/components/AssignTenantDialog.tsx` | Udvid med foto-visning, OCR-integration, crop-funktionalitet og mulighed for at opdatere stamp_number/sender_name |
-| `src/pages/OperatorDashboard.tsx` | Send hele mail-item objektet til AssignTenantDialog |
+| `src/lib/mailRowColor.ts` | Erstat `#6ec1e4` med `#00aaeb` i rækkefarverne |
+| `src/pages/SettingsPage.tsx` | Erstat `#6ec1e4` med `#00aaeb` og tekstfarve `#2a7fa3` med `#006d9e` i Plus-badge |
+| `src/components/RegisterMailDialog.tsx` | Samme badge-opdatering som SettingsPage |
 
-### Dialog-layout
-
-```text
-+----------------------------------+---------------------+
-|                                  | [Søg lejer...]      |
-|                                  |                     |
-|   Foto af forsendelsen           | Firma A             |
-|   (med drag-to-select OCR)       | Firma B    (aktuel) |
-|                                  | Firma C             |
-|   [Lejer] [Nr.] [Afsender]      |                     |
-|   (crop-knapper under foto)      | [+ Opret ny lejer]  |
-|                                  |                     |
-+----------------------------------+---------------------+
-|                        [Annuller]                      |
-+--------------------------------------------------------+
-```
-
-### OCR-flow
-
-1. Dialogen åbnes og viser fotoet i venstre kolonne
-2. OCR køres automatisk og forsøger at matche modtageren med en lejer
-3. Hvis match findes, fremhæves lejeren i listen med en "foreslået" badge
-4. Operatøren kan klikke direkte på en lejer for at tildele
-5. Alternativt kan operatøren bruge crop-knapperne til at markere specifik tekst på fotoet
-6. Hvis der ikke er noget foto, vises kun lejer-søgningen i fuld bredde (som nu)
+3 filer, ren find-and-replace med farvejustering.
 
