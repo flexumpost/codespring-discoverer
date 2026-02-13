@@ -33,7 +33,7 @@ export function getMailRowColor(item: {
 
   // Scanned / unread (no scan_url but status is ulaest)
   if (item.status === "ulaest") {
-    return "bg-green-200 dark:bg-green-900/40";
+    return "bg-[#fef18b] dark:bg-yellow-700/50";
   }
 
   // Read

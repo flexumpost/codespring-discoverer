@@ -353,7 +353,7 @@ const TenantDashboard = () => {
   const cards = [
     { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
     { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
-    { title: "Scannet post", value: stats.ulaest + stats.laest, icon: FileCheck, status: "scannet" as FilterStatus },
+    { title: "Scannet post", value: stats.ulaest, icon: FileCheck, status: "scannet" as FilterStatus },
     { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
   ];
 
