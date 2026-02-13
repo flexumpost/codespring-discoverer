@@ -101,7 +101,8 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name)")
-      .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
+      .in("status", ["ny", "afventer_handling", "ulaest", "laest"])
+      .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
   };
 
