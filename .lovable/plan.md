@@ -1,47 +1,102 @@
 
 
-## Real-time opdatering af operatoer-dashboardet
+## Scan-upload flow: Operatoer + Lejer opdateringer
 
-### Problem
-Operatoer-dashboardet henter kun data ved foerste indlaesning (useEffect med tomt dependency-array). Naar en lejer aendrer handling, ser operatoeren det foerst efter en manuel sideopdatering.
+### Overblik
 
-### Loesning
+Naar operatoeren uploader en scanning, skal tre ting ske:
 
-To aendringer:
+1. **Operatoer-dashboard**: "Aaben og scan"-kortet taeller kun forsendelser UDEN scan (ikke alle med `chosen_action === "scan"`)
+2. **Lejer-dashboard**: Status aendres til "Ulaest" og forsendelsen flyttes til "Ulaeste breve"-kortet
+3. **Lejer-dashboard**: Scan-kolonnen viser et thumbnail af den scannede fil (billede) eller et ikon (PDF)
 
-**1. Aktiver Realtime for mail_items tabellen (migration)**
+### Aendringer
 
-```text
-ALTER PUBLICATION supabase_realtime ADD TABLE public.mail_items;
-```
+**1. ScanUploadButton.tsx - Opdater status til "ulaest" ved upload**
 
-Realtime er allerede aktiveret for `notifications`, men ikke for `mail_items`.
-
-**2. Tilfoej Realtime-subscription i OperatorDashboard.tsx**
-
-I den eksisterende `useEffect`, tilfoej en Supabase Realtime-kanal der lytter paa `postgres_changes` for `mail_items`-tabellen. Ved enhver aendring (INSERT, UPDATE, DELETE) genindlaeses hele listen via `refreshMail()` for at sikre korrekte join-data (tenants.company_name).
+Naar filen uploades, skal `status` ogsaa saettes til `"ulaest"` (udover at gemme `scan_url`):
 
 ```text
-useEffect(() => {
-  // Eksisterende fetch
-  refreshMail();
-
-  // Realtime subscription
-  const channel = supabase
-    .channel('operator-mail-updates')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'mail_items' },
-      () => { refreshMail(); }
-    )
-    .subscribe();
-
-  return () => { supabase.removeChannel(channel); };
-}, []);
+.update({ scan_url: path, status: "ulaest" })
 ```
 
-### Resultat
-- Naar en lejer vaelger en handling (scan, send, afhentning, destruer), opdateres operatoer-dashboardet automatisk inden for faa sekunder
-- Status-kort (taeellere) opdateres ogsaa, da de beregnes fra `mailItems` state
-- Ingen nye kolonner eller tabeller
+Dette sikrer at forsendelsen automatisk flytter til "Ulaeste breve" paa lejer-dashboardet.
+
+**2. OperatorDashboard.tsx - "Aaben og scan"-kortet taeller kun ikke-scannede**
+
+Aendr filteret for "Aaben og scan"-kortet fra:
+
+```text
+filter: (item) => item.chosen_action === "scan"
+```
+
+til:
+
+```text
+filter: (item) => item.chosen_action === "scan" && !item.scan_url
+```
+
+Forsendelsen forbliver synlig i tabellen (den filtreres stadig med `chosen_action === "scan"` naar kortet klikkes), men kort-taelleren viser kun de ikke-scannede.
+
+For at opnaa dette splittes logikken: kortet bruger et separat count-filter, mens tabel-filtreringen bevarer det nuvaerende filter (viser alle scan-forsendelser).
+
+**3. TenantDashboard.tsx - Scan-kolonne med thumbnail**
+
+I scan-kolonnen (linje 483-489), erstat det simple ikon med et faktisk thumbnail:
+
+- For billeder (png/jpg): Vis et lille thumbnail via en signed URL fra storage
+- For PDF-filer: Vis et PDF-ikon med "Scannet" tekst
+- Thumbnailet genereres ved at oprette en signed URL til filen i `mail-scans` bucket
+
+Da signed URLs kraever et async kald, oprettes en lille `ScanThumbnail`-komponent der haandterer dette.
+
+### Teknisk detalje
+
+**ScanUploadButton.tsx aendring:**
+```text
+// Linje 38-41: Tilfoej status: "ulaest"
+const { error: updateError } = await supabase
+  .from("mail_items")
+  .update({ scan_url: path, status: "ulaest" })
+  .eq("id", mailItemId);
+```
+
+**OperatorDashboard.tsx - To separate filtre:**
+- Kort-taeller: `item.chosen_action === "scan" && !item.scan_url` (kun ikke-scannede)
+- Tabel-filter naar kortet klikkes: `item.chosen_action === "scan"` (alle scan-forsendelser, ogsaa scannede)
+
+Implementeres ved at tilfoeje et `countFilter` felt til `CardFilter`-typen:
+
+```text
+{
+  title: "Aaben og scan",
+  filter: (item) => item.chosen_action === "scan",         // tabel
+  countFilter: (item) => item.chosen_action === "scan" && !item.scan_url,  // kort
+}
+```
+
+**Ny komponent: ScanThumbnail**
+
+En lille komponent der:
+1. Modtager `scan_url` (sti i storage)
+2. Opretter en signed URL via `supabase.storage.from("mail-scans").createSignedUrl(path, 300)`
+3. Viser et thumbnail (40x40px) for billeder eller et PDF-ikon
+4. Haandterer loading state
+
+**TenantDashboard.tsx scan-celle:**
+```text
+<TableCell>
+  {item.scan_url ? (
+    <ScanThumbnail scanUrl={item.scan_url} />
+  ) : (
+    <span>-</span>
+  )}
+</TableCell>
+```
+
+### Filer der aendres
+- `src/components/ScanUploadButton.tsx` - tilfoej `status: "ulaest"` til update
+- `src/pages/OperatorDashboard.tsx` - split count/filter logik for scan-kort
+- `src/pages/TenantDashboard.tsx` - scan-kolonne med thumbnail
+- `src/components/ScanThumbnail.tsx` (ny) - thumbnail-komponent med signed URL
 
