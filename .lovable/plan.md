@@ -1,22 +1,27 @@
+## Vis scannet dokument i venstre kolonne i stedet for foto
 
-## Omlayout af "Forsendelsesdetaljer"-popup til 2-kolonner
+Ændrer detalje-dialogen i lejer-dashboardet, så venstre kolonne viser en forhåndsvisning af det scannede dokument (fra `scan_url`) i stedet for fotoet af forsendelsen (`photo_url`).
 
-Ændrer popup-dialogen i lejer-dashboardet fra et enkelt-kolonne layout til et 2-kolonner layout, hvor billedet fylder venstre side og info fylder højre side.
+### Hvad ændres
+
+Den nuværende implementering viser `photo_url` (billedet af konvolutten) i venstre kolonne. I stedet skal `scan_url` (det scannede dokument fra storage-bucketen "mail-scans") vises der.
+
+Da `scan_url` kræver en signeret URL fra storage, skal der tilføjes logik til at generere denne, når dialogen åbnes.
 
 ### Ændringer i `src/pages/TenantDashboard.tsx`
 
-**DialogContent** udvides fra `max-w-lg` til `max-w-4xl` for at give plads til 2 kolonner.
-
-Indholdet ændres fra en enkelt `space-y-4` div til et `grid grid-cols-3 gap-6` layout:
-
-- **Venstre kolonne (col-span-2)**: Viser forhåndsvisning af det scannede dokument (foto) i fuld størrelse
-- **Højre kolonne (col-span-1)**: Viser alle info-felterne (Type, Forsendelsesnr., Afsender, Status, Valgt handling, Modtaget, Noter, Scanning/download)
+1. **Tilføj state og effekt for signeret scan-URL**: Når `selectedItem` ændres og har en `scan_url`, genereres en signeret URL via `supabase.storage.from("mail-scans").createSignedUrl(...)`.
+2. **Erstat venstre kolonne**: I stedet for at vise `photo_url`, vises nu den signerede scan-URL. Layoutet skifter til 2-kolonner baseret på om der er en `scan_url` (ikke `photo_url`).
+3. **Håndter PDF-filer**: Hvis scan-filen er en PDF, vises den i et `<iframe>` eller `<object>` tag. Hvis det er et billede, vises det som `<img>`.
+4. **Behold download-knappen**: Download-knappen flyttes ned på linje med arkiver og luk knappen
 
 ### Tekniske detaljer
 
-| Fil | Ændring |
-|-----|---------|
-| `src/pages/TenantDashboard.tsx` | Ændring af dialog-layout fra 1-kolonne til 2-kolonner (linjer 494-571) |
+
+| Fil                             | Ændring                                                                                                                                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/pages/TenantDashboard.tsx` | Tilføj `scanSignedUrl` state + `useEffect` til at generere signeret URL. Erstat `photo_url`-betingelsen med `scan_url`-betingelsen i grid-layoutet. Vis PDF i iframe eller billede i img-tag. |
+
 
 Strukturen bliver:
 
@@ -25,17 +30,17 @@ Strukturen bliver:
 |                                  | Type: Brev       |
 |                                  | Forsendelsesnr.  |
 |   Forhåndsvisning af scannet     | Afsender         |
-|   dokument (2/3 bredde)          | Status           |
-|                                  | Valgt handling   |
+|   dokument (PDF/billede)         | Status           |
+|   (2/3 bredde)                   | Valgt handling   |
 |                                  | Modtaget         |
 |                                  | Noter            |
 |                                  | Download scan    |
 +----------------------------------+------------------+
-|          Arkiver  |  Luk                             |
+|        Download scan  |  Arkiver  |  Luk            |
 +-----------------------------------------------------|
 ```
 
-- `max-w-4xl` giver tilstrækkelig bredde til begge kolonner
-- Billedet bruger `object-contain` og `max-h-[70vh]` for at passe inden for vinduet
-- Info-felterne stables vertikalt (ikke i et 2-kolonne grid som nu) for bedre læsbarhed i den smallere højre kolonne
-- Hvis der ikke er noget foto, vises kun info-kolonnen i fuld bredde
+- Signeret URL genereres med 5 minutters gyldighed (300 sekunder)
+- PDF-filer vises i en `<iframe>` med passende højde (`max-h-[70vh]`)
+- Billedfiler vises med `object-contain` som nu
+- Hvis der ikke er nogen `scan_url`, vises kun info-kolonnen i fuld bredde
