@@ -1,46 +1,66 @@
-## Vis scannet dokument i venstre kolonne i stedet for foto
 
-Ændrer detalje-dialogen i lejer-dashboardet, så venstre kolonne viser en forhåndsvisning af det scannede dokument (fra `scan_url`) i stedet for fotoet af forsendelsen (`photo_url`).
 
-### Hvad ændres
+## Tildel/skift lejer på forsendelser fra operatør-dashboardet
 
-Den nuværende implementering viser `photo_url` (billedet af konvolutten) i venstre kolonne. I stedet skal `scan_url` (det scannede dokument fra storage-bucketen "mail-scans") vises der.
+Tilføjer muligheden for at klikke på lejer-kolonnen i operatør-tabellen for at tildele eller skifte lejer på en forsendelse.
 
-Da `scan_url` kræver en signeret URL fra storage, skal der tilføjes logik til at generere denne, når dialogen åbnes.
+### Ny komponent: `src/components/AssignTenantDialog.tsx`
 
-### Ændringer i `src/pages/TenantDashboard.tsx`
+En dialog der åbnes når operatøren klikker på lejer-cellen i tabellen. Dialogen indeholder:
 
-1. **Tilføj state og effekt for signeret scan-URL**: Når `selectedItem` ændres og har en `scan_url`, genereres en signeret URL via `supabase.storage.from("mail-scans").createSignedUrl(...)`.
-2. **Erstat venstre kolonne**: I stedet for at vise `photo_url`, vises nu den signerede scan-URL. Layoutet skifter til 2-kolonner baseret på om der er en `scan_url` (ikke `photo_url`).
-3. **Håndter PDF-filer**: Hvis scan-filen er en PDF, vises den i et `<iframe>` eller `<object>` tag. Hvis det er et billede, vises det som `<img>`.
-4. **Behold download-knappen**: Download-knappen flyttes ned på linje med arkiver og luk knappen
+- Søgefelt til at finde lejere (filtrerer på firmanavn og kontaktperson)
+- Liste over matchende lejere der kan klikkes på for at tildele
+- Knap til at oprette ny lejer (åbner inline-formular ligesom i RegisterMailDialog)
+- Gem-knap der opdaterer `tenant_id` på forsendelsen
+
+Dialogen genbruger det samme mønster som lejer-søgningen i `RegisterMailDialog` med søgefelt og klikbar liste.
+
+### Ændringer i `src/pages/OperatorDashboard.tsx`
+
+- Tilføj state for den valgte forsendelse (`assignTenantItem`) og dialog-synlighed
+- Gør lejer-cellen klikbar med en `cursor-pointer` og understregning/hover-effekt
+- "Ikke tildelt" vises som et klikbart link med rød farve
+- Eksisterende lejernavne vises med blå hover-effekt for at indikere de kan klikkes
 
 ### Tekniske detaljer
 
+| Fil | Ændring |
+|-----|---------|
+| `src/components/AssignTenantDialog.tsx` | **Ny fil** - dialog til at søge og tildele lejer |
+| `src/pages/OperatorDashboard.tsx` | Tilføj klikbar lejer-celle + state til dialog |
 
-| Fil                             | Ændring                                                                                                                                                                                       |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/pages/TenantDashboard.tsx` | Tilføj `scanSignedUrl` state + `useEffect` til at generere signeret URL. Erstat `photo_url`-betingelsen med `scan_url`-betingelsen i grid-layoutet. Vis PDF i iframe eller billede i img-tag. |
+### AssignTenantDialog funktionalitet
 
+1. Modtager `mailItemId`, `currentTenantId`, `open`, `onOpenChange`, og `onAssigned` som props
+2. Henter aktive lejere fra databasen (samme query som RegisterMailDialog)
+3. Søgefelt filtrerer listen med fuzzy match
+4. Klik på en lejer kalder `supabase.from("mail_items").update({ tenant_id }).eq("id", mailItemId)`
+5. Viser den nuværende lejer med et markeret badge, hvis der allerede er tildelt en
+6. Mulighed for at oprette ny lejer inline (samme mønster som RegisterMailDialog)
+7. Efter tildeling kaldes `onAssigned()` callback, som trigger `refreshMail()`
 
-Strukturen bliver:
+### UI-flow
 
 ```text
-+----------------------------------+------------------+
-|                                  | Type: Brev       |
-|                                  | Forsendelsesnr.  |
-|   Forhåndsvisning af scannet     | Afsender         |
-|   dokument (PDF/billede)         | Status           |
-|   (2/3 bredde)                   | Valgt handling   |
-|                                  | Modtaget         |
-|                                  | Noter            |
-|                                  | Download scan    |
-+----------------------------------+------------------+
-|        Download scan  |  Arkiver  |  Luk            |
-+-----------------------------------------------------|
+Operatør klikker "Ikke tildelt" eller lejer-navnet
+         |
+         v
++---------------------------+
+| Tildel lejer              |
+|                           |
+| [Søg lejer...          ]  |
+|                           |
+| Firma A                   |
+| Firma B         (aktuel)  |
+| Firma C                   |
+|                           |
+| [+ Opret ny lejer]        |
+|                           |
+|        [Annuller]          |
++---------------------------+
 ```
 
-- Signeret URL genereres med 5 minutters gyldighed (300 sekunder)
-- PDF-filer vises i en `<iframe>` med passende højde (`max-h-[70vh]`)
-- Billedfiler vises med `object-contain` som nu
-- Hvis der ikke er nogen `scan_url`, vises kun info-kolonnen i fuld bredde
+- Klik direkte på et firma-navn tildeler lejeren og lukker dialogen
+- Den aktuelle lejer er markeret med "(aktuel)" badge
+- "Opret ny lejer" åbner inline-formular med firmanavn, kontakt, e-mail, adresse og lejertype
+
