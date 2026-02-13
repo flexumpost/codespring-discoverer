@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Clock, Archive, Eye, ImageIcon, ScanLine, Download, CalendarIcon } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -35,7 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
   daglig: "Lig på kontoret",
 };
 
-type FilterStatus = "ny" | "afventer_scanning" | "ulaest" | "laest" | "arkiveret" | null;
+type FilterStatus = "ny" | "afventer_scanning" | "scannet" | "arkiveret" | null;
 
 /* ── Date helpers ── */
 
@@ -214,6 +216,8 @@ const TenantDashboard = () => {
 
       if (activeFilter === "afventer_scanning") {
         query = query.eq("chosen_action", "scan").is("scan_url", null);
+      } else if (activeFilter === "scannet") {
+        query = query.in("status", ["ulaest", "laest"] as MailStatus[]);
       } else if (activeFilter) {
         query = query.eq("status", activeFilter as MailStatus);
       } else {
@@ -349,8 +353,7 @@ const TenantDashboard = () => {
   const cards = [
     { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
     { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
-    { title: "Ulæste breve", value: stats.ulaest, icon: Clock, status: "ulaest" as FilterStatus },
-    { title: "Læste breve", value: stats.laest, icon: Eye, status: "laest" as FilterStatus },
+    { title: "Scannet post", value: stats.ulaest + stats.laest, icon: FileCheck, status: "scannet" as FilterStatus },
     { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
   ];
 
@@ -366,7 +369,7 @@ const TenantDashboard = () => {
       </div>
 
       {/* Stats cards */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
@@ -414,7 +417,7 @@ const TenantDashboard = () => {
             {mailItems.map((item: any) => (
               <TableRow
                 key={item.id}
-                className="cursor-pointer hover:bg-muted/50"
+                className={cn("cursor-pointer hover:bg-muted/50", getMailRowColor(item))}
                 onClick={() => handleRowClick(item)}
               >
                 <TableCell>

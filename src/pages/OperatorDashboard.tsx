@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 import { ScanUploadButton } from "@/components/ScanUploadButton";
+import { cn } from "@/lib/utils";
+import { getMailRowColor } from "@/lib/mailRowColor";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
 
@@ -185,7 +187,7 @@ const OperatorDashboard = () => {
             </TableHeader>
             <TableBody>
               {sortedItems.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className={cn(getMailRowColor(item))}>
                   <TableCell>
                     {item.photo_url ? (
                       <img src={item.photo_url} alt="Foto" className="h-10 w-10 rounded object-cover" />
