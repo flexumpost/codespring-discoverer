@@ -44,13 +44,13 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Send",
     icon: Send,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "videresend",
+    filter: (item) => item.chosen_action === "send",
   },
   {
     title: "Afhentes",
     icon: Mail,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "opbevar",
+    filter: (item) => item.chosen_action === "afhentning",
   },
   {
     title: "Destrueres",
@@ -59,7 +59,7 @@ const CARD_FILTERS: CardFilter[] = [
     filter: (item) => item.chosen_action === "destruer",
   },
   {
-    title: "Lægges på kontoret",
+    title: "Lig på kontoret",
     icon: Building2,
     color: "text-primary",
     filter: (item) => item.chosen_action === "daglig",
