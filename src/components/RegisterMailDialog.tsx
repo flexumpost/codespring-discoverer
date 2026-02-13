@@ -765,7 +765,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         const tenantTypeColorMap: Record<string, string> = {
           "Lite": "bg-blue-100 text-blue-800 border-blue-200",
           "Standard": "bg-green-100 text-green-800 border-green-200",
-          "Plus": "bg-purple-100 text-purple-800 border-purple-200",
+          "Plus": "bg-[#6ec1e4]/20 text-[#2a7fa3] border-[#6ec1e4]/40",
           "Fastlejer": "bg-amber-100 text-amber-800 border-amber-200",
           "Nabo": "bg-cyan-100 text-cyan-800 border-cyan-200",
           "Retur til afsender": "bg-red-100 text-red-800 border-red-200",

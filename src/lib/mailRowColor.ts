@@ -48,7 +48,7 @@ export function getMailRowColor(item: {
 
   // Other actions (send, pickup, daily)
   if (item.chosen_action && ["send", "afhentning", "daglig"].includes(item.chosen_action)) {
-    return "bg-purple-200 dark:bg-purple-900/40";
+    return "bg-[#6ec1e4]/30 dark:bg-[#6ec1e4]/20";
   }
 
   // New / no action
