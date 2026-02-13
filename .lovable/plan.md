@@ -1,26 +1,28 @@
 
 
-## Skift farve fra #6ec1e4 til #00aaeb
+## Tilføj søgefelt over tabellen
 
-Erstatter alle forekomster af `#6ec1e4` med `#00aaeb` og justerer den tilhørende tekstfarve for bedre visuelt match.
+Indsætter et søgefelt til højre for overskriften "Alle forsendelser" (eller det aktive filter-navn), som filtrerer forsendelserne på lejernavn og forsendelsesnummer.
 
-### Kontrastanalyse
+### Ændringer i `src/pages/OperatorDashboard.tsx`
 
-| Kontekst | Baggrund | Tekst | Kontrast |
-|----------|----------|-------|----------|
-| Plus-badge (lys) | #00aaeb ved 20% opacity (meget lys blå) | #006d9e (mørk blå) | God (ca. 5:1) |
-| Tabel-række (lys) | #00aaeb ved 30% opacity | Standard foreground (mørk) | God |
-| Tabel-række (mørk) | #00aaeb ved 20% opacity | Standard foreground (lys) | God |
+1. **Ny state-variabel**: `searchQuery` (string) til at holde søgeteksten
+2. **Importér** `Input` fra `@/components/ui/input` og `Search` fra `lucide-react`
+3. **Udvid linje 174-175** fra:
+   ```text
+   <h3 className="text-lg font-semibold mb-3">{selectedCard ?? "Alle forsendelser"}</h3>
+   ```
+   til en flex-row med overskriften til venstre og et søgefelt til højre
+4. **Filtreringslogik**: Efter card-filteret og før sorteringen tilføjes en ekstra filtrering, der matcher `searchQuery` mod `tenants.company_name` og `stamp_number` (konverteret til string). Søgningen er case-insensitive og delvis (contains-match).
 
-Ingen kontrastproblemer identificeret. Farven er mere mættet men bruges altid med lav opacity, så baggrundene forbliver lyse nok.
+### Tekniske detaljer
 
-### Ændringer
+| Sted | Ændring |
+|------|---------|
+| State | Tilføj `const [searchQuery, setSearchQuery] = useState("")` |
+| Import | Tilføj `Input` og `Search` ikon |
+| Filtrering (linje ~130) | `filteredItems` filtreres yderligere med `searchQuery` mod `company_name` og `stamp_number` |
+| UI (linje ~174-175) | Erstat `<h3>` med flex-container: overskrift + søgefelt med Search-ikon |
 
-| Fil | Ændring |
-|-----|---------|
-| `src/lib/mailRowColor.ts` | Erstat `#6ec1e4` med `#00aaeb` i rækkefarverne |
-| `src/pages/SettingsPage.tsx` | Erstat `#6ec1e4` med `#00aaeb` og tekstfarve `#2a7fa3` med `#006d9e` i Plus-badge |
-| `src/components/RegisterMailDialog.tsx` | Samme badge-opdatering som SettingsPage |
-
-3 filer, ren find-and-replace med farvejustering.
+Kun 1 fil ændres. Søgningen sker rent client-side på de allerede hentede data.
 
