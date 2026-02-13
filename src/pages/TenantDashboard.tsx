@@ -15,6 +15,7 @@ import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck }
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
+import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -421,17 +422,7 @@ const TenantDashboard = () => {
                 onClick={() => handleRowClick(item)}
               >
                 <TableCell>
-                  {item.photo_url ? (
-                    <img
-                      src={item.photo_url}
-                      alt="Foto"
-                      className="h-10 w-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
-                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
+                  <PhotoHoverPreview photoUrl={item.photo_url} />
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
