@@ -25,6 +25,7 @@ export type Database = {
           photo_url: string | null
           received_at: string
           scan_url: string | null
+          scanned_at: string | null
           sender_name: string | null
           stamp_number: number | null
           status: Database["public"]["Enums"]["mail_status"]
@@ -41,6 +42,7 @@ export type Database = {
           photo_url?: string | null
           received_at?: string
           scan_url?: string | null
+          scanned_at?: string | null
           sender_name?: string | null
           stamp_number?: number | null
           status?: Database["public"]["Enums"]["mail_status"]
@@ -57,6 +59,7 @@ export type Database = {
           photo_url?: string | null
           received_at?: string
           scan_url?: string | null
+          scanned_at?: string | null
           sender_name?: string | null
           stamp_number?: number | null
           status?: Database["public"]["Enums"]["mail_status"]
