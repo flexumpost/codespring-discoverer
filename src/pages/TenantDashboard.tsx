@@ -98,15 +98,30 @@ function parsePickupFromNotes(notes: string | null): string | null {
   return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
 }
 
+function getDaysLeftForScan(scannedAt: string | null): number | null {
+  if (!scannedAt) return null;
+  const scannedDate = new Date(scannedAt);
+  const now = new Date();
+  const diffMs = now.getTime() - scannedDate.getTime();
+  const daysSince = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, 30 - daysSince);
+}
+
 function getStatusDisplay(
-  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null },
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; scanned_at?: string | null },
   tenantTypeName: string | undefined
 ): [string, string?] {
   if (item.chosen_action === "scan" && !item.scan_url) {
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (item.chosen_action === "scan" && item.scan_url) {
-    return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
+    const daysLeft = getDaysLeftForScan(item.scanned_at ?? null);
+    if (daysLeft !== null && daysLeft <= 0) {
+      return ["Fysisk brev destrueret"];
+    }
+    const statusLabel = STATUS_LABELS[item.status as MailStatus] ?? item.status;
+    const subtitle = daysLeft !== null ? `Gemmes i ${daysLeft} dage` : undefined;
+    return [statusLabel, subtitle];
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
@@ -465,32 +480,52 @@ const TenantDashboard = () => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.status !== "arkiveret" && allowedActions.length > 0 ? (
-                    <Select
-                      value={item.chosen_action ?? undefined}
-                      onValueChange={(value) => handleAction(item.id, value)}
-                      disabled={chooseAction.isPending}
-                    >
-                      <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
-                        <SelectValue placeholder="Vælg handling" />
-                      </SelectTrigger>
-                      <SelectContent className="z-50 bg-popover">
-                        {allowedActions
-                          .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
-                          .map((action) => (
-                          <SelectItem key={action} value={action} className="text-xs">
-                            {ACTION_LABELS[action] ?? action}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : item.chosen_action ? (
-                    <Badge className="bg-primary/10 text-primary border-primary/20">
-                      {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                  {(() => {
+                    const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
+                    if (scanExpired) {
+                      return (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => archiveMutation.mutate(item.id)}
+                          disabled={archiveMutation.isPending}
+                        >
+                          Arkivér
+                        </Button>
+                      );
+                    }
+                    if (item.status !== "arkiveret" && allowedActions.length > 0) {
+                      return (
+                        <Select
+                          value={item.chosen_action ?? undefined}
+                          onValueChange={(value) => handleAction(item.id, value)}
+                          disabled={chooseAction.isPending}
+                        >
+                          <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
+                            <SelectValue placeholder="Vælg handling" />
+                          </SelectTrigger>
+                          <SelectContent className="z-50 bg-popover">
+                            {allowedActions
+                              .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
+                              .map((action) => (
+                              <SelectItem key={action} value={action} className="text-xs">
+                                {ACTION_LABELS[action] ?? action}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    }
+                    if (item.chosen_action) {
+                      return (
+                        <Badge className="bg-primary/10 text-primary border-primary/20">
+                          {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
+                        </Badge>
+                      );
+                    }
+                    return <span className="text-muted-foreground">—</span>;
+                  })()}
                 </TableCell>
                 <TableCell>
                   {item.scan_url ? (
