@@ -11,6 +11,8 @@ import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ShippingAddressPage from "./pages/ShippingAddressPage";
+import TenantsPage from "./pages/TenantsPage";
+import TenantDetailPage from "./pages/TenantDetailPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -64,6 +66,22 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <SettingsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/tenants"
+      element={
+        <ProtectedRoute>
+          <TenantsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/tenants/:id"
+      element={
+        <ProtectedRoute>
+          <TenantDetailPage />
         </ProtectedRoute>
       }
     />
