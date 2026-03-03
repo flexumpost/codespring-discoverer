@@ -169,6 +169,8 @@ export type Database = {
           contact_email: string | null
           contact_name: string | null
           created_at: string
+          default_mail_action: string | null
+          default_package_action: string | null
           id: string
           is_active: boolean
           shipping_address: string | null
@@ -188,6 +190,8 @@ export type Database = {
           contact_email?: string | null
           contact_name?: string | null
           created_at?: string
+          default_mail_action?: string | null
+          default_package_action?: string | null
           id?: string
           is_active?: boolean
           shipping_address?: string | null
@@ -207,6 +211,8 @@ export type Database = {
           contact_email?: string | null
           contact_name?: string | null
           created_at?: string
+          default_mail_action?: string | null
+          default_package_action?: string | null
           id?: string
           is_active?: boolean
           shipping_address?: string | null
