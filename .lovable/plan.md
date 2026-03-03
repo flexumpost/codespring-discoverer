@@ -1,43 +1,47 @@
 
 
-## Nedtælling for fysisk opbevaring af scannede breve (30 dage)
+## Tilføj forsendelsesadresse-kort på indstillingssiden
 
-Når et brev er scannet og scanningen er uploadet, vises i status-kolonnen hvor mange dage der er tilbage, inden det fysiske brev destrueres. Efter 30 dage blokeres handlingsvalg, og brevet kan kun arkiveres.
+Tilføjer en ny redigerbar "Forsendelsesadresse"-boks under de eksisterende kort på SettingsPage, med 7 adressefelter som gemmes i `tenants`-tabellen.
 
-### Logik
+### 1. Database-migration
 
-- Startpunkt for de 30 dage: tidspunktet hvor `scan_url` blev sat (registreres via `updated_at` feltet, som allerede opdateres automatisk ved upload)
-- Beregning: `daysLeft = 30 - dageSiden(updated_at)` -- men `updated_at` kan opdateres af andre ting, se nedenfor
-- For praecis sporbarhed tilfojes et nyt felt `scanned_at` til `mail_items` tabellen
+Tilføj 6 nye kolonner til `tenants`-tabellen (den eksisterende `address`-kolonne genbruges ikke, da den er til firmaadresse):
 
-### Aendringer
+| Kolonne | Type | Nullable | Default |
+|---|---|---|---|
+| `shipping_recipient` | text | YES | NULL |
+| `shipping_co` | text | YES | NULL |
+| `shipping_address` | text | YES | NULL |
+| `shipping_zip` | text | YES | NULL |
+| `shipping_city` | text | YES | NULL |
+| `shipping_state` | text | YES | NULL |
+| `shipping_country` | text | YES | NULL |
 
-**1. Database: nyt felt `scanned_at`**
-- Tilfoej `scanned_at timestamptz` kolonne til `mail_items` (nullable, default null)
-- Opret en trigger der automatisk saetter `scanned_at = now()` naar `scan_url` aendres fra null til en vaerdi (saa operatoerer ikke skal goere noget ekstra)
-- Bagudkompatibilitet: Koor en migration der saetter `scanned_at = updated_at` for eksisterende raekker der allerede har `scan_url`
+Alle nullable — obligatorisk-validering sker client-side inden gem.
 
-**2. `getStatusDisplay()` i TenantDashboard.tsx**
-- Naar `chosen_action = 'scan'` og `scan_url` er sat: beregn `daysLeft = 30 - daysSince(scanned_at)`
-- Hvis `daysLeft > 0`: vis "Gemmes i [daysLeft] dage" som undertekst
-- Hvis `daysLeft <= 0`: vis "Fysisk brev destrueret"
+### 2. SettingsPage.tsx
 
-**3. Bloker handlingsvalg naar daysLeft <= 0**
-- I tabel-raekken: naar et scannet brev har 0 dage tilbage, deaktiveres Select-dropdown'en
-- Vis kun "Arkiver" som mulig handling, eller vis slet ingen dropdown og vis i stedet en "Arkiver"-knap
+Tilføj et tredje `Card` under "Kontaktoplysninger" med titlen **"Forsendelsesadresse"**:
 
-### Tekniske detaljer
+- 7 state-variabler (eller et samlet objekt) initialiseret fra `selectedTenant`
+- Felter: Modtager navn*, c/o navn, Adresse*, Postnummer*, By*, Stat, Land*
+- Obligatoriske felter markeres visuelt og valideres client-side inden gem
+- Separat "Gem"-knap der kører `supabase.from("tenants").update(...)` med de 7 felter
+- `hasShippingChanges`-check for at disable knappen når intet er ændret
 
-| Fil / Ressource | AEndring |
-|---|---|
-| Database migration | `ALTER TABLE mail_items ADD COLUMN scanned_at timestamptz;` + trigger + backfill |
-| `src/pages/TenantDashboard.tsx` | Opdater `getStatusDisplay()` med dage-beregning; betinget deaktivering af handlings-dropdown |
-| `src/integrations/supabase/types.ts` | Opdateres automatisk efter migration |
+Kun 1 fil ændres (+ migration). Eksisterende RLS-policies på `tenants` dækker allerede tenant-update via "Tenants update own mail action"-lignende policies — men `tenants`-tabellen har kun operator-update-policy. Lejere kan opdatere `contact_name`/`contact_email` allerede, så den eksisterende kode virker via operator-policy eller tenant-select + en manglende tenant-update-policy. Lad mig tjekke: tenants har kun "Operators update tenants" — men SettingsPage kører `update` på tenants. Det virker kun hvis brugeren er operator. For lejere skal vi tilføje en RLS-policy der tillader lejere at opdatere egne rækker (begrænsede kolonner).
 
-### Eksempel paa statusvisning
+### 3. RLS: Lejer-update-policy på tenants
 
-| Situation | Status-kolonne |
-|---|---|
-| Scannet for 5 dage siden | Badge: "Ulaest" / Undertekst: "Gemmes i 25 dage" |
-| Scannet for 30+ dage siden | Badge: "Fysisk brev destrueret" / Handling: kun Arkiver |
+Tilføj policy:
+```sql
+CREATE POLICY "Tenants update own tenant"
+ON public.tenants FOR UPDATE
+TO authenticated
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+```
+
+Dette giver lejere mulighed for at opdatere deres egne tenant-rækker (kontaktinfo + forsendelsesadresse).
 
