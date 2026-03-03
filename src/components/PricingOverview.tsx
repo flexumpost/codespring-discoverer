@@ -62,34 +62,29 @@ const PACKAGE_PRICING: Record<string, { haandteringsgebyr: string; afhentning: s
   },
 };
 
-interface PricingOverviewProps {
-  tenantTypeName: string | undefined;
-  tenant?: {
-    id: string;
-    default_mail_action?: string | null;
-    default_package_action?: string | null;
-  };
+interface TenantProp {
+  id: string;
+  default_mail_action?: string | null;
+  default_package_action?: string | null;
 }
 
-export function PricingOverview({ tenantTypeName, tenant }: PricingOverviewProps) {
+interface PricingCardProps {
+  tenantTypeName: string | undefined;
+  tenant?: TenantProp;
+}
+
+export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
   const queryClient = useQueryClient();
   const [mailAction, setMailAction] = useState(tenant?.default_mail_action ?? "");
-  const [packageAction, setPackageAction] = useState(tenant?.default_package_action ?? "");
 
   useEffect(() => {
     setMailAction(tenant?.default_mail_action ?? "");
-    setPackageAction(tenant?.default_package_action ?? "");
-  }, [tenant?.id, tenant?.default_mail_action, tenant?.default_package_action]);
+  }, [tenant?.id, tenant?.default_mail_action]);
 
-  if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) {
-    return null;
-  }
+  if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
   const mail = MAIL_PRICING[tenantTypeName];
-  const pkg = PACKAGE_PRICING[tenantTypeName];
-
   const mailChanged = tenant && mailAction !== (tenant.default_mail_action ?? "");
-  const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
 
   const mailMutation = useMutation({
     mutationFn: async () => {
@@ -105,6 +100,72 @@ export function PricingOverview({ tenantTypeName, tenant }: PricingOverviewProps
     },
     onError: () => toast.error("Kunne ikke gemme"),
   });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Breve — priser og betingelser ({tenantTypeName})</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {tenant && (
+          <div className="space-y-3 border-b pb-4 mb-2">
+            <Label>Standard handling for breve</Label>
+            <div className="flex items-center gap-2">
+              <Select value={mailAction} onValueChange={setMailAction}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Vælg handling..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MAIL_ACTIONS.map((a) => (
+                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => mailMutation.mutate()}
+                disabled={!mailChanged || !mailAction || mailMutation.isPending}
+              >
+                <Save className="mr-1 h-4 w-4" />
+                {mailMutation.isPending ? "Gemmer..." : "Gem"}
+              </Button>
+            </div>
+          </div>
+        )}
+        <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+          {mail.forklaring}
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Emne</TableHead>
+              <TableHead>Betingelse / Pris</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow><TableCell className="font-medium">Forsendelsesdag</TableCell><TableCell>{mail.forsendelsesdag}</TableCell></TableRow>
+            <TableRow><TableCell className="font-medium">Ekstra forsendelse</TableCell><TableCell>{mail.ekstraForsendelse}</TableCell></TableRow>
+            <TableRow><TableCell className="font-medium">Ekstra scanning af post</TableCell><TableCell>{mail.ekstraScanning}</TableCell></TableRow>
+            <TableRow><TableCell className="font-medium">Ekstra afhentning</TableCell><TableCell>{mail.ekstraAfhentning}</TableCell></TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps) {
+  const queryClient = useQueryClient();
+  const [packageAction, setPackageAction] = useState(tenant?.default_package_action ?? "");
+
+  useEffect(() => {
+    setPackageAction(tenant?.default_package_action ?? "");
+  }, [tenant?.id, tenant?.default_package_action]);
+
+  if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
+
+  const pkg = PACKAGE_PRICING[tenantTypeName];
+  const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
 
   const pkgMutation = useMutation({
     mutationFn: async () => {
@@ -122,125 +183,50 @@ export function PricingOverview({ tenantTypeName, tenant }: PricingOverviewProps
   });
 
   return (
-    <>
-      {/* Breve */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Breve — priser og betingelser ({tenantTypeName})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {tenant && (
-            <div className="space-y-3 border-b pb-4 mb-2">
-              <Label>Standard handling for breve</Label>
-              <div className="flex items-center gap-2">
-                <Select value={mailAction} onValueChange={setMailAction}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Vælg handling..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MAIL_ACTIONS.map((a) => (
-                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  onClick={() => mailMutation.mutate()}
-                  disabled={!mailChanged || !mailAction || mailMutation.isPending}
-                >
-                  <Save className="mr-1 h-4 w-4" />
-                  {mailMutation.isPending ? "Gemmer..." : "Gem"}
-                </Button>
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Pakker — priser og betingelser ({tenantTypeName})</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {tenant && (
+          <div className="space-y-3 border-b pb-4 mb-2">
+            <Label>Standard handling for pakker</Label>
+            <div className="flex items-center gap-2">
+              <Select value={packageAction} onValueChange={setPackageAction}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Vælg handling..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PACKAGE_ACTIONS.map((a) => (
+                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={() => pkgMutation.mutate()}
+                disabled={!pkgChanged || !packageAction || pkgMutation.isPending}
+              >
+                <Save className="mr-1 h-4 w-4" />
+                {pkgMutation.isPending ? "Gemmer..." : "Gem"}
+              </Button>
             </div>
-          )}
-          <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            {mail.forklaring}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Emne</TableHead>
-                <TableHead>Betingelse / Pris</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Forsendelsesdag</TableCell>
-                <TableCell>{mail.forsendelsesdag}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Ekstra forsendelse</TableCell>
-                <TableCell>{mail.ekstraForsendelse}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Ekstra scanning af post</TableCell>
-                <TableCell>{mail.ekstraScanning}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Ekstra afhentning</TableCell>
-                <TableCell>{mail.ekstraAfhentning}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Pakker */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pakker — priser og betingelser ({tenantTypeName})</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {tenant && (
-            <div className="space-y-3 border-b pb-4 mb-2">
-              <Label>Standard handling for pakker</Label>
-              <div className="flex items-center gap-2">
-                <Select value={packageAction} onValueChange={setPackageAction}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Vælg handling..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PACKAGE_ACTIONS.map((a) => (
-                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  size="sm"
-                  onClick={() => pkgMutation.mutate()}
-                  disabled={!pkgChanged || !packageAction || pkgMutation.isPending}
-                >
-                  <Save className="mr-1 h-4 w-4" />
-                  {pkgMutation.isPending ? "Gemmer..." : "Gem"}
-                </Button>
-              </div>
-            </div>
-          )}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Emne</TableHead>
-                <TableHead>Betingelse / Pris</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Håndteringsgebyr</TableCell>
-                <TableCell>{pkg.haandteringsgebyr}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Afhentning</TableCell>
-                <TableCell>{pkg.afhentning}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Forsendelse</TableCell>
-                <TableCell>{pkg.forsendelse}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </>
+        )}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[200px]">Emne</TableHead>
+              <TableHead>Betingelse / Pris</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow><TableCell className="font-medium">Håndteringsgebyr</TableCell><TableCell>{pkg.haandteringsgebyr}</TableCell></TableRow>
+            <TableRow><TableCell className="font-medium">Afhentning</TableCell><TableCell>{pkg.afhentning}</TableCell></TableRow>
+            <TableRow><TableCell className="font-medium">Forsendelse</TableCell><TableCell>{pkg.forsendelse}</TableCell></TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
