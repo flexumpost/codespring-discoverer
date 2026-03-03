@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
+import { useAuth } from "@/hooks/useAuth";
 import { TenantSelector } from "@/components/TenantSelector";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -23,6 +25,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const SettingsPage = () => {
+  const { role } = useAuth();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
   const [contactName, setContactName] = useState("");
@@ -59,6 +62,19 @@ const SettingsPage = () => {
     (contactName !== (selectedTenant.contact_name ?? "") ||
       contactEmail !== (selectedTenant.contact_email ?? ""));
 
+  // Operator view
+  if (role === "operator") {
+    return (
+      <AppLayout>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold">Indstillinger</h2>
+        </div>
+        <OperatorSettingsTabs />
+      </AppLayout>
+    );
+  }
+
+  // Tenant view
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">

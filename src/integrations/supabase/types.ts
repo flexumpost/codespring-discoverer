@@ -114,6 +114,33 @@ export type Database = {
           },
         ]
       }
+      pricing_settings: {
+        Row: {
+          category: string
+          field_key: string
+          field_value: string
+          id: string
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          field_key: string
+          field_value: string
+          id?: string
+          tier: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          field_key?: string
+          field_value?: string
+          id?: string
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

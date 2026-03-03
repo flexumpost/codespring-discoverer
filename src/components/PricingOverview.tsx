@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,47 +20,43 @@ const PACKAGE_ACTIONS = [
   { value: "afhentning", label: "Afhentning" },
 ];
 
-const MAIL_PRICING: Record<string, { forklaring: string; forsendelsesdag: string; ekstraForsendelse: string; ekstraScanning: string; ekstraAfhentning: string }> = {
-  Lite: {
-    forklaring: "Scanning fortages gratis den første torsdag i måneden. Afhentning kan ske gratis den første torsdag i måneden, skal bookes. Forsendelse er gratis, men tillægges porto.",
-    forsendelsesdag: "Første torsdag i måneden",
-    ekstraForsendelse: "50 kr. pr. forsendelse + porto",
-    ekstraScanning: "50 kr.",
-    ekstraAfhentning: "50 kr. (Skal bookes)",
-  },
-  Standard: {
-    forklaring: "Scanning fortages gratis hver torsdag. Afhentning kan ske gratis den hver torsdag, skal bookes. Forsendelse sker hver torsdag og tillægges porto.",
-    forsendelsesdag: "Hver torsdag",
-    ekstraForsendelse: "Ingen ekstra forsendelse",
-    ekstraScanning: "30 kr.",
-    ekstraAfhentning: "30 kr. (Skal bookes)",
-  },
-  Plus: {
-    forklaring: "Scanning fortages gratis alle hverdage. Afhentning kan ske gratis på alle hverdage, skal bookes. Forsendelse sker hver torsdag, gratis porto.",
-    forsendelsesdag: "Hver torsdag",
-    ekstraForsendelse: "Ingen ekstra forsendelse",
-    ekstraScanning: "0 kr.",
-    ekstraAfhentning: "0 kr. (Skal bookes)",
-  },
+// Fallback defaults if DB has no data
+const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
+  Lite: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
+  Standard: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
+  Plus: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
 };
 
-const PACKAGE_PRICING: Record<string, { haandteringsgebyr: string; afhentning: string; forsendelse: string }> = {
-  Lite: {
-    haandteringsgebyr: "50 kr.",
-    afhentning: "Afhentning kan ske hver torsdag efter aftale (Skal bookes)",
-    forsendelse: "Porto tillægges",
-  },
-  Standard: {
-    haandteringsgebyr: "30 kr.",
-    afhentning: "Afhentning kan ske hver torsdag efter aftale (Skal bookes)",
-    forsendelse: "Porto tillægges",
-  },
-  Plus: {
-    haandteringsgebyr: "10 kr.",
-    afhentning: "Afhentning kan ske efter aftale (Skal bookes)",
-    forsendelse: "Porto tillægges",
-  },
+const PACKAGE_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
+  Lite: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
+  Standard: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
+  Plus: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
 };
+
+function usePricingData() {
+  return useQuery({
+    queryKey: ["pricing-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pricing_settings")
+        .select("tier, category, field_key, field_value");
+      if (error) throw error;
+
+      const mail: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(MAIL_PRICING_DEFAULTS));
+      const pkg: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(PACKAGE_PRICING_DEFAULTS));
+
+      (data ?? []).forEach((row: any) => {
+        if (row.category === "mail" && mail[row.tier]) {
+          mail[row.tier][row.field_key] = row.field_value;
+        } else if (row.category === "package" && pkg[row.tier]) {
+          pkg[row.tier][row.field_key] = row.field_value;
+        }
+      });
+
+      return { mail, pkg };
+    },
+  });
+}
 
 interface TenantProp {
   id: string;
@@ -76,6 +72,7 @@ interface PricingCardProps {
 export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
   const queryClient = useQueryClient();
   const [mailAction, setMailAction] = useState(tenant?.default_mail_action ?? "");
+  const { data: pricing } = usePricingData();
 
   useEffect(() => {
     setMailAction(tenant?.default_mail_action ?? "");
@@ -83,7 +80,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
-  const mail = MAIL_PRICING[tenantTypeName];
+  const mail = pricing?.mail[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName];
   const mailChanged = tenant && mailAction !== (tenant.default_mail_action ?? "");
 
   const mailMutation = useMutation({
@@ -132,9 +129,11 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
             </div>
           </div>
         )}
-        <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-          {mail.forklaring}
-        </div>
+        {mail.forklaring && (
+          <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            {mail.forklaring}
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow>
@@ -157,6 +156,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps) {
   const queryClient = useQueryClient();
   const [packageAction, setPackageAction] = useState(tenant?.default_package_action ?? "");
+  const { data: pricing } = usePricingData();
 
   useEffect(() => {
     setPackageAction(tenant?.default_package_action ?? "");
@@ -164,7 +164,7 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
-  const pkg = PACKAGE_PRICING[tenantTypeName];
+  const pkg = pricing?.pkg[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
   const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
 
   const pkgMutation = useMutation({
