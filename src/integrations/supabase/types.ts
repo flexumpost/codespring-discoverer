@@ -171,6 +171,13 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_co: string | null
+          shipping_country: string | null
+          shipping_recipient: string | null
+          shipping_state: string | null
+          shipping_zip: string | null
           tenant_type_id: string
           updated_at: string
           user_id: string | null
@@ -183,6 +190,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_co?: string | null
+          shipping_country?: string | null
+          shipping_recipient?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           tenant_type_id: string
           updated_at?: string
           user_id?: string | null
@@ -195,6 +209,13 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_co?: string | null
+          shipping_country?: string | null
+          shipping_recipient?: string | null
+          shipping_state?: string | null
+          shipping_zip?: string | null
           tenant_type_id?: string
           updated_at?: string
           user_id?: string | null
