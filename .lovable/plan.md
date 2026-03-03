@@ -1,45 +1,22 @@
 
 
-## Lejerliste og lejervisning for operatører
+## Tilføj lejertypeskift på operatørens lejerdetalje-side
 
-### Ændringer
+### Ændring
 
-**1. Ny side: `src/pages/TenantsPage.tsx`**
-- Henter alle lejere med `tenants` + `tenant_types(name)` join
-- Henter antal nye breve per lejer via `mail_items` med `status = 'ny'` grupperet per `tenant_id`
-- Viser en tabel med kolonner: Lejer navn, Lejertype (med farve-badge), Antal nye breve
-- Klik på en række navigerer til `/tenants/:id`
+**`src/pages/TenantDetailPage.tsx`**
+- Hent alle `tenant_types` via en ekstra query
+- I "Virksomhed"-kortet: tilføj en `Select`-dropdown under firmanavn, der viser alle lejertyper og er pre-selected med den aktuelle `tenant_type_id`
+- Tilføj en `useMutation` der opdaterer `tenant_type_id` på `tenants`-tabellen
+- Vis en Gem-knap der kun er aktiv når typen er ændret
 
-**2. Ny side: `src/pages/TenantDetailPage.tsx`**
-- Operatør-visning af en enkelt lejers indstillinger (genbruger samme layout som `SettingsPage`)
-- Henter lejer-data via `tenants` + `tenant_types` baseret på URL-param `:id`
-- Operatøren kan redigere: kontaktoplysninger, forsendelsesadresse, standardhandlinger
-- Viser virksomhedsinfo, priskort (MailPricingCard / PackagePricingCard)
-- Tilbage-knap til `/tenants`
+Kun denne side ændres — `SettingsPage` (lejerens egen side) forbliver uændret og viser fortsat lejertypen som read-only badge.
 
-**3. `src/App.tsx`**
-- Tilføj routes: `/tenants` → `TenantsPage` og `/tenants/:id` → `TenantDetailPage`
+### Teknisk detalje
 
-**4. `src/components/AppSidebar.tsx`**
-- Allerede har "Lejere" med URL `/tenants` i `operatorItems` — ingen ændring nødvendig
-
-### Datahentning for "antal nye breve"
-
-Forespørgsel der tæller nye breve per lejer:
-```sql
-SELECT tenant_id, COUNT(*) 
-FROM mail_items 
-WHERE status = 'ny' AND tenant_id IS NOT NULL
-GROUP BY tenant_id
-```
-
-I koden bruges to queries: en for lejere og en for mail_items med status='ny', derefter grupperes i JS.
-
-### Filoversigt
+Dropdown-værdier er `tenant_types.id` (uuid). Ved gem opdateres `tenants.tenant_type_id`. Badge i headeren opdateres efter invalidation af queryen.
 
 | Fil | Ændring |
 |---|---|
-| `src/pages/TenantsPage.tsx` | Ny — lejerliste med tabel |
-| `src/pages/TenantDetailPage.tsx` | Ny — operatør-redigering af enkelt lejer |
-| `src/App.tsx` | Tilføj `/tenants` og `/tenants/:id` routes |
+| `src/pages/TenantDetailPage.tsx` | Tilføj tenant_types query, Select-dropdown i Virksomhed-kort, mutation for typeskift |
 
