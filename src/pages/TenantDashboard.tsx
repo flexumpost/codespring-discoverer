@@ -17,6 +17,7 @@ import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { toast } from "sonner";
+import { DefaultActionSetup } from "@/components/DefaultActionSetup";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailStatus = Database["public"]["Enums"]["mail_status"];
@@ -390,8 +391,20 @@ const TenantDashboard = () => {
     { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
   ];
 
+  // Check if default actions need to be set (first login flow)
+  const needsDefaultActions =
+    selectedTenant &&
+    ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") &&
+    ((selectedTenant as any).default_mail_action == null || (selectedTenant as any).default_package_action == null);
+
   return (
     <div>
+      {needsDefaultActions && (
+        <DefaultActionSetup
+          tenantId={selectedTenant!.id}
+          tenantTypeName={tenantTypeName!}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
         <h2 className="text-xl md:text-2xl font-bold">Min post</h2>
         <TenantSelector
