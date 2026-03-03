@@ -1,20 +1,23 @@
 
 
-## Fjern "(Skal bookes)" fra ekstra scanning
+## Ændr rækkefølge på lejertype-dropdown
 
 ### Ændring
 
-**`src/components/PricingOverview.tsx`** — linje 28, 35, 42
+**`src/pages/TenantDetailPage.tsx`** — linje 49-56
 
-Fjern `(Skal bookes)` fra `ekstraScanning`-værdien i alle tre pakker:
+Fjern `.order("name")` fra tenant_types-queryen og sortér i stedet manuelt i den ønskede rækkefølge:
 
-- Lite: `"50 kr. (Skal bookes)"` → `"50 kr."`
-- Standard: `"30 kr. (Skal bookes)"` → `"30 kr."`
-- Plus: `"0 kr. (Skal bookes)"` → `"0 kr."`
+1. Fastlejer
+2. Lite
+3. Standard
+4. Plus
+5. Retur til afsender
+6. Nabo
 
-`ekstraAfhentning` beholder `(Skal bookes)` da det kun er scanning der skal ændres.
+Implementeres ved at definere en `TYPE_ORDER`-array og sortere `data` efter denne rækkefølge inden return.
 
 | Fil | Ændring |
 |---|---|
-| `src/components/PricingOverview.tsx` | Fjern "(Skal bookes)" fra 3 ekstraScanning-værdier |
+| `src/pages/TenantDetailPage.tsx` | Sortér tenant_types i fast rækkefølge i stedet for alfabetisk |
 
