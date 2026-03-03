@@ -11,6 +11,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -40,6 +47,17 @@ const TenantDetailPage = () => {
     },
   });
 
+  const { data: tenantTypes = [] } = useQuery({
+    queryKey: ["tenant-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_types").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [shippingRecipient, setShippingRecipient] = useState("");
@@ -53,6 +71,7 @@ const TenantDetailPage = () => {
     if (tenant) {
       setContactName(tenant.contact_name ?? "");
       setContactEmail(tenant.contact_email ?? "");
+      setSelectedTypeId(tenant.tenant_type_id);
       setShippingRecipient(tenant.shipping_recipient ?? "");
       setShippingCo(tenant.shipping_co ?? "");
       setShippingAddress(tenant.shipping_address ?? "");
@@ -61,6 +80,21 @@ const TenantDetailPage = () => {
       setShippingCountry(tenant.shipping_country ?? "");
     }
   }, [tenant]);
+
+  const typeMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tenants")
+        .update({ tenant_type_id: selectedTypeId })
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
+      toast.success("Lejertype opdateret");
+    },
+    onError: () => toast.error("Kunne ikke gemme lejertype"),
+  });
 
   const contactMutation = useMutation({
     mutationFn: async () => {
@@ -100,6 +134,7 @@ const TenantDetailPage = () => {
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
+  const typeChanged = tenant && selectedTypeId !== tenant.tenant_type_id;
 
   const contactChanged =
     tenant &&
@@ -154,6 +189,25 @@ const TenantDetailPage = () => {
                     <p className="font-medium">{tenant.address}</p>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs">Lejertype</Label>
+                  <Select value={selectedTypeId} onValueChange={setSelectedTypeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Vælg lejertype" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tenantTypes.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={() => typeMutation.mutate()} disabled={!typeChanged || typeMutation.isPending} size="sm">
+                  <Save className="mr-2 h-4 w-4" />
+                  {typeMutation.isPending ? "Gemmer..." : "Gem type"}
+                </Button>
               </CardContent>
             </Card>
 
