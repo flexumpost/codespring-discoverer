@@ -1,47 +1,78 @@
 
 
-## Tilføj forsendelsesadresse-kort på indstillingssiden
+## Prisoversigt og standardhandling på indstillingssiden
 
-Tilføjer en ny redigerbar "Forsendelsesadresse"-boks under de eksisterende kort på SettingsPage, med 7 adressefelter som gemmes i `tenants`-tabellen.
+### Overblik
 
-### 1. Database-migration
+Tilføj to nye sektioner på SettingsPage:
+1. **Prisoversigt** — read-only tabel der viser priser/betingelser for breve og pakker baseret på brugerens lejertype (Lite/Standard/Plus)
+2. **Standardhandling** — brugeren vælger sin standard handling for breve og pakker (gemmes i `tenants`-tabellen)
+3. **Første login-tvang** — hvis standardhandling ikke er valgt, vises en modal/onboarding-skærm der kræver valg før brugeren kan fortsætte
 
-Tilføj 6 nye kolonner til `tenants`-tabellen (den eksisterende `address`-kolonne genbruges ikke, da den er til firmaadresse):
+### Database-ændringer
+
+Tilføj to nye kolonner til `tenants`:
 
 | Kolonne | Type | Nullable | Default |
 |---|---|---|---|
-| `shipping_recipient` | text | YES | NULL |
-| `shipping_co` | text | YES | NULL |
-| `shipping_address` | text | YES | NULL |
-| `shipping_zip` | text | YES | NULL |
-| `shipping_city` | text | YES | NULL |
-| `shipping_state` | text | YES | NULL |
-| `shipping_country` | text | YES | NULL |
+| `default_mail_action` | text | YES | NULL |
+| `default_package_action` | text | YES | NULL |
 
-Alle nullable — obligatorisk-validering sker client-side inden gem.
+Gyldige værdier for breve: `send`, `afhentning`, `scan`
+Gyldige værdier for pakker: `send`, `afhentning`
 
-### 2. SettingsPage.tsx
+### SettingsPage.tsx — nye kort
 
-Tilføj et tredje `Card` under "Kontaktoplysninger" med titlen **"Forsendelsesadresse"**:
+**Kort 1: "Breve — priser og betingelser"**
+Vis en tabel baseret på den uploadede oversigt. Indholdet er hardcodet i koden og filtreret efter lejertype. Viser:
+- Forsendelsesdag, ekstra forsendelse pris, ekstra scanning pris, ekstra afhentning pris
+- Forklaring af hvad der er inkluderet
 
-- 7 state-variabler (eller et samlet objekt) initialiseret fra `selectedTenant`
-- Felter: Modtager navn*, c/o navn, Adresse*, Postnummer*, By*, Stat, Land*
-- Obligatoriske felter markeres visuelt og valideres client-side inden gem
-- Separat "Gem"-knap der kører `supabase.from("tenants").update(...)` med de 7 felter
-- `hasShippingChanges`-check for at disable knappen når intet er ændret
+**Kort 2: "Pakker — priser og betingelser"**
+Tilsvarende for pakker: håndteringsgebyr, afhentningsbetingelser, forsendelse.
 
-Kun 1 fil ændres (+ migration). Eksisterende RLS-policies på `tenants` dækker allerede tenant-update via "Tenants update own mail action"-lignende policies — men `tenants`-tabellen har kun operator-update-policy. Lejere kan opdatere `contact_name`/`contact_email` allerede, så den eksisterende kode virker via operator-policy eller tenant-select + en manglende tenant-update-policy. Lad mig tjekke: tenants har kun "Operators update tenants" — men SettingsPage kører `update` på tenants. Det virker kun hvis brugeren er operator. For lejere skal vi tilføje en RLS-policy der tillader lejere at opdatere egne rækker (begrænsede kolonner).
+**Kort 3: "Standardhandling"**
+To Select-dropdowns:
+- "Standard handling for breve" (Forsendelse / Afhentning / Scanning)
+- "Standard handling for pakker" (Forsendelse / Afhentning)
+- Gem-knap
 
-### 3. RLS: Lejer-update-policy på tenants
+Kun vist for Lite/Standard/Plus (Fastlejer, Nabo, Retur til afsender har andre regler).
 
-Tilføj policy:
-```sql
-CREATE POLICY "Tenants update own tenant"
-ON public.tenants FOR UPDATE
-TO authenticated
-USING (user_id = auth.uid())
-WITH CHECK (user_id = auth.uid());
-```
+### Første login — tvungen valg
 
-Dette giver lejere mulighed for at opdatere deres egne tenant-rækker (kontaktinfo + forsendelsesadresse).
+Ny komponent `DefaultActionSetup` (dialog/modal):
+- Vises når `selectedTenant.default_mail_action` eller `default_package_action` er `null`
+- Kræver valg af begge standardhandlinger før modal kan lukkes
+- Vises i `Index.tsx` (eller `TenantDashboard.tsx`) for tenant-brugere
+- Blokerer adgang til resten af dashboardet indtil valgt
+
+### Fil-ændringer
+
+| Fil | Ændring |
+|---|---|
+| Database migration | `ALTER TABLE tenants ADD COLUMN default_mail_action text, ADD COLUMN default_package_action text` |
+| `src/pages/SettingsPage.tsx` | Tilføj prisoversigt-kort + standardhandling-kort |
+| `src/components/DefaultActionSetup.tsx` | Ny modal-komponent til første-login valg |
+| `src/pages/TenantDashboard.tsx` | Vis `DefaultActionSetup` modal hvis standardhandlinger mangler |
+| `src/hooks/useTenants.tsx` | Ingen ændringer nødvendige (henter allerede tenant_types) |
+
+### Prisdata (hardcodet i koden)
+
+**Breve:**
+
+| | Lite | Standard | Plus |
+|---|---|---|---|
+| Forsendelsesdag | Første torsdag i måneden | Hver torsdag | Hver torsdag |
+| Ekstra forsendelse | 50 kr. + porto | Ingen ekstra | Ingen ekstra |
+| Ekstra scanning | 50 kr. (skal bookes) | 30 kr. (skal bookes) | 0 kr. (skal bookes) |
+| Ekstra afhentning | 50 kr. (skal bookes) | 30 kr. (skal bookes) | 0 kr. (skal bookes) |
+
+**Pakker:**
+
+| | Lite | Standard | Plus |
+|---|---|---|---|
+| Håndteringsgebyr | 50 kr. | 30 kr. | 10 kr. |
+| Afhentning | Hver torsdag efter aftale | Hver torsdag efter aftale | Efter aftale |
+| Forsendelse | Porto tillægges | Porto tillægges | Porto tillægges |
 
