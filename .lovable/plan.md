@@ -1,31 +1,22 @@
 
 
-## Flyt "Forsendelsesadresse" til eget menupunkt
+## Integrer standardhandling i priskortene
 
 ### Ændringer
 
-**1. Ny side: `src/pages/ShippingAddressPage.tsx`**
-- Opret en ny side der indeholder forsendelsesadresse-kortet (klippet fra SettingsPage)
-- Wrappet i `AppLayout` med overskrift "Forsendelsesadresse"
-- Genbruger samme state, mutation og validering som i dag
+**`src/components/PricingOverview.tsx`**
+- Udvid props med `tenant` og `onDefaultActionSaved` callback (eller direkte mutation-logik)
+- I **Breve-kortet**: Tilføj en Select-dropdown øverst i CardContent (før forklaringsteksten) til valg af standard brevhandling + Gem-knap
+- I **Pakker-kortet**: Tilføj tilsvarende Select-dropdown øverst til valg af standard pakkehandling + Gem-knap
+- Flyt MAIL_ACTIONS og PACKAGE_ACTIONS konstanterne hertil, samt mutation-logik fra DefaultActionCard
 
-**2. `src/components/AppSidebar.tsx`**
-- Tilføj nyt menupunkt "Forsendelsesadresse" i `tenantItems` mellem "Dashboard" og "Indstillinger"
-- Brug `MapPin`-ikonet fra lucide-react
-- URL: `/shipping-address`
+**`src/components/DefaultActionCard.tsx`**
+- Slet filen — funktionaliteten er nu integreret i PricingOverview
 
-**3. `src/pages/SettingsPage.tsx`**
-- Fjern forsendelsesadresse-kortet og al tilhørende state/mutation-kode (shipping-felter, shippingMutation, shippingValid, hasShippingChanges)
+**`src/pages/SettingsPage.tsx`**
+- Fjern `<DefaultActionCard>` import og brug
+- Send `tenant`-objekt som prop til `<PricingOverview>` (udover `tenantTypeName`)
 
-**4. `src/App.tsx`**
-- Tilføj ny `ProtectedRoute` for `/shipping-address` → `ShippingAddressPage`
-
-### Filoversigt
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/ShippingAddressPage.tsx` | Ny fil — forsendelsesadresse-formular |
-| `src/components/AppSidebar.tsx` | Tilføj "Forsendelsesadresse" til tenant-menu |
-| `src/pages/SettingsPage.tsx` | Fjern shipping-kort og relateret kode |
-| `src/App.tsx` | Tilføj route `/shipping-address` |
+### Resultat
+Hvert priskort får sin egen standardhandling-sektion øverst, så brugeren ser valg og priser samlet per kategori (breve / pakker). Én samlet Gem-knap per kort.
 
