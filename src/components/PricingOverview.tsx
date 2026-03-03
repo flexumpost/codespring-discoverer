@@ -1,5 +1,24 @@
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Save } from "lucide-react";
+import { toast } from "sonner";
+
+const MAIL_ACTIONS = [
+  { value: "send", label: "Forsendelse" },
+  { value: "afhentning", label: "Afhentning" },
+  { value: "scan", label: "Scanning" },
+];
+
+const PACKAGE_ACTIONS = [
+  { value: "send", label: "Forsendelse" },
+  { value: "afhentning", label: "Afhentning" },
+];
 
 const MAIL_PRICING: Record<string, { forklaring: string; forsendelsesdag: string; ekstraForsendelse: string; ekstraScanning: string; ekstraAfhentning: string }> = {
   Lite: {
@@ -45,15 +64,62 @@ const PACKAGE_PRICING: Record<string, { haandteringsgebyr: string; afhentning: s
 
 interface PricingOverviewProps {
   tenantTypeName: string | undefined;
+  tenant?: {
+    id: string;
+    default_mail_action?: string | null;
+    default_package_action?: string | null;
+  };
 }
 
-export function PricingOverview({ tenantTypeName }: PricingOverviewProps) {
+export function PricingOverview({ tenantTypeName, tenant }: PricingOverviewProps) {
+  const queryClient = useQueryClient();
+  const [mailAction, setMailAction] = useState(tenant?.default_mail_action ?? "");
+  const [packageAction, setPackageAction] = useState(tenant?.default_package_action ?? "");
+
+  useEffect(() => {
+    setMailAction(tenant?.default_mail_action ?? "");
+    setPackageAction(tenant?.default_package_action ?? "");
+  }, [tenant?.id, tenant?.default_mail_action, tenant?.default_package_action]);
+
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) {
     return null;
   }
 
   const mail = MAIL_PRICING[tenantTypeName];
   const pkg = PACKAGE_PRICING[tenantTypeName];
+
+  const mailChanged = tenant && mailAction !== (tenant.default_mail_action ?? "");
+  const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
+
+  const mailMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tenants")
+        .update({ default_mail_action: mailAction } as any)
+        .eq("id", tenant!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
+      toast.success("Standard brevhandling gemt");
+    },
+    onError: () => toast.error("Kunne ikke gemme"),
+  });
+
+  const pkgMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tenants")
+        .update({ default_package_action: packageAction } as any)
+        .eq("id", tenant!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
+      toast.success("Standard pakkehandling gemt");
+    },
+    onError: () => toast.error("Kunne ikke gemme"),
+  });
 
   return (
     <>
@@ -63,6 +129,31 @@ export function PricingOverview({ tenantTypeName }: PricingOverviewProps) {
           <CardTitle className="text-base">Breve — priser og betingelser ({tenantTypeName})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {tenant && (
+            <div className="space-y-3 border-b pb-4 mb-2">
+              <Label>Standard handling for breve</Label>
+              <div className="flex items-center gap-2">
+                <Select value={mailAction} onValueChange={setMailAction}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Vælg handling..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MAIL_ACTIONS.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  onClick={() => mailMutation.mutate()}
+                  disabled={!mailChanged || !mailAction || mailMutation.isPending}
+                >
+                  <Save className="mr-1 h-4 w-4" />
+                  {mailMutation.isPending ? "Gemmer..." : "Gem"}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
             {mail.forklaring}
           </div>
@@ -100,7 +191,32 @@ export function PricingOverview({ tenantTypeName }: PricingOverviewProps) {
         <CardHeader>
           <CardTitle className="text-base">Pakker — priser og betingelser ({tenantTypeName})</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {tenant && (
+            <div className="space-y-3 border-b pb-4 mb-2">
+              <Label>Standard handling for pakker</Label>
+              <div className="flex items-center gap-2">
+                <Select value={packageAction} onValueChange={setPackageAction}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Vælg handling..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PACKAGE_ACTIONS.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  onClick={() => pkgMutation.mutate()}
+                  disabled={!pkgChanged || !packageAction || pkgMutation.isPending}
+                >
+                  <Save className="mr-1 h-4 w-4" />
+                  {pkgMutation.isPending ? "Gemmer..." : "Gem"}
+                </Button>
+              </div>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>

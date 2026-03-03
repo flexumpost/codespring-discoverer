@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
 import { PricingOverview } from "@/components/PricingOverview";
-import { DefaultActionCard } from "@/components/DefaultActionCard";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -146,14 +145,8 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Pricing overview */}
-          <PricingOverview tenantTypeName={typeName} />
-
-          {/* Default action */}
-          <DefaultActionCard
-            tenant={selectedTenant as any}
-            tenantTypeName={typeName}
-          />
+          {/* Pricing overview with integrated default actions */}
+          <PricingOverview tenantTypeName={typeName} tenant={selectedTenant as any} />
         </div>
       )}
     </AppLayout>
