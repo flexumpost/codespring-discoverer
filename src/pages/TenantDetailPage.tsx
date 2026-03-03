@@ -47,12 +47,18 @@ const TenantDetailPage = () => {
     },
   });
 
+  const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
+
   const { data: tenantTypes = [] } = useQuery({
     queryKey: ["tenant-types"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("tenant_types").select("id, name").order("name");
+      const { data, error } = await supabase.from("tenant_types").select("id, name");
       if (error) throw error;
-      return data;
+      return data.sort((a, b) => {
+        const ai = TYPE_ORDER.indexOf(a.name);
+        const bi = TYPE_ORDER.indexOf(b.name);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
     },
   });
 
