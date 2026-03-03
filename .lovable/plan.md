@@ -1,27 +1,45 @@
 
 
-## Opdel indstillingssiden i 3 kolonner
+## Lejerliste og lejervisning for operatører
 
-### Ændring
+### Ændringer
 
-**`src/pages/SettingsPage.tsx`**
-- Skift grid-layoutet fra `grid gap-6 max-w-lg` (enkelt kolonne) til `grid grid-cols-1 lg:grid-cols-3 gap-6` (3 kolonner på desktop)
-- **Kolonne 1**: Virksomhed-kort + Kontaktoplysninger-kort (wrappet i en `div` med `space-y-6`)
-- **Kolonne 2**: Breve-kortet fra PricingOverview
-- **Kolonne 3**: Pakker-kortet fra PricingOverview
+**1. Ny side: `src/pages/TenantsPage.tsx`**
+- Henter alle lejere med `tenants` + `tenant_types(name)` join
+- Henter antal nye breve per lejer via `mail_items` med `status = 'ny'` grupperet per `tenant_id`
+- Viser en tabel med kolonner: Lejer navn, Lejertype (med farve-badge), Antal nye breve
+- Klik på en række navigerer til `/tenants/:id`
 
-**`src/components/PricingOverview.tsx`**
-- Opdel komponenten til at returnere to separate kort via en render-prop eller eksporter to individuelle komponenter (`MailPricingCard` og `PackagePricingCard`), så de kan placeres i hver sin kolonne
-- Alternativt: eksporter hele komponenten som to children der kan destructures i SettingsPage
+**2. Ny side: `src/pages/TenantDetailPage.tsx`**
+- Operatør-visning af en enkelt lejers indstillinger (genbruger samme layout som `SettingsPage`)
+- Henter lejer-data via `tenants` + `tenant_types` baseret på URL-param `:id`
+- Operatøren kan redigere: kontaktoplysninger, forsendelsesadresse, standardhandlinger
+- Viser virksomhedsinfo, priskort (MailPricingCard / PackagePricingCard)
+- Tilbage-knap til `/tenants`
 
-### Tilgang
+**3. `src/App.tsx`**
+- Tilføj routes: `/tenants` → `TenantsPage` og `/tenants/:id` → `TenantDetailPage`
 
-Enkleste løsning: Opdel `PricingOverview` i to eksporterede komponenter (`MailPricingCard` og `PackagePricingCard`) der deler samme konstanterne men renderes uafhængigt. SettingsPage placerer dem i kolonne 2 og 3.
+**4. `src/components/AppSidebar.tsx`**
+- Allerede har "Lejere" med URL `/tenants` i `operatorItems` — ingen ændring nødvendig
+
+### Datahentning for "antal nye breve"
+
+Forespørgsel der tæller nye breve per lejer:
+```sql
+SELECT tenant_id, COUNT(*) 
+FROM mail_items 
+WHERE status = 'ny' AND tenant_id IS NOT NULL
+GROUP BY tenant_id
+```
+
+I koden bruges to queries: en for lejere og en for mail_items med status='ny', derefter grupperes i JS.
 
 ### Filoversigt
 
 | Fil | Ændring |
 |---|---|
-| `src/components/PricingOverview.tsx` | Eksporter `MailPricingCard` og `PackagePricingCard` som separate komponenter |
-| `src/pages/SettingsPage.tsx` | 3-kolonne grid layout, placer kort i respektive kolonner |
+| `src/pages/TenantsPage.tsx` | Ny — lejerliste med tabel |
+| `src/pages/TenantDetailPage.tsx` | Ny — operatør-redigering af enkelt lejer |
+| `src/App.tsx` | Tilføj `/tenants` og `/tenants/:id` routes |
 
