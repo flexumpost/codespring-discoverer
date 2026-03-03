@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ShippingAddressPage from "./pages/ShippingAddressPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,14 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <NotificationsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/shipping-address"
+      element={
+        <ProtectedRoute>
+          <ShippingAddressPage />
         </ProtectedRoute>
       }
     />
