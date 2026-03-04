@@ -118,7 +118,7 @@ function getStatusDisplay(
   if (item.chosen_action === "scan" && item.scan_url) {
     const daysLeft = getDaysLeftForScan(item.scanned_at ?? null);
     if (daysLeft !== null && daysLeft <= 0) {
-      return ["Fysisk brev destrueret"];
+      return ["Brevet er destrueret"];
     }
     const statusLabel = STATUS_LABELS[item.status as MailStatus] ?? item.status;
     const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
