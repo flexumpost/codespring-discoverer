@@ -121,7 +121,7 @@ function getStatusDisplay(
       return ["Fysisk brev destrueret"];
     }
     const statusLabel = STATUS_LABELS[item.status as MailStatus] ?? item.status;
-    const subtitle = daysLeft !== null ? `Gemmes i ${daysLeft} dage` : undefined;
+    const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "send") {
