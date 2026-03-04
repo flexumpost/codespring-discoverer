@@ -56,15 +56,24 @@ function formatDanishDate(date: Date): string {
   return `${day} den ${d}. ${month}`;
 }
 
-/** First Thursday of the month AFTER today */
-function getFirstThursdayOfNextMonth(): Date {
+/** First Thursday of this month (or next month if already passed) */
+function getFirstThursdayOfMonth(): Date {
   const now = new Date();
-  const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-  const month = (now.getMonth() + 1) % 12;
-  const first = new Date(year, month, 1);
-  const dayOfWeek = first.getDay(); // 0=Sun
-  const offset = (4 - dayOfWeek + 7) % 7; // days until Thursday
-  return new Date(year, month, 1 + offset);
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+
+  // If already passed, use first Thursday of next month
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
 }
 
 /** The upcoming Thursday (if today is Thursday, return today) */
@@ -80,7 +89,7 @@ function getNextThursday(): Date {
 
 function getNextShippingDate(tenantType: string | undefined, mailType: string): Date {
   if (tenantType === "Lite" && mailType === "brev") {
-    return getFirstThursdayOfNextMonth();
+    return getFirstThursdayOfMonth();
   }
   return getNextThursday();
 }
@@ -495,7 +504,17 @@ const TenantDashboard = () => {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
-                    if (scanExpired) {
+
+                    // Check if actions should be locked (packing day = shipping day - 1)
+                    const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    shippingDate.setHours(0, 0, 0, 0);
+                    const packingDay = new Date(shippingDate);
+                    packingDay.setDate(packingDay.getDate() - 1);
+                    const isLocked = today >= packingDay;
+
+                    if (scanExpired || (isLocked && item.status !== "arkiveret" && item.chosen_action !== "scan")) {
                       return (
                         <Button
                           size="sm"
