@@ -559,7 +559,7 @@ const TenantDashboard = () => {
                         : (selectedTenant as any)?.default_mail_action;
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
-                        (a) => a !== defaultAction && allowedActions.includes(a)
+                        (a) => allowedActions.includes(a)
                       );
                       const price = getExtraHandlingPrice(tenantTypeName);
 
