@@ -157,8 +157,8 @@ function getStatusDisplay(
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+    const nextDate = getNextThursday(); // Ekstra forsendelse = førstkommende torsdag
+    return ["Ekstra forsendelse", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
