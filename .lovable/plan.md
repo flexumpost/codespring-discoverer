@@ -1,52 +1,63 @@
 
 
-## Ændring af handlingssystemet: Standard vs. Ekstra handling
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Koncept
+### Forretningslogik (opsummering)
 
-Systemet ændres så:
-- **Standard handling** (valgt i indstillinger) er den der altid gælder som status for nye forsendelser
-- **"Vælg handling"** dropdown viser kun **ekstra handlinger** (ikke standardhandlingen)
-- Ekstra handlinger varierer per tier og type (brev/pakke)
-
-### Ekstra handlinger per tier
-
-**Breve:**
-| Tier | Ekstra handlinger | Pris |
-|---|---|---|
-| Lite | Scanning, Afhentning, Forsendelse | 50 kr |
-| Standard | Scanning, Afhentning | 30 kr |
-| Plus | Ingen (dropdown skjules) | — |
-
-**Pakker:** Alle tiers har forsendelse + afhentning (standard handling bestemmer default). Pakker har altid et håndteringsgebyr (Lite: 50, Standard: 30, Plus: 10).
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
 | Fil | Ændring |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ændr "Vælg handling"-dropdown til kun at vise ekstra handlinger baseret på tier. For Plus breve: skjul dropdown helt. Vis standardhandlingens status automatisk for items uden explicit `chosen_action`. Tilføj hjælpefunktion `getExtraActions(tenantTypeName, mailType)`. |
-| `src/components/DefaultActionSetup.tsx` | Behold som den er — standardhandlinger er allerede korrekte (scan/send/afhentning for breve, send/afhentning for pakker). |
-| `src/components/PricingOverview.tsx` | Opdater forklaringstekst-visning til at matche det nye format med Standard handling og Ekstra handling sektioner. |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### Logik i TenantDashboard
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-function getExtraActions(tenantTypeName: string | undefined, mailType: string): string[] {
-  if (mailType === "pakke") {
-    // For pakker: begge handlinger er tilgængelige som ekstra
-    return ["send", "afhentning"];
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  // Breve:
-  switch (tenantTypeName) {
-    case "Lite": return ["scan", "afhentning", "send"];
-    case "Standard": return ["scan", "afhentning"];
-    case "Plus": return []; // Ingen ekstra handling
-    default: return [];
-  }
+  return firstThursday;
 }
 ```
 
-- Dropdown vises kun når `getExtraActions().length > 0`
-- Dropdown filtrerer standardhandlingen ud (viser kun de andre muligheder)
-- Items uden `chosen_action` viser status baseret på `default_mail_action` / `default_package_action`
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
