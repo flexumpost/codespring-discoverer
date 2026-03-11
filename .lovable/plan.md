@@ -1,63 +1,56 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Automatisk kobling af nye tenants til eksisterende brugere
 
-### Forretningslogik (opsummering)
+### Problem
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Triggeren `on_auth_user_created_link_tenant` kører kun ved oprettelse af nye brugere (`AFTER INSERT ON auth.users`). Når en operator opretter en ny tenant med en `contact_email` der allerede tilhører en eksisterende bruger, sættes `user_id` ikke.
+
+### Løsning
+
+Tilføj en trigger på `tenants`-tabellen der kører ved INSERT og UPDATE, og matcher `contact_email` mod `auth.users.email` for at sætte `user_id`.
 
 ### Ændringer
 
-| Fil | Ændring |
+| Ændring | Detalje |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+| **Database-migration** | Opret funktion `link_tenant_to_user()` + trigger på `tenants` tabellen |
+| **Engangsopdatering** | Kør UPDATE for at koble eksisterende tenants med `user_id IS NULL` til brugere via email |
 
-### Kodedetaljer
+### SQL
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+```sql
+-- Funktion: Når en tenant oprettes/opdateres, find bruger via email
+CREATE OR REPLACE FUNCTION public.link_tenant_to_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.contact_email IS NOT NULL THEN
+    SELECT id INTO NEW.user_id
+    FROM auth.users
+    WHERE email = NEW.contact_email
+    LIMIT 1;
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+-- Trigger på tenants ved INSERT og UPDATE af contact_email
+CREATE TRIGGER on_tenant_upsert_link_user
+  BEFORE INSERT OR UPDATE OF contact_email ON public.tenants
+  FOR EACH ROW
+  EXECUTE FUNCTION public.link_tenant_to_user();
+
+-- Ret eksisterende data
+UPDATE public.tenants t
+SET user_id = u.id
+FROM auth.users u
+WHERE t.contact_email = u.email
+  AND t.user_id IS NULL;
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Ingen kodeændringer nødvendige -- `useTenants` og `my_tenant_ids()` bruger allerede `user_id`, så når `user_id` sættes korrekt, vil begge virksomheder automatisk vises.
 
