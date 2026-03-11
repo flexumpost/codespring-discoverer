@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Åben og scan",
-  send: "Send",
+  send: "Ekstra forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
@@ -574,7 +574,7 @@ const TenantDashboard = () => {
 
                       return (
                         <Select
-                          value={item.chosen_action ?? undefined}
+                          value={availableExtras.includes(item.chosen_action ?? "") ? item.chosen_action! : undefined}
                           onValueChange={(value) => handleAction(item.id, value)}
                           disabled={chooseAction.isPending}
                         >
