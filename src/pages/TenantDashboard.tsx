@@ -553,6 +553,25 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type);
+                      const defaultAction = item.mail_type === "pakke"
+                        ? (selectedTenant as any)?.default_package_action
+                        : (selectedTenant as any)?.default_mail_action;
+                      // Filter: only show extra actions, exclude the current default
+                      const availableExtras = extraActions.filter(
+                        (a) => a !== defaultAction && allowedActions.includes(a)
+                      );
+                      const price = getExtraHandlingPrice(tenantTypeName);
+
+                      if (availableExtras.length === 0) {
+                        // No extra actions (e.g. Plus breve) — show default action badge
+                        return defaultAction ? (
+                          <Badge className="bg-primary/10 text-primary border-primary/20">
+                            {ACTION_LABELS[defaultAction] ?? defaultAction}
+                          </Badge>
+                        ) : <span className="text-muted-foreground">—</span>;
+                      }
+
                       return (
                         <Select
                           value={item.chosen_action ?? undefined}
@@ -560,14 +579,13 @@ const TenantDashboard = () => {
                           disabled={chooseAction.isPending}
                         >
                           <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
-                            <SelectValue placeholder="Vælg handling" />
+                            <SelectValue placeholder="Ekstra handling" />
                           </SelectTrigger>
                           <SelectContent className="z-50 bg-popover">
-                            {allowedActions
-                              .filter((action) => !(item.mail_type === "pakke" && action === "scan"))
-                              .map((action) => (
+                            {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {ACTION_LABELS[action] ?? action}
+                                {price ? ` (${price})` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
