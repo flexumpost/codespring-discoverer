@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
-import { CalendarIcon, Package, Mail } from "lucide-react";
+import { CalendarIcon, Package, Mail, Send, CheckCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -32,16 +32,13 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
   const today = startOfDay(now);
 
   if (mailType === "pakke" || tenantTypeName.toLowerCase() !== "lite") {
-    // Every Thursday
     if (isThursday(today)) return today;
     return startOfDay(nextThursday(today));
   }
 
-  // Lite letters: first Thursday of the month
   const firstThurs = getFirstThursdayOfMonth(now);
   if (firstThurs >= today) return startOfDay(firstThurs);
 
-  // Already passed → first Thursday of next month
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return startOfDay(getFirstThursdayOfMonth(nextMonth));
 }
@@ -60,6 +57,8 @@ type MailItemWithTenant = {
 export default function ShippingPrepPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(getDefaultShippingDate);
   const [tab, setTab] = useState<"brev" | "pakke">("brev");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [doneGroups, setDoneGroups] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -88,22 +87,51 @@ export default function ShippingPrepPage() {
     },
   });
 
-  const markShipped = useMutation({
-    mutationFn: async (itemId: string) => {
+  const sendMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ status: "arkiveret" as any, chosen_action: "under_forsendelse" })
-        .eq("id", itemId);
+        .update({ chosen_action: "under_forsendelse" })
+        .in("id", ids);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });
-      toast({ title: "Forsendelse markeret som pakket" });
+      setCheckedIds(new Set());
+      setDoneGroups(new Set());
+      toast({ title: "Forsendelser markeret som 'Under forsendelse'" });
     },
     onError: () => {
-      toast({ title: "Fejl", description: "Kunne ikke opdatere forsendelsen", variant: "destructive" });
+      toast({ title: "Fejl", description: "Kunne ikke opdatere forsendelserne", variant: "destructive" });
     },
   });
+
+  const toggleCheck = (id: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleDoneGroup = (tenantId: string) => {
+    setDoneGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(tenantId)) next.delete(tenantId);
+      else next.add(tenantId);
+      return next;
+    });
+  };
+
+  const handleSend = () => {
+    const ids = Array.from(checkedIds);
+    if (ids.length === 0) {
+      toast({ title: "Ingen forsendelser valgt", description: "Afkryds de forsendelser der skal sendes", variant: "destructive" });
+      return;
+    }
+    sendMutation.mutate(ids);
+  };
 
   const filteredItems = useMemo(() => {
     const selDay = startOfDay(selectedDate).getTime();
@@ -115,17 +143,24 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { companyName: string; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { companyName: string; tenantId: string; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const key = item.tenant_id;
       if (!map.has(key)) {
-        map.set(key, { companyName: item.company_name, items: [] });
+        map.set(key, { companyName: item.company_name, tenantId: key, items: [] });
       }
       map.get(key)!.items.push(item);
     }
-    // Sort groups by company name
-    return Array.from(map.values()).sort((a, b) => a.companyName.localeCompare(b.companyName));
-  }, [filteredItems]);
+    const groups = Array.from(map.values()).sort((a, b) => a.companyName.localeCompare(b.companyName));
+    // Sort: active groups first, done groups last
+    return groups.sort((a, b) => {
+      const aDone = doneGroups.has(a.tenantId) ? 1 : 0;
+      const bDone = doneGroups.has(b.tenantId) ? 1 : 0;
+      return aDone - bDone;
+    });
+  }, [filteredItems, doneGroups]);
+
+  const checkedCount = checkedIds.size;
 
   return (
     <AppLayout>
@@ -167,6 +202,20 @@ export default function ShippingPrepPage() {
           </TabsList>
 
           <TabsContent value={tab} className="mt-4 space-y-4">
+            {!isLoading && grouped.length > 0 && (
+              <div className="flex items-center gap-3">
+                <Button onClick={handleSend} disabled={checkedCount === 0 || sendMutation.isPending}>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send {checkedCount > 0 ? `(${checkedCount})` : ""}
+                </Button>
+                {checkedCount > 0 && (
+                  <span className="text-sm text-muted-foreground">
+                    {checkedCount} forsendelse{checkedCount !== 1 ? "r" : ""} valgt
+                  </span>
+                )}
+              </div>
+            )}
+
             {isLoading ? (
               <p className="text-muted-foreground text-sm">Indlæser...</p>
             ) : grouped.length === 0 ? (
@@ -176,32 +225,45 @@ export default function ShippingPrepPage() {
                 </CardContent>
               </Card>
             ) : (
-              grouped.map((group) => (
-                <Card key={group.companyName}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">{group.companyName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {group.items
-                      .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
-                      .map((item) => (
-                        <label
-                          key={item.id}
-                          className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                        >
-                          <Checkbox
-                            onCheckedChange={(checked) => {
-                              if (checked) markShipped.mutate(item.id);
-                            }}
-                          />
-                          <span className="text-sm font-medium">
-                            Nr. {item.stamp_number ?? "—"}
-                          </span>
-                        </label>
-                      ))}
-                  </CardContent>
-                </Card>
-              ))
+              grouped.map((group) => {
+                const isDone = doneGroups.has(group.tenantId);
+                return (
+                  <Card
+                    key={group.tenantId}
+                    className={cn(isDone && "opacity-50 bg-muted")}
+                  >
+                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                      <CardTitle className="text-base">{group.companyName}</CardTitle>
+                      <Button
+                        variant={isDone ? "secondary" : "outline"}
+                        size="sm"
+                        onClick={() => toggleDoneGroup(group.tenantId)}
+                      >
+                        <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
+                        Færdig
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {group.items
+                        .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
+                        .map((item) => (
+                          <label
+                            key={item.id}
+                            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                          >
+                            <Checkbox
+                              checked={checkedIds.has(item.id)}
+                              onCheckedChange={() => toggleCheck(item.id)}
+                            />
+                            <span className="text-sm font-medium">
+                              Nr. {item.stamp_number ?? "—"}
+                            </span>
+                          </label>
+                        ))}
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
           </TabsContent>
         </Tabs>
