@@ -1,63 +1,37 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Problem
 
-### Forretningslogik (opsummering)
+`ShippingPrepPage` bruger `getNextShippingDateForItem()` til at beregne forsendelsesdatoen for alle emner — også Lite-breve med "Ekstra forsendelse". For et Lite-brev returnerer funktionen **første torsdag i måneden** (2. april), men "Ekstra forsendelse" (`chosen_action: "send"`) skal sendes **førstkommende torsdag** (12. marts). Derfor matcher emnet ikke den valgte dato og vises ikke.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+## Løsning
 
-### Ændringer
+I `filteredItems` (linje 136-143): Når et Lite-brev har `chosen_action === "send"`, beregn forsendelsesdatoen som førstkommende torsdag i stedet for den tier-specifikke dato.
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+**`src/pages/ShippingPrepPage.tsx`**, linje 138-141:
 
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+// Før:
+return items.filter((item) => {
+  if (item.mail_type !== tab) return false;
+  const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
+  return shipDate.getTime() === selDay;
+});
+
+// Efter:
+return items.filter((item) => {
+  if (item.mail_type !== tab) return false;
+  // "Ekstra forsendelse" for Lite-breve: brug førstkommende torsdag
+  const isExtraShipment =
+    item.chosen_action === "send" &&
+    item.tenant_type_name.toLowerCase() === "lite" &&
+    item.mail_type === "brev";
+  const shipDate = isExtraShipment
+    ? (isThursday(startOfDay(new Date())) ? startOfDay(new Date()) : startOfDay(nextThursday(new Date())))
+    : getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
+  return shipDate.getTime() === selDay;
+});
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+En enkelt ændring i filtreringslogikken. Ingen andre filer berørt.
 
