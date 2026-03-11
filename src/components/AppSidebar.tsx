@@ -1,4 +1,4 @@
-import { Users, Settings, LayoutDashboard, LogOut, MapPin } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, MapPin, Package } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 
 const operatorItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Send breve og pakker", url: "/shipping-prep", icon: Package },
   { title: "Lejere", url: "/tenants", icon: Users },
   { title: "Indstillinger", url: "/settings", icon: Settings },
 ];

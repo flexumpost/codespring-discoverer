@@ -1,71 +1,63 @@
 
 
-## "Send breve og pakker" — ny operatørside
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Oversigt
+### Forretningslogik (opsummering)
 
-Ny side `/shipping-prep` med menupunkt "Send breve og pakker" mellem Dashboard og Lejere i operatør-sidebaren. Siden giver overblik over forsendelser der skal sendes på en valgt forsendelsesdag, med mulighed for at afkrydse pakket post.
-
-### Forsendelsesdags-logik (fra domain knowledge)
-
-- **Standard/Plus breve + alle pakker**: Sendes førstkommende torsdag
-- **Lite breve**: Første torsdag i måneden
-- Datepicker lader operatøren vælge hvilken forsendelsesdag der klargøres til
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
 | Fil | Ændring |
 |---|---|
-| `src/components/AppSidebar.tsx` | Tilføj menupunkt "Send breve og pakker" med `Package` ikon, url `/shipping-prep`, mellem Dashboard og Lejere |
-| `src/pages/ShippingPrepPage.tsx` | **Ny fil** — hovedsiden |
-| `src/App.tsx` | Tilføj route `/shipping-prep` med ProtectedRoute |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### ShippingPrepPage design
+### Kodedetaljer
 
-1. **Header**: Titel + datepicker til valg af forsendelsesdag (default: næste torsdag)
-2. **Tabs**: "Breve" / "Pakker" — vælg mellem mail_type `brev` og `pakke`
-3. **Data**: Henter `mail_items` med `chosen_action = 'send'` og `tenant_id IS NOT NULL`, joinet med `tenants(company_name)` og `tenants(tenant_type_id)` + `tenant_types(name)` for at beregne forsendelsesdag
-4. **Filtrering**: Vis kun forsendelser hvor den beregnede forsendelsesdag matcher den valgte dato
-5. **Gruppering**: Forsendelser grupperes per virksomhed (tenant) med firma-navn som overskrift
-6. **Hvert element**: Viser forsendelsesnr. + checkbox
-7. **Checkbox-handling**: Når afkrydset → opdater `status` til `arkiveret` og sæt `chosen_action` til `under_forsendelse` (eller lignende markering) via Supabase update. Dette låser forsendelsen for lejeren.
-
-### Beregning af forsendelsesdag
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-function getNextShippingDate(tenantTypeName: string, mailType: string): Date {
+function getFirstThursdayOfMonth(): Date {
   const now = new Date();
-  if (mailType === 'pakke' || tenantTypeName !== 'Lite') {
-    // Næste torsdag (day 4)
-    const d = new Date(now);
-    d.setDate(d.getDate() + ((4 - d.getDay() + 7) % 7 || 7));
-    return d;
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  // Lite breve: første torsdag i måneden
-  // ...
+  return firstThursday;
 }
 ```
 
-### UI-struktur
+**2. Lås handlinger fra dagen før forsendelse**
 
-```text
-┌──────────────────────────────────────────────┐
-│ Send breve og pakker                         │
-│ Forsendelsesdag: [📅 Torsdag 13. marts 2026] │
-│                                              │
-│ [Breve] [Pakker]                             │
-│                                              │
-│ ▸ Firma ABC                                  │
-│   ☐ Nr. 1234                                 │
-│   ☐ Nr. 1235                                 │
-│                                              │
-│ ▸ Firma XYZ                                  │
-│   ☐ Nr. 1240                                 │
-│                                              │
-└──────────────────────────────────────────────┘
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-### Database
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-Ingen migrering nødvendig. Bruger eksisterende `mail_items.chosen_action = 'send'` og `status`. Når operatør checker en forsendelse af, opdateres status til `arkiveret` for at signalere at den er under forsendelse/afsendt.
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
