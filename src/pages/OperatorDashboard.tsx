@@ -69,7 +69,8 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Send",
     icon: Send,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "send",
+    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse",
+    countFilter: (item) => item.chosen_action === "send",
   },
   {
     title: "Afhentes",
