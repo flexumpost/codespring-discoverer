@@ -107,7 +107,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
-  const mail = pricing?.mail[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName];
+  const mail = pricing?.mail?.[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName];
   const mailChanged = tenant && mailAction !== (tenant.default_mail_action ?? "");
 
   const mailMutation = useMutation({
@@ -191,7 +191,7 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
-  const pkg = pricing?.pkg[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
+  const pkg = pricing?.pkg?.[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
   const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
 
   const pkgMutation = useMutation({
