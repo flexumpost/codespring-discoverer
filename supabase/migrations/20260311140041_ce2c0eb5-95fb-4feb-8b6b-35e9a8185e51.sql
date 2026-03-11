@@ -1,0 +1,1 @@
+ALTER TABLE public.tenants ADD COLUMN shipping_confirmed boolean NOT NULL DEFAULT false;
