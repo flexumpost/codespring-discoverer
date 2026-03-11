@@ -8,6 +8,33 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
+import { ReactNode } from "react";
+
+function renderForklaring(text: string): ReactNode {
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    if (line.startsWith("##")) {
+      return (
+        <span key={i} className="block font-semibold text-foreground text-base">
+          {line.slice(2).trim()}
+          {i < lines.length - 1 && <br />}
+        </span>
+      );
+    }
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={j}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+    return (
+      <span key={i}>
+        {parts}
+        {i < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+}
 
 const MAIL_ACTIONS = [
   { value: "send", label: "Forsendelse" },
@@ -131,7 +158,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
         )}
         {mail.forklaring && (
           <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            {mail.forklaring}
+            {renderForklaring(mail.forklaring)}
           </div>
         )}
         <Table>
