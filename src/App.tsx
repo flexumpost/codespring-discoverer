@@ -13,6 +13,7 @@ import SettingsPage from "./pages/SettingsPage";
 import ShippingAddressPage from "./pages/ShippingAddressPage";
 import TenantsPage from "./pages/TenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
+import ShippingPrepPage from "./pages/ShippingPrepPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
