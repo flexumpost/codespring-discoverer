@@ -1,41 +1,63 @@
 
 
-## Ændringer til "Send breve og pakker"-siden
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Hvad ændres
+### Forretningslogik (opsummering)
 
-1. **Checkbox forbliver checket** — items forsvinder ikke fra listen ved afkrydsning, men gemmes lokalt i state (`checkedIds` set)
-2. **"Færdig"-knap per firma-kort** — når klikket: kortet bliver gråt og flyttes nederst i listen (lokalt state `doneGroups` set)
-3. **"Send"-knap over listen** — når klikket: alle checkede items opdateres i databasen med `chosen_action = 'under_forsendelse'` men status forbliver uændret (ikke arkiveret)
-4. **Status ændring**: `chosen_action` sættes til `under_forsendelse`, men `status` ændres IKKE til `arkiveret` — posten forbliver aktiv men låst for lejeren
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-### Ændringer i `src/pages/ShippingPrepPage.tsx`
+### Ændringer
 
-| Element | Ændring |
+| Fil | Ændring |
 |---|---|
-| State | Tilføj `checkedIds: Set<string>` og `doneGroups: Set<string>` (tenant_id-baseret) |
-| Checkbox | Fjern mutation ved check — toggle kun i `checkedIds` |
-| "Færdig"-knap | Vises i hvert CardHeader, tilføjer tenant_id til `doneGroups` |
-| Gruppering | Sorter: ikke-done grupper først, done grupper nederst. Done grupper får `opacity-50 bg-muted` |
-| "Send"-knap | Over listen, klikker → bulk-opdaterer alle checkede items: `chosen_action = 'under_forsendelse'` (status uændret) |
-| Query filter | Tilføj `chosen_action` filter: hent også items med `under_forsendelse` ikke, men ekskluder dem fra listen (eller juster efter behov) |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### UI-struktur
+### Kodedetaljer
 
-```text
-┌──────────────────────────────────────────────┐
-│ Send breve og pakker         [📅 dato]       │
-│                                              │
-│ [Breve] [Pakker]                             │
-│                                              │
-│ [Send]  ← knap over listen                  │
-│                                              │
-│ ▸ Firma ABC                      [Færdig]   │
-│   ☑ Nr. 1234                                 │
-│   ☐ Nr. 1235                                 │
-│                                              │
-│ ▸ Firma XYZ (grå, nederst)      [Færdig ✓]  │
-│   ☑ Nr. 1240                                 │
-└──────────────────────────────────────────────┘
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
