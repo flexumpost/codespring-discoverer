@@ -49,15 +49,45 @@ const PACKAGE_ACTIONS = [
 
 // Fallback defaults if DB has no data
 const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
-  Lite: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
-  Standard: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
-  Plus: { forklaring: "", forsendelsesdag: "", ekstraForsendelse: "", ekstraScanning: "", ekstraAfhentning: "" },
+  Lite: {
+    forklaring: "## Standard handling\n- **Scanning:** Gratis hver den 1. torsdag i måneden.\n- **Afhentning:** Gratis afhentning hver den 1. torsdag i måneden.\n- **Forsendelse:** Gratis forsendelse hver den 1. torsdag i måneden (forsendelsen tillægges porto)\n\n## Ekstra handling\n**Priser jvf. nedenstående.**\n- **Scanning:** Kan scannes tirsdag eller torsdag.\n- **Afhentning:** Kan afhentes tirsdag eller torsdag. (Skal bookes)\n- **Forsendelse:** Kan sendes ekstra hver torsdag.",
+    forsendelsesdag: "Hver den 1. torsdag i måneden",
+    ekstraForsendelse: "50 kr. — kan sendes ekstra hver torsdag",
+    ekstraScanning: "50 kr. — kan scannes tirsdag eller torsdag",
+    ekstraAfhentning: "50 kr. — kan afhentes tirsdag eller torsdag (Skal bookes)",
+  },
+  Standard: {
+    forklaring: "## Standard handling\n- **Scanning:** Gratis hver torsdag.\n- **Afhentning:** Gratis afhentning hver torsdag.\n- **Forsendelse:** Gratis forsendelse hver torsdag (forsendelsen tillægges porto)\n\n## Ekstra handling\n**Priser jvf. nedenstående.**\n- **Scanning:** Kan scannes alle hverdage.\n- **Afhentning:** Kan afhentes tirsdag eller torsdag. (Skal bookes)",
+    forsendelsesdag: "Hver torsdag",
+    ekstraForsendelse: "Inkluderet i standard",
+    ekstraScanning: "30 kr. — kan scannes alle hverdage",
+    ekstraAfhentning: "30 kr. — kan afhentes tirsdag eller torsdag (Skal bookes)",
+  },
+  Plus: {
+    forklaring: "## Standard handling\n- **Scanning:** Gratis alle hverdage.\n- **Afhentning:** Gratis alle hverdage. (Skal bookes)\n- **Forsendelse:** Gratis forsendelse hver torsdag (Vi betaler porto)\n\n## Ekstra handling\n**Priser jvf. nedenstående.**\nEkstra handlinger er ikke muligt.",
+    forsendelsesdag: "Hver torsdag",
+    ekstraForsendelse: "Inkluderet — vi betaler porto",
+    ekstraScanning: "Inkluderet — alle hverdage",
+    ekstraAfhentning: "Inkluderet — alle hverdage (Skal bookes)",
+  },
 };
 
 const PACKAGE_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
-  Lite: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
-  Standard: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
-  Plus: { haandteringsgebyr: "", afhentning: "", forsendelse: "" },
+  Lite: {
+    haandteringsgebyr: "50 kr.",
+    afhentning: "Afhentning kan ske tirsdag og torsdag efter aftale (Skal bookes)",
+    forsendelse: "Sendes senest 1. torsdag i måneden, men vi sender pakker, så snart det er muligt, porto tillægges",
+  },
+  Standard: {
+    haandteringsgebyr: "30 kr.",
+    afhentning: "Afhentning kan ske tirsdag og torsdag efter aftale (Skal bookes)",
+    forsendelse: "Sendes senest efterfølgende torsdag, men vi sender pakker, så snart det er muligt, porto tillægges",
+  },
+  Plus: {
+    haandteringsgebyr: "10 kr.",
+    afhentning: "Afhentning kan ske alle hverdage, efter aftale (Skal bookes)",
+    forsendelse: "Sendes senest efterfølgende torsdag, men vi sender pakker, så snart det er muligt, porto tillægges",
+  },
 };
 
 function usePricingData() {
