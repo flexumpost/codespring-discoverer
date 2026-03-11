@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Save, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +22,7 @@ interface Props {
 }
 
 export function ShippingAddressGuard({ children }: Props) {
-  const { selectedTenant, isLoading } = useTenants();
+  const { tenants, selectedTenant, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
   const tenant = selectedTenant as any;
@@ -44,7 +45,21 @@ export function ShippingAddressGuard({ children }: Props) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
+  const [useSameAddress, setUseSameAddress] = useState(false);
   const [initialized, setInitialized] = useState(false);
+
+  // Find reference tenant with complete address (different from current)
+  const referenceTenant = tenants.find(
+    (t) =>
+      t.id !== tenant?.id &&
+      (t as any).shipping_recipient?.trim() &&
+      (t as any).shipping_address?.trim() &&
+      (t as any).shipping_zip?.trim() &&
+      (t as any).shipping_city?.trim() &&
+      (t as any).shipping_country?.trim()
+  );
+
+  const showCheckbox = tenants.length > 1 && !!referenceTenant;
 
   // Initialize form fields from tenant data once
   if (tenant && needsGuard && !initialized) {
@@ -57,6 +72,20 @@ export function ShippingAddressGuard({ children }: Props) {
     setCountry(tenant.shipping_country ?? "");
     setInitialized(true);
   }
+
+  const handleSyncToggle = (checked: boolean) => {
+    setUseSameAddress(checked);
+    if (checked && referenceTenant) {
+      const ref = referenceTenant as any;
+      setRecipient(ref.shipping_recipient ?? "");
+      setCo(ref.shipping_co ?? "");
+      setAddress(ref.shipping_address ?? "");
+      setZip(ref.shipping_zip ?? "");
+      setCity(ref.shipping_city ?? "");
+      setState(ref.shipping_state ?? "");
+      setCountry(ref.shipping_country ?? "");
+    }
+  };
 
   const valid =
     recipient.trim() !== "" &&
@@ -112,6 +141,8 @@ export function ShippingAddressGuard({ children }: Props) {
     ? "Inden du kan bruge platformen, skal du bekræfte eller opdatere din forsendelsesadresse."
     : "Du mangler en forsendelsesadresse. Udfyld venligst felterne nedenfor.";
 
+  const fieldsDisabled = useSameAddress;
+
   return (
     <Dialog open={true}>
       <DialogContent
@@ -125,70 +156,47 @@ export function ShippingAddressGuard({ children }: Props) {
         </DialogHeader>
 
         <div className="space-y-4">
+          {showCheckbox && (
+            <div className="flex items-center space-x-2 rounded-md border border-border bg-muted/50 p-3">
+              <Checkbox
+                id="guard_same_address"
+                checked={useSameAddress}
+                onCheckedChange={(checked) => handleSyncToggle(!!checked)}
+              />
+              <Label htmlFor="guard_same_address" className="cursor-pointer font-normal">
+                Samme forsendelsesadresse som {referenceTenant!.company_name}
+              </Label>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="guard_recipient">Modtager navn *</Label>
-            <Input
-              id="guard_recipient"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder="Modtager navn"
-            />
+            <Input id="guard_recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Modtager navn" disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="guard_co">c/o navn</Label>
-            <Input
-              id="guard_co"
-              value={co}
-              onChange={(e) => setCo(e.target.value)}
-              placeholder="c/o (valgfrit)"
-            />
+            <Input id="guard_co" value={co} onChange={(e) => setCo(e.target.value)} placeholder="c/o (valgfrit)" disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="guard_address">Adresse *</Label>
-            <Input
-              id="guard_address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Gadenavn og nummer"
-            />
+            <Input id="guard_address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Gadenavn og nummer" disabled={fieldsDisabled} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="guard_zip">Postnummer *</Label>
-              <Input
-                id="guard_zip"
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
-                placeholder="Postnr."
-              />
+              <Input id="guard_zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="Postnr." disabled={fieldsDisabled} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="guard_city">By *</Label>
-              <Input
-                id="guard_city"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="By"
-              />
+              <Input id="guard_city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="By" disabled={fieldsDisabled} />
             </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="guard_state">Stat</Label>
-            <Input
-              id="guard_state"
-              value={state}
-              onChange={(e) => setState(e.target.value)}
-              placeholder="Stat (valgfrit)"
-            />
+            <Input id="guard_state" value={state} onChange={(e) => setState(e.target.value)} placeholder="Stat (valgfrit)" disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="guard_country">Land *</Label>
-            <Input
-              id="guard_country"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              placeholder="F.eks. Danmark"
-            />
+            <Input id="guard_country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="F.eks. Danmark" disabled={fieldsDisabled} />
           </div>
 
           <Button

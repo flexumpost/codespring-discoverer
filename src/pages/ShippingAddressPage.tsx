@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
 
@@ -22,8 +23,23 @@ const ShippingAddressPage = () => {
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingCountry, setShippingCountry] = useState("");
+  const [useSameAddress, setUseSameAddress] = useState(false);
+
+  // Find reference tenant (first other tenant with a complete address)
+  const referenceTenant = tenants.find(
+    (t) =>
+      t.id !== selectedTenantId &&
+      (t as any).shipping_recipient?.trim() &&
+      (t as any).shipping_address?.trim() &&
+      (t as any).shipping_zip?.trim() &&
+      (t as any).shipping_city?.trim() &&
+      (t as any).shipping_country?.trim()
+  );
+
+  const showCheckbox = tenants.length > 1 && !!referenceTenant;
 
   useEffect(() => {
+    setUseSameAddress(false);
     if (selectedTenant) {
       setShippingRecipient((selectedTenant as any).shipping_recipient ?? "");
       setShippingCo((selectedTenant as any).shipping_co ?? "");
@@ -34,6 +50,20 @@ const ShippingAddressPage = () => {
       setShippingCountry((selectedTenant as any).shipping_country ?? "");
     }
   }, [selectedTenant]);
+
+  const handleSyncToggle = (checked: boolean) => {
+    setUseSameAddress(checked);
+    if (checked && referenceTenant) {
+      const ref = referenceTenant as any;
+      setShippingRecipient(ref.shipping_recipient ?? "");
+      setShippingCo(ref.shipping_co ?? "");
+      setShippingAddress(ref.shipping_address ?? "");
+      setShippingZip(ref.shipping_zip ?? "");
+      setShippingCity(ref.shipping_city ?? "");
+      setShippingState(ref.shipping_state ?? "");
+      setShippingCountry(ref.shipping_country ?? "");
+    }
+  };
 
   const shippingMutation = useMutation({
     mutationFn: async () => {
@@ -78,6 +108,8 @@ const ShippingAddressPage = () => {
     shippingCity.trim() !== "" &&
     shippingCountry.trim() !== "";
 
+  const fieldsDisabled = useSameAddress;
+
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
@@ -100,35 +132,47 @@ const ShippingAddressPage = () => {
               <CardTitle className="text-base">Forsendelsesadresse</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {showCheckbox && (
+                <div className="flex items-center space-x-2 rounded-md border border-border bg-muted/50 p-3">
+                  <Checkbox
+                    id="same_address"
+                    checked={useSameAddress}
+                    onCheckedChange={(checked) => handleSyncToggle(!!checked)}
+                  />
+                  <Label htmlFor="same_address" className="cursor-pointer font-normal">
+                    Samme forsendelsesadresse som {referenceTenant!.company_name}
+                  </Label>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="shipping_recipient">Modtager navn *</Label>
-                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" />
+                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="shipping_co">c/o navn</Label>
-                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" />
+                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="shipping_address">Adresse *</Label>
-                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" />
+                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" disabled={fieldsDisabled} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="shipping_zip">Postnummer *</Label>
-                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." />
+                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." disabled={fieldsDisabled} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="shipping_city">By *</Label>
-                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" />
+                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" disabled={fieldsDisabled} />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="shipping_state">Stat</Label>
-                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder="Stat (valgfrit)" />
+                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder="Stat (valgfrit)" disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="shipping_country">Land *</Label>
-                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" />
+                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" disabled={fieldsDisabled} />
               </div>
               <Button onClick={() => shippingMutation.mutate()} disabled={!hasShippingChanges || !shippingValid || shippingMutation.isPending}>
                 <Save className="mr-2 h-4 w-4" />
