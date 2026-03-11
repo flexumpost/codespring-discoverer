@@ -158,7 +158,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
         )}
         {mail.forklaring && (
           <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-            {mail.forklaring}
+            {renderForklaring(mail.forklaring)}
           </div>
         )}
         <Table>
