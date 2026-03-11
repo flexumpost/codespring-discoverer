@@ -39,6 +39,29 @@ const ACTION_LABELS: Record<string, string> = {
   daglig: "Lig på kontoret",
 };
 
+/** Returns the extra actions available for a given tier and mail type */
+function getExtraActions(tenantTypeName: string | undefined, mailType: string): string[] {
+  if (mailType === "pakke") {
+    return ["send", "afhentning"];
+  }
+  switch (tenantTypeName) {
+    case "Lite": return ["scan", "afhentning", "send"];
+    case "Standard": return ["scan", "afhentning"];
+    case "Plus": return [];
+    default: return [];
+  }
+}
+
+/** Returns the extra handling price label for a tier */
+function getExtraHandlingPrice(tenantTypeName: string | undefined): string | null {
+  switch (tenantTypeName) {
+    case "Lite": return "50 kr.";
+    case "Standard": return "30 kr.";
+    case "Plus": return null;
+    default: return null;
+  }
+}
+
 type FilterStatus = "ny" | "afventer_scanning" | "scannet" | "arkiveret" | null;
 
 /* ── Date helpers ── */
