@@ -574,7 +574,7 @@ const TenantDashboard = () => {
 
                       return (
                         <Select
-                          value={item.chosen_action ?? undefined}
+                          value={availableExtras.includes(item.chosen_action ?? "") ? item.chosen_action! : undefined}
                           onValueChange={(value) => handleAction(item.id, value)}
                           disabled={chooseAction.isPending}
                         >
