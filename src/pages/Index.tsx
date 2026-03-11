@@ -25,7 +25,13 @@ const Index = () => {
 
   return (
     <AppLayout>
-      {role === "operator" ? <OperatorDashboard /> : <TenantDashboard />}
+      {role === "operator" ? (
+        <OperatorDashboard />
+      ) : (
+        <ShippingAddressGuard>
+          <TenantDashboard />
+        </ShippingAddressGuard>
+      )}
     </AppLayout>
   );
 };
