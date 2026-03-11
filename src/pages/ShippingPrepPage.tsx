@@ -137,7 +137,14 @@ export default function ShippingPrepPage() {
     const selDay = startOfDay(selectedDate).getTime();
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
-      const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
+      // "Ekstra forsendelse" for Lite-breve: brug førstkommende torsdag
+      const isExtraShipment =
+        item.chosen_action === "send" &&
+        item.tenant_type_name.toLowerCase() === "lite" &&
+        item.mail_type === "brev";
+      const shipDate = isExtraShipment
+        ? (isThursday(startOfDay(new Date())) ? startOfDay(new Date()) : startOfDay(nextThursday(new Date())))
+        : getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
       return shipDate.getTime() === selDay;
     });
   }, [items, selectedDate, tab]);
