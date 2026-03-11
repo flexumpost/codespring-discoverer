@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Åben og scan",
-  send: "Send",
+  send: "Ekstra forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
