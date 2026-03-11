@@ -47,6 +47,7 @@ const ShippingAddressPage = () => {
           shipping_city: shippingCity,
           shipping_state: shippingState || null,
           shipping_country: shippingCountry,
+          shipping_confirmed: true,
         } as any)
         .eq("id", selectedTenant!.id);
       if (error) throw error;

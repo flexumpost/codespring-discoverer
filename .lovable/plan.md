@@ -1,50 +1,63 @@
 
 
-## Forsendelsesadresse-bekræftelse ved login
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Forretningslogik
+### Forretningslogik (opsummering)
 
-- **Første login**: Bruger skal bekræfte eller redigere eksisterende forsendelsesadresse, eller oprette en ny hvis ingen findes.
-- **Efterfølgende login**: Kun kræv adresse hvis ingen er registreret.
-
-### Tilgang
-
-Tilføj et `shipping_confirmed` boolean-felt til `tenants`-tabellen (default `false`). Brug dette til at skelne mellem første og efterfølgende login.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-| Ændring | Detalje |
+| Fil | Ændring |
 |---|---|
-| **Database-migration** | Tilføj `shipping_confirmed boolean default false` til `tenants` |
-| **Ny komponent: `ShippingAddressGuard.tsx`** | Wrapper der tjekker tenant-data: hvis `shipping_confirmed = false` ELLER ingen adresse → vis forsendelsesadresse-dialog/modal. Operatører springes over. |
-| **`src/pages/Index.tsx`** | Wrap tenant-dashboard med `ShippingAddressGuard` |
-| **`src/pages/ShippingAddressPage.tsx`** | Tilføj "Bekræft"-logik der sætter `shipping_confirmed = true` ved gem |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### Komponent-flow
+### Kodedetaljer
 
-```text
-Index.tsx
-  └─ role === "operator" → OperatorDashboard (ingen guard)
-  └─ role !== "operator" → ShippingAddressGuard
-       ├─ shipping_confirmed=true OG adresse findes → TenantDashboard
-       ├─ shipping_confirmed=false → Modal: "Bekræft din forsendelsesadresse"
-       └─ ingen adresse → Modal: "Opret forsendelsesadresse"
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-### ShippingAddressGuard logik
+**2. Lås handlinger fra dagen før forsendelse**
 
-- Henter tenant-data via `useTenants`
-- Tjekker `shipping_confirmed` og om `shipping_recipient` + `shipping_address` + `shipping_zip` + `shipping_city` + `shipping_country` er udfyldt
-- Hvis guard trigger: Vis en fullscreen dialog med adresseformularen (genbrug felterne fra `ShippingAddressPage`)
-- Ved gem: sæt `shipping_confirmed = true` sammen med adressedata
-- Dialog kan ikke lukkes uden at udfylde obligatoriske felter
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-### Database
-
-```sql
-ALTER TABLE public.tenants 
-ADD COLUMN shipping_confirmed boolean NOT NULL DEFAULT false;
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-Eksisterende lejere med udfyldt adresse kan evt. sættes til `true` med en data-migration, eller de vil blot blive bedt om at bekræfte ved næste login (anbefalet).
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

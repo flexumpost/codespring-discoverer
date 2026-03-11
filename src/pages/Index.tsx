@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import OperatorDashboard from "./OperatorDashboard";
 import TenantDashboard from "./TenantDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ShippingAddressGuard } from "@/components/ShippingAddressGuard";
 
 const Index = () => {
   const { role, loading } = useAuth();
@@ -24,7 +25,13 @@ const Index = () => {
 
   return (
     <AppLayout>
-      {role === "operator" ? <OperatorDashboard /> : <TenantDashboard />}
+      {role === "operator" ? (
+        <OperatorDashboard />
+      ) : (
+        <ShippingAddressGuard>
+          <TenantDashboard />
+        </ShippingAddressGuard>
+      )}
     </AppLayout>
   );
 };

@@ -203,6 +203,7 @@ export type Database = {
           shipping_address: string | null
           shipping_city: string | null
           shipping_co: string | null
+          shipping_confirmed: boolean
           shipping_country: string | null
           shipping_recipient: string | null
           shipping_state: string | null
@@ -224,6 +225,7 @@ export type Database = {
           shipping_address?: string | null
           shipping_city?: string | null
           shipping_co?: string | null
+          shipping_confirmed?: boolean
           shipping_country?: string | null
           shipping_recipient?: string | null
           shipping_state?: string | null
@@ -245,6 +247,7 @@ export type Database = {
           shipping_address?: string | null
           shipping_city?: string | null
           shipping_co?: string | null
+          shipping_confirmed?: boolean
           shipping_country?: string | null
           shipping_recipient?: string | null
           shipping_state?: string | null
