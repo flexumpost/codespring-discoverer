@@ -71,6 +71,14 @@ const AppRoutes = () => (
       }
     />
     <Route
+      path="/shipping-prep"
+      element={
+        <ProtectedRoute>
+          <ShippingPrepPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
       path="/tenants"
       element={
         <ProtectedRoute>
