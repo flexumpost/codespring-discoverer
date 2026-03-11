@@ -1,63 +1,27 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Checkbox: "Samme forsendelsesadresse som [firmanavn]"
 
-### Forretningslogik (opsummering)
+### Hvad ændres
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Når en bruger har flere virksomheder, vises en checkbox over adresseformularen: **"Samme forsendelsesadresse som [første firmanavn]"**. Når den aktiveres, kopieres adressen fra det første firma og felterne låses (disabled). Ved gem gemmes de kopierede data på den aktuelle tenant.
 
 ### Ændringer
 
 | Fil | Ændring |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+| `src/pages/ShippingAddressPage.tsx` | Tilføj checkbox når `tenants.length > 1` og valgt tenant ikke er den første. Når checked: kopier adressedata fra første tenant og disable felterne. Ved gem: gem kopierede data + `shipping_confirmed = true`. |
+| `src/components/ShippingAddressGuard.tsx` | Samme checkbox-logik i guard-dialogen. Brug `useTenants` til at finde andre tenants med udfyldt adresse. |
 
-### Kodedetaljer
+### Logik
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+- Checkbox vises kun når: bruger har 2+ tenants OG mindst én anden tenant har en udfyldt adresse
+- "Første firma" = den første tenant i listen der har en komplet adresse (ikke nødvendigvis den valgte)
+- Når checkbox aktiveres: alle adressefelter udfyldes med data fra referencefirmaet og disables
+- Når checkbox deaktiveres: felterne låses op igen (beholder kopierede værdier som udgangspunkt)
+- Ved gem: data gemmes normalt på den valgte tenant uanset om det er kopieret eller ej
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
+### UI-placering
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Checkboxen placeres direkte over adressefelterne i Card-komponenten, under CardTitle.
 
