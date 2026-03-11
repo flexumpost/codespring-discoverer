@@ -1,4 +1,4 @@
-import { Users, Settings, LayoutDashboard, LogOut, MapPin } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, MapPin, Package } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
