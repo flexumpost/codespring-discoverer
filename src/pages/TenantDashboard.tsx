@@ -414,14 +414,16 @@ const TenantDashboard = () => {
           tenantTypeName={tenantTypeName!}
         />
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-        <h2 className="text-xl md:text-2xl font-bold">Min post</h2>
-        <TenantSelector
-          tenants={tenants}
-          selectedTenantId={selectedTenantId}
-          onSelect={setSelectedTenantId}
-        />
-      </div>
+      {tenants.length > 0 && (
+        <div className="mb-6">
+          <TenantSelector
+            tenants={tenants}
+            selectedTenantId={selectedTenantId}
+            onSelect={setSelectedTenantId}
+          />
+        </div>
+      )}
+      <h2 className="text-xl md:text-2xl font-bold mb-6">Min post</h2>
 
       {/* Stats cards */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-8">
