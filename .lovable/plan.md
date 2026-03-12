@@ -1,41 +1,63 @@
 
 
-## Plus-lejer handlingslogik for breve
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Ændringer i `src/pages/TenantDashboard.tsx`
+### Forretningslogik (opsummering)
 
-**1. Fix `getNextThursday()` (linje 103-111)**
-Hvis i dag er torsdag, returner næste torsdag (ikke i dag). Brugerens krav: "hvis dagen er torsdag, så vælges næste torsdag".
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**2. Opdater `getExtraActions` (linje 43-53)**
-Funktionen skal filtrere baseret på `effectiveAction` (den aktuelle handling) i stedet for `defaultAction`. Tilføj "anden_afhentningsdag" som mulighed, når den effektive handling er "afhentning".
+### Ændringer
 
-Logik per effektiv handling (Plus breve):
-- **afhentning** → vis: "Åben og scan", "Forsendelse", "Anden afhentningsdag"
-- **scan** → vis: "Forsendelse", "Afhentning"
-- **send** → vis: "Åben og scan", "Afhentning"
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**3. Opdater `getStatusDisplay` (linje 143-198)**
-- Default `afhentning` (ingen `chosen_action`): Status = "Afhentes" + `formatDanishDate(getNextThursday())`
-- Default `scan`: Status = "Afventer scanning" + "Scannes inden for 24 timer"
-- Default `send`: Status = "Sendes" + `formatDanishDate(getNextThursday())`
-- Chosen `send`: Status = "Sendes" + `formatDanishDate(getNextThursday())`
-- Chosen `afhentning`: Status = "Afhentning bestilt" + [valgt tidspunkt]
+### Kodedetaljer
 
-**4. Tilføj "Anden afhentningsdag" i ACTION_LABELS (linje 34-40)**
-Ny entry: `anden_afhentningsdag: "Anden afhentningsdag"`
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-**5. Opdater `handleAction` (linje 369-377)**
-"anden_afhentningsdag" skal åbne pickup-dialogen (samme som "afhentning").
-
-**6. Opdater dropdown-kaldet (linje 577)**
-Send `effectiveAction` til `getExtraActions` i stedet for `defaultAction`. Vis kun pris når handlingen afviger fra `defaultAction`.
-
-**7. Pris-visning (linje 606)**
-Kun vis pris for handlinger der ikke er lejerens standard:
 ```typescript
-{action !== defaultAction && price ? ` (${price})` : ""}
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-### Ingen databaseændringer
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

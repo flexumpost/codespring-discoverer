@@ -37,17 +37,26 @@ const ACTION_LABELS: Record<string, string> = {
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
+  anden_afhentningsdag: "Anden afhentningsdag",
 };
 
-/** Returns the extra actions available for a given tier and mail type */
-function getExtraActions(tenantTypeName: string | undefined, mailType: string, defaultAction?: string | null): string[] {
+/** Returns the extra actions available for a given tier, mail type and current effective action */
+function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null): string[] {
   if (mailType === "pakke") {
-    return ["send", "afhentning"].filter(a => a !== defaultAction);
+    return ["send", "afhentning"].filter(a => a !== currentAction);
+  }
+  // For Plus breve, use specific action sets per current action
+  if (tenantTypeName === "Plus") {
+    switch (currentAction) {
+      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
+      case "scan":       return ["send", "afhentning"];
+      case "send":       return ["scan", "afhentning"];
+      default:           return ["scan", "afhentning", "send"];
+    }
   }
   switch (tenantTypeName) {
-    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
-    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
-    case "Plus":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
+    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
     default:         return [];
   }
 }
@@ -99,13 +108,12 @@ function getFirstThursdayOfMonth(): Date {
   return firstThursday;
 }
 
-/** The upcoming Thursday (if today is Thursday, return today) */
+/** The upcoming Thursday (if today is Thursday, return next Thursday) */
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu use next
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu, use next Thu
   const d = new Date(now);
-  if (dayOfWeek === 4) return d; // today is Thursday
   d.setDate(d.getDate() + daysUntil);
   return d;
 }
@@ -159,12 +167,12 @@ function getStatusDisplay(
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextThursday(); // Ekstra forsendelse = førstkommende torsdag
-    return ["Forsendelse", formatDanishDate(nextDate)];
+    const nextDate = getNextThursday();
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
-    return ["Bestilt afhentning", pickupText ?? undefined];
+    return ["Afhentning bestilt", pickupText ?? undefined];
   }
   if (item.chosen_action === "destruer") {
     return ["Destrueret"];
@@ -179,14 +187,14 @@ function getStatusDisplay(
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
-    return ["Kan afhentes", "Vælg afhentningsdato via 'Vælg handling'"];
+    const nextDate = getNextThursday();
+    return ["Afhentes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "scan") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Brevet scannes", formatDanishDate(nextDate)];
+    return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
     return ["Lægges på kontoret"];
@@ -367,7 +375,7 @@ const TenantDashboard = () => {
   });
 
   const handleAction = (id: string, action: string) => {
-    if (action === "afhentning") {
+    if (action === "afhentning" || action === "anden_afhentningsdag") {
       setPickupDialogItem(id);
     } else if (action === "destruer") {
       setConfirmDestroy(id);
@@ -574,7 +582,7 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, defaultAction);
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => allowedActions.includes(a)
@@ -603,7 +611,7 @@ const TenantDashboard = () => {
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {ACTION_LABELS[action] ?? action}
-                                {price ? ` (${price})` : ""}
+                                {action !== defaultAction && price ? ` (${price})` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
