@@ -52,6 +52,8 @@ type MailItemWithTenant = {
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
+  default_mail_action: string | null;
+  default_package_action: string | null;
 };
 
 export default function ShippingPrepPage() {
@@ -67,8 +69,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, tenant_type_id, tenant_types(name))")
-        .eq("chosen_action", "send")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -83,6 +84,8 @@ export default function ShippingPrepPage() {
         tenant_id: item.tenant_id,
         company_name: item.tenants?.company_name ?? "Ukendt",
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
+        default_mail_action: item.tenants?.default_mail_action ?? null,
+        default_package_action: item.tenants?.default_package_action ?? null,
       })) as MailItemWithTenant[];
     },
   });
@@ -137,7 +140,13 @@ export default function ShippingPrepPage() {
     const selDay = startOfDay(selectedDate).getTime();
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
-      // "Ekstra forsendelse" for Lite-breve: brug førstkommende torsdag
+
+      // Beregn effektiv handling: eksplicit valg ?? lejer-default
+      const effectiveAction = item.chosen_action
+        ?? (item.mail_type === "pakke" ? item.default_package_action : item.default_mail_action);
+      if (effectiveAction !== "send") return false;
+
+      // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
       const isExtraShipment =
         item.chosen_action === "send" &&
         item.tenant_type_name.toLowerCase() === "lite" &&
