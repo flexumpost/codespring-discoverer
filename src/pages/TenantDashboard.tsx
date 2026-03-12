@@ -684,7 +684,7 @@ const TenantDashboard = () => {
                   <div>
                     <span className="text-muted-foreground">Status</span>
                     {(() => {
-                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName);
+                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                       return (
                         <div>
                           <Badge variant="outline">{line1}</Badge>
