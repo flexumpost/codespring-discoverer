@@ -182,8 +182,7 @@ function getStatusDisplay(
     return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Kan afhentes", formatDanishDate(nextDate)];
+    return ["Kan afhentes", "Vælg afhentningsdato via 'Vælg handling'"];
   }
   if (effectiveAction === "scan") {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
