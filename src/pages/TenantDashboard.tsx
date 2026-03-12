@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Åben og scan",
-  send: "Ekstra forsendelse",
+  send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
@@ -160,7 +160,7 @@ function getStatusDisplay(
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday(); // Ekstra forsendelse = førstkommende torsdag
-    return ["Ekstra forsendelse", formatDanishDate(nextDate)];
+    return ["Forsendelse", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
@@ -558,7 +558,7 @@ const TenantDashboard = () => {
                     shippingDate.setHours(0, 0, 0, 0);
                     const packingDay = new Date(shippingDate);
                     packingDay.setDate(packingDay.getDate() - 1);
-                    const isLockedForShipping = effectiveAction === "send" && today >= packingDay;
+                    const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
 
                     if (scanExpired || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
