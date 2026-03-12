@@ -375,7 +375,7 @@ const TenantDashboard = () => {
   });
 
   const handleAction = (id: string, action: string) => {
-    if (action === "afhentning") {
+    if (action === "afhentning" || action === "anden_afhentningsdag") {
       setPickupDialogItem(id);
     } else if (action === "destruer") {
       setConfirmDestroy(id);
