@@ -582,7 +582,7 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, defaultAction);
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => allowedActions.includes(a)
