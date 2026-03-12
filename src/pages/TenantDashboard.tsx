@@ -611,7 +611,7 @@ const TenantDashboard = () => {
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {ACTION_LABELS[action] ?? action}
-                                {price ? ` (${price})` : ""}
+                                {action !== defaultAction && price ? ` (${price})` : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
