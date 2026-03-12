@@ -142,7 +142,9 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 
 function getStatusDisplay(
   item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; scanned_at?: string | null },
-  tenantTypeName: string | undefined
+  tenantTypeName: string | undefined,
+  defaultMailAction?: string | null,
+  defaultPackageAction?: string | null
 ): [string, string?] {
   if (item.chosen_action === "scan" && !item.scan_url) {
     return ["Afventer scanning", "Scannes inden for 24 timer"];
