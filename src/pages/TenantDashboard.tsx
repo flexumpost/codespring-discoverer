@@ -167,12 +167,12 @@ function getStatusDisplay(
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextThursday(); // Ekstra forsendelse = førstkommende torsdag
-    return ["Forsendelse", formatDanishDate(nextDate)];
+    const nextDate = getNextThursday();
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
-    return ["Bestilt afhentning", pickupText ?? undefined];
+    return ["Afhentning bestilt", pickupText ?? undefined];
   }
   if (item.chosen_action === "destruer") {
     return ["Destrueret"];
