@@ -187,14 +187,14 @@ function getStatusDisplay(
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
-    return ["Kan afhentes", "Vælg afhentningsdato via 'Vælg handling'"];
+    const nextDate = getNextThursday();
+    return ["Afhentes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "scan") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Brevet scannes", formatDanishDate(nextDate)];
+    return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
     return ["Lægges på kontoret"];
