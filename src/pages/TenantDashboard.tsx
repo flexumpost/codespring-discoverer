@@ -40,15 +40,15 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 /** Returns the extra actions available for a given tier and mail type */
-function getExtraActions(tenantTypeName: string | undefined, mailType: string): string[] {
+function getExtraActions(tenantTypeName: string | undefined, mailType: string, defaultAction?: string | null): string[] {
   if (mailType === "pakke") {
-    return ["send", "afhentning"];
+    return ["send", "afhentning"].filter(a => a !== defaultAction);
   }
   switch (tenantTypeName) {
-    case "Lite": return ["scan", "afhentning", "send"];
-    case "Standard": return ["scan", "afhentning"];
-    case "Plus": return [];
-    default: return [];
+    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Plus":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    default:         return [];
   }
 }
 
