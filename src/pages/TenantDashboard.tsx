@@ -108,13 +108,12 @@ function getFirstThursdayOfMonth(): Date {
   return firstThursday;
 }
 
-/** The upcoming Thursday (if today is Thursday, return today) */
+/** The upcoming Thursday (if today is Thursday, return next Thursday) */
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu use next
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu, use next Thu
   const d = new Date(now);
-  if (dayOfWeek === 4) return d; // today is Thursday
   d.setDate(d.getDate() + daysUntil);
   return d;
 }
