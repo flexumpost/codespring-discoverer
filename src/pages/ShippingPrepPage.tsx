@@ -140,7 +140,13 @@ export default function ShippingPrepPage() {
     const selDay = startOfDay(selectedDate).getTime();
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
-      // "Ekstra forsendelse" for Lite-breve: brug førstkommende torsdag
+
+      // Beregn effektiv handling: eksplicit valg ?? lejer-default
+      const effectiveAction = item.chosen_action
+        ?? (item.mail_type === "pakke" ? item.default_package_action : item.default_mail_action);
+      if (effectiveAction !== "send") return false;
+
+      // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
       const isExtraShipment =
         item.chosen_action === "send" &&
         item.tenant_type_name.toLowerCase() === "lite" &&
