@@ -558,7 +558,7 @@ const TenantDashboard = () => {
                     shippingDate.setHours(0, 0, 0, 0);
                     const packingDay = new Date(shippingDate);
                     packingDay.setDate(packingDay.getDate() - 1);
-                    const isLockedForShipping = effectiveAction === "send" && today >= packingDay;
+                    const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
 
                     if (scanExpired || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
