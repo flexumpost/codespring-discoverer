@@ -574,9 +574,6 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const defaultAction = item.mail_type === "pakke"
-                        ? (selectedTenant as any)?.default_package_action
-                        : (selectedTenant as any)?.default_mail_action;
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, defaultAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
