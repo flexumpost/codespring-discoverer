@@ -40,15 +40,15 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 /** Returns the extra actions available for a given tier and mail type */
-function getExtraActions(tenantTypeName: string | undefined, mailType: string): string[] {
+function getExtraActions(tenantTypeName: string | undefined, mailType: string, defaultAction?: string | null): string[] {
   if (mailType === "pakke") {
-    return ["send", "afhentning"];
+    return ["send", "afhentning"].filter(a => a !== defaultAction);
   }
   switch (tenantTypeName) {
-    case "Lite": return ["scan", "afhentning", "send"];
-    case "Standard": return ["scan", "afhentning"];
-    case "Plus": return [];
-    default: return [];
+    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Plus":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    default:         return [];
   }
 }
 
@@ -182,8 +182,7 @@ function getStatusDisplay(
     return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Kan afhentes", formatDanishDate(nextDate)];
+    return ["Kan afhentes", "Vælg afhentningsdato via 'Vælg handling'"];
   }
   if (effectiveAction === "scan") {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
@@ -570,10 +569,10 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type);
                       const defaultAction = item.mail_type === "pakke"
                         ? (selectedTenant as any)?.default_package_action
                         : (selectedTenant as any)?.default_mail_action;
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, defaultAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => allowedActions.includes(a)
