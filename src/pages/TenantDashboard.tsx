@@ -40,15 +40,23 @@ const ACTION_LABELS: Record<string, string> = {
   anden_afhentningsdag: "Anden afhentningsdag",
 };
 
-/** Returns the extra actions available for a given tier and mail type */
-function getExtraActions(tenantTypeName: string | undefined, mailType: string, defaultAction?: string | null): string[] {
+/** Returns the extra actions available for a given tier, mail type and current effective action */
+function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null): string[] {
   if (mailType === "pakke") {
-    return ["send", "afhentning"].filter(a => a !== defaultAction);
+    return ["send", "afhentning"].filter(a => a !== currentAction);
+  }
+  // For Plus breve, use specific action sets per current action
+  if (tenantTypeName === "Plus") {
+    switch (currentAction) {
+      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
+      case "scan":       return ["send", "afhentning"];
+      case "send":       return ["scan", "afhentning"];
+      default:           return ["scan", "afhentning", "send"];
+    }
   }
   switch (tenantTypeName) {
-    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
-    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
-    case "Plus":     return ["scan", "afhentning", "send"].filter(a => a !== defaultAction);
+    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
+    case "Standard": return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
     default:         return [];
   }
 }
