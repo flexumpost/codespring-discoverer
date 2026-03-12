@@ -547,15 +547,20 @@ const TenantDashboard = () => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
 
                     // Check if actions should be locked (packing day = shipping day - 1)
+                    // Only lock when the effective action is "send" (shipping flow)
+                    const defaultAction = item.mail_type === "pakke"
+                      ? (selectedTenant as any)?.default_package_action
+                      : (selectedTenant as any)?.default_mail_action;
+                    const effectiveAction = item.chosen_action ?? defaultAction ?? "send";
                     const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     shippingDate.setHours(0, 0, 0, 0);
                     const packingDay = new Date(shippingDate);
                     packingDay.setDate(packingDay.getDate() - 1);
-                    const isLocked = today >= packingDay;
+                    const isLockedForShipping = effectiveAction === "send" && today >= packingDay;
 
-                    if (scanExpired || (isLocked && item.status !== "arkiveret" && item.chosen_action !== "scan")) {
+                    if (scanExpired || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
                         <Button
                           size="sm"
@@ -569,9 +574,6 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const defaultAction = item.mail_type === "pakke"
-                        ? (selectedTenant as any)?.default_package_action
-                        : (selectedTenant as any)?.default_mail_action;
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, defaultAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
