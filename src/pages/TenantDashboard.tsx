@@ -534,7 +534,7 @@ const TenantDashboard = () => {
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
                   {(() => {
-                    const [line1, line2] = getStatusDisplay(item, tenantTypeName);
+                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                     return (
                       <div>
                         <Badge variant="outline">{line1}</Badge>
