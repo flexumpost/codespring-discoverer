@@ -142,7 +142,9 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 
 function getStatusDisplay(
   item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; scanned_at?: string | null },
-  tenantTypeName: string | undefined
+  tenantTypeName: string | undefined,
+  defaultMailAction?: string | null,
+  defaultPackageAction?: string | null
 ): [string, string?] {
   if (item.chosen_action === "scan" && !item.scan_url) {
     return ["Afventer scanning", "Scannes inden for 24 timer"];
@@ -170,13 +172,28 @@ function getStatusDisplay(
   if (item.chosen_action === "daglig") {
     return ["Lægges på kontoret"];
   }
-  // No action chosen
-  if (tenantTypeName === "Fastlejer") {
-    return ["Lægges på kontoret"];
-  }
-  if (["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "")) {
+  // No action chosen → use tenant default
+  const effectiveAction = item.mail_type === "pakke"
+    ? defaultPackageAction
+    : defaultMailAction;
+
+  if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
     return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "afhentning") {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Kan afhentes", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "scan") {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Brevet scannes", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
+    return ["Lægges på kontoret"];
+  }
+  if (effectiveAction === "destruer") {
+    return ["Destrueres"];
   }
   return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
 }
@@ -517,7 +534,7 @@ const TenantDashboard = () => {
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
                   {(() => {
-                    const [line1, line2] = getStatusDisplay(item, tenantTypeName);
+                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                     return (
                       <div>
                         <Badge variant="outline">{line1}</Badge>
@@ -667,7 +684,7 @@ const TenantDashboard = () => {
                   <div>
                     <span className="text-muted-foreground">Status</span>
                     {(() => {
-                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName);
+                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                       return (
                         <div>
                           <Badge variant="outline">{line1}</Badge>
