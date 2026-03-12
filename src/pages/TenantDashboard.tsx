@@ -160,7 +160,7 @@ function getStatusDisplay(
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday(); // Ekstra forsendelse = førstkommende torsdag
-    return ["Ekstra forsendelse", formatDanishDate(nextDate)];
+    return ["Forsendelse", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
