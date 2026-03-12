@@ -37,6 +37,7 @@ const ACTION_LABELS: Record<string, string> = {
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
+  anden_afhentningsdag: "Anden afhentningsdag",
 };
 
 /** Returns the extra actions available for a given tier and mail type */
