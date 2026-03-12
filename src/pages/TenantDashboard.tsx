@@ -172,13 +172,28 @@ function getStatusDisplay(
   if (item.chosen_action === "daglig") {
     return ["Lægges på kontoret"];
   }
-  // No action chosen
-  if (tenantTypeName === "Fastlejer") {
-    return ["Lægges på kontoret"];
-  }
-  if (["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "")) {
+  // No action chosen → use tenant default
+  const effectiveAction = item.mail_type === "pakke"
+    ? defaultPackageAction
+    : defaultMailAction;
+
+  if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
     return ["Sendes på næste forsendelsesdag", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "afhentning") {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Kan afhentes", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "scan") {
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    return ["Brevet scannes", formatDanishDate(nextDate)];
+  }
+  if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
+    return ["Lægges på kontoret"];
+  }
+  if (effectiveAction === "destruer") {
+    return ["Destrueres"];
   }
   return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
 }
