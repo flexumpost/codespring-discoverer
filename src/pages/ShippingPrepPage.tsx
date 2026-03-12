@@ -52,6 +52,8 @@ type MailItemWithTenant = {
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
+  default_mail_action: string | null;
+  default_package_action: string | null;
 };
 
 export default function ShippingPrepPage() {
