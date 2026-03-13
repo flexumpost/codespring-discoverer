@@ -169,19 +169,31 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { companyName: string; tenantId: string; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companyNames: string[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
-      const key = item.tenant_id;
-      if (!map.has(key)) {
-        map.set(key, { companyName: item.company_name, tenantId: key, items: [] });
+      const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
+      if (!map.has(addrKey)) {
+        map.set(addrKey, {
+          addressKey: addrKey,
+          companyNames: [],
+          shippingRecipient: item.shipping_recipient,
+          shippingCo: item.shipping_co,
+          shippingAddress: item.shipping_address,
+          shippingZip: item.shipping_zip,
+          shippingCity: item.shipping_city,
+          items: [],
+        });
       }
-      map.get(key)!.items.push(item);
+      const group = map.get(addrKey)!;
+      if (!group.companyNames.includes(item.company_name)) {
+        group.companyNames.push(item.company_name);
+      }
+      group.items.push(item);
     }
-    const groups = Array.from(map.values()).sort((a, b) => a.companyName.localeCompare(b.companyName));
-    // Sort: active groups first, done groups last
+    const groups = Array.from(map.values()).sort((a, b) => a.companyNames[0].localeCompare(b.companyNames[0]));
     return groups.sort((a, b) => {
-      const aDone = doneGroups.has(a.tenantId) ? 1 : 0;
-      const bDone = doneGroups.has(b.tenantId) ? 1 : 0;
+      const aDone = doneGroups.has(a.addressKey) ? 1 : 0;
+      const bDone = doneGroups.has(b.addressKey) ? 1 : 0;
       return aDone - bDone;
     });
   }, [filteredItems, doneGroups]);
