@@ -92,8 +92,8 @@ function parsePickupFromNotes(notes: string | null): string | null {
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
   if (action === "send" || action === "under_forsendelse") {
-    const nextThursday = getNextThursday();
-    return `Skal sendes ${formatDanishDate(nextThursday)}`;
+    const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+    return `Skal sendes ${formatDanishDate(shipDate)}`;
   }
   if (action === "afhentning") {
     const pickupText = parsePickupFromNotes(item.notes);
