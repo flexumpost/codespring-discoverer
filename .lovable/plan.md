@@ -1,63 +1,69 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Detaljeret gebyrlogik for Gebyr-kolonnen og ekstra handling-dropdown
 
-### Forretningslogik (opsummering)
+### Problem
+Den nuværende `getExtraHandlingPrice()` returnerer en fast pris pr. tier (50/30/gratis). Den tager ikke højde for:
+- Standard handling skal altid vise "0 kr." eller "0 kr. + porto"
+- Afhentning-gebyret afhænger af det valgte tidspunkt (gratis hvis det falder på en "standard torsdag")
+- Dropdown-priserne viser forkerte beløb for visse handlinger
+- Plus viser "Gratis" i stedet for "0 kr."
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Løsning
+Erstat `getExtraHandlingPrice()` med en ny funktion `getItemFee()` der tager tier, handling og pickup-dato i betragtning.
 
-### Ændringer
+### Ændringer i `src/pages/TenantDashboard.tsx`
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+**1. Ny funktion `getItemFee()`** (erstatter `getExtraHandlingPrice` i Gebyr-kolonnen):
 
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
+function getItemFee(
+  tenantTypeName: string | undefined,
+  mailType: string,
+  chosenAction: string | null,
+  defaultAction: string | null,
+  notes: string | null
+): string {
+  // Ingen handling valgt = standard handling
+  if (!chosenAction || chosenAction === defaultAction) {
+    if (defaultAction === "send") return "0 kr. + porto";
+    return "0 kr.";
   }
-  return firstThursday;
+  // Plus: alt er gratis
+  if (tenantTypeName === "Plus") {
+    if (chosenAction === "send") return "0 kr. + porto";
+    return "0 kr.";
+  }
+  // Ekstra handling priser
+  const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
+  if (chosenAction === "scan") return extraPrice;
+  if (chosenAction === "send") return extraPrice === "50 kr." ? "50 kr. + porto" : "—"; // Standard har ikke "send hurtigst muligt"
+  if (chosenAction === "afhentning") {
+    // Tjek om pickup-dato er en gratis torsdag
+    const pickupDate = parsePickupDateFromNotes(notes);
+    if (pickupDate && isFreeTorsdag(pickupDate, tenantTypeName)) return "0 kr.";
+    return extraPrice;
+  }
+  return "—";
 }
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+Hjælpefunktioner:
+- `parsePickupDateFromNotes(notes)`: parser PICKUP:iso fra notes til Date
+- `isFreeTorsdag(date, tier)`: Lite = er datoen den første torsdag i måneden? Standard = er datoen en torsdag?
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**2. Gebyr-kolonne** — brug `getItemFee()` i stedet for den nuværende logik.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+**3. Dropdown-priser** — brug en ny `getActionPrice()` funktion der returnerer den korrekte pris pr. handling til visning i dropdown:
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+| Tier | Scan nu | Send | Afhentning |
+|------|---------|------|------------|
+| Lite | 50 kr. | 50 kr. + porto | 50 kr. |
+| Standard | 30 kr. | — (ikke tilgængelig) | 50 kr. |
+| Plus | 0 kr. | 0 kr. | 0 kr. |
 
-**3. Opdater memory**
+**4. Fjern `getExtraHandlingPrice()`** — den erstattes af de nye funktioner.
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Fil-ændringer
+Kun `src/pages/TenantDashboard.tsx` berøres.
 
