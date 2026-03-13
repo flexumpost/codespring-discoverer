@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2, User } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   Select,
@@ -44,6 +44,19 @@ const TenantDetailPage = () => {
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: tenantUsers = [] } = useQuery({
+    queryKey: ["tenant-users", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenant_users")
+        .select("id, user_id, profiles(full_name, email)")
+        .eq("tenant_id", id!);
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
@@ -262,7 +275,36 @@ const TenantDetailPage = () => {
                   <div className="space-y-2">
                     <Label>By</Label>
                     <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" />
+          </div>
+
+          {/* Postmodtagere card between column 1 and pricing */}
+          {tenantUsers.length > 0 && (
+            <div className="lg:col-span-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Postmodtagere</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tenantUsers.map((tu: any) => {
+                      const profile = tu.profiles as any;
+                      return (
+                        <div key={tu.id} className="flex items-center gap-3 rounded-lg border p-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{profile?.full_name || "Uden navn"}</p>
+                            <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
                 </div>
                 <div className="space-y-2">
                   <Label>Land</Label>
