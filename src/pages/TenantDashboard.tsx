@@ -370,6 +370,25 @@ const TenantDashboard = () => {
     },
   });
 
+  // Cancel action mutation
+  const cancelAction = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("mail_items")
+        .update({ chosen_action: null, notes: null, status: "ny" as MailStatus })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
+      toast.success("Handling annulleret");
+    },
+    onError: () => {
+      toast.error("Kunne ikke annullere handling");
+    },
+  });
+
   // Mark as read mutation
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
