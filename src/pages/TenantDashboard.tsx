@@ -114,6 +114,13 @@ function getItemFee(
 ): string {
   // No action chosen → standard handling
   if (!chosenAction || chosenAction === defaultAction) {
+    // Special case: afhentning on a non-free day still costs extra
+    if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
+      const pickupDate = parsePickupDateFromNotes(notes);
+      if (pickupDate && !isFreeTorsdag(pickupDate, tenantTypeName)) {
+        return "50 kr.";
+      }
+    }
     if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
     return "0 kr.";
   }

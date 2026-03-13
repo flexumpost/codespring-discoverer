@@ -1,30 +1,63 @@
 
 
-## Fix: Lite afhentnings-gebyr vises ikke for ikke-gratis dage
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Når en Lite-lejer har `default_action = "afhentning"` og vælger "Anden afhentningsdag", gemmes `chosen_action = "afhentning"` — identisk med default. Linje 116 i `getItemFee` returnerer straks "0 kr." fordi `chosenAction === defaultAction`, uden at tjekke om den valgte pickup-dato faktisk er den gratis første torsdag.
+### Forretningslogik (opsummering)
 
-### Løsning
-I `getItemFee`, når `chosenAction === defaultAction === "afhentning"`, tjek pickup-datoen fra notes. Hvis datoen **ikke** er en gratis torsdag, returner det korrekte gebyr (50 kr. for Lite).
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-### Ændring i `src/pages/TenantDashboard.tsx`
+### Ændringer
 
-**Linje 115-119** — udvid early-return logikken:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-  if (!chosenAction || chosenAction === defaultAction) {
-    // Special case: afhentning on a non-free day still costs extra
-    if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
-      const pickupDate = parsePickupDateFromNotes(notes);
-      if (pickupDate && !isFreeTorsdag(pickupDate, tenantTypeName)) {
-        return tenantTypeName === "Standard" ? "50 kr." : "50 kr.";
-      }
-    }
-    if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
-    return "0 kr.";
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
+  return firstThursday;
+}
 ```
 
-Én ændring i én fil. Resten af logikken (for ekstra handlinger der afviger fra default) er uændret.
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
