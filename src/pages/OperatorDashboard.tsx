@@ -210,11 +210,12 @@ const OperatorDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
+  const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
 
   const refreshMail = async () => {
     const { data } = await supabase
       .from("mail_items")
-      .select("*, tenants(company_name, default_mail_action, default_package_action)")
+      .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
       .in("status", ["ny", "afventer_handling", "ulaest", "laest"])
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
