@@ -62,10 +62,24 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       default:           return ["scan", "afhentning", "send"];
     }
   }
-  switch (tenantTypeName) {
-    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
-    default:         return [];
+  if (tenantTypeName === "Lite") {
+    switch (currentAction) {
+      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
+      case "scan":       return ["send", "afhentning"];
+      case "send":       return ["scan", "afhentning"];
+      default:           return ["scan", "send", "afhentning"];
+    }
   }
+  return [];
+}
+
+/** Returns a tenant-type-specific label for an action */
+function getActionLabel(action: string, tenantTypeName: string | undefined): string {
+  if (tenantTypeName === "Lite") {
+    if (action === "scan") return "Scan nu";
+    if (action === "send") return "Send hurtigst muligt";
+  }
+  return ACTION_LABELS[action] ?? action;
 }
 
 /** Returns the extra handling price label for a tier */
@@ -197,10 +211,20 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
+    // Lite default pickup uses monthly Thursday; Standard/Plus use weekly
+    if (tenantTypeName === "Lite" && !item.chosen_action) {
+      const nextDate = getFirstThursdayOfMonth();
+      return ["Afhentes", formatDanishDate(nextDate)];
+    }
     const nextDate = getNextThursday();
     return ["Afhentes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "scan") {
+    // Lite default scan happens on first Thursday of month
+    if (tenantTypeName === "Lite" && !item.chosen_action) {
+      const nextDate = getFirstThursdayOfMonth();
+      return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
+    }
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
@@ -617,7 +641,7 @@ const TenantDashboard = () => {
                           <SelectContent className="z-50 bg-popover">
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
-                                {ACTION_LABELS[action] ?? action}
+                                {getActionLabel(action, tenantTypeName)}
                                 {action !== defaultAction && price ? ` (${price})` : ""}
                               </SelectItem>
                             ))}
