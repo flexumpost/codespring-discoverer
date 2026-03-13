@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
@@ -370,6 +370,25 @@ const TenantDashboard = () => {
     },
   });
 
+  // Cancel action mutation
+  const cancelAction = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("mail_items")
+        .update({ chosen_action: null, notes: null, status: "ny" as MailStatus })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
+      toast.success("Handling annulleret");
+    },
+    onError: () => {
+      toast.error("Kunne ikke annullere handling");
+    },
+  });
+
   // Mark as read mutation
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
@@ -544,6 +563,7 @@ const TenantDashboard = () => {
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Vælg handling</TableHead>
+              <TableHead>Annuller handling</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
@@ -658,6 +678,19 @@ const TenantDashboard = () => {
                     }
                     return <span className="text-muted-foreground">—</span>;
                   })()}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {item.chosen_action && item.status !== "arkiveret" ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => cancelAction.mutate(item.id)}
+                      title="Annuller handling"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
                 </TableCell>
                 <TableCell>
                   {item.scan_url ? (
