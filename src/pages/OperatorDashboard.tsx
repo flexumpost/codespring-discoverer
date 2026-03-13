@@ -15,7 +15,15 @@ import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 
-type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string } | null };
+type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null } | null };
+
+const ACTION_LABELS: Record<string, string> = {
+  scan: "Åben og scan",
+  send: "Forsendelse",
+  afhentning: "Afhentning",
+  destruer: "Destruer",
+  daglig: "Lig på kontoret",
+};
 
 const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
 const DANISH_MONTHS = [
@@ -68,6 +76,14 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const h = now.getHours().toString().padStart(2, "0");
     const m = now.getMinutes().toString().padStart(2, "0");
     return `Scanning bestilt ${dayName} ${h}:${m}`;
+  }
+  if (!action) {
+    const defaultAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (defaultAction && ACTION_LABELS[defaultAction]) {
+      return ACTION_LABELS[defaultAction];
+    }
   }
   return STATUS_LABELS[item.status] ?? item.status;
 }
@@ -140,7 +156,7 @@ const OperatorDashboard = () => {
   const refreshMail = async () => {
     const { data } = await supabase
       .from("mail_items")
-      .select("*, tenants(company_name)")
+      .select("*, tenants(company_name, default_mail_action, default_package_action)")
       .in("status", ["ny", "afventer_handling", "ulaest", "laest"])
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
