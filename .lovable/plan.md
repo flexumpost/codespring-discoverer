@@ -1,63 +1,26 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Fix: "Send hurtigst muligt" bruger forkert dato for Lite-lejere
 
-### Forretningslogik (opsummering)
+### Problem
+Når en Lite-lejer eksplicit vælger "Send hurtigst muligt" (`chosen_action === "send"`), skal brevet sendes næste torsdag (ugentlig kadence). Men `getOperatorStatusDisplay` kalder `getShippingDate()` som altid returnerer første torsdag i måneden for Lite-breve — uanset om handlingen er eksplicit valgt eller standard.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Løsning
+I `getOperatorStatusDisplay`, linje 94-96: når `chosen_action` er eksplicit sat til `"send"`, brug altid `getNextThursday()` (ugentlig). `getShippingDate()` med Lite-logik skal kun bruges for **standard**-handlinger (linje 119-121).
 
-### Ændringer
+### Ændring i `src/pages/OperatorDashboard.tsx`
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
+**Linje 94-96** — eksplicit valgt "send":
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
+if (action === "send" || action === "under_forsendelse") {
+  // Eksplicit valgt → altid næste torsdag (ugentlig kadence)
+  const shipDate = getNextThursday();
+  return `Skal sendes ${formatDanishDate(shipDate)}`;
 }
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+Standard-handlingen (linje 119-121) forbliver uændret — den bruger stadig `getShippingDate()` med tier-logik.
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Fil
+- `src/pages/OperatorDashboard.tsx` — linje 94-96
 
