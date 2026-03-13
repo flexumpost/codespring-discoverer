@@ -679,6 +679,19 @@ const TenantDashboard = () => {
                     return <span className="text-muted-foreground">—</span>;
                   })()}
                 </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  {item.chosen_action && item.status !== "arkiveret" ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => cancelAction.mutate(item.id)}
+                      title="Annuller handling"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  ) : null}
+                </TableCell>
                 <TableCell>
                   {item.scan_url ? (
                     <ScanThumbnail scanUrl={item.scan_url} />
