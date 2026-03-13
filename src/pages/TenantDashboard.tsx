@@ -703,7 +703,7 @@ const TenantDashboard = () => {
                       const availableExtras = extraActions.filter(
                         (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning"))
                       );
-                      const price = getExtraHandlingPrice(tenantTypeName);
+                      // price per action is now computed individually
 
                       if (availableExtras.length === 0) {
                         // No extra actions (e.g. Plus breve) — show default action badge
