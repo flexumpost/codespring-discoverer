@@ -296,7 +296,7 @@ const OperatorDashboard = () => {
                   <TableCell>
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>
-                  <TableCell>{item.sender_name ?? "—"}</TableCell>
+                  
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
