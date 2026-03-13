@@ -417,6 +417,43 @@ const SettingsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: Rediger virksomhedstilknytning */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rediger virksomhedstilknytning</DialogTitle>
+            <DialogDescription>
+              Vælg hvilke virksomheder {editingUser?.name} skal have adgang til.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Virksomheder</Label>
+            <div className="space-y-2 rounded-md border p-3">
+              {tenants.map((t) => (
+                <div key={t.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`edit-tenant-${t.id}`}
+                    checked={editTenantIds.includes(t.id)}
+                    onCheckedChange={() => toggleEditTenant(t.id)}
+                  />
+                  <Label htmlFor={`edit-tenant-${t.id}`} className="text-sm font-normal cursor-pointer">
+                    {t.company_name}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => saveEditMutation.mutate()}
+              disabled={editTenantIds.length === 0 || saveEditMutation.isPending}
+            >
+              {saveEditMutation.isPending ? "Gemmer..." : "Gem"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
