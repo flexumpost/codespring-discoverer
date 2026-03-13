@@ -16,7 +16,9 @@ export function useTenants() {
         .select("*, tenant_types(name, allowed_actions)")
         .eq("user_id", user!.id);
       if (error) throw error;
-      return data;
+      return [...(data || [])].sort((a, b) =>
+        a.company_name.localeCompare(b.company_name, "da")
+      );
     },
   });
 
