@@ -63,6 +63,7 @@ const SettingsPage = () => {
       setNewName("");
       setNewEmail("");
       setNewPassword("");
+      queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
     },
     onError: (err: Error) => {
       toast.error(err.message || "Kunne ikke oprette postmodtager");
