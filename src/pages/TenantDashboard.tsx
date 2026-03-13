@@ -73,6 +73,15 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   return [];
 }
 
+/** Returns a tenant-type-specific label for an action */
+function getActionLabel(action: string, tenantTypeName: string | undefined): string {
+  if (tenantTypeName === "Lite") {
+    if (action === "scan") return "Scan nu";
+    if (action === "send") return "Send hurtigst muligt";
+  }
+  return ACTION_LABELS[action] ?? action;
+}
+
 /** Returns the extra handling price label for a tier */
 function getExtraHandlingPrice(tenantTypeName: string | undefined): string | null {
   switch (tenantTypeName) {
