@@ -564,6 +564,7 @@ const TenantDashboard = () => {
               <TableHead>Status</TableHead>
               <TableHead>Vælg handling</TableHead>
               <TableHead>Annuller handling</TableHead>
+              <TableHead>Gebyr</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
@@ -691,6 +692,19 @@ const TenantDashboard = () => {
                       <Undo2 className="h-4 w-4" />
                     </Button>
                   ) : null}
+                </TableCell>
+                <TableCell>
+                  {(() => {
+                    if (!item.chosen_action) return <span className="text-muted-foreground">—</span>;
+                    const defaultAction = item.mail_type === "pakke"
+                      ? selectedTenant?.default_package_action
+                      : selectedTenant?.default_mail_action;
+                    if (item.chosen_action === defaultAction) return <span className="text-muted-foreground">—</span>;
+                    const price = getExtraHandlingPrice(tenantTypeName);
+                    return price
+                      ? <span className="text-sm font-medium">{price}</span>
+                      : <span className="text-muted-foreground text-xs">Gratis</span>;
+                  })()}
                 </TableCell>
                 <TableCell>
                   {item.scan_url ? (
