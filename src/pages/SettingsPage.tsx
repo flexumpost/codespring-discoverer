@@ -45,6 +45,12 @@ const SettingsPage = () => {
   const [newPassword, setNewPassword] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ user_id: string; name: string; email: string } | null>(null);
+  const [editTenantIds, setEditTenantIds] = useState<string[]>([]);
+  const [editExistingTenantIds, setEditExistingTenantIds] = useState<string[]>([]);
+
   const openDialog = () => {
     setSelectedTenantIds(selectedTenantId ? [selectedTenantId] : []);
     setDialogOpen(true);
