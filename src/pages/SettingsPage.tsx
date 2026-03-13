@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
 import {
