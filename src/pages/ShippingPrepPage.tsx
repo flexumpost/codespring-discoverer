@@ -264,22 +264,32 @@ export default function ShippingPrepPage() {
               </Card>
             ) : (
               grouped.map((group) => {
-                const isDone = doneGroups.has(group.tenantId);
+                const isDone = doneGroups.has(group.addressKey);
                 return (
                   <Card
-                    key={group.tenantId}
+                    key={group.addressKey}
                     className={cn(isDone && "opacity-50 bg-muted")}
                   >
-                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">{group.companyName}</CardTitle>
-                      <Button
-                        variant={isDone ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={() => toggleDoneGroup(group.tenantId)}
-                      >
-                        <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
-                        Færdig
-                      </Button>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">{group.companyNames.join(", ")}</CardTitle>
+                        <Button
+                          variant={isDone ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => toggleDoneGroup(group.addressKey)}
+                        >
+                          <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
+                          Færdig
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                        {group.shippingRecipient && <p>{group.shippingRecipient}</p>}
+                        {group.shippingCo && <p>c/o {group.shippingCo}</p>}
+                        {group.shippingAddress && <p>{group.shippingAddress}</p>}
+                        {(group.shippingZip || group.shippingCity) && (
+                          <p>{[group.shippingZip, group.shippingCity].filter(Boolean).join(" ")}</p>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {group.items
@@ -294,7 +304,7 @@ export default function ShippingPrepPage() {
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <span className="text-sm font-medium">
-                              Nr. {item.stamp_number ?? "—"}
+                              Nr. {item.stamp_number ?? "—"} — {item.company_name}
                             </span>
                           </label>
                         ))}
