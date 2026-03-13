@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
 import {
@@ -33,7 +33,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const SettingsPage = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
@@ -63,6 +63,7 @@ const SettingsPage = () => {
       setNewName("");
       setNewEmail("");
       setNewPassword("");
+      queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
     },
     onError: (err: Error) => {
       toast.error(err.message || "Kunne ikke oprette postmodtager");
@@ -70,6 +71,39 @@ const SettingsPage = () => {
   });
 
   const canSubmitRecipient = newEmail.trim().length > 0 && newPassword.length >= 6;
+
+  // Fetch linked tenant users (postmodtagere)
+  const { data: tenantUsers } = useQuery({
+    queryKey: ["tenant-users", selectedTenantId],
+    enabled: !!selectedTenantId && role === "tenant",
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tenant_users")
+        .select("id, user_id, profiles(full_name, email)")
+        .eq("tenant_id", selectedTenantId!);
+      return data ?? [];
+    },
+  });
+
+  const isOwner = user?.id === selectedTenant?.user_id;
+
+  const deleteTenantUserMutation = useMutation({
+    mutationFn: async (tenantUserId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-tenant-user", {
+        body: { tenant_user_id: tenantUserId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Postmodtager slettet");
+      queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Kunne ikke slette postmodtager");
+    },
+  });
 
   const typeName = (selectedTenant?.tenant_types as any)?.name as string | undefined;
 
@@ -153,6 +187,36 @@ const SettingsPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Postmodtagere */}
+            {tenantUsers && tenantUsers.length > 0 && (
+              <div className="space-y-3">
+                {tenantUsers.map((tu) => {
+                  const profile = tu.profiles as any;
+                  return (
+                    <Card key={tu.id}>
+                      <CardContent className="flex items-center justify-between py-4 px-4">
+                        <div>
+                          <p className="font-medium text-sm">{profile?.full_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{profile?.email || "—"}</p>
+                        </div>
+                        {isOwner && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => deleteTenantUserMutation.mutate(tu.id)}
+                            disabled={deleteTenantUserMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
 
             <Button
               variant="outline"
