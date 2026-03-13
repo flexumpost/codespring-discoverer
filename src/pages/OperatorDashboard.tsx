@@ -38,6 +38,14 @@ function formatDanishDate(date: Date): string {
   return `${day} den ${d}. ${month}`;
 }
 
+function formatDanishDateTime(date: Date): string {
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${d}. ${month} kl. ${h}:${m}`;
+}
+
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
