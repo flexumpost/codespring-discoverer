@@ -159,6 +159,50 @@ const CARD_FILTERS: CardFilter[] = [
   },
 ];
 
+const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
+  Lite: { ekstraForsendelse: "50 kr.", ekstraScanning: "50 kr.", ekstraAfhentning: "50 kr." },
+  Standard: { ekstraForsendelse: "Inkluderet", ekstraScanning: "30 kr.", ekstraAfhentning: "30 kr." },
+  Plus: { ekstraForsendelse: "Inkluderet", ekstraScanning: "Inkluderet", ekstraAfhentning: "Inkluderet" },
+};
+
+const PACKAGE_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
+  Lite: { haandteringsgebyr: "50 kr." },
+  Standard: { haandteringsgebyr: "30 kr." },
+  Plus: { haandteringsgebyr: "Inkluderet" },
+};
+
+const ACTION_TO_FEE_KEY: Record<string, string> = {
+  scan: "ekstraScanning",
+  send: "ekstraForsendelse",
+  under_forsendelse: "ekstraForsendelse",
+  afhentning: "ekstraAfhentning",
+};
+
+function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
+  if (!item.chosen_action || !item.tenant_id) return "—";
+  const tier = item.tenants?.tenant_types?.name;
+  if (!tier) return "—";
+
+  if (item.mail_type === "pakke") {
+    const pkgPricing = pricing.pakke?.[tier] ?? PACKAGE_PRICING_DEFAULTS[tier];
+    const fee = pkgPricing?.haandteringsgebyr;
+    return fee ? fee.split("—")[0].trim() : "—";
+  }
+
+  // Brev: only charge if action differs from default
+  const defaultAction = item.tenants?.default_mail_action;
+  if (item.chosen_action === defaultAction) return "—";
+
+  const feeKey = ACTION_TO_FEE_KEY[item.chosen_action];
+  if (!feeKey) return "—";
+
+  const mailPricing = pricing.brev?.[tier] ?? MAIL_PRICING_DEFAULTS[tier];
+  const fee = mailPricing?.[feeKey];
+  if (!fee) return "—";
+  // Extract just the price part (before "—")
+  return fee.split("—")[0].trim();
+}
+
 const OperatorDashboard = () => {
   const navigate = useNavigate();
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
