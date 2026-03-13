@@ -1,63 +1,51 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Vis postmodtagere under kontaktoplysninger med slet-funktion
 
-### Forretningslogik (opsummering)
+### Overblik
+Efter oprettelse af en postmodtager skal denne vises i et kort under "Kontaktoplysninger". Kun default-brugeren (tenant-ejeren, dvs. `tenants.user_id`) kan slette postmodtagere.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### 1. `src/pages/SettingsPage.tsx`
 
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
+**Hent postmodtagere:**
+- Tilføj en `useQuery` der henter `tenant_users` for den valgte tenant, joinet med `profiles` for at få navn og email:
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+const { data: tenantUsers } = useQuery({
+  queryKey: ["tenant-users", selectedTenantId],
+  enabled: !!selectedTenantId,
+  queryFn: async () => {
+    const { data } = await supabase
+      .from("tenant_users")
+      .select("id, user_id, profiles(full_name, email)")
+      .eq("tenant_id", selectedTenantId!);
+    return data ?? [];
+  },
+});
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+**Vis postmodtagere i kort:**
+- Under "Kontaktoplysninger"-kortet, vis et kort per postmodtager med navn og email.
+- Vis en "Slet bruger"-knap kun hvis den aktuelle bruger er default-ejeren (`user.id === selectedTenant.user_id`).
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**Slet-mutation:**
+- Kald en ny edge function `delete-tenant-user` der sletter brugeren fra `tenant_users`, `user_roles` og `auth.users`.
+- Invalider `tenant-users` query ved success.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+### 2. Ny edge function: `supabase/functions/delete-tenant-user/index.ts`
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+- Modtager `tenant_user_id` (ID fra `tenant_users`-tabellen).
+- Verificerer at kalderen er ejer af den pågældende tenant (`tenants.user_id = caller_id`).
+- Henter `user_id` fra `tenant_users`-rækken.
+- Sletter `tenant_users`-rækken, `user_roles`-rækken og auth-brugeren via admin API.
+- Returnerer success.
 
-**3. Opdater memory**
+Skal registreres i `supabase/config.toml` med `verify_jwt = false`.
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### 3. Ingen databaseændringer
+`tenant_users` og `profiles` tabellerne eksisterer allerede med korrekte RLS-policies. `profiles` har SELECT for alle authenticated brugere.
+
+### Resultat
+- Postmodtagere vises i individuelle kort under kontaktoplysninger
+- Kun default-brugeren ser "Slet bruger"-knappen
+- Sletning fjerner brugeren helt fra systemet
 
