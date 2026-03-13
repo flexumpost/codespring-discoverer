@@ -49,10 +49,32 @@ function formatDanishDateTime(date: Date): string {
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
-  const d = new Date(now);
-  d.setDate(d.getDate() + daysUntil);
-  return d;
+  if (dayOfWeek === 4) return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysUntil = (4 - dayOfWeek + 7) % 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil);
+}
+
+function getFirstThursdayOfMonth(refDate: Date): Date {
+  const first = new Date(refDate.getFullYear(), refDate.getMonth(), 1);
+  const dow = first.getDay();
+  const offset = (4 - dow + 7) % 7;
+  return new Date(refDate.getFullYear(), refDate.getMonth(), 1 + offset);
+}
+
+function getShippingDate(tenantTypeName: string | undefined, mailType: string): Date {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (mailType === "pakke" || (tenantTypeName ?? "").toLowerCase() !== "lite") {
+    return getNextThursday();
+  }
+
+  // Lite breve → første torsdag i måneden
+  const firstThurs = getFirstThursdayOfMonth(now);
+  if (firstThurs >= today) return firstThurs;
+
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return getFirstThursdayOfMonth(nextMonth);
 }
 
 function parsePickupFromNotes(notes: string | null): string | null {
