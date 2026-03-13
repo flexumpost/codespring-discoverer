@@ -295,15 +295,32 @@ const SettingsPage = () => {
                           <p className="text-xs text-muted-foreground">{profile?.email || "—"}</p>
                         </div>
                         {isOwner && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => deleteTenantUserMutation.mutate(tu.id)}
-                            disabled={deleteTenantUserMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {tenants.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  openEditDialog(
+                                    tu.user_id,
+                                    profile?.full_name || "—",
+                                    profile?.email || "—"
+                                  )
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => deleteTenantUserMutation.mutate(tu.id)}
+                              disabled={deleteTenantUserMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
