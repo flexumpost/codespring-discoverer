@@ -222,6 +222,22 @@ const OperatorDashboard = () => {
   };
 
   useEffect(() => {
+    const fetchPricing = async () => {
+      const { data } = await supabase.from("pricing_settings").select("*");
+      if (data) {
+        const map: Record<string, Record<string, Record<string, string>>> = {};
+        for (const row of data) {
+          if (!map[row.category]) map[row.category] = {};
+          if (!map[row.category][row.tier]) map[row.category][row.tier] = {};
+          map[row.category][row.tier][row.field_key] = row.field_value;
+        }
+        setPricing(map);
+      }
+    };
+    fetchPricing();
+  }, []);
+
+
     refreshMail();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
