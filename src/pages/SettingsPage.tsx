@@ -71,6 +71,39 @@ const SettingsPage = () => {
 
   const canSubmitRecipient = newEmail.trim().length > 0 && newPassword.length >= 6;
 
+  // Fetch linked tenant users (postmodtagere)
+  const { data: tenantUsers } = useQuery({
+    queryKey: ["tenant-users", selectedTenantId],
+    enabled: !!selectedTenantId && role === "tenant",
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tenant_users")
+        .select("id, user_id, profiles(full_name, email)")
+        .eq("tenant_id", selectedTenantId!);
+      return data ?? [];
+    },
+  });
+
+  const isOwner = user?.id === selectedTenant?.user_id;
+
+  const deleteTenantUserMutation = useMutation({
+    mutationFn: async (tenantUserId: string) => {
+      const { data, error } = await supabase.functions.invoke("delete-tenant-user", {
+        body: { tenant_user_id: tenantUserId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Postmodtager slettet");
+      queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Kunne ikke slette postmodtager");
+    },
+  });
+
   const typeName = (selectedTenant?.tenant_types as any)?.name as string | undefined;
 
   // Operator view
