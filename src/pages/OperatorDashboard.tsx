@@ -241,7 +241,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
             })()
           : pickupDate.getDay() === 4;
         if (!isFreeDay) {
-          return "50 kr.";
+          return tier === "Standard" ? "30 kr." : "50 kr.";
         }
       }
     }
