@@ -117,8 +117,8 @@ function getOperatorStatusDisplay(item: MailItem): string {
       ? item.tenants?.default_package_action
       : item.tenants?.default_mail_action;
     if (defaultAction === "send" || defaultAction === "under_forsendelse") {
-      const nextThursday = getNextThursday();
-      return `Skal sendes ${formatDanishDate(nextThursday)}`;
+      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return `Skal sendes ${formatDanishDate(shipDate)}`;
     }
     if (defaultAction === "scan") {
       if (item.scan_url) return "Scannet";
