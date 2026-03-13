@@ -33,7 +33,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const SettingsPage = () => {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
