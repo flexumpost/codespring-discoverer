@@ -38,6 +38,14 @@ function formatDanishDate(date: Date): string {
   return `${day} den ${d}. ${month}`;
 }
 
+function formatDanishDateTime(date: Date): string {
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${d}. ${month} kl. ${h}:${m}`;
+}
+
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -71,18 +79,24 @@ function getOperatorStatusDisplay(item: MailItem): string {
   }
   if (action === "scan") {
     if (item.scan_url) return "Scannet";
-    const now = new Date();
-    const dayName = DANISH_DAYS[now.getDay()];
-    const h = now.getHours().toString().padStart(2, "0");
-    const m = now.getMinutes().toString().padStart(2, "0");
-    return `Scanning bestilt ${dayName} ${h}:${m}`;
+    const updated = new Date(item.updated_at);
+    return `Scanning bestilt ${formatDanishDateTime(updated)}`;
+  }
+  if (action === "destruer") {
+    const updated = new Date(item.updated_at);
+    return `Destrueres - bestilt ${formatDanishDateTime(updated)}`;
+  }
+  if (action === "daglig") {
+    const updated = new Date(item.updated_at);
+    return `Lig på kontoret - ${formatDanishDateTime(updated)}`;
   }
   if (!action) {
     const defaultAction = item.mail_type === "pakke"
       ? item.tenants?.default_package_action
       : item.tenants?.default_mail_action;
     if (defaultAction && ACTION_LABELS[defaultAction]) {
-      return ACTION_LABELS[defaultAction];
+      const received = new Date(item.received_at);
+      return `${ACTION_LABELS[defaultAction]} - modtaget ${formatDanishDateTime(received)}`;
     }
   }
   return STATUS_LABELS[item.status] ?? item.status;
