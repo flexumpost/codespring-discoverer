@@ -77,6 +77,14 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const m = now.getMinutes().toString().padStart(2, "0");
     return `Scanning bestilt ${dayName} ${h}:${m}`;
   }
+  if (!action) {
+    const defaultAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (defaultAction && ACTION_LABELS[defaultAction]) {
+      return ACTION_LABELS[defaultAction];
+    }
+  }
   return STATUS_LABELS[item.status] ?? item.status;
 }
 
