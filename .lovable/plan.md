@@ -1,63 +1,40 @@
 
+Problemforståelse
+- Fejlen er stadig: `infinite recursion detected in policy for relation "tenant_users"`.
+- Jeg kan nu se den konkrete årsag i nuværende RLS:
+  - `tenant_users` INSERT-policyen (`Tenant owners insert tenant_users`) bruger `WITH CHECK` med direkte query mod `tenants`.
+  - `tenants` SELECT-policyen refererer samtidig `tenant_users`.
+  - Når man gemmer “Rediger virksomhedstilknytning” og der skal laves INSERT i `tenant_users`, opstår cirkulær policy-evaluering.
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+Do I know what the issue is?
+- Ja. Det er INSERT-policyen på `tenant_users` (ikke DELETE-policyen) der stadig skaber recursion.
 
-### Forretningslogik (opsummering)
+Implementeringsplan
+1) Lav en ny migration, der erstatter INSERT-policyen på `tenant_users`:
+```sql
+DROP POLICY IF EXISTS "Tenant owners insert tenant_users" ON public.tenant_users;
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
-
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+CREATE POLICY "Tenant owners insert tenant_users"
+  ON public.tenant_users
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    tenant_id IN (SELECT owned_tenant_ids(auth.uid()))
+    OR is_operator()
+  );
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+2) Ingen frontend-ændringer i denne omgang
+- `SettingsPage.tsx` save-flow er ok; fejlen kommer fra backend policy-laget.
+- Når policyen er rettet, vil samme UI-flow kunne gemme virksomhedstilknytninger uden recursion.
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+3) Verifikation efter ændringen
+- Åbn “Rediger virksomhedstilknytning” for en postmodtager.
+- Test både:
+  - kun fjerne en virksomhed (DELETE)
+  - tilføje en virksomhed (INSERT)
+- Bekræft at “Gem” gennemføres uden fejl-toast, og at listen opdateres korrekt efter refresh.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
-
+Teknisk note
+- Vi genbruger eksisterende `owned_tenant_ids()` (SECURITY DEFINER), som netop er lavet for at undgå RLS-recursion.
+- Dette følger samme sikre mønster som den allerede rettede DELETE-policy.
