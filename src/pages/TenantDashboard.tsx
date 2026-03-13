@@ -211,10 +211,20 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
+    // Lite default pickup uses monthly Thursday; Standard/Plus use weekly
+    if (tenantTypeName === "Lite" && !item.chosen_action) {
+      const nextDate = getFirstThursdayOfMonth();
+      return ["Afhentes", formatDanishDate(nextDate)];
+    }
     const nextDate = getNextThursday();
     return ["Afhentes", formatDanishDate(nextDate)];
   }
   if (effectiveAction === "scan") {
+    // Lite default scan happens on first Thursday of month
+    if (tenantTypeName === "Lite" && !item.chosen_action) {
+      const nextDate = getFirstThursdayOfMonth();
+      return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
+    }
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
