@@ -1,63 +1,32 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Fix postmodtagere visibility
 
-### Forretningslogik (opsummering)
+### Problem 1: RLS policy on `tenant_users` blocks tenant owners
+The current SELECT policy on `tenant_users` is:
+```
+(user_id = auth.uid()) OR is_operator()
+```
+This means a tenant owner can only see rows where **they** are the `user_id`. When they query for postmodtagere linked to their tenant, the new users' rows are invisible because `user_id` is the **new user's** ID.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
-
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+**Fix**: Update the RLS SELECT policy to also allow tenant owners to see all `tenant_users` rows for their tenants:
+```sql
+DROP POLICY "Users read own tenant_users" ON public.tenant_users;
+CREATE POLICY "Users read own tenant_users" ON public.tenant_users
+  FOR SELECT TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR is_operator()
+    OR tenant_id IN (SELECT id FROM public.tenants WHERE user_id = auth.uid())
+  );
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+### Problem 2: Operator's TenantDetailPage doesn't show postmodtagere
+The `TenantDetailPage.tsx` has no query or UI for `tenant_users`. Postmodtagere are only shown on the tenant's SettingsPage.
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**Fix**: Add a `useQuery` for `tenant_users` (with `profiles` join) to `TenantDetailPage.tsx` and display them in cards below the contact information section, similar to the SettingsPage layout.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Summary of changes
+1. **Database migration**: Update `tenant_users` SELECT RLS policy
+2. **`src/pages/TenantDetailPage.tsx`**: Add tenant_users query and display cards with postmodtager info (name, email)
 
