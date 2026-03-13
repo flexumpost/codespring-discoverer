@@ -1,63 +1,53 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Opdater Lite brev-flow med kontekst-afhængige handlinger og korrekte statusser
 
-### Forretningslogik (opsummering)
+### Ændringer i `src/pages/TenantDashboard.tsx`
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+**1. `getExtraActions()` — Lite-case (linje 65-67)**
 
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+Erstat den simple filtrering med kontekst-afhængig logik. Lite bruger lidt andre labels ("Scan nu", "Send hurtigst muligt") men mapper til samme action-keys:
 
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
+if (tenantTypeName === "Lite") {
+  switch (currentAction) {
+    case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
+    case "scan":       return ["send", "afhentning"];
+    case "send":       return ["scan", "afhentning"];
+    default:           return ["scan", "send", "afhentning"];
   }
-  return firstThursday;
 }
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+**2. `ACTION_LABELS` — Lite-specifikke labels**
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+Lite har anderledes labels ("Scan nu" i stedet for "Åben og scan", "Send hurtigst muligt" i stedet for "Forsendelse"). Dette løses ved at lave en `getActionLabel(action, tenantTypeName)` hjælpefunktion der returnerer Lite-specifikke labels når relevant:
+- `scan` → "Scan nu" (for Lite)
+- `send` → "Send hurtigst muligt" (for Lite)
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+**3. `getStatusDisplay()` — Lite default-handlinger (linje 190-212)**
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+Ret status for Lite-lejere når **ingen ekstra handling er valgt** (default):
 
-**3. Opdater memory**
+| Default handling | Status |
+|---|---|
+| afhentning | "Afhentes [første torsdag i måneden]" (bruger `getFirstThursdayOfMonth`) |
+| scan | "Scannes gratis den første torsdag i måneden [dato]" |
+| send | "Sendes [første torsdag i måneden]" |
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Aktuelt bruger `effectiveAction === "afhentning"` fejlagtigt `getNextThursday()` — for Lite skal den bruge `getNextShippingDate("Lite", "brev")` som returnerer `getFirstThursdayOfMonth()`.
+
+Aktuelt bruger `effectiveAction === "scan"` teksten "Scannes inden for 24 timer" — for Lite default-scan skal den i stedet vise "Scannes gratis den første torsdag i måneden [dato]".
+
+Når en **ekstra handling** vælges (chosen_action sat):
+- `scan` → "Afventer scanning — Scannes inden for 24 timer" (allerede korrekt)
+- `send` → "Sendes [næste torsdag]" via `getNextThursday()` (allerede korrekt)
+- `afhentning` → "Afhentning bestilt [valgte tidspunkt]" (allerede korrekt)
+
+**4. `getFirstThursdayOfMonth()` korrektion (linje 99-116)**
+
+Funktionen bruger `firstThursday <= now` som sammenligning. Dette betyder at **på** den første torsdag (efter midnat) vælges næste måned. Det er korrekt. Men den 1. april (som ikke er torsdag) med første torsdag den 2. april skal korrekt returnere 2. april — dette virker allerede, da `firstThursday > now` på det tidspunkt.
+
+### Fil der ændres
+- `src/pages/TenantDashboard.tsx`
 
