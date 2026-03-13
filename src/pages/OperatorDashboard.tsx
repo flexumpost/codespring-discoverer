@@ -148,7 +148,7 @@ const OperatorDashboard = () => {
   const refreshMail = async () => {
     const { data } = await supabase
       .from("mail_items")
-      .select("*, tenants(company_name)")
+      .select("*, tenants(company_name, default_mail_action, default_package_action)")
       .in("status", ["ny", "afventer_handling", "ulaest", "laest"])
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
