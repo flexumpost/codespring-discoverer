@@ -237,7 +237,7 @@ const OperatorDashboard = () => {
     fetchPricing();
   }, []);
 
-
+  useEffect(() => {
     refreshMail();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
