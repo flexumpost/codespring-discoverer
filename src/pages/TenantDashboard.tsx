@@ -641,7 +641,7 @@ const TenantDashboard = () => {
                           <SelectContent className="z-50 bg-popover">
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
-                                {ACTION_LABELS[action] ?? action}
+                                {getActionLabel(action, tenantTypeName)}
                                 {action !== defaultAction && price ? ` (${price})` : ""}
                               </SelectItem>
                             ))}
