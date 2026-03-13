@@ -118,7 +118,7 @@ function getItemFee(
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
       const pickupDate = parsePickupDateFromNotes(notes);
       if (pickupDate && !isFreeTorsdag(pickupDate, tenantTypeName)) {
-        return "50 kr.";
+        return tenantTypeName === "Standard" ? "30 kr." : "50 kr.";
       }
     }
     if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
@@ -140,7 +140,7 @@ function getItemFee(
   if (chosenAction === "afhentning") {
     const pickupDate = parsePickupDateFromNotes(notes);
     if (pickupDate && isFreeTorsdag(pickupDate, tenantTypeName)) return "0 kr.";
-    return tenantTypeName === "Standard" ? "50 kr." : extraPrice;
+    return tenantTypeName === "Standard" ? "30 kr." : extraPrice;
   }
   return "—";
 }
@@ -158,7 +158,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   }
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
-    if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
+    if (action === "afhentning" || action === "anden_afhentningsdag") return "30 kr.";
   }
   return "";
 }
