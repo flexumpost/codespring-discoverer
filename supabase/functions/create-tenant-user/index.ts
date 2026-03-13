@@ -39,42 +39,49 @@ Deno.serve(async (req) => {
     }
     const callerId = claimsData.claims.sub as string;
 
-    const { tenant_id, email, password, full_name } = await req.json();
+    const body = await req.json();
+    const { email, password, full_name } = body;
 
-    if (!tenant_id || !email || !password) {
+    // Support both tenant_ids (array) and tenant_id (single) for backwards compat
+    let tenantIds: string[] = body.tenant_ids ?? [];
+    if (tenantIds.length === 0 && body.tenant_id) {
+      tenantIds = [body.tenant_id];
+    }
+
+    if (tenantIds.length === 0 || !email || !password) {
       return new Response(
-        JSON.stringify({ error: "tenant_id, email and password required" }),
+        JSON.stringify({ error: "tenant_ids (or tenant_id), email and password required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify caller owns this tenant
-    const { data: tenantRow } = await adminClient
-      .from("tenants")
-      .select("id")
-      .eq("id", tenant_id)
+    // Check if caller is operator
+    const { data: roleCheck } = await adminClient
+      .from("user_roles")
+      .select("role")
       .eq("user_id", callerId)
+      .eq("role", "operator")
       .maybeSingle();
+    const isOperator = !!roleCheck;
 
-    // Also allow operators
-    let isOperator = false;
-    if (!tenantRow) {
-      const { data: roleCheck } = await adminClient
-        .from("user_roles")
-        .select("role")
+    // Verify caller owns all specified tenants (or is operator)
+    if (!isOperator) {
+      const { data: ownedTenants } = await adminClient
+        .from("tenants")
+        .select("id")
         .eq("user_id", callerId)
-        .eq("role", "operator")
-        .maybeSingle();
-      isOperator = !!roleCheck;
-    }
+        .in("id", tenantIds);
 
-    if (!tenantRow && !isOperator) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const ownedIds = new Set((ownedTenants ?? []).map((t) => t.id));
+      const unauthorized = tenantIds.filter((tid) => !ownedIds.has(tid));
+      if (unauthorized.length > 0) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Create auth user
@@ -105,10 +112,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Link to tenant
+    // Link to all specified tenants
+    const links = tenantIds.map((tid) => ({
+      tenant_id: tid,
+      user_id: newUser.user.id,
+    }));
+
     const { error: linkError } = await adminClient
       .from("tenant_users")
-      .insert({ tenant_id, user_id: newUser.user.id });
+      .insert(links);
 
     if (linkError) {
       return new Response(JSON.stringify({ error: linkError.message }), {

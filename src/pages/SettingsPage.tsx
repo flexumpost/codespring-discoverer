@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
@@ -42,12 +43,26 @@ const SettingsPage = () => {
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+
+  const openDialog = () => {
+    setSelectedTenantIds(selectedTenantId ? [selectedTenantId] : []);
+    setDialogOpen(true);
+  };
+
+  const toggleTenantSelection = (tenantId: string) => {
+    setSelectedTenantIds((prev) =>
+      prev.includes(tenantId)
+        ? prev.filter((id) => id !== tenantId)
+        : [...prev, tenantId]
+    );
+  };
 
   const createRecipientMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("create-tenant-user", {
         body: {
-          tenant_id: selectedTenantId,
+          tenant_ids: selectedTenantIds,
           email: newEmail.trim(),
           password: newPassword,
           full_name: newName.trim(),
@@ -63,25 +78,42 @@ const SettingsPage = () => {
       setNewName("");
       setNewEmail("");
       setNewPassword("");
-      queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
+      setSelectedTenantIds([]);
+      queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
     onError: (err: Error) => {
       toast.error(err.message || "Kunne ikke oprette postmodtager");
     },
   });
 
-  const canSubmitRecipient = newEmail.trim().length > 0 && newPassword.length >= 6;
+  const canSubmitRecipient =
+    newEmail.trim().length > 0 &&
+    newPassword.length >= 6 &&
+    selectedTenantIds.length > 0;
 
-  // Fetch linked tenant users (postmodtagere)
-  const { data: tenantUsers } = useQuery({
+  // Fetch linked tenant users (postmodtagere) — two-step to avoid PGRST200
+  const { data: tenantUsers, error: tuError } = useQuery({
     queryKey: ["tenant-users", selectedTenantId],
     enabled: !!selectedTenantId && role === "tenant",
     queryFn: async () => {
-      const { data } = await supabase
+      const { data: relations, error: e1 } = await supabase
         .from("tenant_users")
-        .select("id, user_id, profiles(full_name, email)")
+        .select("id, user_id")
         .eq("tenant_id", selectedTenantId!);
-      return data ?? [];
+      if (e1) throw e1;
+      if (!relations || relations.length === 0) return [];
+
+      const userIds = relations.map((r) => r.user_id);
+      const { data: profiles, error: e2 } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      if (e2) throw e2;
+
+      return relations.map((r) => ({
+        ...r,
+        profile: profiles?.find((p) => p.id === r.user_id) ?? null,
+      }));
     },
   });
 
@@ -189,10 +221,13 @@ const SettingsPage = () => {
             </Card>
 
             {/* Postmodtagere */}
+            {tuError && (
+              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+            )}
             {tenantUsers && tenantUsers.length > 0 && (
               <div className="space-y-3">
                 {tenantUsers.map((tu) => {
-                  const profile = tu.profiles as any;
+                  const profile = tu.profile;
                   return (
                     <Card key={tu.id}>
                       <CardContent className="flex items-center justify-between py-4 px-4">
@@ -221,7 +256,7 @@ const SettingsPage = () => {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => setDialogOpen(true)}
+              onClick={openDialog}
             >
               <Plus className="mr-2 h-4 w-4" />
               Opret ny postmodtager
@@ -242,7 +277,7 @@ const SettingsPage = () => {
           <DialogHeader>
             <DialogTitle>Opret ny postmodtager</DialogTitle>
             <DialogDescription>
-              Opret en ny bruger med adgang til denne konto.
+              Opret en ny bruger med adgang til dine virksomheder.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -275,6 +310,26 @@ const SettingsPage = () => {
                 placeholder="Min. 6 tegn"
               />
             </div>
+            {/* Multi-tenant selection */}
+            {tenants.length > 1 && (
+              <div className="space-y-2">
+                <Label>Tilknyt til virksomheder</Label>
+                <div className="space-y-2 rounded-md border p-3">
+                  {tenants.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`tenant-${t.id}`}
+                        checked={selectedTenantIds.includes(t.id)}
+                        onCheckedChange={() => toggleTenantSelection(t.id)}
+                      />
+                      <Label htmlFor={`tenant-${t.id}`} className="text-sm font-normal cursor-pointer">
+                        {t.company_name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
