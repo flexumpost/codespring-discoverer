@@ -759,15 +759,11 @@ const TenantDashboard = () => {
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    if (!item.chosen_action) return <span className="text-muted-foreground">—</span>;
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    if (item.chosen_action === defaultAction) return <span className="text-muted-foreground">—</span>;
-                    const price = getExtraHandlingPrice(tenantTypeName);
-                    return price
-                      ? <span className="text-sm font-medium">{price}</span>
-                      : <span className="text-muted-foreground text-xs">Gratis</span>;
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, item.notes);
+                    return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>
                 <TableCell>
