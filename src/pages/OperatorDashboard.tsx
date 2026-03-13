@@ -272,13 +272,7 @@ const OperatorDashboard = () => {
                   </TableCell>
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
-                    {item.chosen_action === "afhentning" && (() => {
-                      const pickupText = parsePickupFromNotes(item.notes);
-                      return pickupText ? (
-                        <p className="text-[11px] text-muted-foreground mt-1">{pickupText}</p>
-                      ) : null;
-                    })()}
+                    <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>
                   <TableCell>{item.sender_name ?? "—"}</TableCell>
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
