@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
@@ -11,9 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { Plus } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -28,39 +36,42 @@ const SettingsPage = () => {
   const { role } = useAuth();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
-  const [contactName, setContactName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
 
-  useEffect(() => {
-    if (selectedTenant) {
-      setContactName(selectedTenant.contact_name ?? "");
-      setContactEmail(selectedTenant.contact_email ?? "");
-    }
-  }, [selectedTenant]);
+  // Dialog state for "Opret ny postmodtager"
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
 
-  const updateMutation = useMutation({
+  const createRecipientMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("tenants")
-        .update({ contact_name: contactName, contact_email: contactEmail })
-        .eq("id", selectedTenant!.id);
+      const { data, error } = await supabase.functions.invoke("create-tenant-user", {
+        body: {
+          tenant_id: selectedTenantId,
+          email: newEmail.trim(),
+          password: newPassword,
+          full_name: newName.trim(),
+        },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
-      toast.success("Indstillinger gemt");
+      toast.success("Postmodtager oprettet");
+      setDialogOpen(false);
+      setNewName("");
+      setNewEmail("");
+      setNewPassword("");
     },
-    onError: () => {
-      toast.error("Kunne ikke gemme indstillinger");
+    onError: (err: Error) => {
+      toast.error(err.message || "Kunne ikke oprette postmodtager");
     },
   });
 
-  const typeName = (selectedTenant?.tenant_types as any)?.name as string | undefined;
+  const canSubmitRecipient = newEmail.trim().length > 0 && newPassword.length >= 6;
 
-  const hasChanges =
-    selectedTenant &&
-    (contactName !== (selectedTenant.contact_name ?? "") ||
-      contactEmail !== (selectedTenant.contact_email ?? ""));
+  const typeName = (selectedTenant?.tenant_types as any)?.name as string | undefined;
 
   // Operator view
   if (role === "operator") {
@@ -94,7 +105,7 @@ const SettingsPage = () => {
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Column 1: Company + Contact */}
+          {/* Column 1: Company + Contact (read-only) */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -133,33 +144,24 @@ const SettingsPage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="contact_name">Kontaktperson</Label>
-                  <Input
-                    id="contact_name"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Fulde navn"
-                  />
+                  <Label className="text-muted-foreground text-xs">Kontaktperson</Label>
+                  <p className="font-medium">{selectedTenant.contact_name || "—"}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contact_email">Kontakt-email</Label>
-                  <Input
-                    id="contact_email"
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="email@eksempel.dk"
-                  />
+                  <Label className="text-muted-foreground text-xs">Kontakt-email</Label>
+                  <p className="font-medium">{selectedTenant.contact_email || "—"}</p>
                 </div>
-                <Button
-                  onClick={() => updateMutation.mutate()}
-                  disabled={!hasChanges || updateMutation.isPending}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {updateMutation.isPending ? "Gemmer..." : "Gem"}
-                </Button>
               </CardContent>
             </Card>
+
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Opret ny postmodtager
+            </Button>
           </div>
 
           {/* Column 2: Mail pricing */}
@@ -169,6 +171,57 @@ const SettingsPage = () => {
           <PackagePricingCard tenantTypeName={typeName} tenant={selectedTenant as any} />
         </div>
       )}
+
+      {/* Dialog: Opret ny postmodtager */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Opret ny postmodtager</DialogTitle>
+            <DialogDescription>
+              Opret en ny bruger med adgang til denne konto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="rec_name">Navn</Label>
+              <Input
+                id="rec_name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Fulde navn"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rec_email">Email</Label>
+              <Input
+                id="rec_email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="email@eksempel.dk"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rec_password">Adgangskode</Label>
+              <Input
+                id="rec_password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Min. 6 tegn"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => createRecipientMutation.mutate()}
+              disabled={!canSubmitRecipient || createRecipientMutation.isPending}
+            >
+              {createRecipientMutation.isPending ? "Opretter..." : "Opret"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

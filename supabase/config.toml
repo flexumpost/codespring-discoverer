@@ -1,1 +1,10 @@
 project_id = "hokiuavxyoymcenqlvly"
+
+[functions.create-operator]
+verify_jwt = false
+
+[functions.create-tenant-user]
+verify_jwt = false
+
+[functions.ocr-stamp]
+verify_jwt = false

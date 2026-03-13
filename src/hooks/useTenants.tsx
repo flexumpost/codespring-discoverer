@@ -11,12 +11,36 @@ export function useTenants() {
     queryKey: ["my-tenants", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch directly owned tenants
+      const { data: direct, error: e1 } = await supabase
         .from("tenants")
         .select("*, tenant_types(name, allowed_actions)")
         .eq("user_id", user!.id);
-      if (error) throw error;
-      return [...(data || [])].sort((a, b) =>
+      if (e1) throw e1;
+
+      // Fetch tenants linked via tenant_users
+      const { data: linked, error: e2 } = await supabase
+        .from("tenant_users")
+        .select("tenant_id")
+        .eq("user_id", user!.id);
+      if (e2) throw e2;
+
+      const linkedIds = (linked || [])
+        .map((r: any) => r.tenant_id as string)
+        .filter((id) => !(direct || []).some((t: any) => t.id === id));
+
+      let linkedTenants: any[] = [];
+      if (linkedIds.length > 0) {
+        const { data: lt, error: e3 } = await supabase
+          .from("tenants")
+          .select("*, tenant_types(name, allowed_actions)")
+          .in("id", linkedIds);
+        if (e3) throw e3;
+        linkedTenants = lt || [];
+      }
+
+      const all = [...(direct || []), ...linkedTenants];
+      return all.sort((a, b) =>
         a.company_name.localeCompare(b.company_name, "da")
       );
     },
