@@ -1,22 +1,63 @@
 
 
-## Plan: Alfabetisk sortering, konsistent placering og lejertype-badge
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. `src/hooks/useTenants.tsx` — Alfabetisk sortering**
-- Sorter `tenants`-arrayet efter `company_name` (case-insensitive) inden det returneres, så rækkefølgen er konsistent overalt.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**2. `src/components/TenantSelector.tsx` — Lejertype-badge**
-- Udvid `Tenant`-interfacet til at inkludere `tenant_types` med `name`.
-- Vis lejertype som et lille badge under virksomhedsnavnet (eller ved siden af "Aktiv") med de eksisterende farvekoder fra `TYPE_COLORS` (Lite=blå, Standard=grøn, Plus=cyan, Fastlejer=ravgul osv.).
+### Kodedetaljer
 
-**3. Konsistent placering (venstrejusteret) på alle sider**
-- **SettingsPage** og **ShippingAddressPage**: Flyt `TenantSelector` fra højre side (`justify-between`) til venstre, under overskriften — samme layout som TenantDashboard.
-- TenantDashboard har allerede korrekt placering (venstre, over indhold).
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Resultat
-- Kort sorteret A-Å på alle sider
-- Lejertype vises som farvekodet badge i hvert kort
-- Konsistent venstrejusteret placering på dashboard, indstillinger og forsendelsesadresse
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

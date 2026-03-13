@@ -112,8 +112,8 @@ const ShippingAddressPage = () => {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Forsendelsesadresse</h2>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-4">Forsendelsesadresse</h2>
         <TenantSelector
           tenants={tenants}
           selectedTenantId={selectedTenantId}

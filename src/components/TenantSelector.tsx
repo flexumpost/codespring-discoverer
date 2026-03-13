@@ -2,10 +2,21 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Mail, ScanLine } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const TYPE_COLORS: Record<string, string> = {
+  Lite: "bg-blue-100 text-blue-800 border-blue-200",
+  Standard: "bg-green-100 text-green-800 border-green-200",
+  Plus: "bg-[#00aaeb]/20 text-[#006d9e] border-[#00aaeb]/40",
+  Fastlejer: "bg-amber-100 text-amber-800 border-amber-200",
+  Nabo: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
+};
 
 interface Tenant {
   id: string;
   company_name: string;
+  tenant_types?: { name: string } | null;
 }
 
 interface TenantSelectorProps {
@@ -51,6 +62,7 @@ export function TenantSelector({ tenants, selectedTenantId, onSelect }: TenantSe
         const isActive = t.id === selectedTenantId;
         const c = counts[t.id] ?? { ny: 0, ulaest: 0 };
         const totalBadge = c.ny + c.ulaest;
+        const typeName = (t.tenant_types as any)?.name as string | undefined;
 
         return (
           <button
@@ -71,9 +83,19 @@ export function TenantSelector({ tenants, selectedTenantId, onSelect }: TenantSe
               )}>
                 {t.company_name}
               </span>
-              {isActive && (
-                <span className="text-[11px] text-muted-foreground">Aktiv</span>
-              )}
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {isActive && (
+                  <span className="text-[11px] text-muted-foreground">Aktiv</span>
+                )}
+                {typeName && (
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] px-1.5 py-0 leading-4", TYPE_COLORS[typeName] ?? "")}
+                  >
+                    {typeName}
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Notification badges */}
