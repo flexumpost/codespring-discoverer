@@ -113,12 +113,12 @@ const ShippingAddressPage = () => {
   return (
     <AppLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Forsendelsesadresse</h2>
         <TenantSelector
           tenants={tenants}
           selectedTenantId={selectedTenantId}
           onSelect={setSelectedTenantId}
         />
+        <h2 className="text-2xl font-bold mt-4">Forsendelsesadresse</h2>
       </div>
 
       {isLoading ? (
