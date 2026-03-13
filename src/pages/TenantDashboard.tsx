@@ -62,10 +62,15 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       default:           return ["scan", "afhentning", "send"];
     }
   }
-  switch (tenantTypeName) {
-    case "Lite":     return ["scan", "afhentning", "send"].filter(a => a !== currentAction);
-    default:         return [];
+  if (tenantTypeName === "Lite") {
+    switch (currentAction) {
+      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
+      case "scan":       return ["send", "afhentning"];
+      case "send":       return ["scan", "afhentning"];
+      default:           return ["scan", "send", "afhentning"];
+    }
   }
+  return [];
 }
 
 /** Returns the extra handling price label for a tier */
