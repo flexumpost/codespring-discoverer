@@ -94,7 +94,7 @@ const SettingsPage = () => {
   // Fetch linked tenant users (postmodtagere) — two-step to avoid PGRST200
   const { data: tenantUsers, error: tuError } = useQuery({
     queryKey: ["tenant-users", selectedTenantId],
-    enabled: !!selectedTenantId && role === "tenant",
+    enabled: !!selectedTenantId && role !== "operator",
     queryFn: async () => {
       const { data: relations, error: e1 } = await supabase
         .from("tenant_users")
