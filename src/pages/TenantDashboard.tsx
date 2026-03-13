@@ -563,6 +563,7 @@ const TenantDashboard = () => {
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Vælg handling</TableHead>
+              <TableHead>Annuller handling</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
