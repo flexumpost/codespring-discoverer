@@ -1,63 +1,65 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Skrivebeskyttede kontaktoplysninger + "Opret ny postmodtager"
 
-### Forretningslogik (opsummering)
+### Overblik
+Kontaktoplysninger på brugersiden bliver read-only. En ny knap "Opret ny postmodtager" gør det muligt at oprette yderligere brugere med adgang til den specifikke konto via en ny `tenant_users`-tabel.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### 1. Database: Ny `tenant_users`-tabel
+```sql
+CREATE TABLE public.tenant_users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (tenant_id, user_id)
+);
+ALTER TABLE public.tenant_users ENABLE ROW LEVEL SECURITY;
+```
+RLS: Lejere kan se deres egne rækker, operatører kan se alt.
 
-### Ændringer
+### 2. Database: Opdater `my_tenant_ids()` funktion
+Udvid funktionen til også at returnere tenant IDs fra `tenant_users`:
+```sql
+CREATE OR REPLACE FUNCTION public.my_tenant_ids()
+RETURNS SETOF UUID ...
+AS $$
+  SELECT id FROM public.tenants WHERE user_id = auth.uid()
+  UNION
+  SELECT tenant_id FROM public.tenant_users WHERE user_id = auth.uid()
+$$;
+```
+Dette sikrer at alle eksisterende RLS-policies (mail_items, storage osv.) automatisk virker for nye postmodtagere.
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+### 3. Edge function: `create-tenant-user`
+Ny edge function der:
+- Verificerer at kalderen er ejer af den pågældende tenant (via `my_tenant_ids()`)
+- Opretter ny auth-bruger med admin API (email + autogenereret password)
+- Tildeler `tenant` rolle i `user_roles`
+- Indsætter i `tenant_users` med det relevante `tenant_id`
+- Returnerer success (velkomst-email implementeres senere)
 
-### Kodedetaljer
+### 4. `src/pages/SettingsPage.tsx`
+- Gør kontaktfelterne (kontaktperson og kontakt-email) **read-only** med `disabled` eller ren tekst-visning
+- Fjern "Gem"-knappen og `updateMutation`
+- Tilføj "Opret ny postmodtager"-knap under Kontaktoplysninger-kortet
+- Knappen åbner en Dialog med felter: Navn, Email, Adgangskode
+- Ved oprettelse kalder edge function `create-tenant-user`
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
+### 5. `src/hooks/useTenants.tsx`
+Udvid query til også at hente tenants via `tenant_users`:
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+// Hent tenants hvor user_id matcher ELLER via tenant_users
+const { data: directTenants } = await supabase
+  .from("tenants").select("*, tenant_types(...)").eq("user_id", user.id);
+const { data: linkedTenants } = await supabase
+  .from("tenant_users").select("tenant_id, tenants(*, tenant_types(...))")
+  .eq("user_id", user.id);
+// Merge og dedupliker
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Resultat
+- Kontaktoplysninger er skrivebeskyttede for lejere
+- Lejere kan oprette nye postmodtagere med adgang til deres konto
+- Alle eksisterende RLS-policies virker automatisk via opdateret `my_tenant_ids()`
 
