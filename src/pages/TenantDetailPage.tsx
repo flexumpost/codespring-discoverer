@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Trash2, User } from "lucide-react";
+import { ArrowLeft, Save, User } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   Select,
@@ -47,16 +47,29 @@ const TenantDetailPage = () => {
     },
   });
 
-  const { data: tenantUsers = [] } = useQuery({
+  // Two-step fetch to avoid PGRST200 (no FK between tenant_users and profiles)
+  const { data: tenantUsers = [], error: tuError } = useQuery({
     queryKey: ["tenant-users", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: relations, error: e1 } = await supabase
         .from("tenant_users")
-        .select("id, user_id, profiles(full_name, email)")
+        .select("id, user_id")
         .eq("tenant_id", id!);
-      if (error) throw error;
-      return data ?? [];
+      if (e1) throw e1;
+      if (!relations || relations.length === 0) return [];
+
+      const userIds = relations.map((r) => r.user_id);
+      const { data: profiles, error: e2 } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      if (e2) throw e2;
+
+      return relations.map((r) => ({
+        ...r,
+        profile: profiles?.find((p) => p.id === r.user_id) ?? null,
+      }));
     },
   });
 
@@ -191,7 +204,7 @@ const TenantDetailPage = () => {
         <p className="text-muted-foreground">Lejer ikke fundet.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Column 1: Company + Contact + Shipping */}
+          {/* Column 1: Company + Contact + Shipping + Postmodtagere */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -275,19 +288,32 @@ const TenantDetailPage = () => {
                   <div className="space-y-2">
                     <Label>By</Label>
                     <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" />
-          </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Land</Label>
+                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" />
+                </div>
+                <Button onClick={() => shippingMutation.mutate()} disabled={!shippingChanged || shippingMutation.isPending}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {shippingMutation.isPending ? "Gemmer..." : "Gem adresse"}
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* Postmodtagere card between column 1 and pricing */}
-          {tenantUsers.length > 0 && (
-            <div className="lg:col-span-3">
+            {/* Postmodtagere */}
+            {tuError && (
+              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+            )}
+            {tenantUsers.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Postmodtagere</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-3">
                     {tenantUsers.map((tu: any) => {
-                      const profile = tu.profiles as any;
+                      const profile = tu.profile;
                       return (
                         <div key={tu.id} className="flex items-center gap-3 rounded-lg border p-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -303,19 +329,7 @@ const TenantDetailPage = () => {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Land</Label>
-                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" />
-                </div>
-                <Button onClick={() => shippingMutation.mutate()} disabled={!shippingChanged || shippingMutation.isPending}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {shippingMutation.isPending ? "Gemmer..." : "Gem adresse"}
-                </Button>
-              </CardContent>
-            </Card>
+            )}
           </div>
 
           {/* Column 2: Mail pricing */}
