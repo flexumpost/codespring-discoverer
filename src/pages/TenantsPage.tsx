@@ -1,9 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -14,8 +22,15 @@ const TYPE_COLORS: Record<string, string> = {
   "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
 };
 
+const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
+
 const TenantsPage = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [tenantTypeId, setTenantTypeId] = useState("");
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
@@ -26,6 +41,17 @@ const TenantsPage = () => {
         .order("company_name");
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: tenantTypes = [] } = useQuery({
+    queryKey: ["tenant-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tenant_types").select("id, name");
+      if (error) throw error;
+      return (data ?? []).sort(
+        (a, b) => TYPE_ORDER.indexOf(a.name) - TYPE_ORDER.indexOf(b.name)
+      );
     },
   });
 
@@ -48,9 +74,39 @@ const TenantsPage = () => {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("tenants").insert({
+        company_name: companyName.trim(),
+        contact_email: contactEmail.trim() || null,
+        tenant_type_id: tenantTypeId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
+      toast.success("Lejer oprettet");
+      setDialogOpen(false);
+      setCompanyName("");
+      setContactEmail("");
+      setTenantTypeId("");
+    },
+    onError: (err: Error) => {
+      toast.error("Kunne ikke oprette lejer: " + err.message);
+    },
+  });
+
+  const canSubmit = companyName.trim() && tenantTypeId;
+
   return (
     <AppLayout>
-      <h2 className="text-2xl font-bold mb-6">Lejere</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">Lejere</h2>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-1" />
+          Opret ny lejer
+        </Button>
+      </div>
 
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
@@ -103,6 +159,61 @@ const TenantsPage = () => {
           </Table>
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Opret ny lejer</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="company_name">Virksomhedsnavn *</Label>
+              <Input
+                id="company_name"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="Indtast virksomhedsnavn"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_email">Kontakt email</Label>
+              <Input
+                id="contact_email"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                placeholder="email@eksempel.dk"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Lejertype *</Label>
+              <Select value={tenantTypeId} onValueChange={setTenantTypeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Vælg lejertype" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenantTypes.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Annuller
+            </Button>
+            <Button
+              onClick={() => createMutation.mutate()}
+              disabled={!canSubmit || createMutation.isPending}
+            >
+              {createMutation.isPending ? "Opretter..." : "Opret lejer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
