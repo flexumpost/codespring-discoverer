@@ -54,6 +54,11 @@ type MailItemWithTenant = {
   tenant_type_name: string;
   default_mail_action: string | null;
   default_package_action: string | null;
+  shipping_recipient: string | null;
+  shipping_co: string | null;
+  shipping_address: string | null;
+  shipping_zip: string | null;
+  shipping_city: string | null;
 };
 
 export default function ShippingPrepPage() {
@@ -69,7 +74,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -86,6 +91,11 @@ export default function ShippingPrepPage() {
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
         default_mail_action: item.tenants?.default_mail_action ?? null,
         default_package_action: item.tenants?.default_package_action ?? null,
+        shipping_recipient: item.tenants?.shipping_recipient ?? null,
+        shipping_co: item.tenants?.shipping_co ?? null,
+        shipping_address: item.tenants?.shipping_address ?? null,
+        shipping_zip: item.tenants?.shipping_zip ?? null,
+        shipping_city: item.tenants?.shipping_city ?? null,
       })) as MailItemWithTenant[];
     },
   });
@@ -118,11 +128,11 @@ export default function ShippingPrepPage() {
     });
   };
 
-  const toggleDoneGroup = (tenantId: string) => {
+  const toggleDoneGroup = (groupKey: string) => {
     setDoneGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(tenantId)) next.delete(tenantId);
-      else next.add(tenantId);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
       return next;
     });
   };
@@ -159,19 +169,31 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { companyName: string; tenantId: string; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companyNames: string[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
-      const key = item.tenant_id;
-      if (!map.has(key)) {
-        map.set(key, { companyName: item.company_name, tenantId: key, items: [] });
+      const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
+      if (!map.has(addrKey)) {
+        map.set(addrKey, {
+          addressKey: addrKey,
+          companyNames: [],
+          shippingRecipient: item.shipping_recipient,
+          shippingCo: item.shipping_co,
+          shippingAddress: item.shipping_address,
+          shippingZip: item.shipping_zip,
+          shippingCity: item.shipping_city,
+          items: [],
+        });
       }
-      map.get(key)!.items.push(item);
+      const group = map.get(addrKey)!;
+      if (!group.companyNames.includes(item.company_name)) {
+        group.companyNames.push(item.company_name);
+      }
+      group.items.push(item);
     }
-    const groups = Array.from(map.values()).sort((a, b) => a.companyName.localeCompare(b.companyName));
-    // Sort: active groups first, done groups last
+    const groups = Array.from(map.values()).sort((a, b) => a.companyNames[0].localeCompare(b.companyNames[0]));
     return groups.sort((a, b) => {
-      const aDone = doneGroups.has(a.tenantId) ? 1 : 0;
-      const bDone = doneGroups.has(b.tenantId) ? 1 : 0;
+      const aDone = doneGroups.has(a.addressKey) ? 1 : 0;
+      const bDone = doneGroups.has(b.addressKey) ? 1 : 0;
       return aDone - bDone;
     });
   }, [filteredItems, doneGroups]);
@@ -242,22 +264,32 @@ export default function ShippingPrepPage() {
               </Card>
             ) : (
               grouped.map((group) => {
-                const isDone = doneGroups.has(group.tenantId);
+                const isDone = doneGroups.has(group.addressKey);
                 return (
                   <Card
-                    key={group.tenantId}
+                    key={group.addressKey}
                     className={cn(isDone && "opacity-50 bg-muted")}
                   >
-                    <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">{group.companyName}</CardTitle>
-                      <Button
-                        variant={isDone ? "secondary" : "outline"}
-                        size="sm"
-                        onClick={() => toggleDoneGroup(group.tenantId)}
-                      >
-                        <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
-                        Færdig
-                      </Button>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">{group.companyNames.join(", ")}</CardTitle>
+                        <Button
+                          variant={isDone ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => toggleDoneGroup(group.addressKey)}
+                        >
+                          <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
+                          Færdig
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
+                        {group.shippingRecipient && <p>{group.shippingRecipient}</p>}
+                        {group.shippingCo && <p>c/o {group.shippingCo}</p>}
+                        {group.shippingAddress && <p>{group.shippingAddress}</p>}
+                        {(group.shippingZip || group.shippingCity) && (
+                          <p>{[group.shippingZip, group.shippingCity].filter(Boolean).join(" ")}</p>
+                        )}
+                      </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {group.items
@@ -272,7 +304,7 @@ export default function ShippingPrepPage() {
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <span className="text-sm font-medium">
-                              Nr. {item.stamp_number ?? "—"}
+                              Nr. {item.stamp_number ?? "—"} — {item.company_name}
                             </span>
                           </label>
                         ))}
