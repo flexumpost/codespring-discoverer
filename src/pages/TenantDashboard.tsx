@@ -564,6 +564,7 @@ const TenantDashboard = () => {
               <TableHead>Status</TableHead>
               <TableHead>Vælg handling</TableHead>
               <TableHead>Annuller handling</TableHead>
+              <TableHead>Gebyr</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
             </TableRow>
