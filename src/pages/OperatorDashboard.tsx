@@ -357,7 +357,7 @@ const OperatorDashboard = () => {
                 <TableHead>Lejer</TableHead>
                 <TableHead>Forsendelsesnr.</TableHead>
                 <TableHead>Status</TableHead>
-                
+                <TableHead>Gebyr</TableHead>
                 <TableHead>Modtaget</TableHead>
                 <TableHead>Scan</TableHead>
               </TableRow>
