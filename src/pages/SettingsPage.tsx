@@ -78,12 +78,12 @@ const SettingsPage = () => {
   return (
     <AppLayout>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-4">Indstillinger</h2>
         <TenantSelector
           tenants={tenants}
           selectedTenantId={selectedTenantId}
           onSelect={setSelectedTenantId}
         />
+        <h2 className="text-2xl font-bold mt-4">Indstillinger</h2>
       </div>
 
       {isLoading ? (
