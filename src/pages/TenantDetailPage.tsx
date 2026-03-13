@@ -47,6 +47,19 @@ const TenantDetailPage = () => {
     },
   });
 
+  const { data: tenantUsers = [] } = useQuery({
+    queryKey: ["tenant-users", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenant_users")
+        .select("id, user_id, profiles(full_name, email)")
+        .eq("tenant_id", id!);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
 
   const { data: tenantTypes = [] } = useQuery({
