@@ -140,7 +140,7 @@ function getItemFee(
   if (chosenAction === "afhentning") {
     const pickupDate = parsePickupDateFromNotes(notes);
     if (pickupDate && isFreeTorsdag(pickupDate, tenantTypeName)) return "0 kr.";
-    return tenantTypeName === "Standard" ? "50 kr." : extraPrice;
+    return tenantTypeName === "Standard" ? "30 kr." : extraPrice;
   }
   return "—";
 }
