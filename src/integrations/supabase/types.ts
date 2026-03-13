@@ -330,6 +330,7 @@ export type Database = {
       }
       is_operator: { Args: never; Returns: boolean }
       my_tenant_ids: { Args: never; Returns: string[] }
+      owned_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
     }
     Enums: {
       app_role: "operator" | "tenant"
