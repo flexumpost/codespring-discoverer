@@ -23,6 +23,22 @@ const DANISH_MONTHS = [
   "juli", "august", "september", "oktober", "november", "december",
 ];
 
+function formatDanishDate(date: Date): string {
+  const day = DANISH_DAYS[date.getDay()];
+  const d = date.getDate();
+  const month = DANISH_MONTHS[date.getMonth()];
+  return `${day} den ${d}. ${month}`;
+}
+
+function getNextThursday(): Date {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+  const d = new Date(now);
+  d.setDate(d.getDate() + daysUntil);
+  return d;
+}
+
 function parsePickupFromNotes(notes: string | null): string | null {
   if (!notes || !notes.startsWith("PICKUP:")) return null;
   const isoStr = notes.replace("PICKUP:", "");
@@ -33,6 +49,27 @@ function parsePickupFromNotes(notes: string | null): string | null {
   const month = DANISH_MONTHS[date.getMonth()];
   const hour = date.getHours();
   return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
+}
+
+function getOperatorStatusDisplay(item: MailItem): string {
+  const action = item.chosen_action;
+  if (action === "send" || action === "under_forsendelse") {
+    const nextThursday = getNextThursday();
+    return `Skal sendes ${formatDanishDate(nextThursday)}`;
+  }
+  if (action === "afhentning") {
+    const pickupText = parsePickupFromNotes(item.notes);
+    return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
+  }
+  if (action === "scan") {
+    if (item.scan_url) return "Scannet";
+    const now = new Date();
+    const dayName = DANISH_DAYS[now.getDay()];
+    const h = now.getHours().toString().padStart(2, "0");
+    const m = now.getMinutes().toString().padStart(2, "0");
+    return `Scanning bestilt ${dayName} ${h}:${m}`;
+  }
+  return STATUS_LABELS[item.status] ?? item.status;
 }
 
 const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> = {
@@ -235,13 +272,7 @@ const OperatorDashboard = () => {
                   </TableCell>
                   <TableCell>{item.stamp_number ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{STATUS_LABELS[item.status]}</Badge>
-                    {item.chosen_action === "afhentning" && (() => {
-                      const pickupText = parsePickupFromNotes(item.notes);
-                      return pickupText ? (
-                        <p className="text-[11px] text-muted-foreground mt-1">{pickupText}</p>
-                      ) : null;
-                    })()}
+                    <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>
                   <TableCell>{item.sender_name ?? "—"}</TableCell>
                   <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
