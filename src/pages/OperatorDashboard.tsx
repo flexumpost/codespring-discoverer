@@ -94,9 +94,20 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const defaultAction = item.mail_type === "pakke"
       ? item.tenants?.default_package_action
       : item.tenants?.default_mail_action;
-    if (defaultAction && ACTION_LABELS[defaultAction]) {
+    if (defaultAction === "send" || defaultAction === "under_forsendelse") {
+      const nextThursday = getNextThursday();
+      return `Skal sendes ${formatDanishDate(nextThursday)}`;
+    }
+    if (defaultAction === "scan") {
+      if (item.scan_url) return "Scannet";
       const received = new Date(item.received_at);
-      return `${ACTION_LABELS[defaultAction]} - modtaget ${formatDanishDateTime(received)}`;
+      return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
+    }
+    if (defaultAction === "afhentning") return "Afhentning (standard)";
+    if (defaultAction === "destruer") return "Destrueres (standard)";
+    if (defaultAction === "daglig") return "Lig på kontoret (standard)";
+    if (defaultAction && ACTION_LABELS[defaultAction]) {
+      return `${ACTION_LABELS[defaultAction]} (standard)`;
     }
   }
   return STATUS_LABELS[item.status] ?? item.status;
