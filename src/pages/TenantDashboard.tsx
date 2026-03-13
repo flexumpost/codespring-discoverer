@@ -724,10 +724,9 @@ const TenantDashboard = () => {
                             <SelectValue placeholder="Ekstra handling" />
                           </SelectTrigger>
                           <SelectContent className="z-50 bg-popover">
-                            {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {getActionLabel(action, tenantTypeName)}
-                                {action !== defaultAction && price ? ` (${price})` : ""}
+                                {(() => { const p = getActionPrice(action, tenantTypeName); return p ? ` (${p})` : ""; })()}
                               </SelectItem>
                             ))}
                           </SelectContent>
