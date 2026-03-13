@@ -149,16 +149,38 @@ const OperatorDashboard = () => {
   useEffect(() => {
     refreshMail();
 
-    const channel = supabase
-      .channel('operator-mail-updates')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'mail_items' },
-        () => { refreshMail(); }
-      )
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
 
-    return () => { supabase.removeChannel(channel); };
+    const createChannel = () => {
+      if (cancelled) return;
+      channel = supabase
+        .channel('operator-mail-updates-' + Date.now())
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'mail_items' },
+          () => { refreshMail(); }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime channel error, reconnecting...', status);
+            if (channel) supabase.removeChannel(channel);
+            reconnectTimeout = setTimeout(() => {
+              createChannel();
+              refreshMail();
+            }, 3000);
+          }
+        });
+    };
+
+    createChannel();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const counts = CARD_FILTERS.map((cf) => ({
