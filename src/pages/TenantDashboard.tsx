@@ -66,7 +66,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
     switch (currentAction) {
       case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
       case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "afhentning"];
+      case "send":       return ["scan", "send", "afhentning"];
       default:           return ["scan", "send", "afhentning"];
     }
   }
