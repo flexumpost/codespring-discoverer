@@ -56,6 +56,59 @@ const SettingsPage = () => {
     setDialogOpen(true);
   };
 
+  const openEditDialog = async (userId: string, name: string, email: string) => {
+    setEditingUser({ user_id: userId, name, email });
+    // Fetch all tenant_users for this user across owner's tenants
+    const ownerTenantIds = tenants.map((t) => t.id);
+    const { data } = await supabase
+      .from("tenant_users")
+      .select("tenant_id")
+      .eq("user_id", userId)
+      .in("tenant_id", ownerTenantIds);
+    const currentIds = (data ?? []).map((r) => r.tenant_id);
+    setEditTenantIds(currentIds);
+    setEditExistingTenantIds(currentIds);
+    setEditDialogOpen(true);
+  };
+
+  const toggleEditTenant = (tenantId: string) => {
+    setEditTenantIds((prev) =>
+      prev.includes(tenantId) ? prev.filter((id) => id !== tenantId) : [...prev, tenantId]
+    );
+  };
+
+  const saveEditMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingUser) return;
+      const toAdd = editTenantIds.filter((id) => !editExistingTenantIds.includes(id));
+      const toRemove = editExistingTenantIds.filter((id) => !editTenantIds.includes(id));
+
+      if (toAdd.length > 0) {
+        const { error } = await supabase
+          .from("tenant_users")
+          .insert(toAdd.map((tid) => ({ tenant_id: tid, user_id: editingUser.user_id })));
+        if (error) throw error;
+      }
+      if (toRemove.length > 0) {
+        const { error } = await supabase
+          .from("tenant_users")
+          .delete()
+          .eq("user_id", editingUser.user_id)
+          .in("tenant_id", toRemove);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Virksomhedstilknytning opdateret");
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Kunne ikke opdatere tilknytning");
+    },
+  });
+
   const toggleTenantSelection = (tenantId: string) => {
     setSelectedTenantIds((prev) =>
       prev.includes(tenantId)
