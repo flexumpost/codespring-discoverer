@@ -1,63 +1,31 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Opdater status-visning i Operatør-dashboard
 
-### Forretningslogik (opsummering)
+### Ændring i `src/pages/OperatorDashboard.tsx`
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+**Nuværende adfærd:** Status-kolonnen viser blot `STATUS_LABELS[item.status]` (f.eks. "Ny", "Afventer handling") plus pickup-info fra notes.
 
-### Ændringer
+**Ny adfærd:** Når et brev har en `chosen_action`, vises en handlings-specifik status:
 
-| Fil | Ændring |
+| `chosen_action` | Status-tekst |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+| `send` / `under_forsendelse` | "Skal sendes [dato]" — beregnet som næste torsdag via `getNextThursday()` |
+| `afhentning` | "Afhentning bestilt [dato]" — parsed fra `notes` (PICKUP:iso) |
+| `scan` | "Scanning bestilt [dag og tid HH:MM]" — parsed fra `notes` eller fallback til "Afventer scanning" |
 
-### Kodedetaljer
+Hvis ingen `chosen_action` er sat, vises den eksisterende `STATUS_LABELS[item.status]`.
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+### Tekniske detaljer
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
+1. **Tilføj `getNextThursday()` hjælpefunktion** — kopieret fra TenantDashboard (returnerer næste torsdag, springer over hvis i dag er torsdag).
 
-**2. Lås handlinger fra dagen før forsendelse**
+2. **Tilføj `getOperatorStatusDisplay()` funktion** der returnerer status-tekst baseret på `chosen_action` og `notes`.
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+3. **Opdater Status-cellen** (linje 237-244) til at bruge den nye funktion i stedet for `STATUS_LABELS[item.status]`.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+4. **Formatering:** Datoer formateres på dansk med `formatDanishDate()` (allerede tilgængelig via DANISH_DAYS/MONTHS). Scan-tidspunkt vises som "dag HH:MM".
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Fil der ændres
+- `src/pages/OperatorDashboard.tsx`
 
