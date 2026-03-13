@@ -128,11 +128,11 @@ export default function ShippingPrepPage() {
     });
   };
 
-  const toggleDoneGroup = (tenantId: string) => {
+  const toggleDoneGroup = (groupKey: string) => {
     setDoneGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(tenantId)) next.delete(tenantId);
-      else next.add(tenantId);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
       return next;
     });
   };
