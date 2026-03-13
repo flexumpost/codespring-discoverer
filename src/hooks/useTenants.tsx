@@ -1,24 +1,43 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, createContext, useContext, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+interface TenantContextType {
+  selectedTenantId: string | null;
+  setSelectedTenantId: (id: string | null) => void;
+}
+
+const TenantContext = createContext<TenantContextType | undefined>(undefined);
+
+export function TenantProvider({ children }: { children: ReactNode }) {
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  return (
+    <TenantContext.Provider value={{ selectedTenantId, setSelectedTenantId }}>
+      {children}
+    </TenantContext.Provider>
+  );
+}
+
 export function useTenants() {
   const { user } = useAuth();
-  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const ctx = useContext(TenantContext);
+
+  // Fallback local state when used outside provider (e.g. operator pages)
+  const [localId, setLocalId] = useState<string | null>(null);
+  const selectedTenantId = ctx ? ctx.selectedTenantId : localId;
+  const setSelectedTenantId = ctx ? ctx.setSelectedTenantId : setLocalId;
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["my-tenants", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      // Fetch directly owned tenants
       const { data: direct, error: e1 } = await supabase
         .from("tenants")
         .select("*, tenant_types(name, allowed_actions)")
         .eq("user_id", user!.id);
       if (e1) throw e1;
 
-      // Fetch tenants linked via tenant_users
       const { data: linked, error: e2 } = await supabase
         .from("tenant_users")
         .select("tenant_id")
@@ -46,7 +65,6 @@ export function useTenants() {
     },
   });
 
-  // Auto-select first tenant when data loads
   const effectiveId = selectedTenantId ?? tenants[0]?.id ?? null;
 
   const selectedTenant = useMemo(
