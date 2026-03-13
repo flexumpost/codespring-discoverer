@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
 import {
@@ -45,10 +45,69 @@ const SettingsPage = () => {
   const [newPassword, setNewPassword] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<{ user_id: string; name: string; email: string } | null>(null);
+  const [editTenantIds, setEditTenantIds] = useState<string[]>([]);
+  const [editExistingTenantIds, setEditExistingTenantIds] = useState<string[]>([]);
+
   const openDialog = () => {
     setSelectedTenantIds(selectedTenantId ? [selectedTenantId] : []);
     setDialogOpen(true);
   };
+
+  const openEditDialog = async (userId: string, name: string, email: string) => {
+    setEditingUser({ user_id: userId, name, email });
+    // Fetch all tenant_users for this user across owner's tenants
+    const ownerTenantIds = tenants.map((t) => t.id);
+    const { data } = await supabase
+      .from("tenant_users")
+      .select("tenant_id")
+      .eq("user_id", userId)
+      .in("tenant_id", ownerTenantIds);
+    const currentIds = (data ?? []).map((r) => r.tenant_id);
+    setEditTenantIds(currentIds);
+    setEditExistingTenantIds(currentIds);
+    setEditDialogOpen(true);
+  };
+
+  const toggleEditTenant = (tenantId: string) => {
+    setEditTenantIds((prev) =>
+      prev.includes(tenantId) ? prev.filter((id) => id !== tenantId) : [...prev, tenantId]
+    );
+  };
+
+  const saveEditMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingUser) return;
+      const toAdd = editTenantIds.filter((id) => !editExistingTenantIds.includes(id));
+      const toRemove = editExistingTenantIds.filter((id) => !editTenantIds.includes(id));
+
+      if (toAdd.length > 0) {
+        const { error } = await supabase
+          .from("tenant_users")
+          .insert(toAdd.map((tid) => ({ tenant_id: tid, user_id: editingUser.user_id })));
+        if (error) throw error;
+      }
+      if (toRemove.length > 0) {
+        const { error } = await supabase
+          .from("tenant_users")
+          .delete()
+          .eq("user_id", editingUser.user_id)
+          .in("tenant_id", toRemove);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Virksomhedstilknytning opdateret");
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || "Kunne ikke opdatere tilknytning");
+    },
+  });
 
   const toggleTenantSelection = (tenantId: string) => {
     setSelectedTenantIds((prev) =>
@@ -236,15 +295,32 @@ const SettingsPage = () => {
                           <p className="text-xs text-muted-foreground">{profile?.email || "—"}</p>
                         </div>
                         {isOwner && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => deleteTenantUserMutation.mutate(tu.id)}
-                            disabled={deleteTenantUserMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {tenants.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() =>
+                                  openEditDialog(
+                                    tu.user_id,
+                                    profile?.full_name || "—",
+                                    profile?.email || "—"
+                                  )
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => deleteTenantUserMutation.mutate(tu.id)}
+                              disabled={deleteTenantUserMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -337,6 +413,43 @@ const SettingsPage = () => {
               disabled={!canSubmitRecipient || createRecipientMutation.isPending}
             >
               {createRecipientMutation.isPending ? "Opretter..." : "Opret"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Rediger virksomhedstilknytning */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rediger virksomhedstilknytning</DialogTitle>
+            <DialogDescription>
+              Vælg hvilke virksomheder {editingUser?.name} skal have adgang til.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label>Virksomheder</Label>
+            <div className="space-y-2 rounded-md border p-3">
+              {tenants.map((t) => (
+                <div key={t.id} className="flex items-center gap-2">
+                  <Checkbox
+                    id={`edit-tenant-${t.id}`}
+                    checked={editTenantIds.includes(t.id)}
+                    onCheckedChange={() => toggleEditTenant(t.id)}
+                  />
+                  <Label htmlFor={`edit-tenant-${t.id}`} className="text-sm font-normal cursor-pointer">
+                    {t.company_name}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => saveEditMutation.mutate()}
+              disabled={editTenantIds.length === 0 || saveEditMutation.isPending}
+            >
+              {saveEditMutation.isPending ? "Gemmer..." : "Gem"}
             </Button>
           </DialogFooter>
         </DialogContent>

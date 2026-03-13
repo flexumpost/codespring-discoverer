@@ -1,35 +1,63 @@
 
 
-## Plan: Rediger postmodtagers virksomhedstilknytning
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Hvad ændres
-Tilføj en "Rediger"-knap på hver postmodtager-kort i `SettingsPage.tsx`. Når ejeren klikker, åbnes en dialog med checkboxes for alle virksomheder. Ejeren kan til- og fravælge virksomheder for den pågældende postmodtager.
+### Forretningslogik (opsummering)
 
-### Teknisk implementering
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**Fil: `src/pages/SettingsPage.tsx`**
+### Ændringer
 
-1. **Ny state**: `editingUser` (holder `user_id` og nuværende tilknytninger), `editDialogOpen`, `editTenantIds`.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-2. **Ny query**: Når editDialog åbnes, hent alle `tenant_users`-rækker for den pågældende `user_id` på tværs af ejerens tenants — så vi ved hvilke virksomheder brugeren allerede er tilknyttet.
+### Kodedetaljer
 
-3. **Ny dialog**: Viser brugerens navn/email (read-only) og checkboxes for alle ejerens virksomheder. Forhåndsvalgte = de virksomheder brugeren allerede er tilknyttet.
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-4. **Gem-mutation**: Sammenlign valgte vs. eksisterende:
-   - **Nye tilknytninger**: `INSERT INTO tenant_users` for tilføjede tenant_ids.
-   - **Fjernede tilknytninger**: `DELETE FROM tenant_users` for fjernede tenant_ids.
-   - Begge operationer kører direkte via Supabase SDK (ejeren har INSERT-rettigheder via eksisterende RLS-policy).
-
-5. **RLS**: Ejeren mangler en DELETE-policy på `tenant_users`. Tilføj via migration:
-```sql
-CREATE POLICY "Tenant owners delete tenant_users" ON public.tenant_users
-  FOR DELETE TO authenticated
-  USING (tenant_id IN (SELECT id FROM tenants WHERE user_id = auth.uid()));
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-6. **UI**: Tilføj en `Pencil`-ikon-knap ved siden af slet-knappen på hvert postmodtager-kort (kun synlig for ejere med flere virksomheder).
+**2. Lås handlinger fra dagen før forsendelse**
 
-### Filer der ændres
-1. `src/pages/SettingsPage.tsx` — tilføj rediger-dialog og mutation
-2. Database migration — tilføj DELETE-policy for tenant owners på `tenant_users`
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
