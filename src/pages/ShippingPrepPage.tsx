@@ -74,7 +74,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -91,6 +91,11 @@ export default function ShippingPrepPage() {
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
         default_mail_action: item.tenants?.default_mail_action ?? null,
         default_package_action: item.tenants?.default_package_action ?? null,
+        shipping_recipient: item.tenants?.shipping_recipient ?? null,
+        shipping_co: item.tenants?.shipping_co ?? null,
+        shipping_address: item.tenants?.shipping_address ?? null,
+        shipping_zip: item.tenants?.shipping_zip ?? null,
+        shipping_city: item.tenants?.shipping_city ?? null,
       })) as MailItemWithTenant[];
     },
   });
