@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 
-type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null } | null };
+type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; tenant_types?: { name: string } | null } | null };
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Åben og scan",
