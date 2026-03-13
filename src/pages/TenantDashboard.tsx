@@ -82,14 +82,78 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   return ACTION_LABELS[action] ?? action;
 }
 
-/** Returns the extra handling price label for a tier */
-function getExtraHandlingPrice(tenantTypeName: string | undefined): string | null {
-  switch (tenantTypeName) {
-    case "Lite": return "50 kr.";
-    case "Standard": return "30 kr.";
-    case "Plus": return null;
-    default: return null;
+/** Parse a pickup date from notes field (format: "PICKUP:iso") */
+function parsePickupDateFromNotes(notes: string | null): Date | null {
+  if (!notes || !notes.startsWith("PICKUP:")) return null;
+  const d = new Date(notes.replace("PICKUP:", ""));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Check if a pickup date falls on a "free Thursday" for the given tier */
+function isFreeTorsdag(date: Date, tenantTypeName: string | undefined): boolean {
+  if (date.getDay() !== 4) return false; // not a Thursday
+  if (tenantTypeName === "Standard") return true; // any Thursday is free
+  if (tenantTypeName === "Lite") {
+    // Only the first Thursday of the month is free
+    const first = new Date(date.getFullYear(), date.getMonth(), 1);
+    const dow = first.getDay();
+    const offset = (4 - dow + 7) % 7;
+    const firstThursday = new Date(date.getFullYear(), date.getMonth(), 1 + offset);
+    return date.getDate() === firstThursday.getDate();
   }
+  return false;
+}
+
+/** Returns the fee string for a specific mail item */
+function getItemFee(
+  tenantTypeName: string | undefined,
+  mailType: string,
+  chosenAction: string | null,
+  defaultAction: string | null,
+  notes: string | null
+): string {
+  // No action chosen → standard handling
+  if (!chosenAction || chosenAction === defaultAction) {
+    if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
+    return "0 kr.";
+  }
+  // Plus: everything is free
+  if (tenantTypeName === "Plus") {
+    if (chosenAction === "send") return "0 kr. + porto";
+    return "0 kr.";
+  }
+  // Extra handling prices
+  const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
+  if (chosenAction === "scan") return extraPrice;
+  if (chosenAction === "send") {
+    // Standard doesn't have "send hurtigst muligt"
+    if (tenantTypeName === "Standard") return "—";
+    return extraPrice + " + porto";
+  }
+  if (chosenAction === "afhentning") {
+    const pickupDate = parsePickupDateFromNotes(notes);
+    if (pickupDate && isFreeTorsdag(pickupDate, tenantTypeName)) return "0 kr.";
+    return tenantTypeName === "Standard" ? "50 kr." : extraPrice;
+  }
+  return "—";
+}
+
+/** Returns the price label for an action in the dropdown */
+function getActionPrice(action: string, tenantTypeName: string | undefined): string {
+  if (tenantTypeName === "Plus") {
+    if (action === "send") return "0 kr. + porto";
+    return "0 kr.";
+  }
+  if (tenantTypeName === "Lite") {
+    if (action === "scan") return "50 kr.";
+    if (action === "send") return "50 kr. + porto";
+    if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
+  }
+  if (tenantTypeName === "Standard") {
+    if (action === "scan") return "30 kr.";
+    if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
+  }
+  return "";
 }
 
 type FilterStatus = "ny" | "afventer_scanning" | "scannet" | "arkiveret" | null;
@@ -639,7 +703,7 @@ const TenantDashboard = () => {
                       const availableExtras = extraActions.filter(
                         (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning"))
                       );
-                      const price = getExtraHandlingPrice(tenantTypeName);
+                      // price per action is now computed individually
 
                       if (availableExtras.length === 0) {
                         // No extra actions (e.g. Plus breve) — show default action badge
@@ -663,7 +727,7 @@ const TenantDashboard = () => {
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {getActionLabel(action, tenantTypeName)}
-                                {action !== defaultAction && price ? ` (${price})` : ""}
+                                {(() => { const p = getActionPrice(action, tenantTypeName); return p ? ` (${p})` : ""; })()}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -695,15 +759,11 @@ const TenantDashboard = () => {
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    if (!item.chosen_action) return <span className="text-muted-foreground">—</span>;
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    if (item.chosen_action === defaultAction) return <span className="text-muted-foreground">—</span>;
-                    const price = getExtraHandlingPrice(tenantTypeName);
-                    return price
-                      ? <span className="text-sm font-medium">{price}</span>
-                      : <span className="text-muted-foreground text-xs">Gratis</span>;
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, item.notes);
+                    return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>
                 <TableCell>
