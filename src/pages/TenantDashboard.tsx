@@ -46,34 +46,37 @@ const ACTION_LABELS: Record<string, string> = {
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
 function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null): string[] {
+  const addDestruer = (actions: string[]) => {
+    if (currentAction === "destruer") return actions;
+    return [...actions, "destruer"];
+  };
   if (mailType === "pakke") {
-    return ["send", "afhentning"].filter(a => a !== currentAction);
+    return addDestruer(["send", "afhentning"].filter(a => a !== currentAction));
   }
-  // For Plus breve, use specific action sets per current action
   if (tenantTypeName === "Plus") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "afhentning"];
-      default:           return ["scan", "afhentning", "send"];
+      case "afhentning": return addDestruer(["scan", "send", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["send", "afhentning"]);
+      case "send":       return addDestruer(["scan", "afhentning"]);
+      default:           return addDestruer(["scan", "afhentning", "send"]);
     }
   }
   if (tenantTypeName === "Standard") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "standard_scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["standard_scan", "send", "afhentning"];
-      case "standard_scan": return ["scan", "send", "afhentning"];
-      case "send":       return ["scan", "standard_scan", "afhentning"];
-      default:           return ["scan", "standard_scan", "afhentning", "send"];
+      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["standard_scan", "send", "afhentning"]);
+      case "standard_scan": return addDestruer(["scan", "send", "afhentning"]);
+      case "send":       return addDestruer(["scan", "standard_scan", "afhentning"]);
+      default:           return addDestruer(["scan", "standard_scan", "afhentning", "send"]);
     }
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
-      case "scan":       return ["standard_scan", "send", "standard_forsendelse", "afhentning"];
-      case "standard_scan": return ["scan", "send", "standard_forsendelse", "afhentning"];
-      case "send":       return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
-      default:           return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
+      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "standard_scan": return addDestruer(["scan", "send", "standard_forsendelse", "afhentning"]);
+      case "send":       return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      default:           return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
     }
   }
   return [];
