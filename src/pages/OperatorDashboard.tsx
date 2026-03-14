@@ -204,9 +204,13 @@ const CARD_FILTERS: CardFilter[] = [
     color: "text-primary",
     filter: (item) => item.chosen_action === "scan" || item.chosen_action === "standard_scan",
     countFilter: (item) => {
-      if (!["scan", "standard_scan"].includes(item.chosen_action ?? "") || item.scan_url) return false;
-      const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-      return isTodayOrPastDate(scanDate);
+      if (item.scan_url) return false;
+      if (item.chosen_action === "scan") return true;
+      if (item.chosen_action === "standard_scan") {
+        const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+        return isTodayOrPastDate(scanDate);
+      }
+      return false;
     },
   },
   {
