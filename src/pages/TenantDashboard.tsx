@@ -473,7 +473,7 @@ const TenantDashboard = () => {
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: action, status: "afventer_handling" as MailStatus })
+        .update({ chosen_action: action, status: "afventer_handling" as MailStatus, action_rejected_reason: null } as any)
         .eq("id", id);
       if (error) throw error;
     },
