@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Badge } from "@/components/ui/badge";
 
 const TYPE_COLORS: Record<string, string> = {
