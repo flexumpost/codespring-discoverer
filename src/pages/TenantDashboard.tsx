@@ -295,7 +295,7 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
-    const pickupText = parsePickupFromNotes(item.notes);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
     return ["Afhentning bestilt", pickupText ?? undefined];
   }
   if (item.chosen_action === "destruer") {
