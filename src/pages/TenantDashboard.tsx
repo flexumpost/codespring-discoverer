@@ -128,14 +128,15 @@ function getItemFee(
   mailType: string,
   chosenAction: string | null,
   defaultAction: string | null,
+  pickupDateStr: string | null,
   notes: string | null
 ): string {
   // No action chosen → standard handling
   if (!chosenAction || chosenAction === defaultAction) {
     // Special case: afhentning on a non-free day still costs extra
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
-      const pickupDate = parsePickupDateFromNotes(notes);
-      if (pickupDate && !isFreeTorsdag(pickupDate, tenantTypeName)) {
+      const pd = parsePickupDate(pickupDateStr, notes);
+      if (pd && !isFreeTorsdag(pd, tenantTypeName)) {
         return tenantTypeName === "Standard" ? "30 kr." : "50 kr.";
       }
     }
