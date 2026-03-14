@@ -324,8 +324,9 @@ function getStatusDisplay(
     return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextThursday();
-    return ["Sendes", formatDanishDate(nextDate)];
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
