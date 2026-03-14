@@ -1,63 +1,40 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Marker som "Læst" ved visning af scan + vis Ulæst/Læst status på operatør-dashboardet
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Problem
+1. Når en lejer åbner detalje-dialogen og ser det scannede dokument, markeres brevet ikke automatisk som "Læst" — kun ved download.
+2. Operatør-dashboardet viser ikke om et scannet brev er "Ulæst" eller "Læst".
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+#### 1. `src/pages/TenantDashboard.tsx` — Marker som læst ved åbning af scan
+I `handleRowClick` (linje 572-575): Når brugeren klikker på en række med `scan_url` og status er `ulaest`, kald `markAsRead` automatisk. Beholde download-markeringen som fallback.
+
+#### 2. `src/pages/OperatorDashboard.tsx` — Vis Ulæst/Læst i status
+I `getOperatorStatusDisplay` (linje 97-151): Når et brev har `scan_url`, tilføj "Ulæst" eller "Læst" til status-teksten. F.eks.:
+- `scan_url` + status `ulaest` → "Scannet — Ulæst"
+- `scan_url` + status `laest` → "Scannet — Læst"
+
+Dette tilføjes i de steder hvor funktionen returnerer "Scannet" (linje 118 og 139), samt som generelt check for items med `scan_url`.
 
 ### Kodedetaljer
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
+**TenantDashboard.tsx linje 572-575:**
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
+const handleRowClick = (item: MailItem) => {
+  setSelectedItem(item);
+  if (item.scan_url && (item.status === "ulaest" || item.status === "ny")) {
+    markAsRead.mutate(item.id);
   }
-  return firstThursday;
-}
+};
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
+**OperatorDashboard.tsx — `getOperatorStatusDisplay`:**
+Erstat `return "Scannet"` med:
 ```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
+const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
+return `Scannet — ${readLabel}`;
 ```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Gøres på linje 118 og 139 (begge steder der returnerer "Scannet").
 
