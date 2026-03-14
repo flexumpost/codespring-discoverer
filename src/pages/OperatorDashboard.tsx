@@ -455,8 +455,36 @@ const OperatorDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedItems.map((item) => (
-                <TableRow key={item.id} className={cn(getMailRowColor(item))}>
+              {sortedItems.map((item) => {
+                const canDropScan = (item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && !!item.tenant_id;
+                const handleRowDrop = async (e: React.DragEvent) => {
+                  e.preventDefault();
+                  setDragOverItemId(null);
+                  if (!canDropScan) return;
+                  const file = e.dataTransfer.files?.[0];
+                  if (!file) return;
+                  const ext = file.name.split(".").pop()?.toLowerCase();
+                  if (!ext || !["pdf", "png", "jpg", "jpeg"].includes(ext)) {
+                    toast.error("Kun PDF, PNG og JPG filer er tilladt");
+                    return;
+                  }
+                  try {
+                    await uploadScanFile(file, item.id, item.tenant_id!);
+                    toast.success("Scanning uploadet");
+                    refreshMail();
+                  } catch (err: any) {
+                    console.error("Inline scan drop error:", err);
+                    toast.error("Kunne ikke uploade scanning");
+                  }
+                };
+                return (
+                <TableRow
+                  key={item.id}
+                  className={cn(getMailRowColor(item), dragOverItemId === item.id && canDropScan && "ring-2 ring-primary ring-inset bg-primary/5")}
+                  onDragOver={(e) => { if (canDropScan) { e.preventDefault(); setDragOverItemId(item.id); } }}
+                  onDragLeave={() => setDragOverItemId(null)}
+                  onDrop={handleRowDrop}
+                >
                   <TableCell>
                     <PhotoHoverPreview photoUrl={item.photo_url} />
                   </TableCell>
