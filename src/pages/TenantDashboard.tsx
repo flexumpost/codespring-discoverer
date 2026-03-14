@@ -263,6 +263,10 @@ function getStatusDisplay(
     const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
     return [statusLabel, subtitle];
   }
+  if (item.chosen_action === "standard_forsendelse") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Sendes", formatDanishDate(nextDate)];
+  }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday();
     return ["Sendes", formatDanishDate(nextDate)];
