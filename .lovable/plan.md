@@ -1,42 +1,63 @@
 
 
-## Tilføj lejertype-badge ved firmanavne i kort-header på ShippingPrepPage
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Kort-headeren viser kun firmanavne kommasepareret uden lejertype. Operatøren mangler overblik over hvilken tier hver virksomhed tilhører.
+### Forretningslogik (opsummering)
 
-### Ændringer i `src/pages/ShippingPrepPage.tsx`
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**1. Import Badge**
-Tilføj `import { Badge } from "@/components/ui/badge"` og gendan `TYPE_COLORS` fra TenantSelector.
+### Ændringer
 
-**2. Udvid grupperingsdata (linje 199-218)**
-Ændr `companyNames: string[]` til `companies: { name: string; typeName: string }[]` og gem både navn og lejertype ved gruppering.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**3. Opdater kort-header (linje 302-304)**
-Erstat den kommaseparerede linje med en liste hvor hvert firmanavn vises på sin egen linje:
+### Kodedetaljer
 
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
-brugerfirma [Lite badge] [Copy ikon]
-Firma 2 [Standard badge] [Copy ikon]
-Firma 3 [Plus badge] [Copy ikon]
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-Hvert firma vises som:
-```tsx
-{group.companies.map((c, i) => (
-  <span key={i} className="flex items-center gap-1.5">
-    {c.name}
-    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 leading-4", TYPE_COLORS[c.typeName])}>
-      {c.typeName}
-    </Badge>
-    <Copy className="h-3.5 w-3.5 ..." onClick={() => copyToClipboard(c.name)} />
-  </span>
-))}
-```
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-Copy-ikonet kopierer kun firmanavnet — ikke badge-teksten.
+**3. Opdater memory**
 
-### Fil
-- `src/pages/ShippingPrepPage.tsx`
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

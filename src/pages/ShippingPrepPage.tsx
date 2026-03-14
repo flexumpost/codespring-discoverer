@@ -2,6 +2,16 @@ import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const TYPE_COLORS: Record<string, string> = {
+  Lite: "bg-blue-100 text-blue-800 border-blue-200",
+  Standard: "bg-green-100 text-green-800 border-green-200",
+  Plus: "bg-[#00aaeb]/20 text-[#006d9e] border-[#00aaeb]/40",
+  Fastlejer: "bg-amber-100 text-amber-800 border-amber-200",
+  Nabo: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
+};
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
@@ -196,13 +206,13 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companyNames: string[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
         map.set(addrKey, {
           addressKey: addrKey,
-          companyNames: [],
+          companies: [],
           shippingRecipient: item.shipping_recipient,
           shippingCo: item.shipping_co,
           shippingAddress: item.shipping_address,
@@ -212,12 +222,12 @@ export default function ShippingPrepPage() {
         });
       }
       const group = map.get(addrKey)!;
-      if (!group.companyNames.includes(item.company_name)) {
-        group.companyNames.push(item.company_name);
+      if (!group.companies.some((c) => c.name === item.company_name)) {
+        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name });
       }
       group.items.push(item);
     }
-    const groups = Array.from(map.values()).sort((a, b) => a.companyNames[0].localeCompare(b.companyNames[0]));
+    const groups = Array.from(map.values()).sort((a, b) => a.companies[0].name.localeCompare(b.companies[0].name));
     return groups.sort((a, b) => {
       const aDone = doneGroups.has(a.addressKey) ? 1 : 0;
       const bDone = doneGroups.has(b.addressKey) ? 1 : 0;
@@ -299,9 +309,21 @@ export default function ShippingPrepPage() {
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-1.5">
-                          {group.companyNames.join(", ")}
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.companyNames.join(", "))} />
+                        <CardTitle className="text-base">
+                          <div className="flex flex-col gap-1">
+                            {group.companies.map((c, i) => (
+                              <span key={i} className="flex items-center gap-1.5">
+                                {c.name}
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px] px-1.5 py-0 leading-4", TYPE_COLORS[c.typeName] ?? "")}
+                                >
+                                  {c.typeName}
+                                </Badge>
+                                <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(c.name)} />
+                              </span>
+                            ))}
+                          </div>
                         </CardTitle>
                         <Button
                           variant={isDone ? "secondary" : "outline"}
