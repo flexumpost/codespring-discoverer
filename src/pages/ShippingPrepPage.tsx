@@ -120,6 +120,7 @@ export default function ShippingPrepPage() {
         mail_type: item.mail_type,
         status: item.status,
         chosen_action: item.chosen_action,
+        photo_url: item.photo_url ?? null,
         tenant_id: item.tenant_id,
         company_name: item.tenants?.company_name ?? "Ukendt",
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
