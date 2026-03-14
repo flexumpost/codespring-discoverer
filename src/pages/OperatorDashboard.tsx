@@ -176,6 +176,21 @@ type CardFilter = {
   countFilter?: (item: MailItem) => boolean;
 };
 
+function isTodayDate(date: Date): boolean {
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+}
+
+function isTodayOrPastDate(date: Date): boolean {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d <= now;
+}
+
 const CARD_FILTERS: CardFilter[] = [
   {
     title: "Ikke tildelt",
@@ -188,20 +203,32 @@ const CARD_FILTERS: CardFilter[] = [
     icon: ScanLine,
     color: "text-primary",
     filter: (item) => item.chosen_action === "scan",
-    countFilter: (item) => item.chosen_action === "scan" && !item.scan_url,
+    countFilter: (item) => {
+      if (item.chosen_action !== "scan" || item.scan_url) return false;
+      const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return isTodayOrPastDate(scanDate);
+    },
   },
   {
     title: "Send",
     icon: Send,
     color: "text-primary",
     filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse",
-    countFilter: (item) => item.chosen_action === "send",
+    countFilter: (item) => {
+      if (item.chosen_action !== "send") return false;
+      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return isTodayDate(shipDate);
+    },
   },
   {
     title: "Afhentes",
     icon: Mail,
     color: "text-primary",
     filter: (item) => item.chosen_action === "afhentning",
+    countFilter: (item) => {
+      if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
+      return isTodayDate(new Date(item.pickup_date));
+    },
   },
   {
     title: "Destrueres",
