@@ -2,6 +2,16 @@ import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+const TYPE_COLORS: Record<string, string> = {
+  Lite: "bg-blue-100 text-blue-800 border-blue-200",
+  Standard: "bg-green-100 text-green-800 border-green-200",
+  Plus: "bg-[#00aaeb]/20 text-[#006d9e] border-[#00aaeb]/40",
+  Fastlejer: "bg-amber-100 text-amber-800 border-amber-200",
+  Nabo: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
+};
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
