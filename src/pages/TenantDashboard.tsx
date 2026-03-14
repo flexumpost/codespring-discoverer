@@ -345,7 +345,8 @@ function getStatusDisplay(
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Sendes", formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
     // Lite default pickup uses monthly Thursday; Standard/Plus use weekly
