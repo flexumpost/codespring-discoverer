@@ -250,8 +250,26 @@ export function OperatorMailItemDialog({
             />
           </div>
 
+          {/* Confirm destruction section */}
+          {isPendingDestruction && (
+            <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium">Lejer ønsker forsendelsen destrueret</span>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmDestruction}
+                disabled={confirmingDestruction}
+              >
+                {confirmingDestruction ? "Bekræfter..." : "Bekræft destruktion"}
+              </Button>
+            </div>
+          )}
+
           {/* Reject action section */}
-          {item.chosen_action && (
+          {item.chosen_action && !isPendingDestruction && !isDestroyed && (
             <div className="flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 p-3">
               <div className="flex items-center gap-2">
                 <ShieldX className="h-4 w-4 text-orange-600" />
