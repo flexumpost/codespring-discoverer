@@ -65,10 +65,10 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "send", "afhentning"];
-      default:           return ["scan", "send", "afhentning"];
+      case "afhentning": return ["scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
+      case "scan":       return ["send", "standard_forsendelse", "afhentning"];
+      case "send":       return ["scan", "send", "standard_forsendelse", "afhentning"];
+      default:           return ["scan", "send", "standard_forsendelse", "afhentning"];
     }
   }
   return [];
