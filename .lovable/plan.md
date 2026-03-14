@@ -1,63 +1,39 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## "Destruer" handling — komplet flow for lejer og operatør
 
-### Forretningslogik (opsummering)
+### Oversigt
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Tilføj "Destruer" som altid-tilgængelig handling for alle lejere (uanset tier). Handlingen er irreversibel og kræver bekræftelse. Operatøren ser "Skal destrueres" og kan bekræfte destruktion, hvorefter forsendelsen markeres som "Forsendelse destrueret".
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+#### 1. TenantDashboard — Tilføj "destruer" til alle action-dropdowns
 
-### Kodedetaljer
+**`src/pages/TenantDashboard.tsx`**:
+- I `getExtraActions()`: Tilføj `"destruer"` til alle returnerede arrays (alle tiers, alle branches), undtagen når `currentAction === "destruer"`.
+- For pakker: Tilføj også `"destruer"` til listen.
+- Opdater `getActionPrice()` til at returnere `"0 kr."` for `"destruer"` (gratis for alle tiers).
+- Destruer-bekræftelsesdialogen eksisterer allerede (linje 1008-1034) og forbyder ikke ændring — opdater teksten til at understrege at handlingen **ikke kan ændres efterfølgende**.
+- I "Annuller handling"-kolonnen: Skjul annuller-knappen når `chosen_action === "destruer"` (kan ikke ændres).
+- I `getStatusDisplay()`: Teksten "Destrueret" returneres allerede for `chosen_action === "destruer"` (linje 306-308) — dette er korrekt.
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+#### 2. OperatorDashboard — Status og "Bekræft destruktion"
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
+**`src/pages/OperatorDashboard.tsx`**:
+- I `getOperatorStatusDisplay()`: Opdater `destruer`-casen til at skelne mellem "Skal destrueres" (afventer bekræftelse) og "Forsendelse destrueret" (bekræftet). Brug `status === "arkiveret"` som markør for bekræftet destruktion.
+- I "Destrueres"-kortet: Opdater `countFilter` til kun at tælle items der endnu ikke er bekræftet destrueret (`chosen_action === "destruer" && status !== "arkiveret"`).
 
-**2. Lås handlinger fra dagen før forsendelse**
+**`src/components/OperatorMailItemDialog.tsx`**:
+- Tilføj en "Bekræft destruktion"-knap der vises når `item.chosen_action === "destruer"` og `item.status !== "arkiveret"`.
+- Ved klik: Opdater status til `"arkiveret"` (markerer at destruktionen er gennemført).
+- Når `item.chosen_action === "destruer" && item.status === "arkiveret"`: Vis badge "Forsendelse destrueret" og deaktiver alle redigeringsmuligheder.
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+#### 3. mailRowColor — Ingen ændring nødvendig
+`destruer`-handlingen har allerede en rød baggrund (linje 18-20 i `mailRowColor.ts`).
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Filer
+- **Ændret**: `src/pages/TenantDashboard.tsx` — "destruer" tilføjes til alle dropdown-lister, annuller-knap skjules, bekræftelsestekst opdateres
+- **Ændret**: `src/pages/OperatorDashboard.tsx` — operator status skelner mellem "Skal destrueres" og "Forsendelse destrueret", countFilter opdateres
+- **Ændret**: `src/components/OperatorMailItemDialog.tsx` — "Bekræft destruktion"-knap, låsning af redigering efter destruktion
 
