@@ -263,7 +263,7 @@ const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
 const PACKAGE_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
   Lite: { haandteringsgebyr: "50 kr." },
   Standard: { haandteringsgebyr: "30 kr." },
-  Plus: { haandteringsgebyr: "Inkluderet" },
+  Plus: { haandteringsgebyr: "10 kr." },
 };
 
 const ACTION_TO_FEE_KEY: Record<string, string> = {
@@ -289,9 +289,17 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   if (!tier) return "—";
 
   if (item.mail_type === "pakke") {
-    const pkgPricing = pricing.pakke?.[tier] ?? PACKAGE_PRICING_DEFAULTS[tier];
-    const fee = pkgPricing?.haandteringsgebyr;
-    return fee ? fee.split("—")[0].trim() : "—";
+    if (item.chosen_action === "destruer") return "0 kr.";
+    const tier2 = item.tenants?.tenant_types?.name;
+    if (item.chosen_action === "afhentning") {
+      if (tier2 === "Plus") return "10 kr.";
+      if (tier2 === "Standard") return "30 kr.";
+      return "50 kr.";
+    }
+    // forsendelse
+    if (tier2 === "Plus") return "10 kr. + porto";
+    if (tier2 === "Standard") return "30 kr. + porto";
+    return "50 kr. + porto";
   }
 
   // Brev: only charge if action differs from default
