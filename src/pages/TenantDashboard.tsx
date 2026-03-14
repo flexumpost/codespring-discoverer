@@ -259,7 +259,7 @@ function getStatusDisplay(
     if (daysLeft !== null && daysLeft <= 0) {
       return ["Brevet er destrueret"];
     }
-    const statusLabel = STATUS_LABELS[item.status as MailStatus] ?? item.status;
+    const statusLabel = item.status === "ulaest" ? "Ulæst" : item.status === "laest" ? "Læst" : "Scannet";
     const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
     return [statusLabel, subtitle];
   }
