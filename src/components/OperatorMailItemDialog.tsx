@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, ScanLine } from "lucide-react";
+import { Trash2, ScanLine, ShieldX } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import type { Tables, Database } from "@/integrations/supabase/types";
@@ -44,6 +44,9 @@ export function OperatorMailItemDialog({
   const [notes, setNotes] = useState(item.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deletingScan, setDeletingScan] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -104,7 +107,32 @@ export function OperatorMailItemDialog({
     }
   };
 
+  const handleRejectAction = async () => {
+    if (!rejectReason.trim()) return;
+    setRejecting(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({
+        chosen_action: null,
+        action_rejected_reason: rejectReason.trim(),
+        note_read: false,
+        status: "ny" as any,
+      })
+      .eq("id", item.id);
+    setRejecting(false);
+    if (error) {
+      toast.error("Kunne ikke afvise handlingen");
+      console.error(error);
+    } else {
+      toast.success("Handling afvist");
+      setShowRejectDialog(false);
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
@@ -198,6 +226,24 @@ export function OperatorMailItemDialog({
             />
           </div>
 
+          {/* Reject action section */}
+          {item.chosen_action && (
+            <div className="flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 p-3">
+              <div className="flex items-center gap-2">
+                <ShieldX className="h-4 w-4 text-orange-600" />
+                <span className="text-sm">Ønsket handling: <strong>{item.chosen_action}</strong></span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                onClick={() => setShowRejectDialog(true)}
+              >
+                Afvis handling
+              </Button>
+            </div>
+          )}
+
           {/* Delete scan section */}
           {item.scan_url && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
@@ -241,5 +287,35 @@ export function OperatorMailItemDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Reject action dialog */}
+    <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Afvis handling?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Angiv en begrundelse for afvisningen. Lejeren vil kunne se denne besked.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-2">
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Skriv begrundelse for afvisning..."
+            rows={3}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuller</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRejectAction}
+            disabled={rejecting || !rejectReason.trim()}
+          >
+            {rejecting ? "Afviser..." : "Afvis handling"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

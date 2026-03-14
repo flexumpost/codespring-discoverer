@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
@@ -265,11 +266,15 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 }
 
 function getStatusDisplay(
-  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null },
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null; action_rejected_reason?: string | null },
   tenantTypeName: string | undefined,
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
+  // Action rejected by operator
+  if ((item as any).action_rejected_reason && !item.chosen_action) {
+    return ["Handling afvist"];
+  }
   if (item.chosen_action === "scan" && !item.scan_url) {
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
@@ -468,7 +473,7 @@ const TenantDashboard = () => {
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: action, status: "afventer_handling" as MailStatus })
+        .update({ chosen_action: action, status: "afventer_handling" as MailStatus, action_rejected_reason: null } as any)
         .eq("id", id);
       if (error) throw error;
     },
@@ -727,6 +732,24 @@ const TenantDashboard = () => {
                 <TableCell>
                   {(() => {
                     const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                    const rejectedReason = (item as any).action_rejected_reason;
+                    if (rejectedReason && !item.chosen_action) {
+                      return (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1.5 cursor-help">
+                                <Badge variant="destructive">{line1}</Badge>
+                                <MessageSquare className="h-4 w-4 text-destructive" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[250px]">
+                              <p className="text-xs">{rejectedReason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    }
                     return (
                       <div>
                         <Badge variant="outline">{line1}</Badge>

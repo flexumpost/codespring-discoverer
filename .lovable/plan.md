@@ -1,38 +1,63 @@
 
 
-## "Afvis handling" — operatør kan afvise en lejers ønskede handling
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Operatøren har ingen mulighed for at afvise en handling (f.eks. scanning af et magasin der ikke kan scannes). Der mangler et flow til at nulstille handlingen med en begrundelse, og lejeren ser ikke at handlingen er afvist.
+### Forretningslogik (opsummering)
 
-### Løsning
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-#### 1. Ny kolonne: `action_rejected_reason` (text, nullable)
-Gemmer operatørens begrundelse for afvisningen. Når feltet har en værdi, betragtes handlingen som afvist.
+### Ændringer
 
-#### 2. OperatorMailItemDialog — "Afvis handling"-knap
-- Vises kun når `item.chosen_action` har en værdi (der er en handling at afvise).
-- Ved klik åbnes en AlertDialog med et textarea til begrundelse (påkrævet).
-- Ved bekræftelse: `chosen_action` nulstilles til `null`, `action_rejected_reason` sættes til begrundelsen, `note_read` sættes til `false` (så lejeren ser besked-ikonet).
-- Logges automatisk via eksisterende trigger (`action_cleared` + `notes_changed`).
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-#### 3. TenantDashboard — "Handling afvist" status
-- `getStatusDisplay()` tjekker `action_rejected_reason` som første prioritet: hvis den har værdi og `chosen_action` er `null`, returneres `["Handling afvist"]`.
-- I tabel-cellen for status: Wraps badge + note-ikon i en div med en Tooltip der viser `action_rejected_reason` ved hover.
-- `MessageSquare`-ikonet vises ved status-teksten (ikke kun ved forsendelsesnr.) for afviste handlinger.
+### Kodedetaljer
 
-#### 4. Nulstilling af afvisning
-- Når lejeren vælger en ny handling, ryddes `action_rejected_reason` automatisk (sæt til `null` ved action-update).
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Database-migration
-```sql
-ALTER TABLE public.mail_items 
-  ADD COLUMN action_rejected_reason text;
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-### Filer
-- **Migration**: Tilføj `action_rejected_reason` kolonne
-- **Ændret**: `src/components/OperatorMailItemDialog.tsx` — tilføj "Afvis handling"-knap med begrundelsesdialog
-- **Ændret**: `src/pages/TenantDashboard.tsx` — vis "Handling afvist" status med tooltip der viser begrundelsen
-- **Ændret**: `src/pages/TenantDashboard.tsx` — ryd `action_rejected_reason` når lejeren vælger ny handling
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
