@@ -1,63 +1,55 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Forsendelseslog: Historik-panel for mail items
 
-### Forretningslogik (opsummering)
+### Overblik
+Opretter en `mail_item_logs`-tabel der automatisk logger alle ændringer på forsendelser (status, handling, scan, etc.), samt en Sheet-komponent der vises når man klikker på "Modtaget"-datoen i tabellen.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Database
 
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+**Ny tabel: `mail_item_logs`**
+```sql
+CREATE TABLE public.mail_item_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  mail_item_id uuid NOT NULL REFERENCES public.mail_items(id) ON DELETE CASCADE,
+  user_id uuid,
+  action text NOT NULL,        -- f.eks. 'oprettet', 'status_ændret', 'handling_valgt', 'scan_uploadet', 'tildelt_lejer'
+  old_value text,
+  new_value text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.mail_item_logs ENABLE ROW LEVEL SECURITY;
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+RLS: Operatører kan læse alle logs, lejere kan læse logs for egne forsendelser (via `my_tenant_ids()`).
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**Trigger-funktion** på `mail_items` (BEFORE UPDATE) der automatisk logger ændringer i `status`, `chosen_action`, `scan_url`, `tenant_id` og `notes`. Bruger `auth.uid()` til at registrere hvem der foretog ændringen.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+**INSERT-trigger** der logger oprettelse af nye forsendelser.
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+### Frontend
 
-**3. Opdater memory**
+**1. Ny komponent: `MailItemLogSheet.tsx`**
+- Bruger `Sheet` (side="right") fra shadcn.
+- Modtager `mailItemId` og `open`/`onOpenChange` props.
+- Fetcher logs fra `mail_item_logs` joinet med `profiles` for at vise brugernavne.
+- Viser en vertikal tidslinje med:
+  - Tidsstempel (dato + klokkeslæt)
+  - Handling (f.eks. "Status ændret fra Ny til Afventer handling")
+  - Bruger (navn eller "System")
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+**2. TenantDashboard.tsx — linje 799**
+Gør "Modtaget"-datoen klikbar → åbner `MailItemLogSheet` med det pågældende mail_item_id.
+
+**3. OperatorDashboard.tsx — linje 452**
+Samme ændring: klikbar dato → åbner log-sheet.
+
+### Handlings-labels i loggen
+Mapping fra tekniske værdier til danske labels:
+- `created` → "Forsendelse oprettet"
+- `status_changed` → "Status ændret fra [X] til [Y]"
+- `action_chosen` → "Handling valgt: [Y]"
+- `action_cleared` → "Handling nulstillet"
+- `scan_uploaded` → "Scanning uploadet"
+- `tenant_assigned` → "Tildelt lejer: [Y]"
 
