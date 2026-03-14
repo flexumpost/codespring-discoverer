@@ -265,7 +265,7 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 }
 
 function getStatusDisplay(
-  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; scanned_at?: string | null },
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null },
   tenantTypeName: string | undefined,
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
