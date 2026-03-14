@@ -61,6 +61,23 @@ type MailItemWithTenant = {
   shipping_city: string | null;
 };
 
+function getShippingFee(item: MailItemWithTenant): string {
+  const tier = item.tenant_type_name;
+
+  if (item.mail_type === "pakke") {
+    if (tier === "Plus") return "10 kr. + porto";
+    if (tier === "Standard") return "30 kr. + porto";
+    return "50 kr. + porto";
+  }
+
+  // Breve
+  if (item.chosen_action === "standard_forsendelse") return "0 kr. + porto";
+  // "send" = ekstra forsendelse
+  if (tier === "Lite") return "50 kr. + porto";
+  if (tier === "Standard") return "30 kr. + porto";
+  return "0 kr. + porto"; // Plus
+}
+
 export default function ShippingPrepPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(getDefaultShippingDate);
   const [tab, setTab] = useState<"brev" | "pakke">("brev");
@@ -345,7 +362,7 @@ export default function ShippingPrepPage() {
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <span className="text-sm font-medium">
-                              Nr. {item.stamp_number ?? "—"} — {item.company_name}
+                              Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
                           </label>
                         ))}

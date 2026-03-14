@@ -1,46 +1,63 @@
 
 
-## Tilføj gebyr-visning på forsendelseslinjer i ShippingPrepPage
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-På "Send breve og pakker" siden viser hver forsendelseslinje kun `Nr. X — Firmanavn`. Der mangler gebyr-information.
+### Forretningslogik (opsummering)
 
-### Ændring
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**`src/pages/ShippingPrepPage.tsx`**
+### Ændringer
 
-1. Tilføj en `getShippingFee` funktion der beregner gebyret baseret på samme logik som OperatorDashboard:
-   - **Breve**: `chosen_action === "send"` (ekstra forsendelse) → tier-baseret gebyr + porto. `chosen_action === "standard_forsendelse"` → "0 kr. + porto".
-   - **Pakker**: Tier-baseret håndteringsgebyr + porto (Plus: 10 kr., Standard: 30 kr., Lite: 50 kr.).
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-2. Opdater linje 347-349 til at vise gebyret:
-```typescript
-<span className="text-sm font-medium">
-  Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
-</span>
-```
+### Kodedetaljer
 
-### Gebyr-logik
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-function getShippingFee(item: MailItemWithTenant): string {
-  const tier = item.tenant_type_name;
-
-  if (item.mail_type === "pakke") {
-    if (tier === "Plus") return "10 kr. + porto";
-    if (tier === "Standard") return "30 kr. + porto";
-    return "50 kr. + porto";
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-
-  // Breve
-  if (item.chosen_action === "standard_forsendelse") return "0 kr. + porto";
-  // "send" = ekstra forsendelse
-  if (tier === "Lite") return "50 kr. + porto";
-  if (tier === "Standard") return "30 kr. + porto";
-  return "0 kr. + porto"; // Plus
+  return firstThursday;
 }
 ```
 
-### Fil
-- `src/pages/ShippingPrepPage.tsx`
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
