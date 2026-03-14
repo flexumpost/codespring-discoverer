@@ -38,6 +38,7 @@ const ACTION_LABELS: Record<string, string> = {
   destruer: "Destruer",
   daglig: "Lig på kontoret",
   anden_afhentningsdag: "Anden afhentningsdag",
+  standard_forsendelse: "Standard forsendelse",
 };
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
@@ -64,10 +65,10 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "send", "afhentning"];
-      default:           return ["scan", "send", "afhentning"];
+      case "afhentning": return ["scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
+      case "scan":       return ["send", "standard_forsendelse", "afhentning"];
+      case "send":       return ["scan", "send", "standard_forsendelse", "afhentning"];
+      default:           return ["scan", "send", "standard_forsendelse", "afhentning"];
     }
   }
   return [];
@@ -78,6 +79,7 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   if (tenantTypeName === "Lite") {
     if (action === "scan") return "Scan nu";
     if (action === "send") return "Send hurtigst muligt";
+    if (action === "standard_forsendelse") return "Standard forsendelse";
   }
   return ACTION_LABELS[action] ?? action;
 }
@@ -129,6 +131,8 @@ function getItemFee(
     if (chosenAction === "send") return "0 kr. + porto";
     return "0 kr.";
   }
+  // Standard forsendelse for Lite is free + porto
+  if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
   // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
@@ -154,6 +158,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   if (tenantTypeName === "Lite") {
     if (action === "scan") return "50 kr.";
     if (action === "send") return "50 kr. + porto";
+    if (action === "standard_forsendelse") return "0 kr. + porto";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
   }
   if (tenantTypeName === "Standard") {
@@ -257,6 +262,10 @@ function getStatusDisplay(
     const statusLabel = STATUS_LABELS[item.status as MailStatus] ?? item.status;
     const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
     return [statusLabel, subtitle];
+  }
+  if (item.chosen_action === "standard_forsendelse") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday();

@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   afhentning: "Afhentning",
   destruer: "Destruer",
   daglig: "Lig på kontoret",
+  standard_forsendelse: "Standard forsendelse",
 };
 
 const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
@@ -91,6 +92,10 @@ function parsePickupFromNotes(notes: string | null): string | null {
 
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
+  if (action === "standard_forsendelse") {
+    const shipDate = getShippingDate("Lite", "brev");
+    return `Skal sendes ${formatDanishDate(shipDate)}`;
+  }
   if (action === "send" || action === "under_forsendelse") {
     // Eksplicit valgt handling → altid ugentlig kadence (næste torsdag)
     const shipDate = getNextThursday();
@@ -214,6 +219,7 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action || !item.tenant_id) return "—";
+  if (item.chosen_action === "standard_forsendelse") return "—";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";
 

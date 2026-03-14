@@ -154,8 +154,13 @@ export default function ShippingPrepPage() {
       // Beregn effektiv handling: eksplicit valg ?? lejer-default
       const effectiveAction = item.chosen_action
         ?? (item.mail_type === "pakke" ? item.default_package_action : item.default_mail_action);
-      if (effectiveAction !== "send") return false;
+      if (effectiveAction !== "send" && effectiveAction !== "standard_forsendelse") return false;
 
+      // "Standard forsendelse" for Lite uses monthly cadence
+      if (item.chosen_action === "standard_forsendelse") {
+        const shipDate = getNextShippingDateForItem("Lite", "brev");
+        return shipDate.getTime() === selDay;
+      }
       // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
       const isExtraShipment =
         item.chosen_action === "send" &&

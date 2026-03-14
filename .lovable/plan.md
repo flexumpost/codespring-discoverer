@@ -1,37 +1,63 @@
 
 
-## Ny ekstra handling for Lite breve: "Standard forsendelse"
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Formål
-Lite-lejere skal kunne vælge "Standard forsendelse" som ekstra handling for breve. Denne sender brevet på den normale Lite-kadence (første torsdag i måneden) med gebyr "0 kr. + porto" — i modsætning til "Send hurtigst muligt" som opgraderer til ugentlig kadence og koster 50 kr.
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**`src/pages/TenantDashboard.tsx`** — 5 steder:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-1. **ACTION_LABELS** (linje ~34): Tilføj `standard_forsendelse: "Standard forsendelse"`
+### Kodedetaljer
 
-2. **getExtraActions** (linje 65-71): Tilføj `"standard_forsendelse"` til Lite breve-handlinger, så lejeren kan vælge den ved siden af "Send hurtigst muligt". Den skal være tilgængelig når default ikke er "send", og filtreres ud hvis allerede valgt.
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-3. **getActionLabel** (linje 77-83): Tilføj label for `standard_forsendelse` → `"Standard forsendelse"`
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
 
-4. **getItemFee** (linje ~107): Tilføj case for `standard_forsendelse` → returner `"0 kr. + porto"`
+**2. Lås handlinger fra dagen før forsendelse**
 
-5. **getStatusDisplay** (linje ~243): Tilføj case for `chosen_action === "standard_forsendelse"` → vis "Sendes" + første torsdag i måneden (bruger `getFirstThursdayOfMonth()`)
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-6. **getActionPrice** (linje ~149): Tilføj case for `standard_forsendelse` → returner `"0 kr. + porto"`
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
 
-7. **handleAction** (linje ~498): `standard_forsendelse` skal behandles som en normal handling (ingen dialog), dvs. den falder igennem til `chooseAction.mutate()`
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-**`src/pages/OperatorDashboard.tsx`** — 3 steder:
+**3. Opdater memory**
 
-1. **ACTION_LABELS**: Tilføj `standard_forsendelse: "Standard forsendelse"`
-
-2. **getOperatorStatusDisplay** (linje ~92): Tilføj case for `standard_forsendelse` → vis "Skal sendes" + første torsdag i måneden
-
-3. **getItemFee** (linje ~215): Tilføj check — hvis `chosen_action === "standard_forsendelse"`, returner `"—"` (ingen ekstra gebyr, det er standardkadencen)
-
-4. **ACTION_TO_FEE_KEY**: Ingen tilføjelse nødvendig da gebyret er 0
-
-**`src/pages/ShippingPrepPage.tsx`**: Tjek om `standard_forsendelse` skal inkluderes i forsendelsesfiltrering (sandsynligvis ja, da det er en forsendelseshandling).
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
