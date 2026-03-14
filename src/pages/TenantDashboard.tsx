@@ -18,6 +18,7 @@ import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { toast } from "sonner";
 import { DefaultActionSetup } from "@/components/DefaultActionSetup";
+import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailStatus = Database["public"]["Enums"]["mail_status"];
@@ -344,6 +345,7 @@ const TenantDashboard = () => {
   const [pickupDate, setPickupDate] = useState<Date | undefined>();
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
+  const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
 
   // Generate signed URL for scan preview when dialog opens
   useEffect(() => {
@@ -796,7 +798,15 @@ const TenantDashboard = () => {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                <TableCell>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
+                    onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
+                  >
+                    {new Date(item.received_at).toLocaleDateString("da-DK")}
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -1034,6 +1044,7 @@ const TenantDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
     </div>
   );
 };

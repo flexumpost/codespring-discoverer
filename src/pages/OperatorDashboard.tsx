@@ -11,6 +11,7 @@ import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 import { AssignTenantDialog } from "@/components/AssignTenantDialog";
 import { ScanUploadButton } from "@/components/ScanUploadButton";
+import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
@@ -272,6 +273,7 @@ const OperatorDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
   const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
+  const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
 
   const refreshMail = async () => {
     const { data } = await supabase
@@ -449,7 +451,15 @@ const OperatorDashboard = () => {
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>
                   <TableCell>{getItemFee(item, pricing)}</TableCell>
-                  <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
+                      onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
+                    >
+                      {new Date(item.received_at).toLocaleDateString("da-DK")}
+                    </button>
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
                       <ScanUploadButton
@@ -480,6 +490,7 @@ const OperatorDashboard = () => {
           onAssigned={() => { refreshMail(); setAssignTenantItem(null); }}
         />
       )}
+      <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
     </div>
   );
 };

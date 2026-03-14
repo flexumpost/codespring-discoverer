@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      mail_item_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          mail_item_id: string
+          new_value: string | null
+          old_value: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          mail_item_id: string
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          mail_item_id?: string
+          new_value?: string | null
+          old_value?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mail_item_logs_mail_item_id_fkey"
+            columns: ["mail_item_id"]
+            isOneToOne: false
+            referencedRelation: "mail_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mail_items: {
         Row: {
           chosen_action: string | null
