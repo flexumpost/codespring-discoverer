@@ -190,11 +190,17 @@ function getItemFee(
 /** Returns the price label for an action in the dropdown */
 function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string): string {
   if (action === "destruer") return "0 kr.";
-  // Pakke-specific prices for Lite
-  if (mailType === "pakke" && tenantTypeName === "Lite") {
-    if (action === "send" || action === "standard_forsendelse") return "50 kr. + porto";
-    if (action === "afhentning") return "50 kr.";
-    return "50 kr. + porto";
+  // Pakke-specific prices per tier
+  if (mailType === "pakke" && (tenantTypeName === "Lite" || tenantTypeName === "Standard" || tenantTypeName === "Plus")) {
+    const prices: Record<string, { fee: string; feePorto: string }> = {
+      Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
+      Standard: { fee: "30 kr.", feePorto: "30 kr. + porto" },
+      Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+    };
+    const p = prices[tenantTypeName!];
+    if (action === "send" || action === "standard_forsendelse") return p.feePorto;
+    if (action === "afhentning") return p.fee;
+    return p.feePorto;
   }
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
