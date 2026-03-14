@@ -468,7 +468,7 @@ const OperatorDashboard = () => {
                     </button>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
+                    {(item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && item.tenant_id && (
                       <ScanUploadButton
                         mailItemId={item.id}
                         tenantId={item.tenant_id}
