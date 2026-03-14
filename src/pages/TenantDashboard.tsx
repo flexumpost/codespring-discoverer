@@ -912,7 +912,7 @@ const TenantDashboard = () => {
                     </p>
                   </div>
                 </div>
-                {selectedItem.notes && (
+              {selectedItem.notes && !selectedItem.notes.startsWith("PICKUP:") && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Noter fra operatør</span>
                     <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
