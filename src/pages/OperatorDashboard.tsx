@@ -272,18 +272,16 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
 
   // Free-day check for afhentning even when it's not the default action
   if (item.chosen_action === "afhentning" && tier !== "Plus") {
-    const pickupDate = item.notes?.startsWith("PICKUP:")
-      ? new Date(item.notes.replace("PICKUP:", ""))
-      : null;
-    if (pickupDate && !isNaN(pickupDate.getTime())) {
+    const pd = (item as any).pickup_date ? new Date((item as any).pickup_date) : null;
+    if (pd && !isNaN(pd.getTime())) {
       const isLite = tier === "Lite";
       const isFreeDay = isLite
         ? (() => {
-            const firstThurs = getFirstThursdayOfMonth(pickupDate);
-            return pickupDate.getDate() === firstThurs.getDate()
-              && pickupDate.getMonth() === firstThurs.getMonth();
+            const firstThurs = getFirstThursdayOfMonth(pd);
+            return pd.getDate() === firstThurs.getDate()
+              && pd.getMonth() === firstThurs.getMonth();
           })()
-        : pickupDate.getDay() === 4;
+        : pd.getDay() === 4;
       if (isFreeDay) return "0 kr.";
     }
   }
