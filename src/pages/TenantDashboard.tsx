@@ -571,7 +571,9 @@ const TenantDashboard = () => {
 
   const handleRowClick = (item: MailItem) => {
     setSelectedItem(item);
-    // Do NOT auto-mark as read here — only on scan download
+    if (item.scan_url && (item.status === "ulaest" || item.status === "ny")) {
+      markAsRead.mutate(item.id);
+    }
   };
 
   const handleDownloadScan = async () => {

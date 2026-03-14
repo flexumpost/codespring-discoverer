@@ -115,7 +115,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
   if (action === "scan") {
-    if (item.scan_url) return "Scannet";
+    if (item.scan_url) {
+      const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
+      return `Scannet — ${readLabel}`;
+    }
     const updated = new Date(item.updated_at);
     return `Scanning bestilt ${formatDanishDateTime(updated)}`;
   }
@@ -136,7 +139,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
       return `Skal sendes ${formatDanishDate(shipDate)}`;
     }
     if (defaultAction === "scan") {
-      if (item.scan_url) return "Scannet";
+      if (item.scan_url) {
+        const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
+        return `Scannet — ${readLabel}`;
+      }
       const received = new Date(item.received_at);
       return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
     }
