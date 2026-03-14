@@ -150,7 +150,7 @@ function getItemFee(
     if (chosenAction === "destruer") return "0 kr.";
     if (chosenAction === "send" || chosenAction === "standard_forsendelse") return "50 kr. + porto";
     if (chosenAction === "afhentning") return "50 kr.";
-    return "50 kr.";
+    return "50 kr. + porto";
   }
 
   if (!chosenAction || chosenAction === defaultAction) {
