@@ -388,16 +388,23 @@ const TenantDashboard = () => {
         .eq("chosen_action", "scan")
         .is("scan_url", null);
 
-      const [nyRes, ulaestRes, laestRes, arkiveretRes] = await Promise.all([
+      // Count scanned unread items for "Scannet post" card
+      const scannetUlaestRes = await supabase
+        .from("mail_items")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", selectedTenantId!)
+        .not("scan_url", "is", null)
+        .eq("status", "ulaest");
+
+      const [nyRes, laestRes, arkiveretRes] = await Promise.all([
         base("ny"),
-        base("ulaest"),
         base("laest"),
         base("arkiveret"),
       ]);
       return {
         ny: nyRes.count ?? 0,
         afventer_scanning: scanPendingRes.count ?? 0,
-        ulaest: ulaestRes.count ?? 0,
+        ulaest: scannetUlaestRes.count ?? 0,
         laest: laestRes.count ?? 0,
         arkiveret: arkiveretRes.count ?? 0,
       };
@@ -418,7 +425,7 @@ const TenantDashboard = () => {
       if (activeFilter === "afventer_scanning") {
         query = query.eq("chosen_action", "scan").is("scan_url", null);
       } else if (activeFilter === "scannet") {
-        query = query.in("status", ["ulaest", "laest"] as MailStatus[]);
+        query = query.not("scan_url", "is", null).neq("status", "arkiveret" as MailStatus);
       } else if (activeFilter) {
         query = query.eq("status", activeFilter as MailStatus);
       } else {
