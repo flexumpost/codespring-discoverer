@@ -717,7 +717,7 @@ const TenantDashboard = () => {
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
-                        (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning"))
+                        (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send"))
                       );
                       // price per action is now computed individually
 

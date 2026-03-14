@@ -1,28 +1,63 @@
 
 
-## Fix: "Standard forsendelse" vises ikke i dropdown
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Linje 720 i `TenantDashboard.tsx` filtrerer ekstra handlinger mod `allowedActions` fra databasen. `standard_forsendelse` findes ikke i `allowed_actions` på tenant_types-tabellen, så den bliver filtreret væk. Samme mønster som `anden_afhentningsdag`, der har en special-undtagelse fordi den er en UI-variant af `afhentning`.
+### Forretningslogik (opsummering)
 
-### Løsning
-Tilføj en undtagelse for `standard_forsendelse` i filteret på linje 720, så den vises når `send` er i `allowedActions` (da "Standard forsendelse" er en variant af forsendelse).
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-### Ændring
+### Ændringer
 
-**`src/pages/TenantDashboard.tsx`** — linje 720:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-Nuværende:
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
 ```typescript
-(a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning"))
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-Ny:
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
 ```typescript
-(a) => allowedActions.includes(a) 
-  || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning"))
-  || (a === "standard_forsendelse" && allowedActions.includes("send"))
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-Én linje tilføjet. Ingen andre ændringer.
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
