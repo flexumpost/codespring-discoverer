@@ -1,37 +1,63 @@
 
 
-## Vis operatør-noter på lejer-dashboardet i realtid
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Lejer-dashboardet henter data én gang og cacher det. Når en operatør tilføjer en note, opdateres cachen ikke, så noten vises ikke før lejeren genindlæser siden.
+### Forretningslogik (opsummering)
 
-### Løsning
-
-1. **Tilføj `refetchInterval` til tenant-mail query** — poll hvert 30. sekund for nye ændringer (simpel løsning der sikrer at noter og andre opdateringer vises hurtigt uden fuld realtime-opsætning).
-
-2. **Hent friske data ved row-click** — Når lejeren klikker på en række, hent den seneste version af `mail_item` direkte fra databasen i stedet for at bruge den cachede version. Dette sikrer at noter, scan-status m.m. altid er opdateret i detalje-dialogen.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**`src/pages/TenantDashboard.tsx`**:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-- **Query (linje ~439)**: Tilføj `refetchInterval: 30000` for at polle hvert 30. sekund.
+### Kodedetaljer
 
-- **`handleRowClick` (linje ~578)**: Hent den aktuelle item direkte fra databasen:
-  ```typescript
-  const handleRowClick = async (item: MailItem) => {
-    // Fetch fresh data for this item
-    const { data: fresh } = await supabase
-      .from("mail_items")
-      .select("*, tenants(company_name)")
-      .eq("id", item.id)
-      .single();
-    const current = fresh ?? item;
-    setSelectedItem(current);
-    // ... rest of logic uses 'current'
-  };
-  ```
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Filer
-- **Ændret**: `src/pages/TenantDashboard.tsx`
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
