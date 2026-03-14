@@ -25,6 +25,7 @@ const ACTION_LABELS: Record<string, string> = {
   destruer: "Destruer",
   daglig: "Lig på kontoret",
   standard_forsendelse: "Standard forsendelse",
+  standard_scan: "Standard scanning",
 };
 
 const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
@@ -93,6 +94,10 @@ function parsePickupFromNotes(notes: string | null): string | null {
 
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
+  if (action === "standard_scan") {
+    const scanDate = getShippingDate("Lite", "brev");
+    return `Scanning bestilt ${formatDanishDate(scanDate)}`;
+  }
   if (action === "standard_forsendelse") {
     const shipDate = getShippingDate("Lite", "brev");
     return `Skal sendes ${formatDanishDate(shipDate)}`;
@@ -221,6 +226,7 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action || !item.tenant_id) return "—";
   if (item.chosen_action === "standard_forsendelse") return "—";
+  if (item.chosen_action === "standard_scan") return "—";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";
 

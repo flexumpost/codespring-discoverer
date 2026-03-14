@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<string, string> = {
   destruer: "Destruer",
   daglig: "Lig på kontoret",
   standard_forsendelse: "Standard forsendelse",
+  standard_scan: "Standard scanning",
 };
 
 function formatAction(log: LogEntry): string {

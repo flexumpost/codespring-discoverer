@@ -40,6 +40,7 @@ const ACTION_LABELS: Record<string, string> = {
   daglig: "Lig på kontoret",
   anden_afhentningsdag: "Anden afhentningsdag",
   standard_forsendelse: "Standard forsendelse",
+  standard_scan: "Standard scanning",
 };
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
@@ -66,10 +67,11 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
+      case "afhentning": return ["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
       case "scan":       return ["send", "standard_forsendelse", "afhentning"];
-      case "send":       return ["scan", "send", "standard_forsendelse", "afhentning"];
-      default:           return ["scan", "send", "standard_forsendelse", "afhentning"];
+      case "standard_scan": return ["scan", "send", "standard_forsendelse", "afhentning"];
+      case "send":       return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
+      default:           return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
     }
   }
   return [];
@@ -79,6 +81,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 function getActionLabel(action: string, tenantTypeName: string | undefined): string {
   if (tenantTypeName === "Lite") {
     if (action === "scan") return "Scan nu";
+    if (action === "standard_scan") return "Standard scanning";
     if (action === "send") return "Send hurtigst muligt";
     if (action === "standard_forsendelse") return "Standard forsendelse";
   }
@@ -134,6 +137,8 @@ function getItemFee(
   }
   // Standard forsendelse for Lite is free + porto
   if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
+  // Standard scanning for Lite is free
+  if (chosenAction === "standard_scan") return "0 kr.";
   // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
@@ -158,6 +163,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   }
   if (tenantTypeName === "Lite") {
     if (action === "scan") return "50 kr.";
+    if (action === "standard_scan") return "0 kr.";
     if (action === "send") return "50 kr. + porto";
     if (action === "standard_forsendelse") return "0 kr. + porto";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
@@ -267,6 +273,10 @@ function getStatusDisplay(
   if (item.chosen_action === "standard_forsendelse") {
     const nextDate = getFirstThursdayOfMonth();
     return ["Sendes", formatDanishDate(nextDate)];
+  }
+  if (item.chosen_action === "standard_scan") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday();
@@ -726,7 +736,7 @@ const TenantDashboard = () => {
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
-                        (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send"))
+                        (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
                       );
                       // price per action is now computed individually
 
