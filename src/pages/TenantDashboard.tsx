@@ -131,6 +131,8 @@ function getItemFee(
     if (chosenAction === "send") return "0 kr. + porto";
     return "0 kr.";
   }
+  // Standard forsendelse for Lite is free + porto
+  if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
   // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
