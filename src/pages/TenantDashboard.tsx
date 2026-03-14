@@ -196,7 +196,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
   if (mailType === "pakke" && tenantTypeName === "Lite") {
     if (action === "send" || action === "standard_forsendelse") return "50 kr. + porto";
     if (action === "afhentning") return "50 kr.";
-    return "50 kr.";
+    return "50 kr. + porto";
   }
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
