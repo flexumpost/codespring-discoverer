@@ -78,7 +78,7 @@ export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
         .from("mail_item_logs" as any)
         .select("id, action, old_value, new_value, created_at, user_id")
         .eq("mail_item_id", mailItemId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
 
       if (!data || data.length === 0) {
         setLogs([]);
