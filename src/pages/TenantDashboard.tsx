@@ -163,6 +163,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   }
   if (tenantTypeName === "Lite") {
     if (action === "scan") return "50 kr.";
+    if (action === "standard_scan") return "0 kr.";
     if (action === "send") return "50 kr. + porto";
     if (action === "standard_forsendelse") return "0 kr. + porto";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
