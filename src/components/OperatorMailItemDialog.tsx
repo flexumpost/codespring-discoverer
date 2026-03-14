@@ -47,6 +47,27 @@ export function OperatorMailItemDialog({
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [confirmingDestruction, setConfirmingDestruction] = useState(false);
+
+  const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
+  const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
+
+  const handleConfirmDestruction = async () => {
+    setConfirmingDestruction(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ status: "arkiveret" as any })
+      .eq("id", item.id);
+    setConfirmingDestruction(false);
+    if (error) {
+      toast.error("Kunne ikke bekræfte destruktion");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse markeret som destrueret");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
