@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Badge } from "@/components/ui/badge";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -59,6 +60,7 @@ type MailItemWithTenant = {
   mail_type: string;
   status: string;
   chosen_action: string | null;
+  photo_url: string | null;
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
@@ -106,7 +108,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city)")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -118,6 +120,7 @@ export default function ShippingPrepPage() {
         mail_type: item.mail_type,
         status: item.status,
         chosen_action: item.chosen_action,
+        photo_url: item.photo_url ?? null,
         tenant_id: item.tenant_id,
         company_name: item.tenants?.company_name ?? "Ukendt",
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
@@ -383,6 +386,7 @@ export default function ShippingPrepPage() {
                               checked={checkedIds.has(item.id)}
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
+                            <PhotoHoverPreview photoUrl={item.photo_url} />
                             <span className="text-sm font-medium">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
