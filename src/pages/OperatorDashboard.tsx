@@ -83,9 +83,9 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
   return getFirstThursdayOfMonth(nextMonth);
 }
 
-function parsePickupFromNotes(notes: string | null): string | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const isoStr = notes.replace("PICKUP:", "");
+function formatPickupDisplay(item: MailItem): string | null {
+  const isoStr = (item as any).pickup_date;
+  if (!isoStr) return null;
   const date = new Date(isoStr);
   if (isNaN(date.getTime())) return null;
   const dayName = DANISH_DAYS[date.getDay()];
