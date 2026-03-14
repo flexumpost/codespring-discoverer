@@ -577,13 +577,20 @@ const TenantDashboard = () => {
   };
 
   const handleRowClick = async (item: MailItem) => {
-    setSelectedItem(item);
-    if (item.scan_url && (item.status === "ulaest" || item.status === "ny")) {
-      markAsRead.mutate(item.id);
+    // Fetch fresh data for this item
+    const { data: fresh } = await supabase
+      .from("mail_items")
+      .select("*, tenants(company_name)")
+      .eq("id", item.id)
+      .single();
+    const current = (fresh ?? item) as MailItem;
+    setSelectedItem(current);
+    if (current.scan_url && (current.status === "ulaest" || current.status === "ny")) {
+      markAsRead.mutate(current.id);
     }
     // Mark operator note as read
-    if (item.notes && !(item as any).note_read) {
-      await supabase.from("mail_items").update({ note_read: true }).eq("id", item.id);
+    if (current.notes && !(current as any).note_read) {
+      await supabase.from("mail_items").update({ note_read: true }).eq("id", current.id);
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
     }
   };
