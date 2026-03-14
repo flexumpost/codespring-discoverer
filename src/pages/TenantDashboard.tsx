@@ -52,7 +52,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   };
   if (mailType === "pakke") {
     if (tenantTypeName === "Lite") {
-      return addDestruer(["send", "standard_forsendelse", "afhentning"].filter(a => a !== currentAction));
+      return addDestruer(["afhentning"].filter(a => a !== currentAction));
     }
     return addDestruer(["send", "afhentning"].filter(a => a !== currentAction));
   }
