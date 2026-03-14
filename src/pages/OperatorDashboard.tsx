@@ -289,9 +289,17 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   if (!tier) return "—";
 
   if (item.mail_type === "pakke") {
-    const pkgPricing = pricing.pakke?.[tier] ?? PACKAGE_PRICING_DEFAULTS[tier];
-    const fee = pkgPricing?.haandteringsgebyr;
-    return fee ? fee.split("—")[0].trim() : "—";
+    if (item.chosen_action === "destruer") return "0 kr.";
+    const tier2 = item.tenants?.tenant_types?.name;
+    if (item.chosen_action === "afhentning") {
+      if (tier2 === "Plus") return "10 kr.";
+      if (tier2 === "Standard") return "30 kr.";
+      return "50 kr.";
+    }
+    // forsendelse
+    if (tier2 === "Plus") return "10 kr. + porto";
+    if (tier2 === "Standard") return "30 kr. + porto";
+    return "50 kr. + porto";
   }
 
   // Brev: only charge if action differs from default
