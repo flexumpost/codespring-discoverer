@@ -1044,6 +1044,7 @@ const TenantDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
     </div>
   );
 };

@@ -490,6 +490,7 @@ const OperatorDashboard = () => {
           onAssigned={() => { refreshMail(); setAssignTenantItem(null); }}
         />
       )}
+      <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
     </div>
   );
 };
