@@ -532,7 +532,8 @@ const OperatorDashboard = () => {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}
