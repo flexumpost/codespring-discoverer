@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, ScanLine, ShieldX } from "lucide-react";
+import { Trash2, ScanLine, ShieldX, AlertTriangle } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import type { Tables, Database } from "@/integrations/supabase/types";
@@ -47,6 +47,27 @@ export function OperatorMailItemDialog({
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
+  const [confirmingDestruction, setConfirmingDestruction] = useState(false);
+
+  const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
+  const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
+
+  const handleConfirmDestruction = async () => {
+    setConfirmingDestruction(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ status: "arkiveret" as any })
+      .eq("id", item.id);
+    setConfirmingDestruction(false);
+    if (error) {
+      toast.error("Kunne ikke bekræfte destruktion");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse markeret som destrueret");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -137,6 +158,9 @@ export function OperatorMailItemDialog({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Rediger forsendelse</DialogTitle>
+          {isDestroyed && (
+            <Badge variant="destructive" className="mt-2">Forsendelse destrueret</Badge>
+          )}
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
@@ -226,8 +250,26 @@ export function OperatorMailItemDialog({
             />
           </div>
 
+          {/* Confirm destruction section */}
+          {isPendingDestruction && (
+            <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium">Lejer ønsker forsendelsen destrueret</span>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmDestruction}
+                disabled={confirmingDestruction}
+              >
+                {confirmingDestruction ? "Bekræfter..." : "Bekræft destruktion"}
+              </Button>
+            </div>
+          )}
+
           {/* Reject action section */}
-          {item.chosen_action && (
+          {item.chosen_action && !isPendingDestruction && !isDestroyed && (
             <div className="flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 p-3">
               <div className="flex items-center gap-2">
                 <ShieldX className="h-4 w-4 text-orange-600" />
@@ -281,9 +323,11 @@ export function OperatorMailItemDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuller
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Gemmer..." : "Gem ændringer"}
-          </Button>
+          {!isDestroyed && (
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Gemmer..." : "Gem ændringer"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

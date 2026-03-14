@@ -46,34 +46,37 @@ const ACTION_LABELS: Record<string, string> = {
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
 function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null): string[] {
+  const addDestruer = (actions: string[]) => {
+    if (currentAction === "destruer") return actions;
+    return [...actions, "destruer"];
+  };
   if (mailType === "pakke") {
-    return ["send", "afhentning"].filter(a => a !== currentAction);
+    return addDestruer(["send", "afhentning"].filter(a => a !== currentAction));
   }
-  // For Plus breve, use specific action sets per current action
   if (tenantTypeName === "Plus") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "afhentning"];
-      default:           return ["scan", "afhentning", "send"];
+      case "afhentning": return addDestruer(["scan", "send", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["send", "afhentning"]);
+      case "send":       return addDestruer(["scan", "afhentning"]);
+      default:           return addDestruer(["scan", "afhentning", "send"]);
     }
   }
   if (tenantTypeName === "Standard") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "standard_scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["standard_scan", "send", "afhentning"];
-      case "standard_scan": return ["scan", "send", "afhentning"];
-      case "send":       return ["scan", "standard_scan", "afhentning"];
-      default:           return ["scan", "standard_scan", "afhentning", "send"];
+      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["standard_scan", "send", "afhentning"]);
+      case "standard_scan": return addDestruer(["scan", "send", "afhentning"]);
+      case "send":       return addDestruer(["scan", "standard_scan", "afhentning"]);
+      default:           return addDestruer(["scan", "standard_scan", "afhentning", "send"]);
     }
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"];
-      case "scan":       return ["standard_scan", "send", "standard_forsendelse", "afhentning"];
-      case "standard_scan": return ["scan", "send", "standard_forsendelse", "afhentning"];
-      case "send":       return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
-      default:           return ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"];
+      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
+      case "scan":       return addDestruer(["standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "standard_scan": return addDestruer(["scan", "send", "standard_forsendelse", "afhentning"]);
+      case "send":       return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      default:           return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
     }
   }
   return [];
@@ -171,6 +174,7 @@ function getItemFee(
 
 /** Returns the price label for an action in the dropdown */
 function getActionPrice(action: string, tenantTypeName: string | undefined): string {
+  if (action === "destruer") return "0 kr.";
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
     return "0 kr.";
@@ -793,7 +797,7 @@ const TenantDashboard = () => {
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
-                        (a) => allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
+                        (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
                       );
                       // price per action is now computed individually
 
@@ -837,7 +841,7 @@ const TenantDashboard = () => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.status !== "arkiveret" ? (
+                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" ? (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1011,7 +1015,7 @@ const TenantDashboard = () => {
           <DialogHeader>
             <DialogTitle>Bekræft destruering</DialogTitle>
             <DialogDescription>
-              Er du sikker på at du vil destruere denne forsendelse? Handlingen kan ikke fortrydes.
+              Er du sikker på at du vil destruere denne forsendelse? <strong>Denne handling kan ikke ændres efterfølgende.</strong> Forsendelsen vil blive destrueret af operatøren og kan ikke genskabes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

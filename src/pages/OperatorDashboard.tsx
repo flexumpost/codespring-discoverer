@@ -124,8 +124,11 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return `Scanning bestilt ${formatDanishDateTime(updated)}`;
   }
   if (action === "destruer") {
+    if (item.status === "arkiveret") {
+      return "Forsendelse destrueret";
+    }
     const updated = new Date(item.updated_at);
-    return `Destrueres - bestilt ${formatDanishDateTime(updated)}`;
+    return `Skal destrueres - bestilt ${formatDanishDateTime(updated)}`;
   }
   if (action === "daglig") {
     const updated = new Date(item.updated_at);
@@ -205,6 +208,7 @@ const CARD_FILTERS: CardFilter[] = [
     icon: Trash2,
     color: "text-destructive",
     filter: (item) => item.chosen_action === "destruer",
+    countFilter: (item) => item.chosen_action === "destruer" && item.status !== "arkiveret",
   },
   {
     title: "Lig på kontoret",
