@@ -1,0 +1,239 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Trash2, ScanLine, UserSwitch } from "lucide-react";
+import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
+import { ScanThumbnail } from "@/components/ScanThumbnail";
+import type { Tables, Database } from "@/integrations/supabase/types";
+
+type MailItem = Tables<"mail_items"> & {
+  tenants?: {
+    company_name: string;
+    default_mail_action: string | null;
+    default_package_action: string | null;
+    tenant_types?: { name: string } | null;
+  } | null;
+};
+
+interface OperatorMailItemDialogProps {
+  item: MailItem;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSaved: () => void;
+  onReassignTenant: () => void;
+}
+
+export function OperatorMailItemDialog({
+  item,
+  open,
+  onOpenChange,
+  onSaved,
+  onReassignTenant,
+}: OperatorMailItemDialogProps) {
+  const [stampNumber, setStampNumber] = useState(item.stamp_number?.toString() ?? "");
+  const [senderName, setSenderName] = useState(item.sender_name ?? "");
+  const [mailType, setMailType] = useState<Database["public"]["Enums"]["mail_type"]>(item.mail_type);
+  const [notes, setNotes] = useState(item.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [deletingScan, setDeletingScan] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({
+        stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
+        sender_name: senderName || null,
+        mail_type: mailType,
+        notes: notes || null,
+      })
+      .eq("id", item.id);
+
+    setSaving(false);
+    if (error) {
+      toast.error("Kunne ikke gemme ændringer");
+      console.error(error);
+    } else {
+      toast.success("Ændringer gemt");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
+  const handleDeleteScan = async () => {
+    if (!item.scan_url) return;
+    setDeletingScan(true);
+
+    // Delete file from storage
+    const { error: storageError } = await supabase.storage
+      .from("mail-scans")
+      .remove([item.scan_url]);
+
+    if (storageError) {
+      console.error("Storage delete error:", storageError);
+    }
+
+    // Clear scan_url and scanned_at
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ scan_url: null, scanned_at: null })
+      .eq("id", item.id);
+
+    setDeletingScan(false);
+    if (error) {
+      toast.error("Kunne ikke slette scanningen");
+      console.error(error);
+    } else {
+      toast.success("Scanning slettet");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Rediger forsendelse</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-2">
+          {/* Photo + Scan preview row */}
+          {(item.photo_url || item.scan_url) && (
+            <div className="flex items-start gap-4">
+              {item.photo_url && (
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Foto</Label>
+                  <PhotoHoverPreview photoUrl={item.photo_url} />
+                </div>
+              )}
+              {item.scan_url && (
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Scan</Label>
+                  <ScanThumbnail scanUrl={item.scan_url} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tenant section */}
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-xs text-muted-foreground">Lejer</Label>
+              <p className="text-sm font-medium">
+                {item.tenants?.company_name ?? (
+                  <span className="text-destructive">Ikke tildelt</span>
+                )}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onReassignTenant();
+                onOpenChange(false);
+              }}
+            >
+              Skift lejer
+            </Button>
+          </div>
+
+          {/* Editable fields */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="stamp">Forsendelsesnr.</Label>
+              <Input
+                id="stamp"
+                value={stampNumber}
+                onChange={(e) => setStampNumber(e.target.value)}
+                placeholder="Nummer"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sender">Afsender</Label>
+              <Input
+                id="sender"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Afsender"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Type</Label>
+            <Select value={mailType} onValueChange={(v) => setMailType(v as Database["public"]["Enums"]["mail_type"])}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="brev">Brev</SelectItem>
+                <SelectItem value="pakke">Pakke</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Noter</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Skriv noter..."
+              rows={3}
+            />
+          </div>
+
+          {/* Delete scan section */}
+          {item.scan_url && (
+            <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-center gap-2">
+                <ScanLine className="h-4 w-4 text-destructive" />
+                <span className="text-sm">Vedhæftet scanning</span>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" disabled={deletingScan}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                    Slet scan
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Slet scanning?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Det scannede dokument vil blive slettet permanent. Denne handling kan ikke fortrydes.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuller</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteScan} disabled={deletingScan}>
+                      Slet
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annuller
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Gemmer..." : "Gem ændringer"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
