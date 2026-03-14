@@ -450,7 +450,15 @@ const OperatorDashboard = () => {
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>
                   <TableCell>{getItemFee(item, pricing)}</TableCell>
-                  <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
+                      onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
+                    >
+                      {new Date(item.received_at).toLocaleDateString("da-DK")}
+                    </button>
+                  </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     {item.chosen_action === "scan" && !(item as any).scan_url && item.tenant_id && (
                       <ScanUploadButton
