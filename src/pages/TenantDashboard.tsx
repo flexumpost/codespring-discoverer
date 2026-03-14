@@ -93,11 +93,18 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   return ACTION_LABELS[action] ?? action;
 }
 
-/** Parse a pickup date from notes field (format: "PICKUP:iso") */
-function parsePickupDateFromNotes(notes: string | null): Date | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const d = new Date(notes.replace("PICKUP:", ""));
-  return isNaN(d.getTime()) ? null : d;
+/** Parse a pickup date from the dedicated column or legacy notes field */
+function parsePickupDate(pickupDate: string | null, notes: string | null): Date | null {
+  if (pickupDate) {
+    const d = new Date(pickupDate);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Legacy fallback
+  if (notes && notes.startsWith("PICKUP:")) {
+    const d = new Date(notes.replace("PICKUP:", ""));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 /** Check if a pickup date falls on a "free Thursday" for the given tier */
@@ -121,14 +128,15 @@ function getItemFee(
   mailType: string,
   chosenAction: string | null,
   defaultAction: string | null,
+  pickupDateStr: string | null,
   notes: string | null
 ): string {
   // No action chosen → standard handling
   if (!chosenAction || chosenAction === defaultAction) {
     // Special case: afhentning on a non-free day still costs extra
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
-      const pickupDate = parsePickupDateFromNotes(notes);
-      if (pickupDate && !isFreeTorsdag(pickupDate, tenantTypeName)) {
+      const pd = parsePickupDate(pickupDateStr, notes);
+      if (pd && !isFreeTorsdag(pd, tenantTypeName)) {
         return tenantTypeName === "Standard" ? "30 kr." : "50 kr.";
       }
     }
@@ -153,8 +161,8 @@ function getItemFee(
     return extraPrice + " + porto";
   }
   if (chosenAction === "afhentning") {
-    const pickupDate = parsePickupDateFromNotes(notes);
-    if (pickupDate && isFreeTorsdag(pickupDate, tenantTypeName)) return "0 kr.";
+    const pd = parsePickupDate(pickupDateStr, notes);
+    if (pd && isFreeTorsdag(pd, tenantTypeName)) return "0 kr.";
     return tenantTypeName === "Standard" ? "30 kr." : extraPrice;
   }
   return "—";
@@ -237,11 +245,9 @@ function getNextShippingDate(tenantType: string | undefined, mailType: string): 
 
 /* ── Pickup helpers ── */
 
-function parsePickupFromNotes(notes: string | null): string | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const isoStr = notes.replace("PICKUP:", "");
-  const date = new Date(isoStr);
-  if (isNaN(date.getTime())) return null;
+function formatPickupDisplay(pickupDateStr: string | null, notes: string | null): string | null {
+  const date = parsePickupDate(pickupDateStr, notes);
+  if (!date) return null;
   const dayName = DANISH_DAYS[date.getDay()];
   const d = date.getDate();
   const month = DANISH_MONTHS[date.getMonth()];
@@ -259,7 +265,7 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 }
 
 function getStatusDisplay(
-  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; scanned_at?: string | null },
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null },
   tenantTypeName: string | undefined,
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
@@ -289,7 +295,7 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
-    const pickupText = parsePickupFromNotes(item.notes);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
     return ["Afhentning bestilt", pickupText ?? undefined];
   }
   if (item.chosen_action === "destruer") {
@@ -480,7 +486,7 @@ const TenantDashboard = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: null, notes: null, status: "ny" as MailStatus })
+        .update({ chosen_action: null, pickup_date: null, status: "ny" as MailStatus })
         .eq("id", id);
       if (error) throw error;
     },
@@ -547,7 +553,7 @@ const TenantDashboard = () => {
         .update({
           chosen_action: "afhentning",
           status: "afventer_handling" as MailStatus,
-          notes: `PICKUP:${pickupIso}`,
+          pickup_date: pickupIso,
         })
         .eq("id", id);
       if (error) throw error;
@@ -569,10 +575,15 @@ const TenantDashboard = () => {
     setActiveFilter((prev) => (prev === status ? null : status));
   };
 
-  const handleRowClick = (item: MailItem) => {
+  const handleRowClick = async (item: MailItem) => {
     setSelectedItem(item);
     if (item.scan_url && (item.status === "ulaest" || item.status === "ny")) {
       markAsRead.mutate(item.id);
+    }
+    // Mark operator note as read
+    if (item.notes && !(item as any).note_read) {
+      await supabase.from("mail_items").update({ note_read: true }).eq("id", item.id);
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
     }
   };
 
@@ -805,7 +816,7 @@ const TenantDashboard = () => {
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, item.notes);
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes);
                     return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>
@@ -906,7 +917,7 @@ const TenantDashboard = () => {
                     </p>
                   </div>
                 </div>
-                {selectedItem.notes && (
+              {selectedItem.notes && !selectedItem.notes.startsWith("PICKUP:") && (
                   <div className="text-sm">
                     <span className="text-muted-foreground">Noter fra operatør</span>
                     <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search } from "lucide-react";
+import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -83,9 +83,9 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
   return getFirstThursdayOfMonth(nextMonth);
 }
 
-function parsePickupFromNotes(notes: string | null): string | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const isoStr = notes.replace("PICKUP:", "");
+function formatPickupDisplay(item: MailItem): string | null {
+  const isoStr = (item as any).pickup_date;
+  if (!isoStr) return null;
   const date = new Date(isoStr);
   if (isNaN(date.getTime())) return null;
   const dayName = DANISH_DAYS[date.getDay()];
@@ -112,7 +112,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return `Skal sendes ${formatDanishDate(shipDate)}`;
   }
   if (action === "afhentning") {
-    const pickupText = parsePickupFromNotes(item.notes);
+    const pickupText = formatPickupDisplay(item);
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
   if (action === "scan") {
@@ -250,19 +250,17 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   const defaultAction = item.tenants?.default_mail_action;
   if (item.chosen_action === defaultAction) {
     // Special case: afhentning on a non-free day still costs extra
-    if (item.chosen_action === "afhentning" && tier !== "Plus") {
-      const pickupDate = item.notes?.startsWith("PICKUP:")
-        ? new Date(item.notes.replace("PICKUP:", ""))
-        : null;
-      if (pickupDate && !isNaN(pickupDate.getTime())) {
+  if (item.chosen_action === "afhentning" && tier !== "Plus") {
+      const pd = (item as any).pickup_date ? new Date((item as any).pickup_date) : null;
+      if (pd && !isNaN(pd.getTime())) {
         const isLite = tier === "Lite";
         const isFreeDay = isLite
           ? (() => {
-              const firstThurs = getFirstThursdayOfMonth(pickupDate);
-              return pickupDate.getDate() === firstThurs.getDate()
-                && pickupDate.getMonth() === firstThurs.getMonth();
+              const firstThurs = getFirstThursdayOfMonth(pd);
+              return pd.getDate() === firstThurs.getDate()
+                && pd.getMonth() === firstThurs.getMonth();
             })()
-          : pickupDate.getDay() === 4;
+          : pd.getDay() === 4;
         if (!isFreeDay) {
           return tier === "Standard" ? "30 kr." : "50 kr.";
         }
@@ -274,18 +272,16 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
 
   // Free-day check for afhentning even when it's not the default action
   if (item.chosen_action === "afhentning" && tier !== "Plus") {
-    const pickupDate = item.notes?.startsWith("PICKUP:")
-      ? new Date(item.notes.replace("PICKUP:", ""))
-      : null;
-    if (pickupDate && !isNaN(pickupDate.getTime())) {
+    const pd = (item as any).pickup_date ? new Date((item as any).pickup_date) : null;
+    if (pd && !isNaN(pd.getTime())) {
       const isLite = tier === "Lite";
       const isFreeDay = isLite
         ? (() => {
-            const firstThurs = getFirstThursdayOfMonth(pickupDate);
-            return pickupDate.getDate() === firstThurs.getDate()
-              && pickupDate.getMonth() === firstThurs.getMonth();
+            const firstThurs = getFirstThursdayOfMonth(pd);
+            return pd.getDate() === firstThurs.getDate()
+              && pd.getMonth() === firstThurs.getMonth();
           })()
-        : pickupDate.getDay() === 4;
+        : pd.getDay() === 4;
       if (isFreeDay) return "0 kr.";
     }
   }
@@ -512,7 +508,14 @@ const OperatorDashboard = () => {
                       <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
                     )}
                   </TableCell>
-                  <TableCell>{item.stamp_number ?? "—"}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5">
+                      {item.stamp_number ?? "—"}
+                      {item.notes && !(item as any).note_read && (
+                        <MessageSquare className="h-3.5 w-3.5 text-primary fill-primary" />
+                      )}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>

@@ -47,14 +47,20 @@ export function OperatorMailItemDialog({
 
   const handleSave = async () => {
     setSaving(true);
+    const noteChanged = (notes || null) !== (item.notes || null);
+    const updateData: Record<string, any> = {
+      stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
+      sender_name: senderName || null,
+      mail_type: mailType,
+      notes: notes || null,
+    };
+    // If operator wrote/changed a note, mark as unread for tenant
+    if (noteChanged && notes) {
+      updateData.note_read = false;
+    }
     const { error } = await supabase
       .from("mail_items")
-      .update({
-        stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
-        sender_name: senderName || null,
-        mail_type: mailType,
-        notes: notes || null,
-      })
+      .update(updateData)
       .eq("id", item.id);
 
     setSaving(false);

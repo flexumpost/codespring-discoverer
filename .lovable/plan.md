@@ -1,49 +1,63 @@
 
 
-## Adskil pickup-data fra noter + tilføj "ulæst note"-indikator
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-1. `notes`-feltet bruges til to formål: pickup-tidspunkt (`PICKUP:...`) og operatør-noter. Lejeren ser derfor rå PICKUP-data som en note.
-2. Der er ingen indikation på operatør-dashboardet om at en forsendelse har en ulæst note.
+### Forretningslogik (opsummering)
 
-### Løsning
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-#### 1. Ny kolonne: `pickup_date` (timestamptz)
-Tilføj en dedikeret kolonne til pickup-tidspunktet, så `notes` kun bruges til operatør-beskeder.
+### Ændringer
 
-#### 2. Ny kolonne: `note_read` (boolean, default true)
-Når operatøren skriver en note, sættes `note_read = false`. Når lejeren åbner forsendelsen og ser noten, sættes `note_read = true`.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-#### 3. Database-migration
-```sql
-ALTER TABLE public.mail_items ADD COLUMN pickup_date timestamptz;
-ALTER TABLE public.mail_items ADD COLUMN note_read boolean NOT NULL DEFAULT true;
--- Migrate existing PICKUP data
-UPDATE public.mail_items
-  SET pickup_date = (notes::text REPLACE 'PICKUP:' WITH '')::timestamptz,
-      notes = NULL
-  WHERE notes LIKE 'PICKUP:%';
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-#### 4. Kodeændringer
+**2. Lås handlinger fra dagen før forsendelse**
 
-**`src/pages/TenantDashboard.tsx`**:
-- Brug `item.pickup_date` i stedet for at parse `notes` med `PICKUP:`-præfiks
-- Gem pickup-dato i `pickup_date` i stedet for `notes`
-- Når lejeren åbner detalje-dialogen og item har `notes` + `note_read === false`, kald update for at sætte `note_read = true`
-- Vis ikke noter der starter med `PICKUP:` (cleanup, men efter migration bør det ikke ske)
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-**`src/pages/OperatorDashboard.tsx`**:
-- Brug `item.pickup_date` i stedet for at parse `notes`
-- Vis et ikon/badge (f.eks. en lille boble) på forsendelsesrækken når `notes` har indhold og `note_read === false`
-- Opdater gebyr-beregning til at bruge `pickup_date`
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
 
-**`src/components/OperatorMailItemDialog.tsx`**:
-- Når operatøren gemmer en note (og noten er ændret), sæt `note_read = false`
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-### Filer
-- **Migration**: Ny migration for `pickup_date` + `note_read` kolonner + data-migration
-- **Ændret**: `src/pages/TenantDashboard.tsx` — brug `pickup_date`, marker noter som læst
-- **Ændret**: `src/pages/OperatorDashboard.tsx` — brug `pickup_date`, vis ulæst-note indikator
-- **Ændret**: `src/components/OperatorMailItemDialog.tsx` — sæt `note_read = false` ved note-ændring
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
