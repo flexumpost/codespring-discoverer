@@ -103,7 +103,12 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return `Scanning bestilt ${formatDanishDate(scanDate)}`;
   }
   if (action === "standard_forsendelse") {
-    const shipDate = getShippingDate("Lite", "brev");
+    const tenantType = item.tenants?.tenant_types?.name;
+    if (item.mail_type === "pakke") {
+      const shipDate = getNextThursday();
+      return `Skal sendes senest ${formatDanishDate(shipDate)}`;
+    }
+    const shipDate = getShippingDate(tenantType ?? "Lite", "brev");
     return `Skal sendes ${formatDanishDate(shipDate)}`;
   }
   if (action === "send" || action === "under_forsendelse") {
