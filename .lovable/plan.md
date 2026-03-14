@@ -1,44 +1,63 @@
 
 
-## Pakker for Lite-lejere: Månedlig forsendelse, status og gebyr
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-1. **Forsendelsesdato**: `getNextShippingDate()` bruger `getNextThursday()` for Lite-pakker — den skal bruge `getFirstThursdayOfMonth()` (samme som Lite-breve).
-2. **Status-tekst**: Pakker viser "Sendes [dato]", men skal vise "Sendes senest [dato]" for at signalere at pakken kan sendes tidligere.
-3. **Gebyr for pakker**: Nuværende `getItemFee` og `getActionPrice` håndterer ikke pakkegebyrer korrekt for Lite. Regler:
-   - Forsendelse (send): **50 kr.**
-   - Afhentning: **50 kr.** (uanset dag)
-   - Destruer: **0 kr.**
+### Forretningslogik (opsummering)
 
-### Ændringer i `src/pages/TenantDashboard.tsx`
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**1. `getNextShippingDate` (linje 244-249)**
-Udvid til også at bruge `getFirstThursdayOfMonth()` for Lite-pakker:
+### Ændringer
+
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
 ```typescript
-if (tenantType === "Lite") {
-  return getFirstThursdayOfMonth();
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
 }
 ```
 
-**2. `getStatusDisplay` (linje 302-305, 317-324)**
-Når `mail_type === "pakke"`, vis "Sendes senest" i stedet for "Sendes":
-- Linje 294-296: `standard_forsendelse` → "Sendes senest [dato]" for pakker
-- Linje 302-305: `send` → "Sendes senest [dato]" for pakker
-- Linje 321-324: default send → "Sendes senest [dato]" for pakker
+**2. Lås handlinger fra dagen før forsendelse**
 
-**3. `getItemFee` (linje 130-173)**
-Tilføj pakke-specifik logik for Lite:
-- `send` / `standard_forsendelse` → "50 kr."
-- `afhentning` → "50 kr." (ingen gratis-torsdag for pakker)
-- `destruer` → "0 kr."
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-**4. `getActionPrice` (linje 176-195)**
-Tilføj pakke-specifik prislabel i dropdown:
-- For pakker hos Lite: `send` = "50 kr.", `afhentning` = "50 kr.", `destruer` = "0 kr."
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
 
-**5. `getExtraActions` (linje 53-55)**
-Tilføj `standard_forsendelse` som option for Lite-pakker (gratis månedlig forsendelse), og `destruer` skal vise "0 kr.".
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-### Fil
-- **Ændret**: `src/pages/TenantDashboard.tsx` — 5 funktioner opdateres
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

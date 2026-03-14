@@ -51,6 +51,9 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
     return [...actions, "destruer"];
   };
   if (mailType === "pakke") {
+    if (tenantTypeName === "Lite") {
+      return addDestruer(["send", "standard_forsendelse", "afhentning"].filter(a => a !== currentAction));
+    }
     return addDestruer(["send", "afhentning"].filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
@@ -136,6 +139,20 @@ function getItemFee(
   notes: string | null
 ): string {
   // No action chosen → standard handling
+  // Pakke-specific fees for Lite
+  if (mailType === "pakke" && tenantTypeName === "Lite") {
+    if (!chosenAction || chosenAction === defaultAction) {
+      if ((chosenAction || defaultAction) === "send" || (chosenAction || defaultAction) === "standard_forsendelse") return "50 kr. + porto";
+      if ((chosenAction || defaultAction) === "afhentning") return "50 kr.";
+      if ((chosenAction || defaultAction) === "destruer") return "0 kr.";
+      return "50 kr. + porto";
+    }
+    if (chosenAction === "destruer") return "0 kr.";
+    if (chosenAction === "send" || chosenAction === "standard_forsendelse") return "50 kr. + porto";
+    if (chosenAction === "afhentning") return "50 kr.";
+    return "50 kr.";
+  }
+
   if (!chosenAction || chosenAction === defaultAction) {
     // Special case: afhentning on a non-free day still costs extra
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
@@ -173,8 +190,14 @@ function getItemFee(
 }
 
 /** Returns the price label for an action in the dropdown */
-function getActionPrice(action: string, tenantTypeName: string | undefined): string {
+function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string): string {
   if (action === "destruer") return "0 kr.";
+  // Pakke-specific prices for Lite
+  if (mailType === "pakke" && tenantTypeName === "Lite") {
+    if (action === "send" || action === "standard_forsendelse") return "50 kr. + porto";
+    if (action === "afhentning") return "50 kr.";
+    return "50 kr.";
+  }
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
     return "0 kr.";
@@ -242,7 +265,7 @@ function getNextThursday(): Date {
 }
 
 function getNextShippingDate(tenantType: string | undefined, mailType: string): Date {
-  if (tenantType === "Lite" && mailType === "brev") {
+  if (tenantType === "Lite") {
     return getFirstThursdayOfMonth();
   }
   return getNextThursday();
@@ -293,15 +316,17 @@ function getStatusDisplay(
   }
   if (item.chosen_action === "standard_forsendelse") {
     const nextDate = getFirstThursdayOfMonth();
-    return ["Sendes", formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "standard_scan") {
     const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
     return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextThursday();
-    return ["Sendes", formatDanishDate(nextDate)];
+    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "afhentning") {
     const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
@@ -320,7 +345,8 @@ function getStatusDisplay(
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    return ["Sendes", formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (effectiveAction === "afhentning") {
     // Lite default pickup uses monthly Thursday; Standard/Plus use weekly
@@ -823,7 +849,7 @@ const TenantDashboard = () => {
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {getActionLabel(action, tenantTypeName)}
-                                {(() => { const p = getActionPrice(action, tenantTypeName); return p ? ` (${p})` : ""; })()}
+                                {(() => { const p = getActionPrice(action, tenantTypeName, item.mail_type); return p ? ` (${p})` : ""; })()}
                               </SelectItem>
                             ))}
                           </SelectContent>
