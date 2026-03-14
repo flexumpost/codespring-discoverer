@@ -259,7 +259,8 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
         }
       }
     }
-    return "—";
+    if (item.chosen_action === "send" || item.chosen_action === "forsendelse") return "0 kr. + porto";
+    return "0 kr.";
   }
 
   // Free-day check for afhentning even when it's not the default action
