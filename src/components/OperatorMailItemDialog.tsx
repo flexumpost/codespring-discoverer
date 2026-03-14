@@ -131,6 +131,8 @@ export function OperatorMailItemDialog({
     }
   };
 
+  return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
@@ -224,6 +226,24 @@ export function OperatorMailItemDialog({
             />
           </div>
 
+          {/* Reject action section */}
+          {item.chosen_action && (
+            <div className="flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 p-3">
+              <div className="flex items-center gap-2">
+                <ShieldX className="h-4 w-4 text-orange-600" />
+                <span className="text-sm">Ønsket handling: <strong>{item.chosen_action}</strong></span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                onClick={() => setShowRejectDialog(true)}
+              >
+                Afvis handling
+              </Button>
+            </div>
+          )}
+
           {/* Delete scan section */}
           {item.scan_url && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
@@ -267,5 +287,35 @@ export function OperatorMailItemDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Reject action dialog */}
+    <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Afvis handling?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Angiv en begrundelse for afvisningen. Lejeren vil kunne se denne besked.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-2">
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Skriv begrundelse for afvisning..."
+            rows={3}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuller</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleRejectAction}
+            disabled={rejecting || !rejectReason.trim()}
+          >
+            {rejecting ? "Afviser..." : "Afvis handling"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
