@@ -1,59 +1,63 @@
 
 
-## Tilføj "Kalender" og "Templates" tabs til operatør-indstillinger
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Oversigt
-To nye faner tilføjes i OperatorSettingsTabs: en kalender til helligdage/lukkedage (som blokerer afhentninger) og en template-editor til e-mail-skabeloner.
+### Forretningslogik (opsummering)
 
-### Database
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**Ny tabel: `closed_days`**
-- `id` uuid PK
-- `date` date NOT NULL UNIQUE — den lukkede dag
-- `label` text — valgfri beskrivelse (f.eks. "Kristi himmelfartsdag")
-- `created_at` timestamptz DEFAULT now()
+### Ændringer
 
-RLS: Operators CRUD, authenticated SELECT.
-
-**Ny tabel: `email_templates`**
-- `id` uuid PK
-- `slug` text NOT NULL UNIQUE — identifikator (f.eks. `welcome`, `new_shipment`, `scan_ready`, `pickup_confirmed`, `pickup_reminder`, `operator_new_request`)
-- `subject` text NOT NULL — emnelinjen
-- `body` text NOT NULL — brødtekst (understøtter simpel formatering som pricing)
-- `audience` text NOT NULL — `tenant` eller `operator`
-- `updated_at` timestamptz DEFAULT now()
-
-RLS: Operators CRUD, authenticated SELECT. Seed med standardtemplates for de 6 nævnte typer.
-
-### Nye komponenter
-
-**`src/components/ClosedDaysCalendar.tsx`**
-- Viser en `Calendar` (DayPicker) i `multiple` mode med markerede lukkedage
-- Liste under kalenderen med alle lukkedage (dato + label), sorteret kronologisk
-- Klik på en dag i kalenderen åbner en lille dialog til at tilføje/fjerne lukkedag med valgfri label
-- CRUD mod `closed_days`-tabellen
-
-**`src/components/EmailTemplatesEditor.tsx`**
-- Viser en liste med alle templates grupperet i to sektioner: "Lejer" og "Operatør"
-- Klik på en template åbner inline-redigering med `subject` og `body` felter
-- Gem-knap pr. template med optimistisk opdatering
-- Understøtter samme formatering som pricing (`\n`, `**bold**`, `##heading`)
-
-### Ændringer i eksisterende filer
-
-**`src/components/OperatorSettingsTabs.tsx`**
-- Import de to nye komponenter
-- Tilføj to nye `TabsTrigger`/`TabsContent` for "Kalender" og "Templates"
-
-### Afhentnings-integration (senere fase)
-Pickup-kalenderen i TenantDashboard skal fremover krydstjekke `closed_days` for at blokere lukkede dage. Denne plan opretter kun tabellen og UI — integrationen med afhentningslogikken kan tilføjes separat.
-
-### Fil-oversigt
-| Fil | Handling |
+| Fil | Ændring |
 |---|---|
-| `closed_days` tabel | Ny migration |
-| `email_templates` tabel + seed | Ny migration |
-| `src/components/ClosedDaysCalendar.tsx` | Ny |
-| `src/components/EmailTemplatesEditor.tsx` | Ny |
-| `src/components/OperatorSettingsTabs.tsx` | Opdater |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      closed_days: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          label: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          label?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          label?: string | null
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          audience: string
+          body: string
+          id: string
+          slug: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience: string
+          body: string
+          id?: string
+          slug: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          id?: string
+          slug?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mail_item_logs: {
         Row: {
           action: string
