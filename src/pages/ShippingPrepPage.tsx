@@ -309,9 +309,21 @@ export default function ShippingPrepPage() {
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-1.5">
-                          {group.companyNames.join(", ")}
-                          <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.companyNames.join(", "))} />
+                        <CardTitle className="text-base">
+                          <div className="flex flex-col gap-1">
+                            {group.companies.map((c, i) => (
+                              <span key={i} className="flex items-center gap-1.5">
+                                {c.name}
+                                <Badge
+                                  variant="outline"
+                                  className={cn("text-[10px] px-1.5 py-0 leading-4", TYPE_COLORS[c.typeName] ?? "")}
+                                >
+                                  {c.typeName}
+                                </Badge>
+                                <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(c.name)} />
+                              </span>
+                            ))}
+                          </div>
                         </CardTitle>
                         <Button
                           variant={isDone ? "secondary" : "outline"}
