@@ -437,6 +437,7 @@ const TenantDashboard = () => {
 
   // Fetch mail items filtered by selected tenant
   const { data: mailItems = [], isLoading } = useQuery({
+    refetchInterval: 30000,
     queryKey: ["tenant-mail", activeFilter, selectedTenantId],
     enabled: !!user && !!selectedTenantId,
     queryFn: async () => {
