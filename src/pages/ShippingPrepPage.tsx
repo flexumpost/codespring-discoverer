@@ -282,7 +282,10 @@ export default function ShippingPrepPage() {
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">{group.companyNames.join(", ")}</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-1.5">
+                          {group.companyNames.join(", ")}
+                          <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.companyNames.join(", "))} />
+                        </CardTitle>
                         <Button
                           variant={isDone ? "secondary" : "outline"}
                           size="sm"
@@ -293,11 +296,39 @@ export default function ShippingPrepPage() {
                         </Button>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
-                        {group.shippingRecipient && <p>{group.shippingRecipient}</p>}
-                        {group.shippingCo && <p>c/o {group.shippingCo}</p>}
-                        {group.shippingAddress && <p>{group.shippingAddress}</p>}
+                        {group.shippingRecipient && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingRecipient}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingRecipient!)} />
+                          </p>
+                        )}
+                        {group.shippingCo && (
+                          <p className="flex items-center gap-1.5">
+                            c/o {group.shippingCo}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCo!)} />
+                          </p>
+                        )}
+                        {group.shippingAddress && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingAddress}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress!)} />
+                          </p>
+                        )}
                         {(group.shippingZip || group.shippingCity) && (
-                          <p>{[group.shippingZip, group.shippingCity].filter(Boolean).join(" ")}</p>
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingZip && (
+                              <>
+                                {group.shippingZip}
+                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingZip!)} />
+                              </>
+                            )}
+                            {group.shippingCity && (
+                              <>
+                                {group.shippingCity}
+                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCity!)} />
+                              </>
+                            )}
+                          </p>
                         )}
                       </div>
                     </CardHeader>
