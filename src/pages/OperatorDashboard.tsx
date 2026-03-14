@@ -11,6 +11,7 @@ import type { Tables, Database } from "@/integrations/supabase/types";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 import { AssignTenantDialog } from "@/components/AssignTenantDialog";
 import { ScanUploadButton } from "@/components/ScanUploadButton";
+import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
