@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, ScanLine, ShieldX } from "lucide-react";
+import { Trash2, ScanLine, ShieldX, AlertTriangle } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import type { Tables, Database } from "@/integrations/supabase/types";
