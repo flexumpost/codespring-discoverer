@@ -206,13 +206,13 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companyNames: string[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
         map.set(addrKey, {
           addressKey: addrKey,
-          companyNames: [],
+          companies: [],
           shippingRecipient: item.shipping_recipient,
           shippingCo: item.shipping_co,
           shippingAddress: item.shipping_address,
@@ -222,12 +222,12 @@ export default function ShippingPrepPage() {
         });
       }
       const group = map.get(addrKey)!;
-      if (!group.companyNames.includes(item.company_name)) {
-        group.companyNames.push(item.company_name);
+      if (!group.companies.some((c) => c.name === item.company_name)) {
+        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name });
       }
       group.items.push(item);
     }
-    const groups = Array.from(map.values()).sort((a, b) => a.companyNames[0].localeCompare(b.companyNames[0]));
+    const groups = Array.from(map.values()).sort((a, b) => a.companies[0].name.localeCompare(b.companies[0].name));
     return groups.sort((a, b) => {
       const aDone = doneGroups.has(a.addressKey) ? 1 : 0;
       const bDone = doneGroups.has(b.addressKey) ? 1 : 0;
