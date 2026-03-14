@@ -558,6 +558,15 @@ const OperatorDashboard = () => {
         />
       )}
       <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
+      {editItem && (
+        <OperatorMailItemDialog
+          item={editItem}
+          open={!!editItem}
+          onOpenChange={(v) => { if (!v) setEditItem(null); }}
+          onSaved={() => { refreshMail(); setEditItem(null); }}
+          onReassignTenant={() => { setAssignTenantItem(editItem); setEditItem(null); }}
+        />
+      )}
     </div>
   );
 };
