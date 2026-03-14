@@ -58,9 +58,11 @@ export type Database = {
           created_at: string
           id: string
           mail_type: Database["public"]["Enums"]["mail_type"]
+          note_read: boolean
           notes: string | null
           operator_id: string
           photo_url: string | null
+          pickup_date: string | null
           received_at: string
           scan_url: string | null
           scanned_at: string | null
@@ -75,9 +77,11 @@ export type Database = {
           created_at?: string
           id?: string
           mail_type?: Database["public"]["Enums"]["mail_type"]
+          note_read?: boolean
           notes?: string | null
           operator_id: string
           photo_url?: string | null
+          pickup_date?: string | null
           received_at?: string
           scan_url?: string | null
           scanned_at?: string | null
@@ -92,9 +96,11 @@ export type Database = {
           created_at?: string
           id?: string
           mail_type?: Database["public"]["Enums"]["mail_type"]
+          note_read?: boolean
           notes?: string | null
           operator_id?: string
           photo_url?: string | null
+          pickup_date?: string | null
           received_at?: string
           scan_url?: string | null
           scanned_at?: string | null
