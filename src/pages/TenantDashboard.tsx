@@ -849,7 +849,7 @@ const TenantDashboard = () => {
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
                                 {getActionLabel(action, tenantTypeName)}
-                                {(() => { const p = getActionPrice(action, tenantTypeName); return p ? ` (${p})` : ""; })()}
+                                {(() => { const p = getActionPrice(action, tenantTypeName, item.mail_type); return p ? ` (${p})` : ""; })()}
                               </SelectItem>
                             ))}
                           </SelectContent>
