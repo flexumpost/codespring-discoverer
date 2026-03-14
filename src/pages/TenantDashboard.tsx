@@ -715,7 +715,14 @@ const TenantDashboard = () => {
                     {item.tenants?.company_name ?? "—"}
                   </TableCell>
                 )}
-                <TableCell>{item.stamp_number ?? "—"}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {item.stamp_number ?? "—"}
+                    {item.notes && !item.note_read && (
+                      <MessageSquare className="h-4 w-4 text-blue-500 fill-blue-50" />
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>{item.sender_name ?? "—"}</TableCell>
                 <TableCell>
                   {(() => {
