@@ -1,63 +1,36 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Operator Mail Item Detail Dialog
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Problem
+Operatører kan ikke redigere en forsendelse eller slette et vedhæftet scan direkte fra dashboard-rækken. Lejer-tildeling kræver klik på lejer-kolonnen specifikt.
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+#### 1. Ny komponent: `src/components/OperatorMailItemDialog.tsx`
+En dialog der åbnes når operatøren klikker på en brev-række (undtagen lejer-kolonnen, modtaget-kolonnen og scan-kolonnen som allerede har egne klik-handlers).
 
-### Kodedetaljer
+Indhold:
+- **Foto-preview** (hvis tilgængeligt) i venstre side
+- **Redigerbare felter**: Forsendelsesnr., Afsender, Type (brev/pakke), Noter
+- **Lejer-sektion**: Viser nuværende lejer med en "Skift lejer" knap der åbner den eksisterende `AssignTenantDialog`
+- **Scan-sektion**: Hvis `scan_url` findes, vis et preview/link og en "Slet scan" knap med bekræftelsesdialog (sletter filen fra `mail-scans` bucket og sætter `scan_url`/`scanned_at` til null)
+- **Gem-knap**: Gemmer ændringer til `mail_items`
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+#### 2. Opdater `src/pages/OperatorDashboard.tsx`
+- Tilføj state for `editItem` (den klikkede MailItem)
+- Gør `TableRow` klikbar med `onClick` der sætter `editItem` (undtagen celler der allerede har `stopPropagation`)
+- Render `OperatorMailItemDialog` med `editItem`
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+### Teknisk flow
+```text
+Klik på række → Dialog åbnes med forsendelsens detaljer
+  → Redigér felter + Gem
+  → "Skift lejer" → Åbner AssignTenantDialog
+  → "Slet scan" → Bekræftelse → Slet fil fra storage + nulstil scan_url
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Filer
+- **Ny:** `src/components/OperatorMailItemDialog.tsx`
+- **Ændret:** `src/pages/OperatorDashboard.tsx` — tilføj row click + render dialog
 
