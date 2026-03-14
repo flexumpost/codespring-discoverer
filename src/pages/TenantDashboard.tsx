@@ -245,11 +245,9 @@ function getNextShippingDate(tenantType: string | undefined, mailType: string): 
 
 /* ── Pickup helpers ── */
 
-function parsePickupFromNotes(notes: string | null): string | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const isoStr = notes.replace("PICKUP:", "");
-  const date = new Date(isoStr);
-  if (isNaN(date.getTime())) return null;
+function formatPickupDisplay(pickupDateStr: string | null, notes: string | null): string | null {
+  const date = parsePickupDate(pickupDateStr, notes);
+  if (!date) return null;
   const dayName = DANISH_DAYS[date.getDay()];
   const d = date.getDate();
   const month = DANISH_MONTHS[date.getMonth()];
