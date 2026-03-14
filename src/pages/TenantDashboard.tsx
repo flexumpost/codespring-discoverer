@@ -18,6 +18,7 @@ import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { toast } from "sonner";
 import { DefaultActionSetup } from "@/components/DefaultActionSetup";
+import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import type { Database } from "@/integrations/supabase/types";
 
 type MailStatus = Database["public"]["Enums"]["mail_status"];
