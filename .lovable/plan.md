@@ -1,63 +1,58 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Tre ændringer for Standard-lejere
 
-### Forretningslogik (opsummering)
+### 1. Tilføj "Standard scanning" for Standard-breve
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+**`src/pages/TenantDashboard.tsx`**
 
-### Ændringer
+- **getExtraActions (linje 60-66):** Tilføj `standard_scan` i Standard's action-lister, samme mønster som Lite:
+  ```
+  case "afhentning": return ["scan", "standard_scan", "send", "anden_afhentningsdag"];
+  case "scan":       return ["standard_scan", "send", "afhentning"];
+  case "standard_scan": return ["scan", "send", "afhentning"];
+  case "send":       return ["scan", "standard_scan", "afhentning"];
+  default:           return ["scan", "standard_scan", "afhentning", "send"];
+  ```
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
+- **getActionLabel (linje 81-88):** Tilføj Standard-specifikke labels:
+  ```
+  if (tenantTypeName === "Standard") {
+    if (action === "scan") return "Scan nu";
+    if (action === "standard_scan") return "Standard scanning";
   }
-  return firstThursday;
-}
-```
+  ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+- **getActionPrice (linje 171-175):** Tilføj `standard_scan` for Standard:
+  ```
+  if (action === "standard_scan") return "0 kr.";
+  ```
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+- **getStatusDisplay (linje 277-280):** `standard_scan` for Standard skal vise næste torsdag (ugentlig kadence) i stedet for første torsdag i måneden. Tilføj tier-check:
+  ```
+  if (item.chosen_action === "standard_scan") {
+    const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
+    return ["Scannes", formatDanishDate(nextDate)];
+  }
+  ```
+  (Kræver at `tenantTypeName` sendes som parameter til `getStatusDisplay` — den modtager det allerede.)
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+### 2. Omdøb "Åben og scan" til "Scan nu"
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+- **ACTION_LABELS (linje 36):** Ændr `scan: "Åben og scan"` → `scan: "Scan nu"`.
 
-**3. Opdater memory**
+### 3. Afhentning gratis på standard-torsdage for Standard
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Allerede implementeret! `isFreeTorsdag` returnerer `true` for enhver torsdag for Standard (linje 101), og `getItemFee` bruger dette (linje 150-153). Afhentningskalenderen skal dog kontrolleres for at sikre at gebyret vises korrekt i dropdown.
+
+- **getActionPrice (linje 171-174):** Ændr afhentning-prisen for Standard til at vise "0-30 kr." eller lignende. Bedre: vis "30 kr." i dropdown (som nu), da den præcise pris afhænger af den valgte dato — det korrekte beløb vises i gebyr-kolonnen efter valg.
+
+### Ændringer i `src/pages/OperatorDashboard.tsx`
+
+- **ACTION_LABELS:** Ændr `scan: "Åben og scan"` → `scan: "Scan nu"`.
+- **getOperatorStatusDisplay:** Tilføj case for `standard_scan` hos Standard → "Scanning bestilt [næste torsdag]".
+
+### Ændringer i `src/components/MailItemLogSheet.tsx`
+
+- **ACTION_LABELS:** Ændr `scan: "Åben og scan"` → `scan: "Scan nu"` (hvis den bruger samme label).
 
