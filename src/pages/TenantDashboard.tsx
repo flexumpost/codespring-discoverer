@@ -553,7 +553,7 @@ const TenantDashboard = () => {
         .update({
           chosen_action: "afhentning",
           status: "afventer_handling" as MailStatus,
-          notes: `PICKUP:${pickupIso}`,
+          pickup_date: pickupIso,
         })
         .eq("id", id);
       if (error) throw error;
