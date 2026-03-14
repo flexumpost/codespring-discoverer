@@ -265,11 +265,15 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
 }
 
 function getStatusDisplay(
-  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null },
+  item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null; action_rejected_reason?: string | null },
   tenantTypeName: string | undefined,
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
+  // Action rejected by operator
+  if ((item as any).action_rejected_reason && !item.chosen_action) {
+    return ["Handling afvist"];
+  }
   if (item.chosen_action === "scan" && !item.scan_url) {
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
