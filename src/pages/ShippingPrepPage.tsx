@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
-import { CalendarIcon, Package, Mail, Send, CheckCircle } from "lucide-react";
+import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
