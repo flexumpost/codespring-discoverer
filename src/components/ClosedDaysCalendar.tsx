@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -101,51 +102,63 @@ export function ClosedDaysCalendar() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
         <h3 className="text-lg font-semibold mb-1">Lukkedage</h3>
         <p className="text-sm text-muted-foreground mb-4">
           Klik på en dag for at tilføje eller fjerne en lukkedag. Lukkedage blokerer afhentninger.
         </p>
-        <Calendar
-          mode="multiple"
-          selected={closedDateObjects}
-          onDayClick={handleDayClick}
-          className="rounded-md border pointer-events-auto"
-          modifiers={{ closed: closedDateObjects }}
-          modifiersClassNames={{ closed: "bg-destructive text-destructive-foreground" }}
-        />
       </div>
 
-      {closedDays.length > 0 && (
-        <div>
-          <h4 className="font-medium mb-2">Registrerede lukkedage</h4>
-          <ul className="space-y-1">
-            {closedDays.map((day) => (
-              <li
-                key={day.id}
-                className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-              >
-                <span>
-                  <span className="font-medium">
-                    {format(parseISO(day.date), "d. MMMM yyyy", { locale: da })}
-                  </span>
-                  {day.label && (
-                    <span className="ml-2 text-muted-foreground">— {day.label}</span>
-                  )}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(day.id)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </li>
-            ))}
-          </ul>
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Calendar */}
+        <div className="shrink-0">
+          <Calendar
+            mode="multiple"
+            selected={closedDateObjects}
+            onDayClick={handleDayClick}
+            className="rounded-md border pointer-events-auto"
+            modifiers={{ closed: closedDateObjects }}
+            modifiersClassNames={{ closed: "bg-destructive text-destructive-foreground" }}
+          />
         </div>
-      )}
+
+        {/* List */}
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium mb-2">Registrerede lukkedage ({closedDays.length})</h4>
+          {closedDays.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ingen lukkedage registreret.</p>
+          ) : (
+            <ScrollArea className="h-[350px] rounded-md border">
+              <ul className="space-y-1 p-2">
+                {closedDays.map((day) => (
+                  <li
+                    key={day.id}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  >
+                    <span>
+                      <span className="font-medium">
+                        {format(parseISO(day.date), "d. MMMM yyyy", { locale: da })}
+                      </span>
+                      {day.label && (
+                        <span className="ml-2 text-muted-foreground">— {day.label}</span>
+                      )}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => handleDelete(day.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </ScrollArea>
+          )}
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
