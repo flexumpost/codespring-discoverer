@@ -107,7 +107,30 @@ export function OperatorMailItemDialog({
     }
   };
 
-  return (
+  const handleRejectAction = async () => {
+    if (!rejectReason.trim()) return;
+    setRejecting(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({
+        chosen_action: null,
+        action_rejected_reason: rejectReason.trim(),
+        note_read: false,
+        status: "ny" as any,
+      })
+      .eq("id", item.id);
+    setRejecting(false);
+    if (error) {
+      toast.error("Kunne ikke afvise handlingen");
+      console.error(error);
+    } else {
+      toast.success("Handling afvist");
+      setShowRejectDialog(false);
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
