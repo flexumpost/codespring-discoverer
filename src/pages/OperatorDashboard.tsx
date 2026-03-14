@@ -92,6 +92,10 @@ function parsePickupFromNotes(notes: string | null): string | null {
 
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
+  if (action === "standard_forsendelse") {
+    const shipDate = getShippingDate("Lite", "brev");
+    return `Skal sendes ${formatDanishDate(shipDate)}`;
+  }
   if (action === "send" || action === "under_forsendelse") {
     // Eksplicit valgt handling → altid ugentlig kadence (næste torsdag)
     const shipDate = getNextThursday();
