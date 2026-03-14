@@ -575,10 +575,15 @@ const TenantDashboard = () => {
     setActiveFilter((prev) => (prev === status ? null : status));
   };
 
-  const handleRowClick = (item: MailItem) => {
+  const handleRowClick = async (item: MailItem) => {
     setSelectedItem(item);
     if (item.scan_url && (item.status === "ulaest" || item.status === "ny")) {
       markAsRead.mutate(item.id);
+    }
+    // Mark operator note as read
+    if (item.notes && !(item as any).note_read) {
+      await supabase.from("mail_items").update({ note_read: true }).eq("id", item.id);
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
     }
   };
 
