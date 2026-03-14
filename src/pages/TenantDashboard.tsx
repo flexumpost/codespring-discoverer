@@ -344,6 +344,7 @@ const TenantDashboard = () => {
   const [pickupDate, setPickupDate] = useState<Date | undefined>();
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
+  const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
 
   // Generate signed URL for scan preview when dialog opens
   useEffect(() => {
