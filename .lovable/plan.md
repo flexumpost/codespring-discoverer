@@ -1,27 +1,63 @@
 
 
-## Fix: Destruerede forsendelser forsvinder fra "Destrueres"-kortet
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Dataforespørgslen i `OperatorDashboard.tsx` (linje 319) filtrerer med `.in("status", ["ny", "afventer_handling", "ulaest", "laest"])`, hvilket udelukker `arkiveret` status helt. Når operatøren bekræfter destruktion og status sættes til `arkiveret`, forsvinder forsendelsen fra alle visninger.
+### Forretningslogik (opsummering)
 
-### Løsning
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**`src/pages/OperatorDashboard.tsx`** — én ændring:
-- Tilføj `"arkiveret"` til status-filteret i `refreshMail()`, men kun for destruerede forsendelser. Den nemmeste tilgang er at fjerne `.in("status", ...)` filteret og i stedet filtrere `arkiveret` items ud client-side — undtagen dem med `chosen_action === "destruer"`.
-- Alternativt (og bedre): Behold status-filteret, men tilføj en `.or()` der inkluderer `and(status.eq.arkiveret,chosen_action.eq.destruer)`.
+### Ændringer
 
-Konkret ændring på linje 319:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
 ```typescript
-// Fra:
-.in("status", ["ny", "afventer_handling", "ulaest", "laest"])
-
-// Til:
-.or("status.in.(ny,afventer_handling,ulaest,laest),and(status.eq.arkiveret,chosen_action.eq.destruer)")
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-Dette sikrer at destruerede forsendelser stadig hentes og vises i "Destrueres"-kortet med status "Forsendelse destrueret", men ikke tælles med i kortets tæller (den eksisterende `countFilter` håndterer dette allerede korrekt).
+**2. Lås handlinger fra dagen før forsendelse**
 
-### Filer
-- **Ændret**: `src/pages/OperatorDashboard.tsx` — udvid query-filteret til at inkludere arkiverede destruer-items
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
