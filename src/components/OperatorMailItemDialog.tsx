@@ -44,6 +44,9 @@ export function OperatorMailItemDialog({
   const [notes, setNotes] = useState(item.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deletingScan, setDeletingScan] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
