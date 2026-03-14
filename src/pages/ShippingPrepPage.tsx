@@ -60,6 +60,7 @@ type MailItemWithTenant = {
   mail_type: string;
   status: string;
   chosen_action: string | null;
+  photo_url: string | null;
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
