@@ -274,6 +274,10 @@ function getStatusDisplay(
     const nextDate = getFirstThursdayOfMonth();
     return ["Sendes", formatDanishDate(nextDate)];
   }
+  if (item.chosen_action === "standard_scan") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Scannes", formatDanishDate(nextDate)];
+  }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday();
     return ["Sendes", formatDanishDate(nextDate)];
