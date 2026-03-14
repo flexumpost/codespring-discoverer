@@ -316,7 +316,8 @@ function getStatusDisplay(
   }
   if (item.chosen_action === "standard_forsendelse") {
     const nextDate = getFirstThursdayOfMonth();
-    return ["Sendes", formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
+    return [label, formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "standard_scan") {
     const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
