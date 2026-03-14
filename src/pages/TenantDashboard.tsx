@@ -425,7 +425,7 @@ const TenantDashboard = () => {
       if (activeFilter === "afventer_scanning") {
         query = query.eq("chosen_action", "scan").is("scan_url", null);
       } else if (activeFilter === "scannet") {
-        query = query.in("status", ["ulaest", "laest"] as MailStatus[]);
+        query = query.not("scan_url", "is", null).neq("status", "arkiveret" as MailStatus);
       } else if (activeFilter) {
         query = query.eq("status", activeFilter as MailStatus);
       } else {
