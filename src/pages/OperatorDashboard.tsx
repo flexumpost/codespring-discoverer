@@ -276,7 +276,12 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action || !item.tenant_id) return "—";
   if (item.chosen_action === "standard_forsendelse") {
-    if (item.mail_type === "pakke") return "50 kr. + porto";
+    if (item.mail_type === "pakke") {
+      const tier = item.tenants?.tenant_types?.name;
+      if (tier === "Plus") return "10 kr. + porto";
+      if (tier === "Standard") return "30 kr. + porto";
+      return "50 kr. + porto";
+    }
     return "0 kr. + porto";
   }
   if (item.chosen_action === "standard_scan") return "0 kr.";

@@ -1,71 +1,63 @@
 
 
-## Pakke-håndtering for Standard og Plus: Samme logik som Lite, andre gebyrer
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. `src/pages/TenantDashboard.tsx` — `getExtraActions` (linje 57)**
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-Nuværende Standard/Plus pakke-logik (`["send", "afhentning"]`) erstattes med samme mønster som Lite (`["afhentning", "standard_forsendelse"]`):
+### Kodedetaljer
 
-```typescript
-// Linje 53-57: Alle pakker bruger nu samme handlingsmuligheder
-if (mailType === "pakke") {
-  return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
-}
-```
-
-**2. `src/pages/TenantDashboard.tsx` — `getItemFee` (efter linje 154)**
-
-Tilføj pakke-specifik gebyrlogik for Standard og Plus før den generelle logik:
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-if (mailType === "pakke" && tenantTypeName === "Standard") {
-  if (chosenAction === "destruer" || ...) return "0 kr.";
-  if (chosenAction === "send" || chosenAction === "standard_forsendelse") return "30 kr. + porto";
-  if (chosenAction === "afhentning") return "30 kr.";
-  return "30 kr. + porto";
-}
-if (mailType === "pakke" && tenantTypeName === "Plus") {
-  if (chosenAction === "destruer" || ...) return "0 kr.";
-  if (chosenAction === "send" || chosenAction === "standard_forsendelse") return "10 kr. + porto";
-  if (chosenAction === "afhentning") return "10 kr.";
-  return "10 kr. + porto";
-}
-```
-
-**3. `src/pages/TenantDashboard.tsx` — `getActionPrice` (linje 196-200)**
-
-Udvid pakke-blokken til at dække Standard og Plus:
-
-```typescript
-if (mailType === "pakke") {
-  if (action === "destruer") return "0 kr.";
-  if (tenantTypeName === "Lite") { ... "50 kr." ... }
-  if (tenantTypeName === "Standard") { ... "30 kr." / "30 kr. + porto" ... }
-  if (tenantTypeName === "Plus") { ... "10 kr." / "10 kr. + porto" ... }
-}
-```
-
-**4. `src/pages/OperatorDashboard.tsx` — `getItemFee` (linje 278-281)**
-
-Opdater `standard_forsendelse` pakke-gebyr til at bruge tier:
-
-```typescript
-if (item.chosen_action === "standard_forsendelse") {
-  if (item.mail_type === "pakke") {
-    const tier = item.tenants?.tenant_types?.name;
-    if (tier === "Plus") return "10 kr. + porto";
-    if (tier === "Standard") return "30 kr. + porto";
-    return "50 kr. + porto"; // Lite
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  return "0 kr. + porto";
+  return firstThursday;
 }
 ```
 
-Og tilsvarende for `afhentning` af pakker (linje 286-290).
+**2. Lås handlinger fra dagen før forsendelse**
 
-### Filer
-- `src/pages/TenantDashboard.tsx`
-- `src/pages/OperatorDashboard.tsx`
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
