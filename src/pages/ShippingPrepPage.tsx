@@ -386,6 +386,7 @@ export default function ShippingPrepPage() {
                               checked={checkedIds.has(item.id)}
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
+                            <PhotoHoverPreview photoUrl={item.photo_url} />
                             <span className="text-sm font-medium">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
