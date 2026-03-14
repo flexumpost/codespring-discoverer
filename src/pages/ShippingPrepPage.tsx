@@ -362,7 +362,7 @@ export default function ShippingPrepPage() {
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <span className="text-sm font-medium">
-                              Nr. {item.stamp_number ?? "—"} — {item.company_name}
+                              Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
                           </label>
                         ))}
