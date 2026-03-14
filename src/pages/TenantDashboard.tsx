@@ -266,6 +266,7 @@ function getNextThursday(): Date {
 
 function getNextShippingDate(tenantType: string | undefined, mailType: string): Date {
   if (tenantType === "Lite") {
+    if (mailType === "pakke") return getNextThursday();
     return getFirstThursdayOfMonth();
   }
   return getNextThursday();
