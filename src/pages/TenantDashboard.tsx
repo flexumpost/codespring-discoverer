@@ -797,7 +797,15 @@ const TenantDashboard = () => {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell>{new Date(item.received_at).toLocaleDateString("da-DK")}</TableCell>
+                <TableCell>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
+                    onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
+                  >
+                    {new Date(item.received_at).toLocaleDateString("da-DK")}
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
