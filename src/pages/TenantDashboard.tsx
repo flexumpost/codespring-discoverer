@@ -93,11 +93,18 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   return ACTION_LABELS[action] ?? action;
 }
 
-/** Parse a pickup date from notes field (format: "PICKUP:iso") */
-function parsePickupDateFromNotes(notes: string | null): Date | null {
-  if (!notes || !notes.startsWith("PICKUP:")) return null;
-  const d = new Date(notes.replace("PICKUP:", ""));
-  return isNaN(d.getTime()) ? null : d;
+/** Parse a pickup date from the dedicated column or legacy notes field */
+function parsePickupDate(pickupDate: string | null, notes: string | null): Date | null {
+  if (pickupDate) {
+    const d = new Date(pickupDate);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Legacy fallback
+  if (notes && notes.startsWith("PICKUP:")) {
+    const d = new Date(notes.replace("PICKUP:", ""));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
 /** Check if a pickup date falls on a "free Thursday" for the given tier */
