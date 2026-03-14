@@ -30,7 +30,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  scan: "Åben og scan",
+  scan: "Scan nu",
   send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",

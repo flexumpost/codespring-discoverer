@@ -281,7 +281,7 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "standard_scan") {
-    const nextDate = getFirstThursdayOfMonth();
+    const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
     return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {

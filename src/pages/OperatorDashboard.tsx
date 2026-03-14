@@ -95,7 +95,8 @@ function parsePickupFromNotes(notes: string | null): string | null {
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
   if (action === "standard_scan") {
-    const scanDate = getShippingDate("Lite", "brev");
+    const tenantType = item.tenants?.tenant_types?.name;
+    const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
     return `Scanning bestilt ${formatDanishDate(scanDate)}`;
   }
   if (action === "standard_forsendelse") {
