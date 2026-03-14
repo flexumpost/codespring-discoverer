@@ -841,7 +841,7 @@ const TenantDashboard = () => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.status !== "arkiveret" ? (
+                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" ? (
                     <Button
                       variant="ghost"
                       size="icon"
