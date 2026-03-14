@@ -174,6 +174,7 @@ function getItemFee(
 
 /** Returns the price label for an action in the dropdown */
 function getActionPrice(action: string, tenantTypeName: string | undefined): string {
+  if (action === "destruer") return "0 kr.";
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
     return "0 kr.";
