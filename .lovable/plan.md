@@ -1,50 +1,63 @@
 
 
-## Fix: Pakke-dato og operatør-gebyr/status for Lite-pakker
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problemer identificeret
+### Forretningslogik (opsummering)
 
-1. **TenantDashboard — forkert dato for `standard_forsendelse` pakker (linje 318-321)**
-   `getFirstThursdayOfMonth()` bruges for alle `standard_forsendelse`-forsendelser — men Lite-pakker skal bruge `getNextThursday()` (ugentlig). Første torsdag i marts (5. marts) er passeret, så funktionen returnerer 2. april i stedet for 19. marts.
-
-2. **OperatorDashboard — forkert status for `standard_forsendelse` (linje 105-107)**
-   Hardcoder `getShippingDate("Lite", "brev")` — ignorerer den faktiske `mail_type`. For pakker skal den bruge `getNextThursday()`.
-
-3. **OperatorDashboard — forkert gebyr for `standard_forsendelse` pakker (linje 273)**
-   Returnerer altid `"0 kr. + porto"` — men Lite-pakker koster `"50 kr. + porto"`.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**`src/pages/TenantDashboard.tsx`** — linje 318-321:
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
 ```typescript
-if (item.chosen_action === "standard_forsendelse") {
-  if (item.mail_type === "pakke") {
-    const nextDate = getNextThursday();
-    return ["Sendes senest", formatDanishDate(nextDate)];
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  const nextDate = getFirstThursdayOfMonth();
-  return ["Sendes", formatDanishDate(nextDate)];
+  return firstThursday;
 }
 ```
 
-**`src/pages/OperatorDashboard.tsx`** — linje 105-108 (status):
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
 ```typescript
-if (action === "standard_forsendelse") {
-  const tenantType = item.tenants?.tenant_types?.name;
-  if (item.mail_type === "pakke") {
-    const shipDate = getNextThursday();
-    return `Skal sendes senest ${formatDanishDate(shipDate)}`;
-  }
-  const shipDate = getShippingDate(tenantType ?? "Lite", "brev");
-  return `Skal sendes ${formatDanishDate(shipDate)}`;
-}
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-**`src/pages/OperatorDashboard.tsx`** — linje 273 (gebyr):
-```typescript
-if (item.chosen_action === "standard_forsendelse") {
-  if (item.mail_type === "pakke") return "50 kr. + porto";
-  return "0 kr. + porto";
-}
-```
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

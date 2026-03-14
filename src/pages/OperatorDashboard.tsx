@@ -103,7 +103,12 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return `Scanning bestilt ${formatDanishDate(scanDate)}`;
   }
   if (action === "standard_forsendelse") {
-    const shipDate = getShippingDate("Lite", "brev");
+    const tenantType = item.tenants?.tenant_types?.name;
+    if (item.mail_type === "pakke") {
+      const shipDate = getNextThursday();
+      return `Skal sendes senest ${formatDanishDate(shipDate)}`;
+    }
+    const shipDate = getShippingDate(tenantType ?? "Lite", "brev");
     return `Skal sendes ${formatDanishDate(shipDate)}`;
   }
   if (action === "send" || action === "under_forsendelse") {
@@ -270,7 +275,10 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action || !item.tenant_id) return "—";
-  if (item.chosen_action === "standard_forsendelse") return "0 kr. + porto";
+  if (item.chosen_action === "standard_forsendelse") {
+    if (item.mail_type === "pakke") return "50 kr. + porto";
+    return "0 kr. + porto";
+  }
   if (item.chosen_action === "standard_scan") return "0 kr.";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";

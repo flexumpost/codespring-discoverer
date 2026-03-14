@@ -316,9 +316,12 @@ function getStatusDisplay(
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "standard_forsendelse") {
+    if (item.mail_type === "pakke") {
+      const nextDate = getNextThursday();
+      return ["Sendes senest", formatDanishDate(nextDate)];
+    }
     const nextDate = getFirstThursdayOfMonth();
-    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
-    return [label, formatDanishDate(nextDate)];
+    return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "standard_scan") {
     const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
