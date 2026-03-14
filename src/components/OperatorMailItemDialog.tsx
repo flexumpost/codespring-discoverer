@@ -158,6 +158,9 @@ export function OperatorMailItemDialog({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Rediger forsendelse</DialogTitle>
+          {isDestroyed && (
+            <Badge variant="destructive" className="mt-2">Forsendelse destrueret</Badge>
+          )}
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
