@@ -54,6 +54,7 @@ export type Database = {
       }
       mail_items: {
         Row: {
+          action_rejected_reason: string | null
           chosen_action: string | null
           created_at: string
           id: string
@@ -73,6 +74,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          action_rejected_reason?: string | null
           chosen_action?: string | null
           created_at?: string
           id?: string
@@ -92,6 +94,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          action_rejected_reason?: string | null
           chosen_action?: string | null
           created_at?: string
           id?: string
