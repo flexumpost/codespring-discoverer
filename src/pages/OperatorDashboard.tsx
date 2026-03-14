@@ -112,7 +112,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return `Skal sendes ${formatDanishDate(shipDate)}`;
   }
   if (action === "afhentning") {
-    const pickupText = parsePickupFromNotes(item.notes);
+    const pickupText = formatPickupDisplay(item);
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
   if (action === "scan") {
