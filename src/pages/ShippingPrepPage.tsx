@@ -67,6 +67,11 @@ export default function ShippingPrepPage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [doneGroups, setDoneGroups] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Kopieret", description: text });
+  };
   const queryClient = useQueryClient();
 
   const { data: items = [], isLoading } = useQuery({
