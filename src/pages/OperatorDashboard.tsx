@@ -19,7 +19,7 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; tenant_types?: { name: string } | null } | null };
 
 const ACTION_LABELS: Record<string, string> = {
-  scan: "Åben og scan",
+  scan: "Scan nu",
   send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
@@ -95,7 +95,8 @@ function parsePickupFromNotes(notes: string | null): string | null {
 function getOperatorStatusDisplay(item: MailItem): string {
   const action = item.chosen_action;
   if (action === "standard_scan") {
-    const scanDate = getShippingDate("Lite", "brev");
+    const tenantType = item.tenants?.tenant_types?.name;
+    const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
     return `Scanning bestilt ${formatDanishDate(scanDate)}`;
   }
   if (action === "standard_forsendelse") {

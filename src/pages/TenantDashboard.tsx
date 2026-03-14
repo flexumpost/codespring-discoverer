@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  scan: "Åben og scan",
+  scan: "Scan nu",
   send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
@@ -59,10 +59,11 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Standard") {
     switch (currentAction) {
-      case "afhentning": return ["scan", "send", "anden_afhentningsdag"];
-      case "scan":       return ["send", "afhentning"];
-      case "send":       return ["scan", "afhentning"];
-      default:           return ["scan", "afhentning", "send"];
+      case "afhentning": return ["scan", "standard_scan", "send", "anden_afhentningsdag"];
+      case "scan":       return ["standard_scan", "send", "afhentning"];
+      case "standard_scan": return ["scan", "send", "afhentning"];
+      case "send":       return ["scan", "standard_scan", "afhentning"];
+      default:           return ["scan", "standard_scan", "afhentning", "send"];
     }
   }
   if (tenantTypeName === "Lite") {
@@ -84,6 +85,10 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
     if (action === "standard_scan") return "Standard scanning";
     if (action === "send") return "Send hurtigst muligt";
     if (action === "standard_forsendelse") return "Standard forsendelse";
+  }
+  if (tenantTypeName === "Standard") {
+    if (action === "scan") return "Scan nu";
+    if (action === "standard_scan") return "Standard scanning";
   }
   return ACTION_LABELS[action] ?? action;
 }
@@ -170,6 +175,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   }
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
+    if (action === "standard_scan") return "0 kr.";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "30 kr.";
   }
   return "";
@@ -275,7 +281,7 @@ function getStatusDisplay(
     return ["Sendes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "standard_scan") {
-    const nextDate = getFirstThursdayOfMonth();
+    const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
     return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
