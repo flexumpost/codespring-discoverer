@@ -208,6 +208,7 @@ const CARD_FILTERS: CardFilter[] = [
     icon: Trash2,
     color: "text-destructive",
     filter: (item) => item.chosen_action === "destruer",
+    countFilter: (item) => item.chosen_action === "destruer" && item.status !== "arkiveret",
   },
   {
     title: "Lig på kontoret",

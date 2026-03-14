@@ -1015,7 +1015,7 @@ const TenantDashboard = () => {
           <DialogHeader>
             <DialogTitle>Bekræft destruering</DialogTitle>
             <DialogDescription>
-              Er du sikker på at du vil destruere denne forsendelse? Handlingen kan ikke fortrydes.
+              Er du sikker på at du vil destruere denne forsendelse? <strong>Denne handling kan ikke ændres efterfølgende.</strong> Forsendelsen vil blive destrueret af operatøren og kan ikke genskabes.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

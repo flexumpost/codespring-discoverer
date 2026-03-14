@@ -323,9 +323,11 @@ export function OperatorMailItemDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuller
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Gemmer..." : "Gem ændringer"}
-          </Button>
+          {!isDestroyed && (
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Gemmer..." : "Gem ændringer"}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
