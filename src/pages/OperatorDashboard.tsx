@@ -202,9 +202,9 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Åben og scan",
     icon: ScanLine,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "scan",
+    filter: (item) => item.chosen_action === "scan" || item.chosen_action === "standard_scan",
     countFilter: (item) => {
-      if (item.chosen_action !== "scan" || item.scan_url) return false;
+      if (!["scan", "standard_scan"].includes(item.chosen_action ?? "") || item.scan_url) return false;
       const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
       return isTodayOrPastDate(scanDate);
     },
