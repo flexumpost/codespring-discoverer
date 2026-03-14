@@ -14,6 +14,7 @@ import { ScanUploadButton } from "@/components/ScanUploadButton";
 import { uploadScanFile } from "@/components/ScanUploadDialog";
 import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
+import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
