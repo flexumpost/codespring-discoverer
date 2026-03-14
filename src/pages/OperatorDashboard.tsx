@@ -310,6 +310,7 @@ const OperatorDashboard = () => {
   const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<MailItem | null>(null);
 
   const refreshMail = async () => {
     const { data } = await supabase
