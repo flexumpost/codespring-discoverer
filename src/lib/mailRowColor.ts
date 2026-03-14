@@ -4,6 +4,7 @@ type MailStatus = Database["public"]["Enums"]["mail_status"];
 
 /**
  * Returns a Tailwind background class based on the mail item's current stage.
+ * Priority order: destruer → færdig → scan → send → afhentning → ikke tildelt → ny/afventer
  */
 export function getMailRowColor(item: {
   status: MailStatus;
@@ -11,50 +12,55 @@ export function getMailRowColor(item: {
   scan_url: string | null;
   tenant_id: string | null;
 }): string {
-  // Destroy
+  // 1. Destruer → rød
   if (item.chosen_action === "destruer") {
     return "bg-red-200 dark:bg-red-900/40";
   }
 
-  // Not assigned to a tenant
+  // 2. Færdig (scannet, sendt eller afhentet) → grøn
+  if (
+    item.scan_url ||
+    item.status === "laest" ||
+    item.chosen_action === "under_forsendelse"
+  ) {
+    return "bg-green-200 dark:bg-green-900/40";
+  }
+
+  // 3. Skal scannes → blå
+  if (
+    item.chosen_action &&
+    ["scan", "standard_scan"].includes(item.chosen_action) &&
+    !item.scan_url
+  ) {
+    return "bg-blue-200 dark:bg-blue-900/40";
+  }
+
+  // 4. Skal sendes → orange
+  if (
+    item.chosen_action &&
+    ["send", "standard_forsendelse", "daglig"].includes(item.chosen_action)
+  ) {
+    return "bg-orange-200 dark:bg-orange-800/40";
+  }
+
+  // 5. Skal afhentes → lilla
+  if (
+    item.chosen_action &&
+    ["afhentning", "anden_afhentningsdag"].includes(item.chosen_action)
+  ) {
+    return "bg-purple-200 dark:bg-purple-900/40";
+  }
+
+  // 6. Ikke tildelt → gul
   if (!item.tenant_id) {
     return "bg-yellow-200 dark:bg-yellow-900/40";
   }
 
-  // Awaiting scan (action=scan but no scan uploaded yet)
-  if (item.chosen_action === "scan" && !item.scan_url) {
-    return "bg-blue-200 dark:bg-blue-900/40";
-  }
-
-  // Scanned — has uploaded PDF (covers both ulaest and laest)
-  if (item.scan_url) {
-    return "bg-green-200 dark:bg-green-900/40";
-  }
-
-  // Scanned / unread (no scan_url but status is ulaest)
-  if (item.status === "ulaest") {
-    return "bg-[#fef18b] dark:bg-yellow-700/50";
-  }
-
-  // Read
-  if (item.status === "laest") {
-    return "bg-green-200 dark:bg-green-900/40";
-  }
-
-  // Archived
+  // 7. Arkiveret → grå
   if (item.status === "arkiveret") {
     return "bg-gray-200 dark:bg-gray-900/40";
   }
 
-  // Other actions (send, pickup, daily)
-  if (item.chosen_action && ["send", "afhentning", "daglig"].includes(item.chosen_action)) {
-    return "bg-[#00aaeb]/30 dark:bg-[#00aaeb]/20";
-  }
-
-  // New / no action
-  if (item.status === "ny" || item.status === "afventer_handling") {
-    return "bg-yellow-200 dark:bg-yellow-900/40";
-  }
-
-  return "";
+  // 8. Ny / afventer → gul
+  return "bg-yellow-100 dark:bg-yellow-900/30";
 }
