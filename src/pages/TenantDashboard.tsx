@@ -732,6 +732,24 @@ const TenantDashboard = () => {
                 <TableCell>
                   {(() => {
                     const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                    const rejectedReason = (item as any).action_rejected_reason;
+                    if (rejectedReason && !item.chosen_action) {
+                      return (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1.5 cursor-help">
+                                <Badge variant="destructive">{line1}</Badge>
+                                <MessageSquare className="h-4 w-4 text-destructive" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[250px]">
+                              <p className="text-xs">{rejectedReason}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    }
                     return (
                       <div>
                         <Badge variant="outline">{line1}</Badge>
