@@ -263,7 +263,7 @@ const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
 const PACKAGE_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
   Lite: { haandteringsgebyr: "50 kr." },
   Standard: { haandteringsgebyr: "30 kr." },
-  Plus: { haandteringsgebyr: "Inkluderet" },
+  Plus: { haandteringsgebyr: "10 kr." },
 };
 
 const ACTION_TO_FEE_KEY: Record<string, string> = {
