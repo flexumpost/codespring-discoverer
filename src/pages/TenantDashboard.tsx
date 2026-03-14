@@ -136,18 +136,19 @@ function getItemFee(
   notes: string | null
 ): string {
   // No action chosen → standard handling
-  // Pakke-specific fees for Lite
-  if (mailType === "pakke" && tenantTypeName === "Lite") {
-    if (!chosenAction || chosenAction === defaultAction) {
-      if ((chosenAction || defaultAction) === "send" || (chosenAction || defaultAction) === "standard_forsendelse") return "50 kr. + porto";
-      if ((chosenAction || defaultAction) === "afhentning") return "50 kr.";
-      if ((chosenAction || defaultAction) === "destruer") return "0 kr.";
-      return "50 kr. + porto";
-    }
-    if (chosenAction === "destruer") return "0 kr.";
-    if (chosenAction === "send" || chosenAction === "standard_forsendelse") return "50 kr. + porto";
-    if (chosenAction === "afhentning") return "50 kr.";
-    return "50 kr. + porto";
+  // Pakke-specific fees per tier
+  if (mailType === "pakke" && (tenantTypeName === "Lite" || tenantTypeName === "Standard" || tenantTypeName === "Plus")) {
+    const prices: Record<string, { fee: string; feePorto: string }> = {
+      Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
+      Standard: { fee: "30 kr.", feePorto: "30 kr. + porto" },
+      Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+    };
+    const p = prices[tenantTypeName!];
+    const effective = chosenAction || defaultAction;
+    if (effective === "destruer") return "0 kr.";
+    if (effective === "send" || effective === "standard_forsendelse") return p.feePorto;
+    if (effective === "afhentning") return p.fee;
+    return p.feePorto;
   }
 
   if (!chosenAction || chosenAction === defaultAction) {
