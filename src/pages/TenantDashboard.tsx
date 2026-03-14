@@ -811,7 +811,7 @@ const TenantDashboard = () => {
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, item.notes);
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes);
                     return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>
