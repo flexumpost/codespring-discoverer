@@ -226,6 +226,7 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action || !item.tenant_id) return "—";
   if (item.chosen_action === "standard_forsendelse") return "—";
+  if (item.chosen_action === "standard_scan") return "—";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";
 
