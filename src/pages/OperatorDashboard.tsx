@@ -508,7 +508,14 @@ const OperatorDashboard = () => {
                       <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
                     )}
                   </TableCell>
-                  <TableCell>{item.stamp_number ?? "—"}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1.5">
+                      {item.stamp_number ?? "—"}
+                      {item.notes && !(item as any).note_read && (
+                        <MessageSquare className="h-3.5 w-3.5 text-primary fill-primary" />
+                      )}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
                   </TableCell>

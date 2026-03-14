@@ -486,7 +486,7 @@ const TenantDashboard = () => {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: null, notes: null, status: "ny" as MailStatus })
+        .update({ chosen_action: null, pickup_date: null, status: "ny" as MailStatus })
         .eq("id", id);
       if (error) throw error;
     },
