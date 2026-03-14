@@ -332,7 +332,7 @@ function getStatusDisplay(
     return ["Scannes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    const nextDate = getNextThursday();
     const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
     return [label, formatDanishDate(nextDate)];
   }
