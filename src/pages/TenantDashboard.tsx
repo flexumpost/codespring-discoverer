@@ -190,8 +190,14 @@ function getItemFee(
 }
 
 /** Returns the price label for an action in the dropdown */
-function getActionPrice(action: string, tenantTypeName: string | undefined): string {
+function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string): string {
   if (action === "destruer") return "0 kr.";
+  // Pakke-specific prices for Lite
+  if (mailType === "pakke" && tenantTypeName === "Lite") {
+    if (action === "send" || action === "standard_forsendelse") return "50 kr. + porto";
+    if (action === "afhentning") return "50 kr.";
+    return "50 kr.";
+  }
   if (tenantTypeName === "Plus") {
     if (action === "send") return "0 kr. + porto";
     return "0 kr.";
