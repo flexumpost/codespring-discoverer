@@ -1,63 +1,39 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Tilføj "Standard scanning" ekstra handling for Lite-breve
 
-### Forretningslogik (opsummering)
+### Overblik
+Ny ekstra handling `standard_scan` for Lite-lejere: brevet scannes på den første torsdag i måneden (samme kadence som standard forsendelse). Gebyr: 0 kr.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Ændringer i `src/pages/TenantDashboard.tsx`
 
-### Ændringer
+**1. ACTION_LABELS (linje ~42):** Tilføj `standard_scan: "Standard scanning"`.
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+**2. getExtraActions (linje 67-74):** Tilføj `standard_scan` i Lite's action-lister (ved siden af `scan`/`send` etc.). Fjern `standard_scan` fra listen når `currentAction` allerede er `standard_scan` eller `scan`.
 
-### Kodedetaljer
+**3. getActionLabel (linje 80-84):** Tilføj `if (action === "standard_scan") return "Standard scanning";` for Lite.
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+**4. getItemFee (linje ~136):** Tilføj `if (chosenAction === "standard_scan") return "0 kr.";` (gratis).
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
+**5. getActionPrice (linje ~159):** Tilføj `if (action === "standard_scan") return "0 kr.";` for Lite.
 
-**2. Lås handlinger fra dagen før forsendelse**
+**6. Status-display (~linje 267):** Tilføj case for `standard_scan` der viser "Scannes" + formatDanishDate(getFirstThursdayOfMonth()).
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**7. Filter i availableExtras (linje 729):** Tilføj `a === "standard_scan" && allowedActions.includes("scan")` så handlingen vises når scan er tilladt.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+### Ændringer i `src/pages/OperatorDashboard.tsx`
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+**1. ACTION_LABELS:** Tilføj `standard_scan: "Standard scanning"`.
 
-**3. Opdater memory**
+**2. getOperatorStatusDisplay:** Tilføj case for `standard_scan` → "Scanning bestilt [første torsdag]".
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+**3. getItemFee:** Tilføj `if (item.chosen_action === "standard_scan") return "—";` (ingen gebyr).
+
+### Ændringer i `src/components/MailItemLogSheet.tsx`
+
+**1. ACTION_MAP:** Tilføj `standard_scan: "Standard scanning"`.
+
+### Ændringer i `src/pages/ShippingPrepPage.tsx`
+
+Ingen ændringer nødvendige — `standard_scan` er en scan-handling, ikke en forsendelse.
 
