@@ -14,6 +14,7 @@ import { ScanUploadButton } from "@/components/ScanUploadButton";
 import { uploadScanFile } from "@/components/ScanUploadDialog";
 import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
+import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
@@ -309,6 +310,7 @@ const OperatorDashboard = () => {
   const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<MailItem | null>(null);
 
   const refreshMail = async () => {
     const { data } = await supabase
@@ -486,7 +488,8 @@ const OperatorDashboard = () => {
                 return (
                 <TableRow
                   key={item.id}
-                  className={cn(getMailRowColor(item), dragOverItemId === item.id && canDropScan && "ring-2 ring-primary ring-inset bg-primary/5")}
+                  className={cn("cursor-pointer", getMailRowColor(item), dragOverItemId === item.id && canDropScan && "ring-2 ring-primary ring-inset bg-primary/5")}
+                  onClick={() => setEditItem(item)}
                   onDragOver={(e) => { if (canDropScan) { e.preventDefault(); setDragOverItemId(item.id); } }}
                   onDragLeave={() => setDragOverItemId(null)}
                   onDrop={handleRowDrop}
@@ -555,6 +558,15 @@ const OperatorDashboard = () => {
         />
       )}
       <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
+      {editItem && (
+        <OperatorMailItemDialog
+          item={editItem}
+          open={!!editItem}
+          onOpenChange={(v) => { if (!v) setEditItem(null); }}
+          onSaved={() => { refreshMail(); setEditItem(null); }}
+          onReassignTenant={() => { setAssignTenantItem(editItem); setEditItem(null); }}
+        />
+      )}
     </div>
   );
 };
