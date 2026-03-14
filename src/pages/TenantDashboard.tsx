@@ -175,6 +175,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined): str
   }
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
+    if (action === "standard_scan") return "0 kr.";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "30 kr.";
   }
   return "";
