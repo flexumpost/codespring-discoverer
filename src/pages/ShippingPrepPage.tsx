@@ -378,12 +378,15 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingRecipient!)} />
                           </p>
                         )}
-                        {group.shippingCo && (
-                          <p className="flex items-center gap-1.5">
-                            {group.shippingCo}
-                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCo!)} />
-                          </p>
-                        )}
+                        {group.shippingCo && (() => {
+                          const formatted = group.shippingCo.match(/^c\/o\s/i) ? group.shippingCo : `c/o ${group.shippingCo}`;
+                          return (
+                            <p className="flex items-center gap-1.5">
+                              {formatted}
+                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(formatted)} />
+                            </p>
+                          );
+                        })()}
                         {group.shippingAddress && (
                           <p className="flex items-center gap-1.5">
                             {group.shippingAddress}
