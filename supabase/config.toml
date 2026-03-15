@@ -1,19 +1,17 @@
 project_id = "hokiuavxyoymcenqlvly"
 
-[functions.create-operator]
-verify_jwt = false
-
-[functions.create-tenant-user]
-verify_jwt = false
-
-[functions.ocr-stamp]
-verify_jwt = false
-
-[functions.delete-tenant-user]
-verify_jwt = false
-
-[functions.send-welcome-email]
-verify_jwt = false
-
-[functions.process-email-queue]
-verify_jwt = true
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.create-operator]
+    verify_jwt = false
+  [functions.create-tenant-user]
+    verify_jwt = false
+  [functions.delete-tenant-user]
+    verify_jwt = false
+  [functions.ocr-stamp]
+    verify_jwt = false
+  [functions.process-email-queue]
+    verify_jwt = true
+  [functions.send-welcome-email]
+    verify_jwt = false
