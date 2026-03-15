@@ -129,6 +129,7 @@ export default function ShippingPrepPage() {
   const [doneGroups, setDoneGroups] = useState<Set<string>>(new Set());
   const [printCheckedGroups, setPrintCheckedGroups] = useState<Set<string>>(new Set());
   const [showPrint, setShowPrint] = useState(false);
+  const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
