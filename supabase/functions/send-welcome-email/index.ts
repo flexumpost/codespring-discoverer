@@ -2,6 +2,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
+async function sendLovableEmail(payload: {
+  to: string;
+  from: string;
+  sender_domain: string;
+  subject: string;
+  html: string;
+  text: string;
+  purpose: string;
+  label: string;
+}) {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  const resp = await fetch("https://email-api.lovable.dev/api/send-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Email API error: ${resp.status} ${body}`);
+  }
+  return await resp.json();
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -109,37 +135,27 @@ Deno.serve(async (req) => {
           })
         );
 
-        // Enqueue via email queue for retry safety
         const messageId = crypto.randomUUID();
-        const { error: enqueueErr } = await supabaseAdmin.rpc("enqueue_email", {
-          queue_name: "transactional_emails",
-          payload: {
-            run_id: crypto.randomUUID(),
-            message_id: messageId,
-            to: tenant.contact_email,
-            from: "Flexum <noreply@notify.flexum.dk>",
-            sender_domain: "notify.flexum.dk",
-            subject,
-            html,
-            text: bodyRaw.replace(/<[^>]*>/g, ""),
-            purpose: "transactional",
-            label: "welcome",
-            queued_at: new Date().toISOString(),
-          },
+
+        // Send directly via Lovable Email API (no queue/run_id needed)
+        await sendLovableEmail({
+          to: tenant.contact_email,
+          from: "Flexum <noreply@notify.flexum.dk>",
+          sender_domain: "notify.flexum.dk",
+          subject,
+          html,
+          text: bodyRaw.replace(/<[^>]*>/g, ""),
+          purpose: "transactional",
+          label: "welcome",
         });
 
-        // Log pending state
+        // Log success
         await supabaseAdmin.from("email_send_log").insert({
           message_id: messageId,
           template_name: "welcome",
           recipient_email: tenant.contact_email,
-          status: "pending",
+          status: "sent",
         });
-
-        if (enqueueErr) {
-          results.push({ id: tenant.id, status: "failed", error: enqueueErr.message });
-          continue;
-        }
 
         await supabaseAdmin
           .from("tenants")
