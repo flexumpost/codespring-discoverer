@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -24,6 +25,11 @@ const TYPE_COLORS: Record<string, string> = {
 
 const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
 
+const formatDate = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("da-DK", { day: "numeric", month: "short", year: "numeric" });
+};
+
 const TenantsPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -31,6 +37,8 @@ const TenantsPage = () => {
   const [companyName, setCompanyName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
+  const [sendWelcomeOnCreate, setSendWelcomeOnCreate] = useState(false);
+  const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
@@ -74,22 +82,57 @@ const TenantsPage = () => {
     },
   });
 
+  const sendWelcomeEmail = async (tenantIds: string[]) => {
+    const { data, error } = await supabase.functions.invoke("send-welcome-email", {
+      body: { tenant_ids: tenantIds },
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const sendWelcomeMutation = useMutation({
+    mutationFn: (tenantIds: string[]) => sendWelcomeEmail(tenantIds),
+    onSuccess: (data) => {
+      const results = data?.results ?? [];
+      const sent = results.filter((r: any) => r.status === "sent").length;
+      const skipped = results.filter((r: any) => r.status === "skipped").length;
+      const failed = results.filter((r: any) => r.status === "failed").length;
+      
+      if (sent > 0) toast.success(`Velkomst e-mail sendt til ${sent} lejer(e)`);
+      if (skipped > 0) toast.info(`${skipped} lejer(e) sprunget over (mangler e-mail)`);
+      if (failed > 0) toast.error(`${failed} afsendelse(r) fejlede`);
+      
+      setSelectedTenantIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
+    },
+    onError: (err: Error) => {
+      toast.error("Kunne ikke sende velkomst e-mail: " + err.message);
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("tenants").insert({
+      const { data, error } = await supabase.from("tenants").insert({
         company_name: companyName.trim(),
         contact_email: contactEmail.trim() || null,
         tenant_type_id: tenantTypeId,
-      });
+      }).select("id").single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
       toast.success("Lejer oprettet");
+      
+      if (sendWelcomeOnCreate && data?.id) {
+        sendWelcomeMutation.mutate([data.id]);
+      }
+      
       setDialogOpen(false);
       setCompanyName("");
       setContactEmail("");
       setTenantTypeId("");
+      setSendWelcomeOnCreate(false);
     },
     onError: (err: Error) => {
       toast.error("Kunne ikke oprette lejer: " + err.message);
@@ -97,15 +140,45 @@ const TenantsPage = () => {
   });
 
   const canSubmit = companyName.trim() && tenantTypeId;
+  
+  const allSelected = tenants.length > 0 && tenants.every(t => selectedTenantIds.has(t.id));
+  const someSelected = tenants.some(t => selectedTenantIds.has(t.id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedTenantIds(new Set());
+    } else {
+      setSelectedTenantIds(new Set(tenants.map(t => t.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedTenantIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Lejere</h2>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Opret ny lejer
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))}
+            disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}
+          >
+            <Mail className="h-4 w-4 mr-1" />
+            {sendWelcomeMutation.isPending ? "Sender..." : "Send velkomst e-mail"}
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Opret ny lejer
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -115,8 +188,16 @@ const TenantsPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Vælg alle"
+                  />
+                </TableHead>
                 <TableHead>Lejer navn</TableHead>
                 <TableHead>Lejertype</TableHead>
+                <TableHead>Velkomst e-mail</TableHead>
                 <TableHead className="text-right">Nye breve</TableHead>
               </TableRow>
             </TableHeader>
@@ -130,12 +211,28 @@ const TenantsPage = () => {
                     className="cursor-pointer"
                     onClick={() => navigate(`/tenants/${tenant.id}`)}
                   >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedTenantIds.has(tenant.id)}
+                        onCheckedChange={() => toggleOne(tenant.id)}
+                        aria-label={`Vælg ${tenant.company_name}`}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{tenant.company_name}</TableCell>
                     <TableCell>
                       {typeName && (
                         <Badge variant="outline" className={TYPE_COLORS[typeName] ?? ""}>
                           {typeName}
                         </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {tenant.welcome_email_sent_at ? (
+                        <span className="text-sm text-muted-foreground">
+                          {formatDate(tenant.welcome_email_sent_at)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">–</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -150,7 +247,7 @@ const TenantsPage = () => {
               })}
               {tenants.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
                     Ingen lejere fundet
                   </TableCell>
                 </TableRow>
@@ -199,6 +296,16 @@ const TenantsPage = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="send_welcome"
+                checked={sendWelcomeOnCreate}
+                onCheckedChange={(checked) => setSendWelcomeOnCreate(checked === true)}
+              />
+              <Label htmlFor="send_welcome" className="cursor-pointer">
+                Send velkomst e-mail
+              </Label>
             </div>
           </div>
           <DialogFooter>
