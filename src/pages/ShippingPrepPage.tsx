@@ -496,7 +496,7 @@ export default function ShippingPrepPage() {
             )}
           </TabsContent>
         </Tabs>
-        {showPrint && <EnvelopePrint groups={printGroups} />}
+        {showPrint && <EnvelopePrint groups={printGroups} onAfterPrint={() => setShowPrint(false)} />}
       </div>
     </AppLayout>
   );
