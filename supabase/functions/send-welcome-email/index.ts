@@ -114,9 +114,12 @@ Deno.serve(async (req) => {
           queue_name: "transactional_emails",
           payload: {
             to: tenant.contact_email,
+            from: "Flexum <noreply@notify.flexum.dk>",
+            sender_domain: "notify.flexum.dk",
             subject,
             html,
-            template_name: "welcome",
+            purpose: "transactional",
+            label: "welcome",
           },
         });
 
