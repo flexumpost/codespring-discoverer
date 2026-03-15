@@ -380,7 +380,7 @@ export default function ShippingPrepPage() {
                         )}
                         {group.shippingCo && (
                           <p className="flex items-center gap-1.5">
-                            c/o {group.shippingCo}
+                            {group.shippingCo}
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCo!)} />
                           </p>
                         )}
@@ -390,20 +390,27 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress!)} />
                           </p>
                         )}
-                        {(group.shippingZip || group.shippingCity) && (
+                        {(group.shippingZip || group.shippingCity) && (() => {
+                          const cc = getCountryCode(group.shippingCountry);
+                          const parts = [cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ");
+                          const copyText = [cc, group.shippingZip, group.shippingCity].filter(Boolean).join(" ");
+                          return (
+                            <p className="flex items-center gap-1.5">
+                              {parts}
+                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(copyText)} />
+                            </p>
+                          );
+                        })()}
+                        {group.shippingState && (
                           <p className="flex items-center gap-1.5">
-                            {group.shippingZip && (
-                              <>
-                                {group.shippingZip}
-                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingZip!)} />
-                              </>
-                            )}
-                            {group.shippingCity && (
-                              <>
-                                {group.shippingCity}
-                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCity!)} />
-                              </>
-                            )}
+                            {group.shippingState}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingState!)} />
+                          </p>
+                        )}
+                        {group.shippingCountry && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingCountry}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCountry!)} />
                           </p>
                         )}
                       </div>
