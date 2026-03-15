@@ -121,6 +121,7 @@ Deno.serve(async (req) => {
             sender_domain: "notify.flexum.dk",
             subject,
             html,
+            text: bodyRaw.replace(/<[^>]*>/g, ""),
             purpose: "transactional",
             label: "welcome",
             queued_at: new Date().toISOString(),
