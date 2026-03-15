@@ -815,7 +815,7 @@ const TenantDashboard = () => {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
-                    const isSentWithDao = item.status === "sendt_med_dao";
+                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
 
                     // Check if actions should be locked (packing day = shipping day - 1)
                     // Only lock when the effective action is "send" (shipping flow)
