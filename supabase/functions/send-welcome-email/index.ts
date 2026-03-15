@@ -2,6 +2,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
+async function sendLovableEmail(payload: {
+  to: string;
+  from: string;
+  sender_domain: string;
+  subject: string;
+  html: string;
+  text: string;
+  purpose: string;
+  label: string;
+}) {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  const resp = await fetch("https://email-api.lovable.dev/api/send-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Email API error: ${resp.status} ${body}`);
+  }
+  return await resp.json();
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
