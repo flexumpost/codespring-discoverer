@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
     // Get tenants
     const { data: tenants } = await supabaseAdmin
       .from("tenants")
-      .select("id, company_name, contact_email")
+      .select("id, company_name, contact_name, contact_email")
       .in("id", tenant_ids);
 
     const results: { id: string; status: string; error?: string }[] = [];
@@ -90,8 +90,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const subject = template.subject.replace(/\{\{company_name\}\}/g, tenant.company_name);
-      const body = template.body.replace(/\{\{company_name\}\}/g, tenant.company_name);
+      const name = tenant.contact_name || tenant.company_name;
+      const subject = template.subject
+        .replace(/\{\{company_name\}\}/g, tenant.company_name)
+        .replace(/\{\{name\}\}/g, name);
+      const body = template.body
+        .replace(/\{\{company_name\}\}/g, tenant.company_name)
+        .replace(/\{\{name\}\}/g, name);
 
       try {
         const emailRes = await fetch("https://api.lovable.dev/api/v1/send-email", {
