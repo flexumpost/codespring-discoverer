@@ -492,19 +492,30 @@ export default function ShippingPrepPage() {
                       {group.items
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => (
-                          <label
+                          <div
                             key={item.id}
-                            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 transition-colors"
                           >
                             <Checkbox
                               checked={checkedIds.has(item.id)}
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <PhotoHoverPreview photoUrl={item.photo_url} />
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium shrink-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
-                          </label>
+                            {tab === "pakke" && (
+                              <Input
+                                placeholder="Track & trace nr."
+                                className="ml-auto max-w-[240px] h-8 text-xs"
+                                value={trackingNumbers[item.id] ?? ""}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) =>
+                                  setTrackingNumbers((prev) => ({ ...prev, [item.id]: e.target.value }))
+                                }
+                              />
+                            )}
+                          </div>
                         ))}
                     </CardContent>
                   </Card>
