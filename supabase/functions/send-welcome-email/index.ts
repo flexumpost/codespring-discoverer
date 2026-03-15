@@ -107,13 +107,23 @@ Deno.serve(async (req) => {
         .replace(/\{\{company_name\}\}/g, tenant.company_name)
         .replace(/\{\{name\}\}/g, name);
 
+      // Convert newlines to <p> tags for proper formatting
+      const bodyHtml = bodyRaw
+        .split(/\n+/)
+        .filter((p: string) => p.trim())
+        .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
+        .join("");
+
+      const loginUrl = "https://codespring-discoverer.lovable.app/login";
+
       try {
         // Render branded React Email template
         const html = await renderAsync(
           WelcomeEmail({
             name,
             subject,
-            bodyHtml: bodyRaw.replace(/\n/g, "<br />"),
+            bodyHtml,
+            loginUrl,
           })
         );
 
