@@ -304,6 +304,13 @@ function getStatusDisplay(
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
+  // Sendt med DAO
+  if (item.status === "sendt_med_dao") {
+    const d = new Date((item as any).updated_at ?? Date.now());
+    const day = d.getDate();
+    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
+    return [`Sendt med DAO ${day}. ${monthNames[d.getMonth()]}`];
+  }
   // Action rejected by operator
   if ((item as any).action_rejected_reason && !item.chosen_action) {
     return ["Handling afvist"];
