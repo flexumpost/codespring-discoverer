@@ -304,6 +304,13 @@ function getStatusDisplay(
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
+  // Sendt med DAO
+  if (item.status === "sendt_med_dao") {
+    const d = new Date((item as any).updated_at ?? Date.now());
+    const day = d.getDate();
+    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
+    return [`Sendt med DAO ${day}. ${monthNames[d.getMonth()]}`];
+  }
   // Action rejected by operator
   if ((item as any).action_rejected_reason && !item.chosen_action) {
     return ["Handling afvist"];
@@ -800,6 +807,7 @@ const TenantDashboard = () => {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
+                    const isSentWithDao = item.status === "sendt_med_dao";
 
                     // Check if actions should be locked (packing day = shipping day - 1)
                     // Only lock when the effective action is "send" (shipping flow)
@@ -815,7 +823,7 @@ const TenantDashboard = () => {
                     packingDay.setDate(packingDay.getDate() - 1);
                     const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
 
-                    if (scanExpired || (isLockedForShipping && item.status !== "arkiveret")) {
+                    if (scanExpired || isSentWithDao || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
                         <Button
                           size="sm"
@@ -876,7 +884,7 @@ const TenantDashboard = () => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" ? (
+                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" ? (
                     <Button
                       variant="ghost"
                       size="icon"
