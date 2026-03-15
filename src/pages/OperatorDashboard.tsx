@@ -96,6 +96,12 @@ function formatPickupDisplay(item: MailItem): string | null {
 }
 
 function getOperatorStatusDisplay(item: MailItem): string {
+  if (item.status === "sendt_med_dao") {
+    const d = new Date(item.updated_at);
+    const day = d.getDate();
+    const month = DANISH_MONTHS[d.getMonth()];
+    return `Sendt med DAO ${day}. ${month}`;
+  }
   const action = item.chosen_action;
   if (action === "standard_scan") {
     const tenantType = item.tenants?.tenant_types?.name;
