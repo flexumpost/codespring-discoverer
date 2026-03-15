@@ -102,6 +102,12 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const month = DANISH_MONTHS[d.getMonth()];
     return `Sendt med DAO ${day}. ${month}`;
   }
+  if (item.status === "sendt_med_postnord") {
+    const d = new Date(item.updated_at);
+    const day = d.getDate();
+    const month = DANISH_MONTHS[d.getMonth()];
+    return `Sendt med PostNord ${day}. ${month}`;
+  }
   const action = item.chosen_action;
   if (action === "standard_scan") {
     const tenantType = item.tenants?.tenant_types?.name;
@@ -178,6 +184,7 @@ const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> 
   laest: "Læst",
   arkiveret: "Arkiveret",
   sendt_med_dao: "Sendt med DAO",
+  sendt_med_postnord: "Sendt med PostNord",
 };
 
 type CardFilter = {
@@ -229,7 +236,7 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Send",
     icon: Send,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao",
+    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao" || item.status === "sendt_med_postnord",
     countFilter: (item) => {
       if (item.chosen_action !== "send") return false;
       const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
@@ -375,7 +382,7 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
-      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao),and(status.eq.arkiveret,chosen_action.eq.destruer)")
+      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord),and(status.eq.arkiveret,chosen_action.eq.destruer)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
   };

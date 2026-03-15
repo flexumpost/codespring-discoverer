@@ -17,6 +17,11 @@ export function getMailRowColor(item: {
     return "bg-teal-200 dark:bg-teal-900/40";
   }
 
+  // 0b. Sendt med PostNord → blågrøn (same as DAO)
+  if (item.status === "sendt_med_postnord") {
+    return "bg-teal-200 dark:bg-teal-900/40";
+  }
+
   // 1. Destruer → rød
   if (item.chosen_action === "destruer") {
     return "bg-red-200 dark:bg-red-900/40";

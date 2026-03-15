@@ -174,7 +174,7 @@ export default function ShippingPrepPage() {
     mutationFn: async (ids: string[]) => {
       const updatePayload = tab === "brev"
         ? { chosen_action: "under_forsendelse", status: "sendt_med_dao" as const }
-        : { chosen_action: "under_forsendelse" };
+        : { chosen_action: "under_forsendelse", status: "sendt_med_postnord" as const };
       const { error } = await supabase
         .from("mail_items")
         .update(updatePayload)
@@ -185,7 +185,7 @@ export default function ShippingPrepPage() {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });
       setCheckedIds(new Set());
       setDoneGroups(new Set());
-      toast({ title: "Forsendelser sendt med DAO" });
+      toast({ title: tab === "brev" ? "Forsendelser sendt med DAO" : "Pakker sendt med PostNord" });
     },
     onError: () => {
       toast({ title: "Fejl", description: "Kunne ikke opdatere forsendelserne", variant: "destructive" });
@@ -232,7 +232,7 @@ export default function ShippingPrepPage() {
 
       // "Standard forsendelse" for Lite uses monthly cadence
       if (item.chosen_action === "standard_forsendelse") {
-        const shipDate = getNextShippingDateForItem("Lite", "brev");
+        const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
         return shipDate.getTime() === selDay;
       }
       // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
