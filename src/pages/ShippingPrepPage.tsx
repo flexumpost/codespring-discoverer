@@ -54,6 +54,34 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
   return startOfDay(getFirstThursdayOfMonth(nextMonth));
 }
 
+const COUNTRY_CODES: Record<string, string> = {
+  "danmark": "DK", "denmark": "DK",
+  "sverige": "SE", "sweden": "SE",
+  "norge": "NO", "norway": "NO",
+  "finland": "FI",
+  "tyskland": "DE", "germany": "DE",
+  "frankrig": "FR", "france": "FR",
+  "spanien": "ES", "spain": "ES",
+  "italien": "IT", "italy": "IT",
+  "holland": "NL", "nederlandene": "NL", "netherlands": "NL",
+  "belgien": "BE", "belgium": "BE",
+  "østrig": "AT", "austria": "AT",
+  "schweiz": "CH", "switzerland": "CH",
+  "polen": "PL", "poland": "PL",
+  "storbritannien": "GB", "united kingdom": "GB", "uk": "GB",
+  "usa": "US", "united states": "US",
+  "island": "IS", "iceland": "IS",
+  "portugal": "PT",
+  "irland": "IE", "ireland": "IE",
+  "grækenland": "GR", "greece": "GR",
+  "tjekkiet": "CZ", "czech republic": "CZ", "czechia": "CZ",
+};
+
+function getCountryCode(country: string | null): string {
+  if (!country) return "";
+  return COUNTRY_CODES[country.toLowerCase().trim()] ?? "";
+}
+
 type MailItemWithTenant = {
   id: string;
   stamp_number: number | null;
@@ -71,6 +99,8 @@ type MailItemWithTenant = {
   shipping_address: string | null;
   shipping_zip: string | null;
   shipping_city: string | null;
+  shipping_state: string | null;
+  shipping_country: string | null;
 };
 
 function getShippingFee(item: MailItemWithTenant): string {
