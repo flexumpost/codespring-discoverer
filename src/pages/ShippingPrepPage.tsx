@@ -199,6 +199,7 @@ export default function ShippingPrepPage() {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });
       setCheckedIds(new Set());
       setDoneGroups(new Set());
+      setTrackingNumbers({});
       toast({ title: tab === "brev" ? "Forsendelser sendt med DAO" : "Pakker sendt med PostNord" });
     },
     onError: () => {
