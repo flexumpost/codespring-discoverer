@@ -122,7 +122,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             <div style={{
               position: "absolute", top: "50%", left: "50%",
               transform: "translate(-50%, -50%)",
-              fontSize: "14pt", lineHeight: "1.6", textAlign: "left", minWidth: "120mm",
+              fontSize: "18pt", lineHeight: "1.6", textAlign: "left", minWidth: "120mm",
             }}>
               {group.shippingRecipient && <div>{group.shippingRecipient}</div>}
               {group.shippingCo && <div>{formatCo(group.shippingCo)}</div>}
