@@ -1,0 +1,1 @@
+ALTER TABLE public.tenants ADD COLUMN welcome_email_sent_at timestamptz;

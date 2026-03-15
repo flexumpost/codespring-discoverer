@@ -338,6 +338,7 @@ export type Database = {
           tenant_type_id: string
           updated_at: string
           user_id: string | null
+          welcome_email_sent_at: string | null
         }
         Insert: {
           address?: string | null
@@ -360,6 +361,7 @@ export type Database = {
           tenant_type_id: string
           updated_at?: string
           user_id?: string | null
+          welcome_email_sent_at?: string | null
         }
         Update: {
           address?: string | null
@@ -382,6 +384,7 @@ export type Database = {
           tenant_type_id?: string
           updated_at?: string
           user_id?: string | null
+          welcome_email_sent_at?: string | null
         }
         Relationships: [
           {
