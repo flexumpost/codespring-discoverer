@@ -369,7 +369,7 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
-      .or("status.in.(ny,afventer_handling,ulaest,laest),and(status.eq.arkiveret,chosen_action.eq.destruer)")
+      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao),and(status.eq.arkiveret,chosen_action.eq.destruer)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
   };
