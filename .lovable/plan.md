@@ -1,42 +1,63 @@
 
 
-## Velkomst e-mail funktion på lejeroversigten
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. Database-migration** — Tilføj `welcome_email_sent_at` kolonne til `tenants`:
-```sql
-ALTER TABLE public.tenants ADD COLUMN welcome_email_sent_at timestamptz;
-```
-
-**2. Edge function `send-welcome-email`**
-- Modtager en liste af tenant IDs
-- Henter `email_templates` med `slug = 'welcome'` for subject/body
-- Henter tenant data (company_name, contact_email) for hvert tenant ID
-- Springer lejere over der mangler contact_email
-- Sender email via Lovable API (`LOVABLE_API_KEY`)
-- Opdaterer `welcome_email_sent_at` til `now()` for hver lejer der modtog email
-- Returnerer en liste over succesfulde/fejlede afsendelser
-
-**3. `src/pages/TenantsPage.tsx`** — UI-ændringer:
-- Tilføj state: `selectedTenantIds: Set<string>`, `sendWelcomeOnCreate: boolean`
-- **Header**: Tilføj "Send velkomst e-mail" knap ved siden af "Opret ny lejer"
-- **Tabel**: Tilføj checkbox-kolonne (med "Vælg alle" i header), og "Velkomst e-mail" kolonne der viser dato eller "–"
-- **Opret dialog**: Tilføj checkbox "Send velkomst e-mail"
-- **Send-logik**: Kalder edge function `send-welcome-email` med valgte tenant IDs. Ved oprettelse: hvis checkbox er markeret, send efter insert
-- Checkboxen i rækken skal have `e.stopPropagation()` så den ikke navigerer til detaljesiden
-
-**4. Kolonne "Velkomst e-mail"**:
-- Viser dato formateret (f.eks. "12. mar 2026") hvis `welcome_email_sent_at` er sat
-- Viser "–" hvis ikke sendt endnu
-
 | Fil | Ændring |
 |---|---|
-| Migration | Tilføj `welcome_email_sent_at` kolonne |
-| `supabase/functions/send-welcome-email/` | Ny edge function til afsendelse |
-| `TenantsPage.tsx` | Checkboxes, knap, kolonne, opret-dialog checkbox |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### Teknisk detalje: Email-afsendelse
+### Kodedetaljer
 
-Edge function'en bruger Lovable API til at sende emails. Den henter skabelonen fra `email_templates`-tabellen (slug `welcome`), erstatter eventuelle placeholders (f.eks. `{{company_name}}`), og sender via Lovable's email API med `LOVABLE_API_KEY`.
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
