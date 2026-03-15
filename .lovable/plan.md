@@ -1,63 +1,29 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Ny status "Sendt med DAO" for breve
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Problem
+Når operatøren trykker "Send" på breve-fanen i "Send breve og pakker", ændres kun `chosen_action` til `under_forsendelse`. Der mangler en synlig statusændring til "Sendt med DAO" på begge sider.
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+**1. Database-migration** — Tilføj `sendt_med_dao` til `mail_status` enum:
+```sql
+ALTER TYPE mail_status ADD VALUE 'sendt_med_dao';
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
+**2. `src/pages/ShippingPrepPage.tsx`** — Opdater `sendMutation` til også at sætte `status: "sendt_med_dao"` når tab er `brev`:
+```ts
+.update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" })
 ```
+Kun for de breve der er checked. Pakker forbliver uændrede (kun `chosen_action`).
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+**3. Status-labels** — Tilføj `sendt_med_dao: "Sendt med DAO"` i følgende filer:
+- `src/pages/OperatorDashboard.tsx` (STATUS_LABELS)
+- `src/pages/TenantDashboard.tsx` (STATUS_LABELS)
+- `src/components/MailItemLogSheet.tsx` (STATUS_LABELS)
 
-**3. Opdater memory**
+**4. `src/lib/mailRowColor.ts`** — Tilføj farve-regel for `sendt_med_dao` (f.eks. blå/grøn tone).
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+**5. Operatør-query** — I `OperatorDashboard.tsx`, tilføj `sendt_med_dao` til status-filteret så forsendelser med denne status stadig vises korrekt (eller skjules fra aktiv-listen efter behov).
 
