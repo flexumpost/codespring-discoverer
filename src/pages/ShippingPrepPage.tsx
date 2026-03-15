@@ -172,9 +172,12 @@ export default function ShippingPrepPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (ids: string[]) => {
+      const updatePayload = tab === "brev"
+        ? { chosen_action: "under_forsendelse", status: "sendt_med_dao" as const }
+        : { chosen_action: "under_forsendelse" };
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: "under_forsendelse" })
+        .update(updatePayload)
         .in("id", ids);
       if (error) throw error;
     },

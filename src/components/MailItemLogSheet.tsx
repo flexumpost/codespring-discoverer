@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<string, string> = {
   ulaest: "Ulæst",
   laest: "Læst",
   arkiveret: "Arkiveret",
+  sendt_med_dao: "Sendt med DAO",
 };
 
 const ACTION_LABELS: Record<string, string> = {

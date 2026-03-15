@@ -171,6 +171,7 @@ const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> 
   ulaest: "Ulæst",
   laest: "Læst",
   arkiveret: "Arkiveret",
+  sendt_med_dao: "Sendt med DAO",
 };
 
 type CardFilter = {

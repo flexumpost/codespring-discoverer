@@ -1,0 +1,1 @@
+ALTER TYPE mail_status ADD VALUE 'sendt_med_dao';

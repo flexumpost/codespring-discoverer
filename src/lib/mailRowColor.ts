@@ -12,6 +12,11 @@ export function getMailRowColor(item: {
   scan_url: string | null;
   tenant_id: string | null;
 }): string {
+  // 0. Sendt med DAO → blågrøn
+  if (item.status === "sendt_med_dao") {
+    return "bg-teal-200 dark:bg-teal-900/40";
+  }
+
   // 1. Destruer → rød
   if (item.chosen_action === "destruer") {
     return "bg-red-200 dark:bg-red-900/40";
