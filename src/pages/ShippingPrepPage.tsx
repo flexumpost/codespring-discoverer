@@ -185,7 +185,7 @@ export default function ShippingPrepPage() {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });
       setCheckedIds(new Set());
       setDoneGroups(new Set());
-      toast({ title: "Forsendelser markeret som 'Under forsendelse'" });
+      toast({ title: "Forsendelser sendt med DAO" });
     },
     onError: () => {
       toast({ title: "Fejl", description: "Kunne ikke opdatere forsendelserne", variant: "destructive" });
