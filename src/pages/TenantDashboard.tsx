@@ -811,8 +811,8 @@ const TenantDashboard = () => {
                         {item.status === "sendt_med_postnord" && item.tracking_number && (
                           <Button
                             size="sm"
-                            variant="link"
-                            className="h-auto p-0 mt-1 text-xs gap-1"
+                            variant="outline"
+                            className="mt-2 h-7 text-xs border-blue-500 text-blue-600 hover:bg-blue-50 gap-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(`https://tracking.postnord.com/da/tracking?id=${item.tracking_number}`, "_blank");

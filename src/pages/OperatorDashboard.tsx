@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search, MessageSquare } from "lucide-react";
+import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search, MessageSquare, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -588,6 +588,20 @@ const OperatorDashboard = () => {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
+                    {item.status === "sendt_med_postnord" && item.tracking_number && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 h-7 text-xs border-blue-500 text-blue-600 hover:bg-blue-50 gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`https://tracking.postnord.com/da/tracking?id=${item.tracking_number}`, "_blank");
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Spor pakken
+                      </Button>
+                    )}
                   </TableCell>
                   <TableCell>{getItemFee(item, pricing)}</TableCell>
                   <TableCell>
