@@ -88,7 +88,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             page-break-after: always;
             position: relative;
             box-sizing: border-box;
-            padding: 15mm 20mm;
+            padding: 8mm 15mm;
           }
           .envelope-page:last-child {
             page-break-after: avoid;
@@ -109,14 +109,12 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
           <div key={idx} className="envelope-page" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <img src={flexumLogo} alt="Flexum" style={{ height: "18mm", marginBottom: "3mm" }} />
+                <img src={flexumLogo} alt="Flexum" style={{ width: "55mm", marginBottom: "2mm" }} />
                 <div style={{ fontSize: "10pt", lineHeight: "1.4" }}>
-                  <div>Maglebjergvej 6,</div>
-                  <div>2800 Kongens Lyngby,</div>
-                  <div>Danmark</div>
+                  Maglebjergvej 6, 2800 Kongens Lyngby, Danmark
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "3mm" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "3mm", marginRight: "0" }}>
                 {showP && <span style={{ fontSize: "24pt", fontWeight: "bold", lineHeight: "1" }}>P</span>}
                 <img src={daoPorto} alt="DAO Porto" style={{ height: "25mm" }} />
               </div>
@@ -124,7 +122,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             <div style={{
               position: "absolute", top: "50%", left: "50%",
               transform: "translate(-50%, -50%)",
-              fontSize: "14pt", lineHeight: "1.6", textAlign: "left", minWidth: "120mm",
+              fontSize: "18pt", lineHeight: "1.6", textAlign: "left", minWidth: "120mm",
             }}>
               {group.shippingRecipient && <div>{group.shippingRecipient}</div>}
               {group.shippingCo && <div>{formatCo(group.shippingCo)}</div>}
