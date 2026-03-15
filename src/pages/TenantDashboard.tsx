@@ -808,6 +808,20 @@ const TenantDashboard = () => {
                       <div>
                         <Badge variant="outline">{line1}</Badge>
                         {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
+                        {item.status === "sendt_med_postnord" && item.tracking_number && (
+                          <Button
+                            size="sm"
+                            variant="link"
+                            className="h-auto p-0 mt-1 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`https://tracking.postnord.com/da/tracking?id=${item.tracking_number}`, "_blank");
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Spor pakken
+                          </Button>
+                        )}
                       </div>
                     );
                   })()}
