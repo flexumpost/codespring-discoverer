@@ -79,7 +79,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             display: block !important;
           }
           @page {
-            size: 324mm 229mm;
+            size: 229mm 324mm landscape;
             margin: 0;
           }
           .envelope-page {
