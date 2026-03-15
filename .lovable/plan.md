@@ -1,63 +1,64 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Print C4-kuverter fra "Send breve og pakker"
 
-### Forretningslogik (opsummering)
+### Overblik
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Tilføj mulighed for at vælge forsendelsesgrupper til print og generere C4-kuverter med Flexum-logo, returadresse, DAO-portokode og modtageradresse.
 
 ### Ændringer
 
-| Fil | Ændring |
+**1. Kopiér uploadede assets til projektet**
+- `user-uploads://Flexum_Coworking_logo_108x400_px_png.png` → `src/assets/flexum-logo-print.png`
+- `user-uploads://DAO_porto_kode.png` → `src/assets/dao-porto.png`
+
+**2. Ny komponent: `src/components/EnvelopePrint.tsx`**
+
+Print-komponent der renderer C4-kuverter (229mm × 324mm) til print via `window.print()`:
+- Øverst venstre: Flexum-logo + returadresse "Maglebjergvej 6, 2800 Kongens Lyngby, Danmark"
+- Øverst højre: "P" (kun hvis land = Danmark OG lejertype = Plus) + DAO-portokode
+- Center: Modtageradresse i formatet: Modtager, c/o, Adresse, [Landekode] - [Postnummer] [By], Stat, Land
+- Bruger `@media print` CSS til at skjule alt andet og vise én kuvert per side
+- Modtager grupperede data som props
+
+**3. Opdater `src/pages/ShippingPrepPage.tsx`**
+
+| Ændring | Detalje |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+| Ny state `printCheckedGroups` | `Set<string>` til at tracke valgte grupper til print |
+| Tjekboks per gruppe | Indsættes til venstre for hver gruppes card (grøn markering) |
+| "Vælg alle" tjekboks | I toolbar-området ved siden af Send-knappen (blå markering) |
+| "Print C4 kuvert" knap | I toolbar ved siden af Send-knappen (rød markering), åbner print-dialog |
+| Print-logik | Samler valgte grupper, renderer `EnvelopePrint` i et skjult div, kalder `window.print()` |
 
-### Kodedetaljer
+### Print-layout (C4 kuvert)
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+```text
+┌──────────────────────────────────────────┐
+│ [FLEXUM LOGO]              P  [DAO QR]  │
+│ Maglebjergvej 6,                         │
+│ 2800 Kongens Lyngby,                     │
+│ Danmark                                  │
+│                                          │
+│                                          │
+│          [Modtager navn]                 │
+│          [c/o navn]                      │
+│          [Adresse]                       │
+│          [DK] - [2800] [By]             │
+│          [Stat]                          │
+│          [Land]                          │
+│                                          │
+└──────────────────────────────────────────┘
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+"P" vises kun når `shippingCountry` = "Danmark"/"Denmark" OG mindst én tenant i gruppen har type "Plus".
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+### Filer
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+| Fil | Handling |
+|---|---|
+| `src/assets/flexum-logo-print.png` | Nyt asset (kopieret) |
+| `src/assets/dao-porto.png` | Nyt asset (kopieret) |
+| `src/components/EnvelopePrint.tsx` | Ny komponent — C4 kuvert-layout med print CSS |
+| `src/pages/ShippingPrepPage.tsx` | Tilføj gruppe-tjekbokse, vælg-alle, print-knap |
 
