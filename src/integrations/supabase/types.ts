@@ -429,7 +429,13 @@ export type Database = {
     }
     Enums: {
       app_role: "operator" | "tenant"
-      mail_status: "ny" | "afventer_handling" | "ulaest" | "laest" | "arkiveret"
+      mail_status:
+        | "ny"
+        | "afventer_handling"
+        | "ulaest"
+        | "laest"
+        | "arkiveret"
+        | "sendt_med_dao"
       mail_type: "brev" | "pakke"
     }
     CompositeTypes: {
@@ -559,7 +565,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["operator", "tenant"],
-      mail_status: ["ny", "afventer_handling", "ulaest", "laest", "arkiveret"],
+      mail_status: [
+        "ny",
+        "afventer_handling",
+        "ulaest",
+        "laest",
+        "arkiveret",
+        "sendt_med_dao",
+      ],
       mail_type: ["brev", "pakke"],
     },
   },
