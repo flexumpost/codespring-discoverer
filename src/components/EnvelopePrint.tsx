@@ -109,7 +109,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
           <div key={idx} className="envelope-page" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
-                <img src={flexumLogo} alt="Flexum" style={{ width: "55mm", marginBottom: "2mm" }} />
+                <img src={flexumLogo} alt="Flexum" style={{ width: "69mm", marginBottom: "2mm" }} />
                 <div style={{ fontSize: "10pt", lineHeight: "1.4" }}>
                   Maglebjergvej 6, 2800 Kongens Lyngby, Danmark
                 </div>
