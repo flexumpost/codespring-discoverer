@@ -490,11 +490,13 @@ export default function ShippingPrepPage() {
                         ))}
                     </CardContent>
                   </Card>
+                  </div>
                 );
               })
             )}
           </TabsContent>
         </Tabs>
+        {showPrint && <EnvelopePrint groups={printGroups} />}
       </div>
     </AppLayout>
   );
