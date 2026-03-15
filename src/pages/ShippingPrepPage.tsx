@@ -216,37 +216,6 @@ export default function ShippingPrepPage() {
     sendMutation.mutate(ids);
   };
 
-  const togglePrintGroup = (key: string) => {
-    setPrintCheckedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const toggleAllPrintGroups = useCallback(() => {
-    setPrintCheckedGroups((prev) => {
-      if (prev.size === grouped.length && grouped.length > 0) return new Set();
-      return new Set(grouped.map((g) => g.addressKey));
-    });
-  }, [grouped]);
-
-  const handlePrintEnvelopes = () => {
-    if (printCheckedGroups.size === 0) {
-      toast({ title: "Ingen valgt", description: "Vælg mindst én forsendelse til print", variant: "destructive" });
-      return;
-    }
-    setShowPrint(true);
-    setTimeout(() => {
-      window.print();
-      setShowPrint(false);
-    }, 300);
-  };
-
-  const printGroups: EnvelopeGroup[] = useMemo(() => {
-    return grouped.filter((g) => printCheckedGroups.has(g.addressKey));
-  }, [grouped, printCheckedGroups]);
 
   const filteredItems = useMemo(() => {
     const selDay = startOfDay(selectedDate).getTime();
