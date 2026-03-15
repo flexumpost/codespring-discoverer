@@ -109,6 +109,7 @@ Deno.serve(async (req) => {
 
       // Convert newlines to <p> tags for proper formatting
       const bodyHtml = bodyRaw
+        .replace(/\\n/g, '\n')
         .split(/\n+/)
         .filter((p: string) => p.trim())
         .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
