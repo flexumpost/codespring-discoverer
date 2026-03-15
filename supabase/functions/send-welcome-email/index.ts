@@ -112,11 +112,11 @@ Deno.serve(async (req) => {
         const messageId = crypto.randomUUID();
 
         // Enqueue via pgmq — process-email-queue will handle actual sending
-        // No run_id — transactional emails don't have one
         const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
           queue_name: "transactional_emails",
           payload: {
             message_id: messageId,
+            tenant_id: tenant.id,
             to: tenant.contact_email,
             from: "Flexum <noreply@notify.flexum.dk>",
             sender_domain: "notify.flexum.dk",
@@ -139,12 +139,10 @@ Deno.serve(async (req) => {
           template_name: "welcome",
           recipient_email: tenant.contact_email,
           status: "pending",
+          metadata: { tenant_id: tenant.id },
         });
 
-        await supabaseAdmin
-          .from("tenants")
-          .update({ welcome_email_sent_at: new Date().toISOString() })
-          .eq("id", tenant.id);
+        // welcome_email_sent_at is set by process-email-queue AFTER successful send
 
         results.push({ id: tenant.id, status: "queued" });
       } catch (e) {

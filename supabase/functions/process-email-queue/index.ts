@@ -276,6 +276,14 @@ Deno.serve(async (req) => {
           status: 'sent',
         })
 
+        // Update welcome_email_sent_at only after real delivery
+        if (queue === 'transactional_emails' && payload.label === 'welcome' && payload.tenant_id) {
+          await supabase
+            .from('tenants')
+            .update({ welcome_email_sent_at: new Date().toISOString() })
+            .eq('id', payload.tenant_id)
+        }
+
         // Delete from queue
         const { error: delError } = await supabase.rpc('delete_email', {
           queue_name: queue,
