@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderAsync } from "npm:@react-email/components@0.0.22";
+import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +84,6 @@ Deno.serve(async (req) => {
       .in("id", tenant_ids);
 
     const results: { id: string; status: string; error?: string }[] = [];
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     for (const tenant of tenants ?? []) {
       if (!tenant.contact_email) {
@@ -94,37 +95,42 @@ Deno.serve(async (req) => {
       const subject = template.subject
         .replace(/\{\{company_name\}\}/g, tenant.company_name)
         .replace(/\{\{name\}\}/g, name);
-      const body = template.body
+      const bodyRaw = template.body
         .replace(/\{\{company_name\}\}/g, tenant.company_name)
         .replace(/\{\{name\}\}/g, name);
 
       try {
-        const emailRes = await fetch("https://api.lovable.dev/api/v1/send-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          },
-          body: JSON.stringify({
-            to: [tenant.contact_email],
+        // Render branded React Email template
+        const html = await renderAsync(
+          WelcomeEmail({
+            name,
             subject,
-            html: body,
-          }),
+            bodyHtml: bodyRaw.replace(/\n/g, "<br />"),
+          })
+        );
+
+        // Enqueue via email queue for retry safety
+        const { error: enqueueErr } = await supabaseAdmin.rpc("enqueue_email", {
+          queue_name: "transactional_emails",
+          payload: {
+            to: tenant.contact_email,
+            subject,
+            html,
+            template_name: "welcome",
+          },
         });
 
-        if (!emailRes.ok) {
-          const errText = await emailRes.text();
-          results.push({ id: tenant.id, status: "failed", error: errText });
+        if (enqueueErr) {
+          results.push({ id: tenant.id, status: "failed", error: enqueueErr.message });
           continue;
         }
-        await emailRes.text();
 
         await supabaseAdmin
           .from("tenants")
           .update({ welcome_email_sent_at: new Date().toISOString() })
           .eq("id", tenant.id);
 
-        results.push({ id: tenant.id, status: "sent" });
+        results.push({ id: tenant.id, status: "queued" });
       } catch (e) {
         results.push({ id: tenant.id, status: "failed", error: String(e) });
       }

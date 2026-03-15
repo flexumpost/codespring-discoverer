@@ -1,34 +1,63 @@
 
 
-## Velkomst e-mail: Brug React Email skabelon
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Velkomst e-mailen sender rå HTML fra `email_templates`-tabellen, mens auth-emails bruger brandede React Email-skabeloner med Flexum-logo og ensartet styling.
+### Forretningslogik (opsummering)
 
-### Løsning
-Opret en React Email-skabelon til velkomst-email der matcher auth-skabelonernes stil, og opdater `send-welcome-email` til at rendere den via React Email — mens subject/body fra databasen stadig bruges som indholdskilde.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. Ny fil: `supabase/functions/_shared/email-templates/welcome.tsx`**
-- Samme layout som de øvrige skabeloner: Flexum-logo, navy knap, dansk tekst
-- Props: `name`, `subject`, `bodyHtml` (fra databasens template med placeholders erstattet)
-- Wrapper-skabelon der indsætter body-indholdet i det brandede layout
-
-**2. Opdater `supabase/functions/send-welcome-email/index.ts`**
-- Tilføj `deno.json` med JSX-config (ligesom `auth-email-hook`)
-- Importer React og `renderAsync` fra `@react-email/components`
-- Importer `WelcomeEmail` fra `_shared/email-templates/welcome.tsx`
-- Efter placeholder-erstatning: render skabelonen til HTML via `renderAsync`
-- Send den renderede HTML i stedet for rå database-body
-- Brug email-køen (`enqueue_email`) i stedet for direkte API-kald, så velkomst-emails også får retry-logik
-
-**3. Ny fil: `supabase/functions/send-welcome-email/deno.json`**
-- JSX-konfiguration identisk med `auth-email-hook/deno.json`
-
 | Fil | Ændring |
 |---|---|
-| `_shared/email-templates/welcome.tsx` | Ny React Email-skabelon |
-| `send-welcome-email/deno.json` | JSX-config |
-| `send-welcome-email/index.ts` | Render via React Email + brug email-kø |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
