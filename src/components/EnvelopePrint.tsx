@@ -88,7 +88,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             page-break-after: always;
             position: relative;
             box-sizing: border-box;
-            padding: 15mm 20mm;
+            padding: 8mm 15mm;
           }
           .envelope-page:last-child {
             page-break-after: avoid;
