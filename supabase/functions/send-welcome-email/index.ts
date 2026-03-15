@@ -14,6 +14,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) {
+      return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), {
+        status: 500,
+        headers: corsHeaders,
+      });
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -109,43 +117,56 @@ Deno.serve(async (req) => {
           })
         );
 
-        const messageId = crypto.randomUUID();
+        const plainText = bodyRaw.replace(/<[^>]*>/g, "");
 
-        // Enqueue via pgmq — process-email-queue will handle actual sending
-        const { error: enqueueError } = await supabaseAdmin.rpc("enqueue_email", {
-          queue_name: "transactional_emails",
-          payload: {
-            message_id: messageId,
-            tenant_id: tenant.id,
-            to: tenant.contact_email,
-            from: "Flexum <noreply@notify.flexum.dk>",
-            sender_domain: "notify.flexum.dk",
+        // Send directly via Resend API
+        const resendRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Flexum <kontakt@flexum.dk>",
+            to: [tenant.contact_email],
             subject,
             html,
-            text: bodyRaw.replace(/<[^>]*>/g, ""),
-            purpose: "transactional",
-            label: "welcome",
-            queued_at: new Date().toISOString(),
-          },
+            text: plainText,
+          }),
         });
 
-        if (enqueueError) {
-          throw new Error(`Enqueue failed: ${enqueueError.message}`);
+        const resendBody = await resendRes.json();
+
+        if (!resendRes.ok) {
+          throw new Error(`Resend API error ${resendRes.status}: ${JSON.stringify(resendBody)}`);
         }
 
-        // Log pending status
+        // Log successful send
         await supabaseAdmin.from("email_send_log").insert({
-          message_id: messageId,
+          message_id: resendBody.id || crypto.randomUUID(),
           template_name: "welcome",
           recipient_email: tenant.contact_email,
-          status: "pending",
-          metadata: { tenant_id: tenant.id },
+          status: "sent",
+          metadata: { tenant_id: tenant.id, provider: "resend" },
         });
 
-        // welcome_email_sent_at is set by process-email-queue AFTER successful send
+        // Update welcome_email_sent_at immediately
+        await supabaseAdmin
+          .from("tenants")
+          .update({ welcome_email_sent_at: new Date().toISOString() })
+          .eq("id", tenant.id);
 
-        results.push({ id: tenant.id, status: "queued" });
+        results.push({ id: tenant.id, status: "sent" });
       } catch (e) {
+        // Log failure
+        await supabaseAdmin.from("email_send_log").insert({
+          template_name: "welcome",
+          recipient_email: tenant.contact_email,
+          status: "failed",
+          error_message: String(e),
+          metadata: { tenant_id: tenant.id, provider: "resend" },
+        });
+
         results.push({ id: tenant.id, status: "failed", error: String(e) });
       }
     }
