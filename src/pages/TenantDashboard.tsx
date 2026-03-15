@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
@@ -808,6 +808,20 @@ const TenantDashboard = () => {
                       <div>
                         <Badge variant="outline">{line1}</Badge>
                         {line2 && <p className="text-[11px] text-muted-foreground mt-1">{line2}</p>}
+                        {item.status === "sendt_med_postnord" && item.tracking_number && (
+                          <Button
+                            size="sm"
+                            variant="link"
+                            className="h-auto p-0 mt-1 text-xs gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`https://tracking.postnord.com/da/tracking?id=${item.tracking_number}`, "_blank");
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Spor pakken
+                          </Button>
+                        )}
                       </div>
                     );
                   })()}

@@ -119,6 +119,7 @@ export type Database = {
           stamp_number: number | null
           status: Database["public"]["Enums"]["mail_status"]
           tenant_id: string | null
+          tracking_number: string | null
           updated_at: string
         }
         Insert: {
@@ -139,6 +140,7 @@ export type Database = {
           stamp_number?: number | null
           status?: Database["public"]["Enums"]["mail_status"]
           tenant_id?: string | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -159,6 +161,7 @@ export type Database = {
           stamp_number?: number | null
           status?: Database["public"]["Enums"]["mail_status"]
           tenant_id?: string | null
+          tracking_number?: string | null
           updated_at?: string
         }
         Relationships: [

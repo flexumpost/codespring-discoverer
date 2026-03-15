@@ -3,6 +3,7 @@ import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy, Printer } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
@@ -128,6 +129,7 @@ export default function ShippingPrepPage() {
   const [doneGroups, setDoneGroups] = useState<Set<string>>(new Set());
   const [printCheckedGroups, setPrintCheckedGroups] = useState<Set<string>>(new Set());
   const [showPrint, setShowPrint] = useState(false);
+  const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -172,19 +174,32 @@ export default function ShippingPrepPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const updatePayload = tab === "brev"
-        ? { chosen_action: "under_forsendelse", status: "sendt_med_dao" as const }
-        : { chosen_action: "under_forsendelse", status: "sendt_med_postnord" as const };
-      const { error } = await supabase
-        .from("mail_items")
-        .update(updatePayload)
-        .in("id", ids);
-      if (error) throw error;
+      if (tab === "brev") {
+        const { error } = await supabase
+          .from("mail_items")
+          .update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" as const })
+          .in("id", ids);
+        if (error) throw error;
+      } else {
+        // Pakker: update individually with tracking number
+        for (const id of ids) {
+          const { error } = await supabase
+            .from("mail_items")
+            .update({
+              chosen_action: "under_forsendelse",
+              status: "sendt_med_postnord" as const,
+              tracking_number: trackingNumbers[id] || null,
+            } as any)
+            .eq("id", id);
+          if (error) throw error;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });
       setCheckedIds(new Set());
       setDoneGroups(new Set());
+      setTrackingNumbers({});
       toast({ title: tab === "brev" ? "Forsendelser sendt med DAO" : "Pakker sendt med PostNord" });
     },
     onError: () => {
@@ -477,19 +492,30 @@ export default function ShippingPrepPage() {
                       {group.items
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => (
-                          <label
+                          <div
                             key={item.id}
-                            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                            className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 transition-colors"
                           >
                             <Checkbox
                               checked={checkedIds.has(item.id)}
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <PhotoHoverPreview photoUrl={item.photo_url} />
-                            <span className="text-sm font-medium">
+                            <span className="text-sm font-medium shrink-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
                             </span>
-                          </label>
+                            {tab === "pakke" && (
+                              <Input
+                                placeholder="Track & trace nr."
+                                className="ml-auto max-w-[240px] h-8 text-xs"
+                                value={trackingNumbers[item.id] ?? ""}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) =>
+                                  setTrackingNumbers((prev) => ({ ...prev, [item.id]: e.target.value }))
+                                }
+                              />
+                            )}
+                          </div>
                         ))}
                     </CardContent>
                   </Card>

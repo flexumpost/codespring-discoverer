@@ -1,0 +1,1 @@
+ALTER TABLE public.mail_items ADD COLUMN tracking_number text;
