@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
-import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy, Printer } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Badge } from "@/components/ui/badge";
+import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -125,6 +126,8 @@ export default function ShippingPrepPage() {
   const [tab, setTab] = useState<"brev" | "pakke">("brev");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [doneGroups, setDoneGroups] = useState<Set<string>>(new Set());
+  const [printCheckedGroups, setPrintCheckedGroups] = useState<Set<string>>(new Set());
+  const [showPrint, setShowPrint] = useState(false);
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -213,6 +216,7 @@ export default function ShippingPrepPage() {
     sendMutation.mutate(ids);
   };
 
+
   const filteredItems = useMemo(() => {
     const selDay = startOfDay(selectedDate).getTime();
     return items.filter((item) => {
@@ -272,7 +276,40 @@ export default function ShippingPrepPage() {
     });
   }, [filteredItems, doneGroups]);
 
+  const togglePrintGroup = (key: string) => {
+    setPrintCheckedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleAllPrintGroups = useCallback(() => {
+    setPrintCheckedGroups((prev) => {
+      if (prev.size === grouped.length && grouped.length > 0) return new Set();
+      return new Set(grouped.map((g) => g.addressKey));
+    });
+  }, [grouped]);
+
+  const handlePrintEnvelopes = () => {
+    if (printCheckedGroups.size === 0) {
+      toast({ title: "Ingen valgt", description: "Vælg mindst én forsendelse til print", variant: "destructive" });
+      return;
+    }
+    setShowPrint(true);
+    setTimeout(() => {
+      window.print();
+      setShowPrint(false);
+    }, 300);
+  };
+
+  const printGroups: EnvelopeGroup[] = useMemo(() => {
+    return grouped.filter((g) => printCheckedGroups.has(g.addressKey));
+  }, [grouped, printCheckedGroups]);
+
   const checkedCount = checkedIds.size;
+  const allPrintChecked = grouped.length > 0 && printCheckedGroups.size === grouped.length;
 
   return (
     <AppLayout>
@@ -315,7 +352,18 @@ export default function ShippingPrepPage() {
 
           <TabsContent value={tab} className="mt-4 space-y-4">
             {!isLoading && grouped.length > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={allPrintChecked}
+                    onCheckedChange={toggleAllPrintGroups}
+                  />
+                  <span className="text-sm text-muted-foreground">Vælg alle</span>
+                </div>
+                <Button variant="outline" onClick={handlePrintEnvelopes} disabled={printCheckedGroups.size === 0}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print C4 kuvert {printCheckedGroups.size > 0 ? `(${printCheckedGroups.size})` : ""}
+                </Button>
                 <Button onClick={handleSend} disabled={checkedCount === 0 || sendMutation.isPending}>
                   <Send className="mr-2 h-4 w-4" />
                   Send {checkedCount > 0 ? `(${checkedCount})` : ""}
@@ -340,10 +388,14 @@ export default function ShippingPrepPage() {
               grouped.map((group) => {
                 const isDone = doneGroups.has(group.addressKey);
                 return (
-                  <Card
-                    key={group.addressKey}
-                    className={cn(isDone && "opacity-50 bg-muted")}
-                  >
+                  <div key={group.addressKey} className="flex items-start gap-3">
+                    <div className="pt-5">
+                      <Checkbox
+                        checked={printCheckedGroups.has(group.addressKey)}
+                        onCheckedChange={() => togglePrintGroup(group.addressKey)}
+                      />
+                    </div>
+                    <Card className={cn("flex-1", isDone && "opacity-50 bg-muted")}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">
@@ -438,11 +490,13 @@ export default function ShippingPrepPage() {
                         ))}
                     </CardContent>
                   </Card>
+                  </div>
                 );
               })
             )}
           </TabsContent>
         </Tabs>
+        {showPrint && <EnvelopePrint groups={printGroups} />}
       </div>
     </AppLayout>
   );
