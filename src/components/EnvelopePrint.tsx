@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import flexumLogo from "@/assets/flexum-logo-print.png";
 import daoPorto from "@/assets/dao-porto.png";
 
@@ -54,25 +55,27 @@ function isDanmark(country: string | null): boolean {
 
 interface EnvelopePrintProps {
   groups: EnvelopeGroup[];
-  onAfterPrint?: () => void;
+  onAfterPrint: () => void;
 }
 
 export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
-  const printRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.print();
+      onAfterPrint();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [onAfterPrint]);
 
-  const handlePrint = () => {
-    window.print();
-    onAfterPrint?.();
-  };
-
-  return (
-    <>
+  return createPortal(
+    <div id="envelope-print-container" style={{ position: "fixed", inset: 0, zIndex: 99999, background: "white" }}>
       <style>{`
         @media print {
           body > *:not(#envelope-print-container) {
             display: none !important;
           }
           #envelope-print-container {
+            position: static !important;
             display: block !important;
           }
           @page {
@@ -91,83 +94,54 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
             page-break-after: avoid;
           }
         }
+        @media screen {
+          #envelope-print-container {
+            display: none;
+          }
+        }
       `}</style>
-      <div
-        id="envelope-print-container"
-        ref={printRef}
-        className="hidden print:block"
-      >
-        {groups.map((group, idx) => {
-          const cc = getCountryCode(group.shippingCountry);
-          const isPlus = group.companies.some(
-            (c) => c.typeName === "Plus"
-          );
-          const showP = isDanmark(group.shippingCountry) && isPlus;
+      {groups.map((group, idx) => {
+        const cc = getCountryCode(group.shippingCountry);
+        const isPlus = group.companies.some((c) => c.typeName === "Plus");
+        const showP = isDanmark(group.shippingCountry) && isPlus;
 
-          return (
-            <div key={idx} className="envelope-page" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
-              {/* Top section */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                {/* Top left: Logo + return address */}
-                <div>
-                  <img
-                    src={flexumLogo}
-                    alt="Flexum"
-                    style={{ height: "18mm", marginBottom: "3mm" }}
-                  />
-                  <div style={{ fontSize: "10pt", lineHeight: "1.4" }}>
-                    <div>Maglebjergvej 6,</div>
-                    <div>2800 Kongens Lyngby,</div>
-                    <div>Danmark</div>
-                  </div>
-                </div>
-
-                {/* Top right: P + DAO porto */}
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "3mm" }}>
-                  {showP && (
-                    <span style={{ fontSize: "24pt", fontWeight: "bold", lineHeight: "1" }}>P</span>
-                  )}
-                  <img
-                    src={daoPorto}
-                    alt="DAO Porto"
-                    style={{ height: "25mm" }}
-                  />
+        return (
+          <div key={idx} className="envelope-page" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <img src={flexumLogo} alt="Flexum" style={{ height: "18mm", marginBottom: "3mm" }} />
+                <div style={{ fontSize: "10pt", lineHeight: "1.4" }}>
+                  <div>Maglebjergvej 6,</div>
+                  <div>2800 Kongens Lyngby,</div>
+                  <div>Danmark</div>
                 </div>
               </div>
-
-              {/* Center: Recipient address */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  fontSize: "14pt",
-                  lineHeight: "1.6",
-                  textAlign: "left",
-                  minWidth: "120mm",
-                }}
-              >
-                {group.shippingRecipient && <div>{group.shippingRecipient}</div>}
-                {group.shippingCo && <div>{formatCo(group.shippingCo)}</div>}
-                {group.shippingAddress && <div>{group.shippingAddress}</div>}
-                {(group.shippingZip || group.shippingCity) && (
-                  <div>
-                    {[cc, "-", group.shippingZip, group.shippingCity]
-                      .filter(Boolean)
-                      .join(" ")
-                      .replace("  ", " ")}
-                  </div>
-                )}
-                {group.shippingState && <div>{group.shippingState}</div>}
-                {group.shippingCountry && <div>{group.shippingCountry}</div>}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "3mm" }}>
+                {showP && <span style={{ fontSize: "24pt", fontWeight: "bold", lineHeight: "1" }}>P</span>}
+                <img src={daoPorto} alt="DAO Porto" style={{ height: "25mm" }} />
               </div>
             </div>
-          );
-        })}
-      </div>
-      {/* Trigger button rendered by parent */}
-    </>
+            <div style={{
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%, -50%)",
+              fontSize: "14pt", lineHeight: "1.6", textAlign: "left", minWidth: "120mm",
+            }}>
+              {group.shippingRecipient && <div>{group.shippingRecipient}</div>}
+              {group.shippingCo && <div>{formatCo(group.shippingCo)}</div>}
+              {group.shippingAddress && <div>{group.shippingAddress}</div>}
+              {(group.shippingZip || group.shippingCity) && (
+                <div>
+                  {[cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ")}
+                </div>
+              )}
+              {group.shippingState && <div>{group.shippingState}</div>}
+              {group.shippingCountry && <div>{group.shippingCountry}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>,
+    document.body
   );
 }
 
