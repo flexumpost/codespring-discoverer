@@ -1,63 +1,61 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Ny tilgang: Fix e-mail afsendelse fra bunden
 
-### Forretningslogik (opsummering)
+### Analyse af de faktiske fejl
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Loggen viser to problemer:
+1. **msg 11** (gammel besked): `missing_parameter: run_id` — API'et kræver `run_id`, men den er ikke i payloaden
+2. **msg 12** (ny besked, også uden `run_id`): `429 rate_limited` — rate limit pga. mange fejlede forsøg
 
-### Ændringer
+Kerneproblemet: `process-email-queue` sender **altid** `run_id: payload.run_id` til API'et (linje 247). Når `run_id` er `undefined`, inkluderes det stadig i JSON som `null`/`undefined`, og API'et afviser det med `missing_parameter`.
+
+### Løsning
+
+**1. Fix `process-email-queue/index.ts`** — Byg payload-objektet dynamisk så `run_id` KUN inkluderes når den faktisk har en værdi:
+
+```typescript
+// Før (linje 245-258):
+await sendLovableEmail({
+  run_id: payload.run_id,  // <-- sender undefined/null
+  to: payload.to,
+  ...
+})
+
+// Efter:
+const emailPayload: Record<string, unknown> = {
+  to: payload.to,
+  from: payload.from,
+  sender_domain: payload.sender_domain,
+  subject: payload.subject,
+  html: payload.html,
+  text: payload.text,
+  purpose: payload.purpose,
+  label: payload.label,
+  message_id: payload.message_id,
+};
+// Only include run_id if present (auth emails have it, transactional don't)
+if (payload.run_id) emailPayload.run_id = payload.run_id;
+if (payload.idempotency_key) emailPayload.idempotency_key = payload.idempotency_key;
+if (payload.unsubscribe_token) emailPayload.unsubscribe_token = payload.unsubscribe_token;
+
+await sendLovableEmail(emailPayload, { apiKey, sendUrl: ... });
+```
+
+**2. Migration** — Ryd ALLE stuck beskeder fra køen og nulstil rate-limit cooldown:
+
+```sql
+-- Slet gamle fejlede beskeder fra køen
+SELECT pgmq.delete('transactional_emails', 11);
+SELECT pgmq.delete('transactional_emails', 12);
+-- Nulstil rate-limit cooldown
+UPDATE email_send_state SET retry_after_until = NULL WHERE id = 1;
+```
+
+**3. Redeploy** `process-email-queue` edge function.
 
 | Fil | Ændring |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
-
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+| `process-email-queue/index.ts` | Byg payload dynamisk — udelad `run_id` når den er tom |
+| Migration | Ryd kø + nulstil rate-limit |
 
