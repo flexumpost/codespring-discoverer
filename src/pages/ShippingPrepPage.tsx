@@ -388,10 +388,14 @@ export default function ShippingPrepPage() {
               grouped.map((group) => {
                 const isDone = doneGroups.has(group.addressKey);
                 return (
-                  <Card
-                    key={group.addressKey}
-                    className={cn(isDone && "opacity-50 bg-muted")}
-                  >
+                  <div key={group.addressKey} className="flex items-start gap-3">
+                    <div className="pt-5">
+                      <Checkbox
+                        checked={printCheckedGroups.has(group.addressKey)}
+                        onCheckedChange={() => togglePrintGroup(group.addressKey)}
+                      />
+                    </div>
+                    <Card className={cn("flex-1", isDone && "opacity-50 bg-muted")}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">
