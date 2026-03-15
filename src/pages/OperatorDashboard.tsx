@@ -236,7 +236,7 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Send",
     icon: Send,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao",
+    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao" || item.status === "sendt_med_postnord",
     countFilter: (item) => {
       if (item.chosen_action !== "send") return false;
       const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
