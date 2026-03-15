@@ -54,6 +54,34 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
   return startOfDay(getFirstThursdayOfMonth(nextMonth));
 }
 
+const COUNTRY_CODES: Record<string, string> = {
+  "danmark": "DK", "denmark": "DK",
+  "sverige": "SE", "sweden": "SE",
+  "norge": "NO", "norway": "NO",
+  "finland": "FI",
+  "tyskland": "DE", "germany": "DE",
+  "frankrig": "FR", "france": "FR",
+  "spanien": "ES", "spain": "ES",
+  "italien": "IT", "italy": "IT",
+  "holland": "NL", "nederlandene": "NL", "netherlands": "NL",
+  "belgien": "BE", "belgium": "BE",
+  "østrig": "AT", "austria": "AT",
+  "schweiz": "CH", "switzerland": "CH",
+  "polen": "PL", "poland": "PL",
+  "storbritannien": "GB", "united kingdom": "GB", "uk": "GB",
+  "usa": "US", "united states": "US",
+  "island": "IS", "iceland": "IS",
+  "portugal": "PT",
+  "irland": "IE", "ireland": "IE",
+  "grækenland": "GR", "greece": "GR",
+  "tjekkiet": "CZ", "czech republic": "CZ", "czechia": "CZ",
+};
+
+function getCountryCode(country: string | null): string {
+  if (!country) return "";
+  return COUNTRY_CODES[country.toLowerCase().trim()] ?? "";
+}
+
 type MailItemWithTenant = {
   id: string;
   stamp_number: number | null;
@@ -71,6 +99,8 @@ type MailItemWithTenant = {
   shipping_address: string | null;
   shipping_zip: string | null;
   shipping_city: string | null;
+  shipping_state: string | null;
+  shipping_country: string | null;
 };
 
 function getShippingFee(item: MailItemWithTenant): string {
@@ -108,7 +138,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city)")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city, shipping_state, shipping_country)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -131,6 +161,8 @@ export default function ShippingPrepPage() {
         shipping_address: item.tenants?.shipping_address ?? null,
         shipping_zip: item.tenants?.shipping_zip ?? null,
         shipping_city: item.tenants?.shipping_city ?? null,
+        shipping_state: item.tenants?.shipping_state ?? null,
+        shipping_country: item.tenants?.shipping_country ?? null,
       })) as MailItemWithTenant[];
     },
   });
@@ -209,7 +241,7 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
@@ -221,6 +253,8 @@ export default function ShippingPrepPage() {
           shippingAddress: item.shipping_address,
           shippingZip: item.shipping_zip,
           shippingCity: item.shipping_city,
+          shippingState: item.shipping_state,
+          shippingCountry: item.shipping_country,
           items: [],
         });
       }
@@ -346,7 +380,7 @@ export default function ShippingPrepPage() {
                         )}
                         {group.shippingCo && (
                           <p className="flex items-center gap-1.5">
-                            c/o {group.shippingCo}
+                            {group.shippingCo}
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCo!)} />
                           </p>
                         )}
@@ -356,20 +390,27 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress!)} />
                           </p>
                         )}
-                        {(group.shippingZip || group.shippingCity) && (
+                        {(group.shippingZip || group.shippingCity) && (() => {
+                          const cc = getCountryCode(group.shippingCountry);
+                          const parts = [cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ");
+                          const copyText = [cc, group.shippingZip, group.shippingCity].filter(Boolean).join(" ");
+                          return (
+                            <p className="flex items-center gap-1.5">
+                              {parts}
+                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(copyText)} />
+                            </p>
+                          );
+                        })()}
+                        {group.shippingState && (
                           <p className="flex items-center gap-1.5">
-                            {group.shippingZip && (
-                              <>
-                                {group.shippingZip}
-                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingZip!)} />
-                              </>
-                            )}
-                            {group.shippingCity && (
-                              <>
-                                {group.shippingCity}
-                                <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCity!)} />
-                              </>
-                            )}
+                            {group.shippingState}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingState!)} />
+                          </p>
+                        )}
+                        {group.shippingCountry && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingCountry}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCountry!)} />
                           </p>
                         )}
                       </div>
