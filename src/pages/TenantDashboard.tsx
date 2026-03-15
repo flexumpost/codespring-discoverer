@@ -892,7 +892,7 @@ const TenantDashboard = () => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" ? (
+                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
                     <Button
                       variant="ghost"
                       size="icon"

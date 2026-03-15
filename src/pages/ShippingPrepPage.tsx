@@ -232,7 +232,7 @@ export default function ShippingPrepPage() {
 
       // "Standard forsendelse" for Lite uses monthly cadence
       if (item.chosen_action === "standard_forsendelse") {
-        const shipDate = getNextShippingDateForItem("Lite", "brev");
+        const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
         return shipDate.getTime() === selDay;
       }
       // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
