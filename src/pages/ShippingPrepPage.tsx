@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da } from "date-fns/locale";
-import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy } from "lucide-react";
+import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy, Printer } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Badge } from "@/components/ui/badge";
+import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
