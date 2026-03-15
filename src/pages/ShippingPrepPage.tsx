@@ -352,7 +352,18 @@ export default function ShippingPrepPage() {
 
           <TabsContent value={tab} className="mt-4 space-y-4">
             {!isLoading && grouped.length > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={allPrintChecked}
+                    onCheckedChange={toggleAllPrintGroups}
+                  />
+                  <span className="text-sm text-muted-foreground">Vælg alle</span>
+                </div>
+                <Button variant="outline" onClick={handlePrintEnvelopes} disabled={printCheckedGroups.size === 0}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print C4 kuvert {printCheckedGroups.size > 0 ? `(${printCheckedGroups.size})` : ""}
+                </Button>
                 <Button onClick={handleSend} disabled={checkedCount === 0 || sendMutation.isPending}>
                   <Send className="mr-2 h-4 w-4" />
                   Send {checkedCount > 0 ? `(${checkedCount})` : ""}
