@@ -110,9 +110,12 @@ Deno.serve(async (req) => {
         );
 
         // Enqueue via email queue for retry safety
+        const messageId = crypto.randomUUID();
         const { error: enqueueErr } = await supabaseAdmin.rpc("enqueue_email", {
           queue_name: "transactional_emails",
           payload: {
+            run_id: crypto.randomUUID(),
+            message_id: messageId,
             to: tenant.contact_email,
             from: "Flexum <noreply@notify.flexum.dk>",
             sender_domain: "notify.flexum.dk",
@@ -120,7 +123,16 @@ Deno.serve(async (req) => {
             html,
             purpose: "transactional",
             label: "welcome",
+            queued_at: new Date().toISOString(),
           },
+        });
+
+        // Log pending state
+        await supabaseAdmin.from("email_send_log").insert({
+          message_id: messageId,
+          template_name: "welcome",
+          recipient_email: tenant.contact_email,
+          status: "pending",
         });
 
         if (enqueueErr) {
