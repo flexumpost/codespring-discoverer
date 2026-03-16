@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_ids } = await req.json();
+    const { tenant_ids, recovery_links } = await req.json();
     if (!Array.isArray(tenant_ids) || tenant_ids.length === 0) {
       return new Response(
         JSON.stringify({ error: "tenant_ids array required" }),
@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
         .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
         .join("");
 
+      // Use recovery link if provided, otherwise fall back to login URL
+      const recoveryLink = recovery_links?.[tenant.id] || null;
       const loginUrl = "https://codespring-discoverer.lovable.app/login";
 
       try {
@@ -125,6 +127,7 @@ Deno.serve(async (req) => {
             subject,
             bodyHtml,
             loginUrl,
+            recoveryLink,
           })
         );
 

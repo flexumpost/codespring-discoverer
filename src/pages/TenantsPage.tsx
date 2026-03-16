@@ -124,7 +124,7 @@ const TenantsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
       toast.success("Lejer oprettet");
 
-      // Auto-invite: if email is provided, send invite so the tenant can set their own password
+      // Auto-invite: if email is provided, create user and get recovery link
       const email = contactEmail.trim();
       if (email && data?.id) {
         try {
@@ -140,13 +140,26 @@ const TenantsPage = () => {
             }
           );
           if (inviteError) throw inviteError;
-          toast.success("Invitation sendt til " + email);
-        } catch (err: any) {
-          toast.error("Kunne ikke sende invitation: " + (err?.message || err));
-        }
-      }
 
-      if (sendWelcomeOnCreate && data?.id) {
+          // Send welcome email with recovery link included
+          const recoveryLinks: Record<string, string> = {};
+          if (inviteResult?.recovery_link) {
+            recoveryLinks[data.id] = inviteResult.recovery_link;
+          }
+          
+          // Always send welcome email when creating with email (contains password setup link)
+          const { error: welcomeErr } = await supabase.functions.invoke("send-welcome-email", {
+            body: { tenant_ids: [data.id], recovery_links: recoveryLinks },
+          });
+          if (welcomeErr) {
+            toast.error("Velkomst e-mail kunne ikke sendes: " + welcomeErr.message);
+          } else {
+            toast.success("Velkomst e-mail med adgangskode-link sendt til " + email);
+          }
+        } catch (err: any) {
+          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+        }
+      } else if (sendWelcomeOnCreate && data?.id) {
         sendWelcomeMutation.mutate([data.id]);
       }
 

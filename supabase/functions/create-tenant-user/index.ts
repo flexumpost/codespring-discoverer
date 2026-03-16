@@ -101,22 +101,38 @@ Deno.serve(async (req) => {
       (u) => u.email?.toLowerCase() === email.toLowerCase()
     );
 
+    let recoveryLink: string | null = null;
+
     if (found) {
       newUserId = found.id;
       existingUser = true;
     } else if (mode === "invite") {
-      const { data: inviteData, error: inviteError } =
-        await adminClient.auth.admin.inviteUserByEmail(email, {
-          data: { full_name: full_name || "" },
+      // Create user without sending the default invite email
+      const { data: newUser, error: createError } =
+        await adminClient.auth.admin.createUser({
+          email,
+          email_confirm: true,
+          user_metadata: { full_name: full_name || "" },
         });
 
-      if (inviteError) {
-        return new Response(JSON.stringify({ error: inviteError.message }), {
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      newUserId = inviteData.user.id;
+      newUserId = newUser.user.id;
+
+      // Generate a recovery link so the tenant can set their password
+      const { data: linkData, error: linkError } =
+        await adminClient.auth.admin.generateLink({
+          type: "recovery",
+          email,
+        });
+
+      if (!linkError && linkData?.properties?.action_link) {
+        recoveryLink = linkData.properties.action_link;
+      }
     } else {
       const { data: newUser, error: createError } =
         await adminClient.auth.admin.createUser({
@@ -177,7 +193,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, user_id: newUserId, mode: mode || "password" }),
+      JSON.stringify({ success: true, user_id: newUserId, mode: mode || "password", recovery_link: recoveryLink }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
