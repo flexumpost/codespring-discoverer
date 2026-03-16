@@ -135,27 +135,35 @@ Deno.serve(async (req) => {
       newUserId = newUser.user.id;
     }
 
-    // Assign tenant role
-    const { error: roleError } = await adminClient
-      .from("user_roles")
-      .insert({ user_id: newUserId, role: "tenant" });
+    // Assign tenant role (skip if already has it)
+    if (!existingUser) {
+      const { error: roleError } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: newUserId, role: "tenant" });
 
-    if (roleError) {
-      return new Response(JSON.stringify({ error: roleError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (roleError) {
+        return new Response(JSON.stringify({ error: roleError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    // Link to all specified tenants
-    const links = tenantIds.map((tid) => ({
-      tenant_id: tid,
-      user_id: newUserId,
-    }));
+    // Link to all specified tenants (skip duplicates)
+    for (const tid of tenantIds) {
+      const { data: existingLink } = await adminClient
+        .from("tenant_users")
+        .select("id")
+        .eq("tenant_id", tid)
+        .eq("user_id", newUserId)
+        .maybeSingle();
 
-    const { error: linkError } = await adminClient
-      .from("tenant_users")
-      .insert(links);
+      if (!existingLink) {
+        await adminClient
+          .from("tenant_users")
+          .insert({ tenant_id: tid, user_id: newUserId });
+      }
+    }
 
     if (linkError) {
       return new Response(JSON.stringify({ error: linkError.message }), {
