@@ -1,63 +1,57 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Sikker onboarding af nye lejere
 
-### Forretningslogik (opsummering)
+### Nuværende flow
+1. Operatør opretter lejer (virksomhed) med firmanavn, e-mail og type
+2. Velkomst-e-mail sendes via Resend med et link til login-siden
+3. **Problem**: Der oprettes ingen brugerkonto automatisk — lejeren kan ikke logge ind
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Anbefalet løsning: Invite-baseret onboarding med magic link
 
-### Ændringer
+Når operatøren opretter en lejer, skal systemet automatisk:
+
+1. **Oprette en brugerkonto** via `auth.admin.inviteUserByEmail()` (Supabase Admin API)
+2. **Tildele rollen `tenant`** og linke brugeren til virksomheden
+3. **Sende en branded invite-e-mail** med et sikkert engangslinklink, der lader lejeren sætte sin adgangskode
+
+Dette er sikrere end at operatøren vælger en adgangskode, fordi lejeren selv sætter sin kode.
+
+### Teknisk plan
 
 | Fil | Ændring |
 |---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+| `supabase/functions/create-tenant-user/index.ts` | Tilføj en `invite`-mode der bruger `inviteUserByEmail()` i stedet for `createUser()` med password |
+| `src/pages/TenantsPage.tsx` | Efter oprettelse af lejer, kald `create-tenant-user` i invite-mode for automatisk kontoprettelse |
+| `supabase/functions/_shared/email-templates/invite.tsx` | Opdater invite-skabelonen med Flexum-branding og dansk tekst |
+| `src/pages/Login.tsx` | Tilføj en `/reset-password`-side så brugeren kan sætte sin adgangskode via invite-linket |
 
-### Kodedetaljer
+### Flow for lejeren
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+```text
+Operatør opretter lejer
+        │
+        ▼
+System opretter brugerkonto (invite)
+        │
+        ▼
+Lejer modtager e-mail med sikkert link
+        │
+        ▼
+Lejer klikker link → sætter adgangskode
+        │
+        ▼
+Lejer er logget ind på sin side
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+### Vigtige detaljer
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+- **Ingen adgangskoder i operatørens hænder** — lejeren sætter selv sin kode
+- **Engangslinklink udløber** efter standardperioden (24 timer)
+- Invite-e-mailen bruger den eksisterende auth-email-hook med Flexum-branding
+- Den eksisterende `link_tenant_to_user`-trigger sikrer at virksomheden kobles til brugeren automatisk via `contact_email`
+- Velkomst-e-mail-flowet kan beholdes som en separat, valgfri handling for eksisterende lejere
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Alternativ: Password-baseret (nuværende `create-tenant-user`)
+Det nuværende flow kræver at operatøren vælger en adgangskode. Dette er mindre sikkert og kræver at adgangskoden kommunikeres ud-of-band. Invite-flowet er at foretrække.
 
