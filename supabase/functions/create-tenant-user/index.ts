@@ -93,9 +93,18 @@ Deno.serve(async (req) => {
     }
 
     let newUserId: string;
+    let existingUser = false;
 
-    if (mode === "invite") {
-      // Invite mode: use inviteUserByEmail — sends a secure link, no password needed
+    // Check if user already exists
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const found = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (found) {
+      newUserId = found.id;
+      existingUser = true;
+    } else if (mode === "invite") {
       const { data: inviteData, error: inviteError } =
         await adminClient.auth.admin.inviteUserByEmail(email, {
           data: { full_name: full_name || "" },
@@ -109,7 +118,6 @@ Deno.serve(async (req) => {
       }
       newUserId = inviteData.user.id;
     } else {
-      // Legacy mode: create user with password
       const { data: newUser, error: createError } =
         await adminClient.auth.admin.createUser({
           email,
@@ -127,34 +135,37 @@ Deno.serve(async (req) => {
       newUserId = newUser.user.id;
     }
 
-    // Assign tenant role
-    const { error: roleError } = await adminClient
-      .from("user_roles")
-      .insert({ user_id: newUserId, role: "tenant" });
+    // Assign tenant role (skip if already has it)
+    if (!existingUser) {
+      const { error: roleError } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: newUserId, role: "tenant" });
 
-    if (roleError) {
-      return new Response(JSON.stringify({ error: roleError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (roleError) {
+        return new Response(JSON.stringify({ error: roleError.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    // Link to all specified tenants
-    const links = tenantIds.map((tid) => ({
-      tenant_id: tid,
-      user_id: newUserId,
-    }));
+    // Link to all specified tenants (skip duplicates)
+    for (const tid of tenantIds) {
+      const { data: existingLink } = await adminClient
+        .from("tenant_users")
+        .select("id")
+        .eq("tenant_id", tid)
+        .eq("user_id", newUserId)
+        .maybeSingle();
 
-    const { error: linkError } = await adminClient
-      .from("tenant_users")
-      .insert(links);
-
-    if (linkError) {
-      return new Response(JSON.stringify({ error: linkError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (!existingLink) {
+        await adminClient
+          .from("tenant_users")
+          .insert({ tenant_id: tid, user_id: newUserId });
+      }
     }
+
+
 
     // Update tenant's user_id so RLS works for the primary owner
     for (const tid of tenantIds) {
