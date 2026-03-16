@@ -165,12 +165,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (linkError) {
-      return new Response(JSON.stringify({ error: linkError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+
 
     // Update tenant's user_id so RLS works for the primary owner
     for (const tid of tenantIds) {
