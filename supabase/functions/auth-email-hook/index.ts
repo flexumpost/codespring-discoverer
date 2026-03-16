@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
+  signup: 'Bekræft din e-mail',
   invite: 'Velkommen til Flexum',
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  magiclink: 'Dit login-link',
+  recovery: 'Nulstil din adgangskode',
+  email_change: 'Bekræft din nye e-mail',
+  reauthentication: 'Din bekræftelseskode',
 }
 
 // Template mapping
