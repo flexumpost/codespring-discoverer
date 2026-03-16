@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "codespring-discoverer"
+const SITE_NAME = "Flexum Coworking"
 const SENDER_DOMAIN = "notify.flexum.dk"
 const ROOT_DOMAIN = "flexum.dk"
 const FROM_DOMAIN = "notify.flexum.dk" // Domain shown in From address (may be root or sender subdomain)
