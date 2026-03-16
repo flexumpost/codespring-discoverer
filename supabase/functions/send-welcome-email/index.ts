@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_ids } = await req.json();
+    const { tenant_ids, recovery_links } = await req.json();
     if (!Array.isArray(tenant_ids) || tenant_ids.length === 0) {
       return new Response(
         JSON.stringify({ error: "tenant_ids array required" }),
