@@ -17,7 +17,12 @@ const SetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Listen for the SIGNED_IN or PASSWORD_RECOVERY event from the invite/recovery link
+    // Check if already signed in (event may have fired before mount)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsReady(true);
+    });
+
+    // Also listen for future events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") {
         setIsReady(true);

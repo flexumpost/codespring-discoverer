@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       existingUser = true;
     } else if (mode === "invite") {
       // Use inviteUserByEmail — triggers auth-email-hook which sends branded invite email
-      const origin = req.headers.get("origin") || "https://flexum.dk";
+      const origin = "https://flexum.dk";
       const { data: inviteData, error: inviteError } =
         await adminClient.auth.admin.inviteUserByEmail(email, {
           data: { full_name: full_name || "" },
