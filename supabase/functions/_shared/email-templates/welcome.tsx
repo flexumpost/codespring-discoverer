@@ -20,9 +20,10 @@ interface WelcomeEmailProps {
   subject: string
   bodyHtml: string
   loginUrl: string
+  recoveryLink?: string | null
 }
 
-export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl }: WelcomeEmailProps) => (
+export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl, recoveryLink }: WelcomeEmailProps) => (
   <Html lang="da" dir="ltr">
     <Head />
     <Preview>{subject}</Preview>
@@ -39,14 +40,28 @@ export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl }: WelcomeEmail
         <Section>
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
         </Section>
-        <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
-          <Button
-            href={loginUrl}
-            style={button}
-          >
-            Log ind i din postkasse →
-          </Button>
-        </Section>
+        {recoveryLink ? (
+          <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
+            <Button
+              href={recoveryLink}
+              style={button}
+            >
+              Sæt din adgangskode →
+            </Button>
+            <Text style={{ fontSize: '13px', color: '#666666', marginTop: '12px' }}>
+              Når du har sat din adgangskode, kan du logge ind på <a href={loginUrl} style={{ color: 'hsl(222.2, 47.4%, 11.2%)' }}>din postkasse</a>.
+            </Text>
+          </Section>
+        ) : (
+          <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
+            <Button
+              href={loginUrl}
+              style={button}
+            >
+              Log ind i din postkasse →
+            </Button>
+          </Section>
+        )}
         <Text style={footer}>
           Denne e-mail er sendt fra Flexum. Kontakt os hvis du har spørgsmål.
         </Text>
