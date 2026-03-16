@@ -93,9 +93,18 @@ Deno.serve(async (req) => {
     }
 
     let newUserId: string;
+    let existingUser = false;
 
-    if (mode === "invite") {
-      // Invite mode: use inviteUserByEmail — sends a secure link, no password needed
+    // Check if user already exists
+    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
+    const found = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (found) {
+      newUserId = found.id;
+      existingUser = true;
+    } else if (mode === "invite") {
       const { data: inviteData, error: inviteError } =
         await adminClient.auth.admin.inviteUserByEmail(email, {
           data: { full_name: full_name || "" },
@@ -109,7 +118,6 @@ Deno.serve(async (req) => {
       }
       newUserId = inviteData.user.id;
     } else {
-      // Legacy mode: create user with password
       const { data: newUser, error: createError } =
         await adminClient.auth.admin.createUser({
           email,
