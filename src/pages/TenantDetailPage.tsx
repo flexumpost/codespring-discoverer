@@ -9,8 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save, User } from "lucide-react";
+import { ArrowLeft, Save, User, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -165,6 +176,25 @@ const TenantDetailPage = () => {
     onError: () => toast.error("Kunne ikke gemme"),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("delete-tenant", {
+        body: { tenant_id: id },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+    },
+    onSuccess: () => {
+      toast.success("Lejer slettet");
+      queryClient.invalidateQueries({ queryKey: ["tenants"] });
+      navigate("/tenants");
+    },
+    onError: (err: any) => toast.error(err.message || "Kunne ikke slette lejer"),
+  });
+
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
   const typeChanged = tenant && selectedTypeId !== tenant.tenant_type_id;
 
@@ -195,6 +225,36 @@ const TenantDetailPage = () => {
           <Badge variant="outline" className={TYPE_COLORS[typeName] ?? ""}>
             {typeName}
           </Badge>
+        )}
+        {tenant && (
+          <div className="ml-auto">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Slet konto
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Slet {tenant.company_name}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Er du sikker på at du vil slette <strong>{tenant.company_name}</strong>? Alle data inkl. posthistorik og brugerkonti tilknyttet denne lejer vil blive permanent slettet. Denne handling kan ikke fortrydes.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuller</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteMutation.mutate()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? "Sletter..." : "Ja, slet permanent"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </div>
 
