@@ -123,11 +123,33 @@ const TenantsPage = () => {
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
       toast.success("Lejer oprettet");
-      
+
+      // Auto-invite: if email is provided, send invite so the tenant can set their own password
+      const email = contactEmail.trim();
+      if (email && data?.id) {
+        try {
+          const { data: inviteResult, error: inviteError } = await supabase.functions.invoke(
+            "create-tenant-user",
+            {
+              body: {
+                email,
+                full_name: companyName.trim(),
+                tenant_ids: [data.id],
+                mode: "invite",
+              },
+            }
+          );
+          if (inviteError) throw inviteError;
+          toast.success("Invitation sendt til " + email);
+        } catch (err: any) {
+          toast.error("Kunne ikke sende invitation: " + (err?.message || err));
+        }
+      }
+
       if (sendWelcomeOnCreate && data?.id) {
         sendWelcomeMutation.mutate([data.id]);
       }
-      
+
       setDialogOpen(false);
       setCompanyName("");
       setContactEmail("");

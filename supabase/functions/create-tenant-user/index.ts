@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const callerId = claimsData.claims.sub as string;
 
     const body = await req.json();
-    const { email, password, full_name } = body;
+    const { email, password, full_name, mode } = body;
 
     // Support both tenant_ids (array) and tenant_id (single) for backwards compat
     let tenantIds: string[] = body.tenant_ids ?? [];
@@ -48,9 +48,17 @@ Deno.serve(async (req) => {
       tenantIds = [body.tenant_id];
     }
 
-    if (tenantIds.length === 0 || !email || !password) {
+    if (tenantIds.length === 0 || !email) {
       return new Response(
-        JSON.stringify({ error: "tenant_ids (or tenant_id), email and password required" }),
+        JSON.stringify({ error: "tenant_ids (or tenant_id) and email required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // In non-invite mode, password is required
+    if (mode !== "invite" && !password) {
+      return new Response(
+        JSON.stringify({ error: "password required (or use mode: 'invite')" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -84,26 +92,45 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Create auth user
-    const { data: newUser, error: createError } =
-      await adminClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: full_name || "" },
-      });
+    let newUserId: string;
 
-    if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (mode === "invite") {
+      // Invite mode: use inviteUserByEmail — sends a secure link, no password needed
+      const { data: inviteData, error: inviteError } =
+        await adminClient.auth.admin.inviteUserByEmail(email, {
+          data: { full_name: full_name || "" },
+        });
+
+      if (inviteError) {
+        return new Response(JSON.stringify({ error: inviteError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      newUserId = inviteData.user.id;
+    } else {
+      // Legacy mode: create user with password
+      const { data: newUser, error: createError } =
+        await adminClient.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: full_name || "" },
+        });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      newUserId = newUser.user.id;
     }
 
     // Assign tenant role
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role: "tenant" });
+      .insert({ user_id: newUserId, role: "tenant" });
 
     if (roleError) {
       return new Response(JSON.stringify({ error: roleError.message }), {
@@ -115,7 +142,7 @@ Deno.serve(async (req) => {
     // Link to all specified tenants
     const links = tenantIds.map((tid) => ({
       tenant_id: tid,
-      user_id: newUser.user.id,
+      user_id: newUserId,
     }));
 
     const { error: linkError } = await adminClient
@@ -129,8 +156,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Update tenant's user_id so RLS works for the primary owner
+    for (const tid of tenantIds) {
+      await adminClient
+        .from("tenants")
+        .update({ user_id: newUserId })
+        .eq("id", tid)
+        .is("user_id", null);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, user_id: newUser.user.id }),
+      JSON.stringify({ success: true, user_id: newUserId, mode: mode || "password" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
