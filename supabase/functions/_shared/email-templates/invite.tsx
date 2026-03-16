@@ -28,23 +28,26 @@ export const InviteEmail = ({
 }: InviteEmailProps) => (
   <Html lang="da" dir="ltr">
     <Head />
-    <Preview>Du er blevet inviteret til Flexum</Preview>
+    <Preview>Velkommen til Flexum – sæt din adgangskode</Preview>
     <Body style={main}>
       <Container style={container}>
         <Img src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png" alt="Flexum" width="120" height="auto" style={{ marginBottom: '24px' }} />
-        <Heading style={h1}>Du er blevet inviteret</Heading>
+        <Heading style={h1}>Velkommen til Flexum</Heading>
         <Text style={text}>
-          Du er blevet inviteret til at bruge{' '}
+          Din virksomhed er nu oprettet hos{' '}
           <Link href={siteUrl} style={link}>
             <strong>Flexum</strong>
           </Link>
-          . Klik på knappen nedenfor for at acceptere invitationen og oprette din konto.
+          . Vi håndterer din post, så du kan fokusere på det vigtige.
+        </Text>
+        <Text style={text}>
+          Klik på knappen nedenfor for at sætte din adgangskode og logge ind for første gang.
         </Text>
         <Button style={button} href={confirmationUrl}>
-          Acceptér invitation
+          Sæt din adgangskode →
         </Button>
         <Text style={footer}>
-          Hvis du ikke forventede denne invitation, kan du trygt ignorere denne e-mail.
+          Hvis du ikke forventede denne e-mail, kan du trygt ignorere den.
         </Text>
       </Container>
     </Body>

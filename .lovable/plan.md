@@ -1,41 +1,63 @@
 
 
-## Problem
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-Den nuværende løsning er for kompleks: `create-tenant-user` genererer et recovery-link, sender det til `send-welcome-email`, som skal videregive det til skabelonen. Mange bevægelige dele der kan fejle.
+### Forretningslogik (opsummering)
 
-## Enklere løsning: Brug `inviteUserByEmail` + branded invite-skabelon
-
-Supabase `inviteUserByEmail()` sender automatisk invite-e-mailen via `auth-email-hook`, som allerede har Flexum-branding. Linket i e-mailen fører brugeren til at sætte sin adgangskode. Vi behøver blot at:
-
-1. **Tilpasse invite-skabelonen** (`invite.tsx`) til at fungere som velkomst-e-mail med "Sæt din adgangskode"-tekst
-2. **Forenkle `create-tenant-user`** — gå tilbage til `inviteUserByEmail()` for nye brugere
-3. **Fjerne recovery-link logikken** fra `TenantsPage.tsx` — ingen separat welcome-email nødvendig ved oprettelse (invite-mailen ER velkomstmailen)
-4. **Behold `send-welcome-email`** til manuel genafsendelse fra listen (uden recovery-link)
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
 | Fil | Ændring |
 |---|---|
-| `invite.tsx` | Omdøb til "Velkommen til Flexum" med tekst om postservice og "Sæt din adgangskode →" knap |
-| `create-tenant-user/index.ts` | Brug `inviteUserByEmail()` igen i invite-mode. Fjern `generateLink`-logikken |
-| `auth-email-hook/index.ts` | Opdater invite subject til "Velkommen til Flexum" |
-| `TenantsPage.tsx` | Fjern recovery_links-logikken. Lad invite-mailen håndtere velkomst+adgangskode |
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### Flow
+### Kodedetaljer
 
-```text
-Operatør opretter lejer
-        │
-        ▼
-create-tenant-user: inviteUserByEmail() 
-        │
-        ▼
-auth-email-hook: sender branded invite-e-mail med "Sæt din adgangskode" knap
-        │
-        ▼
-Lejer klikker → sætter adgangskode → logger ind
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-Én e-mail, ét system, ingen recovery-link-logik.
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
