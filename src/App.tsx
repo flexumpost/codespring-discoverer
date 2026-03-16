@@ -96,6 +96,7 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route path="/set-password" element={<SetPasswordPage />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
