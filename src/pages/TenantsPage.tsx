@@ -143,15 +143,12 @@ const TenantsPage = () => {
         } catch (err: any) {
           toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
         }
-      } else if (sendWelcomeOnCreate && data?.id) {
-        sendWelcomeMutation.mutate([data.id]);
       }
 
       setDialogOpen(false);
       setCompanyName("");
       setContactEmail("");
       setTenantTypeId("");
-      setSendWelcomeOnCreate(false);
     },
     onError: (err: Error) => {
       toast.error("Kunne ikke oprette lejer: " + err.message);
