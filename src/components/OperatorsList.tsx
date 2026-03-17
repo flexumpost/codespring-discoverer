@@ -51,7 +51,8 @@ export function OperatorsList() {
       queryClient.invalidateQueries({ queryKey: ["operators-list"] });
       toast.success("Operatør oprettet");
       setOpen(false);
-      setFullName("");
+      setFirstName("");
+      setLastName("");
       setEmail("");
       setPassword("");
     },
