@@ -140,9 +140,10 @@ export function AssignTenantDialog({
   const filtered = tenants?.filter((t) => {
     if (!search) return true;
     const s = search.toLowerCase();
+    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
     return (
       t.company_name.toLowerCase().includes(s) ||
-      (t.contact_name?.toLowerCase().includes(s) ?? false)
+      contactFull.includes(s)
     );
   }) ?? [];
 
