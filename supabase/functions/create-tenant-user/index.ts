@@ -167,13 +167,16 @@ Deno.serve(async (req) => {
       }
     }
 
-
-
     // Update tenant's user_id so RLS works for the primary owner
+    // Also mark welcome_email_sent_at when invitation was sent (mode=invite, new user)
     for (const tid of tenantIds) {
+      const updateFields: Record<string, unknown> = { user_id: newUserId };
+      if (mode === "invite" && !existingUser) {
+        updateFields.welcome_email_sent_at = new Date().toISOString();
+      }
       await adminClient
         .from("tenants")
-        .update({ user_id: newUserId })
+        .update(updateFields)
         .eq("id", tid)
         .is("user_id", null);
     }
