@@ -50,9 +50,11 @@ export const EmailChangeEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at bekræfte ændringen:
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Bekræft e-mailændring
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Bekræft e-mailændring
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke har anmodet om denne ændring, bedes du sikre din konto med det samme.
         </Text>
