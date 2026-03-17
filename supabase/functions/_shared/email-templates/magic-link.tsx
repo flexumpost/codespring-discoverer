@@ -34,9 +34,11 @@ export const MagicLinkEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at logge ind på Flexum. Linket udløber kort efter.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Log ind
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Log ind
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke har anmodet om dette link, kan du trygt ignorere denne e-mail.
         </Text>
