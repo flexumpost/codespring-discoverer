@@ -132,11 +132,10 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Postmodtager oprettet");
+      toast.success("Invitation sendt per email");
       setDialogOpen(false);
       setNewName("");
       setNewEmail("");
-      setNewPassword("");
       setSelectedTenantIds([]);
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
