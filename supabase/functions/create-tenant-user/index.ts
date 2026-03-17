@@ -39,7 +39,10 @@ Deno.serve(async (req) => {
     const callerId = userData.user.id;
 
     const body = await req.json();
-    const { email, password, full_name, mode } = body;
+    const { email, password, mode } = body;
+    // Support both new split names and legacy full_name
+    const first_name = body.first_name || (body.full_name ? body.full_name.split(" ")[0] : "");
+    const last_name = body.last_name || (body.full_name ? body.full_name.split(" ").slice(1).join(" ") : "");
 
     // Support both tenant_ids (array) and tenant_id (single) for backwards compat
     let tenantIds: string[] = body.tenant_ids ?? [];
