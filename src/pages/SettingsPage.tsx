@@ -146,7 +146,6 @@ const SettingsPage = () => {
 
   const canSubmitRecipient =
     newEmail.trim().length > 0 &&
-    newPassword.length >= 6 &&
     selectedTenantIds.length > 0;
 
   // Fetch linked tenant users (postmodtagere) — two-step to avoid PGRST200
