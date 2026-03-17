@@ -75,8 +75,12 @@ export function OperatorsList() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Fulde navn</Label>
-                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Navn" />
+                <Label>Fornavn</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Fornavn" />
+              </div>
+              <div className="space-y-2">
+                <Label>Efternavn</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Efternavn" />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
