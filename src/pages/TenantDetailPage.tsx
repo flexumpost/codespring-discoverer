@@ -391,7 +391,7 @@ const TenantDetailPage = () => {
                             <User className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{profile?.full_name || "Uden navn"}</p>
+                            <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                           </div>
                         </div>

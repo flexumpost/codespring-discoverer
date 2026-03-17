@@ -290,7 +290,7 @@ const SettingsPage = () => {
                     <Card key={tu.id}>
                       <CardContent className="flex items-center justify-between py-4 px-4">
                         <div>
-                          <p className="font-medium text-sm">{profile?.full_name || "—"}</p>
+                          <p className="font-medium text-sm">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "—"}</p>
                           <p className="text-xs text-muted-foreground">{profile?.email || "—"}</p>
                         </div>
                         {isOwner && (

@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
           email,
           password,
           email_confirm: true,
-          user_metadata: { full_name: full_name || "" },
+          user_metadata: { first_name: first_name || "", last_name: last_name || "" },
         });
 
       if (createError) {

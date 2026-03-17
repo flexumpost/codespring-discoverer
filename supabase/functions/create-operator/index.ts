@@ -12,7 +12,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify caller is operator
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -25,7 +24,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Check caller role with anon client
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -52,7 +50,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, full_name } = await req.json();
+    const { email, password, first_name, last_name, full_name } = await req.json();
     if (!email || !password) {
       return new Response(
         JSON.stringify({ error: "Email and password required" }),
@@ -63,13 +61,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create user
+    // Support both new split names and legacy full_name
+    const fName = first_name || (full_name ? full_name.split(" ")[0] : "");
+    const lName = last_name || (full_name ? full_name.split(" ").slice(1).join(" ") : "");
+
     const { data: newUser, error: createError } =
       await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name: full_name || "" },
+        user_metadata: { first_name: fName, last_name: lName },
       });
 
     if (createError) {
@@ -79,7 +80,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Assign operator role
     const { error: roleError } = await adminClient
       .from("user_roles")
       .insert({ user_id: newUser.user.id, role: "operator" });

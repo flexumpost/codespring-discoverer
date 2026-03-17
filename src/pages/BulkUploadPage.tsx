@@ -50,7 +50,7 @@ const BulkUploadPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name, contact_name")
+        .select("id, company_name, contact_first_name, contact_last_name")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;

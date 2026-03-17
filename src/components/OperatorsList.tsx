@@ -109,7 +109,7 @@ export function OperatorsList() {
             <TableBody>
               {operators.map((op) => (
                 <TableRow key={op.id}>
-                  <TableCell className="font-medium">{op.full_name || "—"}</TableCell>
+                  <TableCell className="font-medium">{[op.first_name, op.last_name].filter(Boolean).join(" ") || "—"}</TableCell>
                   <TableCell>{op.email}</TableCell>
                 </TableRow>
               ))}

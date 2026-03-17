@@ -295,14 +295,25 @@ const TenantsPage = () => {
                 placeholder="Indtast virksomhedsnavn"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Kontaktperson</Label>
-              <Input
-                id="contact_name"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Fulde navn"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact_first_name">Fornavn</Label>
+                <Input
+                  id="contact_first_name"
+                  value={contactFirstName}
+                  onChange={(e) => setContactFirstName(e.target.value)}
+                  placeholder="Fornavn"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_last_name">Efternavn</Label>
+                <Input
+                  id="contact_last_name"
+                  value={contactLastName}
+                  onChange={(e) => setContactLastName(e.target.value)}
+                  placeholder="Efternavn"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact_email">Kontakt email</Label>

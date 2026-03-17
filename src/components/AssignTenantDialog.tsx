@@ -537,8 +537,8 @@ export function AssignTenantDialog({
                 >
                   <div>
                     <span className="font-medium">{t.company_name}</span>
-                    {t.contact_name && (
-                      <span className="text-muted-foreground ml-2">({t.contact_name})</span>
+                    {(t.contact_first_name || t.contact_last_name) && (
+                      <span className="text-muted-foreground ml-2">({[t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ")})</span>
                     )}
                   </div>
                   <div className="flex gap-1">
