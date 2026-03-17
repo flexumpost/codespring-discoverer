@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       const origin = "https://post.flexum.dk";
       const { data: inviteData, error: inviteError } =
         await adminClient.auth.admin.inviteUserByEmail(email, {
-          data: { full_name: full_name || "" },
+          data: { first_name: first_name || "", last_name: last_name || "" },
           redirectTo: `${origin}/set-password`,
         });
 
