@@ -13,7 +13,8 @@ import { Plus } from "lucide-react";
 export function OperatorsList() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
