@@ -300,7 +300,7 @@ const TenantDetailPage = () => {
                 </div>
                 <Button onClick={() => typeMutation.mutate()} disabled={!typeChanged || typeMutation.isPending} size="sm">
                   <Save className="mr-2 h-4 w-4" />
-                  {typeMutation.isPending ? "Gemmer..." : "Gem type"}
+                  {typeMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
               </CardContent>
             </Card>
