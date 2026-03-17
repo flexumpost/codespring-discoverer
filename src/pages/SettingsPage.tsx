@@ -284,7 +284,7 @@ const SettingsPage = () => {
             )}
             {tenantUsers && tenantUsers.length > 0 && (
               <div className="space-y-3">
-                {tenantUsers.map((tu) => {
+                {tenantUsers.filter((tu) => tu.user_id !== selectedTenant?.user_id).map((tu) => {
                   const profile = tu.profile;
                   return (
                     <Card key={tu.id}>
