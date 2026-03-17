@@ -50,9 +50,11 @@ export const SignupEmail = ({
           </Link>
           ) ved at klikke på knappen nedenfor:
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Bekræft e-mail
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Bekræft e-mail
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke har oprettet en konto, kan du trygt ignorere denne e-mail.
         </Text>
