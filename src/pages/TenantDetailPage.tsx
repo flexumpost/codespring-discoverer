@@ -102,7 +102,8 @@ const TenantDetailPage = () => {
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [companyName, setCompanyName] = useState("");
 
-  const [contactName, setContactName] = useState("");
+  const [contactFirstName, setContactFirstName] = useState("");
+  const [contactLastName, setContactLastName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [shippingRecipient, setShippingRecipient] = useState("");
   const [shippingCo, setShippingCo] = useState("");
