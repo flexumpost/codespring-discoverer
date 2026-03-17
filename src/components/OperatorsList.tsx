@@ -41,7 +41,7 @@ export function OperatorsList() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("create-operator", {
-        body: { email, password, first_name: fullName.split(" ")[0] || "", last_name: fullName.split(" ").slice(1).join(" ") || "" },
+        body: { email, password, first_name: firstName, last_name: lastName },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
