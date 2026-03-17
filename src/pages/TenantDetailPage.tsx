@@ -198,7 +198,7 @@ const TenantDetailPage = () => {
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
-  const typeChanged = tenant && selectedTypeId !== tenant.tenant_type_id;
+  const typeChanged = tenant && (selectedTypeId !== tenant.tenant_type_id || companyName !== tenant.company_name);
 
   const contactChanged =
     tenant &&
