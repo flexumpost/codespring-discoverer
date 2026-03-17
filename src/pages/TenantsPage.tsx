@@ -37,7 +37,6 @@ const TenantsPage = () => {
   const [companyName, setCompanyName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
-  const [sendWelcomeOnCreate, setSendWelcomeOnCreate] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
 
   const { data: tenants = [], isLoading } = useQuery({
@@ -144,15 +143,12 @@ const TenantsPage = () => {
         } catch (err: any) {
           toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
         }
-      } else if (sendWelcomeOnCreate && data?.id) {
-        sendWelcomeMutation.mutate([data.id]);
       }
 
       setDialogOpen(false);
       setCompanyName("");
       setContactEmail("");
       setTenantTypeId("");
-      setSendWelcomeOnCreate(false);
     },
     onError: (err: Error) => {
       toast.error("Kunne ikke oprette lejer: " + err.message);
@@ -317,16 +313,11 @@ const TenantsPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="send_welcome"
-                checked={sendWelcomeOnCreate}
-                onCheckedChange={(checked) => setSendWelcomeOnCreate(checked === true)}
-              />
-              <Label htmlFor="send_welcome" className="cursor-pointer">
-                Send velkomst e-mail
-              </Label>
-            </div>
+            {contactEmail.trim() && (
+              <p className="text-sm text-muted-foreground">
+                ✉️ En invitation sendes automatisk til {contactEmail.trim()}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
