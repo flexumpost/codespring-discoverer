@@ -44,8 +44,8 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: "https://post.flexum.dk/set-password",
+      const { error } = await supabase.functions.invoke("request-password-reset", {
+        body: { email: resetEmail.trim().toLowerCase() },
       });
       if (error) throw error;
       toast({
