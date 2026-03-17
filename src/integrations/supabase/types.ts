@@ -330,22 +330,25 @@ export type Database = {
         Row: {
           created_at: string
           email: string
-          full_name: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
-          full_name?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
-          full_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -432,7 +435,8 @@ export type Database = {
           address: string | null
           company_name: string
           contact_email: string | null
-          contact_name: string | null
+          contact_first_name: string | null
+          contact_last_name: string | null
           created_at: string
           default_mail_action: string | null
           default_package_action: string | null
@@ -455,7 +459,8 @@ export type Database = {
           address?: string | null
           company_name: string
           contact_email?: string | null
-          contact_name?: string | null
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
@@ -478,7 +483,8 @@ export type Database = {
           address?: string | null
           company_name?: string
           contact_email?: string | null
-          contact_name?: string | null
+          contact_first_name?: string | null
+          contact_last_name?: string | null
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
