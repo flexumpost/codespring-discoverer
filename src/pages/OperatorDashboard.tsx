@@ -26,7 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
   send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
-  daglig: "Lig på kontoret",
+  daglig: "Læg på kontoret",
   standard_forsendelse: "Standard forsendelse",
   standard_scan: "Standard scanning",
 };
@@ -149,7 +149,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
   }
   if (action === "daglig") {
     const updated = new Date(item.updated_at);
-    return `Lig på kontoret - ${formatDanishDateTime(updated)}`;
+    return `Læg på kontoret - ${formatDanishDateTime(updated)}`;
   }
   if (!action) {
     const defaultAction = item.mail_type === "pakke"
@@ -169,7 +169,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     }
     if (defaultAction === "afhentning") return "Afhentning (standard)";
     if (defaultAction === "destruer") return "Destrueres (standard)";
-    if (defaultAction === "daglig") return "Lig på kontoret (standard)";
+    if (defaultAction === "daglig") return "Læg på kontoret (standard)";
     if (defaultAction && ACTION_LABELS[defaultAction]) {
       return `${ACTION_LABELS[defaultAction]} (standard)`;
     }
@@ -261,7 +261,7 @@ const CARD_FILTERS: CardFilter[] = [
     countFilter: (item) => item.chosen_action === "destruer" && item.status !== "arkiveret",
   },
   {
-    title: "Lig på kontoret",
+    title: "Læg på kontoret",
     icon: Building2,
     color: "text-primary",
     filter: (item) => item.chosen_action === "daglig",
