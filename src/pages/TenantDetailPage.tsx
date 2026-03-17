@@ -73,7 +73,7 @@ const TenantDetailPage = () => {
       const userIds = relations.map((r) => r.user_id);
       const { data: profiles, error: e2 } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, first_name, last_name, email")
         .in("id", userIds);
       if (e2) throw e2;
 
@@ -102,7 +102,8 @@ const TenantDetailPage = () => {
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
   const [companyName, setCompanyName] = useState("");
 
-  const [contactName, setContactName] = useState("");
+  const [contactFirstName, setContactFirstName] = useState("");
+  const [contactLastName, setContactLastName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [shippingRecipient, setShippingRecipient] = useState("");
   const [shippingCo, setShippingCo] = useState("");
@@ -114,7 +115,8 @@ const TenantDetailPage = () => {
   useEffect(() => {
     if (tenant) {
       setCompanyName(tenant.company_name);
-      setContactName(tenant.contact_name ?? "");
+      setContactFirstName(tenant.contact_first_name ?? "");
+      setContactLastName(tenant.contact_last_name ?? "");
       setContactEmail(tenant.contact_email ?? "");
       setSelectedTypeId(tenant.tenant_type_id);
       setShippingRecipient(tenant.shipping_recipient ?? "");
@@ -145,7 +147,7 @@ const TenantDetailPage = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("tenants")
-        .update({ contact_name: contactName, contact_email: contactEmail })
+        .update({ contact_first_name: contactFirstName, contact_last_name: contactLastName, contact_email: contactEmail })
         .eq("id", id!);
       if (error) throw error;
     },
@@ -202,7 +204,8 @@ const TenantDetailPage = () => {
 
   const contactChanged =
     tenant &&
-    (contactName !== (tenant.contact_name ?? "") ||
+    (contactFirstName !== (tenant.contact_first_name ?? "") ||
+      contactLastName !== (tenant.contact_last_name ?? "") ||
       contactEmail !== (tenant.contact_email ?? ""));
 
   const shippingChanged =
@@ -310,9 +313,15 @@ const TenantDetailPage = () => {
                 <CardTitle className="text-base">Kontaktoplysninger</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contact_name">Kontaktperson</Label>
-                  <Input id="contact_name" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Fulde navn" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_first_name">Fornavn</Label>
+                    <Input id="contact_first_name" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder="Fornavn" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact_last_name">Efternavn</Label>
+                    <Input id="contact_last_name" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder="Efternavn" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="contact_email">Kontakt-email</Label>
@@ -382,7 +391,7 @@ const TenantDetailPage = () => {
                             <User className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-medium truncate">{profile?.full_name || "Uden navn"}</p>
+                            <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                           </div>
                         </div>

@@ -96,11 +96,11 @@ export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, full_name, email")
+          .select("id, first_name, last_name, email")
           .in("id", userIds);
         if (profiles) {
           for (const p of profiles) {
-            profileMap[p.id] = { full_name: p.full_name, email: p.email };
+            profileMap[p.id] = { full_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null, email: p.email };
           }
         }
       }

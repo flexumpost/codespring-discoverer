@@ -1,82 +1,63 @@
 
 
-## Opdel navnefelter til fornavn og efternavn
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Oversigt
-Opdel `contact_name` (tenants-tabellen) til `contact_first_name` + `contact_last_name`, og `full_name` (profiles-tabellen) til `first_name` + `last_name`. Migrer eksisterende data ved at splitte på første mellemrum.
+### Forretningslogik (opsummering)
 
-### 1. Database-migration
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-```sql
--- Tenants: tilføj nye kolonner, migrer data, fjern gammel kolonne
-ALTER TABLE public.tenants ADD COLUMN contact_first_name text;
-ALTER TABLE public.tenants ADD COLUMN contact_last_name text;
+### Ændringer
 
-UPDATE public.tenants SET
-  contact_first_name = split_part(contact_name, ' ', 1),
-  contact_last_name = CASE
-    WHEN position(' ' in coalesce(contact_name,'')) > 0
-    THEN substring(contact_name from position(' ' in contact_name) + 1)
-    ELSE NULL
-  END
-WHERE contact_name IS NOT NULL;
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-ALTER TABLE public.tenants DROP COLUMN contact_name;
+### Kodedetaljer
 
--- Profiles: tilføj nye kolonner, migrer data, fjern gammel kolonne
-ALTER TABLE public.profiles ADD COLUMN first_name text;
-ALTER TABLE public.profiles ADD COLUMN last_name text;
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-UPDATE public.profiles SET
-  first_name = split_part(full_name, ' ', 1),
-  last_name = CASE
-    WHEN position(' ' in coalesce(full_name,'')) > 0
-    THEN substring(full_name from position(' ' in full_name) + 1)
-    ELSE NULL
-  END
-WHERE full_name IS NOT NULL;
-
-ALTER TABLE public.profiles DROP COLUMN full_name;
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-### 2. Edge function: `create-tenant-user/index.ts`
-- Accepter `first_name` + `last_name` i stedet for `full_name`
-- Send `{ first_name, last_name }` som user_metadata ved invite/oprettelse
+**2. Lås handlinger fra dagen før forsendelse**
 
-### 3. Edge function: `create-operator/index.ts`
-- Samme ændring: accepter `first_name` + `last_name`
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-### 4. Database trigger: `handle_new_user()`
-- Opdater til at indsætte `first_name` og `last_name` fra `raw_user_meta_data` i stedet for `full_name`
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
 
-### 5. UI-ændringer
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
 
-**`TenantDetailPage.tsx`** (operatør-redigering):
-- Erstat ét kontaktperson-felt med to felter: "Fornavn" og "Efternavn"
-- Opdater `contactMutation` til at sende `contact_first_name` + `contact_last_name`
-- Opdater fuzzy match-display
+**3. Opdater memory**
 
-**`TenantsPage.tsx`** (opret lejer-dialog):
-- Erstat "Kontaktperson" med "Fornavn" + "Efternavn"
-- Opdater insert og invite-kald
-
-**`SettingsPage.tsx`** (lejer-visning):
-- Vis "Fornavn" og "Efternavn" som read-only felter
-- Opdater postmodtager-oprettelsesdialogen: to felter i stedet for ét "Navn"-felt
-- Opdater visning af postmodtagere: `first_name + " " + last_name`
-
-**`RegisterMailDialog.tsx`** og **`AssignTenantDialog.tsx`**:
-- Opdater `contact_name` referencer til `contact_first_name`/`contact_last_name` i fuzzy match og visning
-
-**`AppLayout.tsx`**:
-- Vis `first_name` fra user_metadata i stedet for `full_name`
-
-**`OperatorsList.tsx`**:
-- Opdater profil-visning til `first_name + " " + last_name`
-
-**`MailItemLogSheet.tsx`**:
-- Opdater profil-hentning og visning
-
-### 6. Alle steder der læser `profiles.full_name` eller `tenants.contact_name`
-Opdateres til at bruge de nye kolonner og sammensætte `${first_name} ${last_name}` hvor fuldt navn vises.
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

@@ -24,19 +24,21 @@ interface RegisterMailDialogProps {
 
 function fuzzyMatchTenant(
   name: string,
-  tenants: { id: string; company_name: string; contact_name: string | null }[]
+  tenants: { id: string; company_name: string; contact_first_name: string | null; contact_last_name: string | null }[]
 ): { id: string; company_name: string } | null {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
-  // Exact match first
+  const contactFull = (t: { contact_first_name: string | null; contact_last_name: string | null }) =>
+    [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
   for (const t of tenants) {
     if (t.company_name.toLowerCase() === lower) return t;
-    if (t.contact_name?.toLowerCase() === lower) return t;
+    const cf = contactFull(t);
+    if (cf && cf === lower) return t;
   }
-  // Partial match
   for (const t of tenants) {
     if (t.company_name.toLowerCase().includes(lower) || lower.includes(t.company_name.toLowerCase())) return t;
-    if (t.contact_name && (t.contact_name.toLowerCase().includes(lower) || lower.includes(t.contact_name.toLowerCase()))) return t;
+    const cf = contactFull(t);
+    if (cf && (cf.includes(lower) || lower.includes(cf))) return t;
   }
   return null;
 }
@@ -85,7 +87,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name, contact_name, tenant_type_id")
+        .select("id, company_name, contact_first_name, contact_last_name, tenant_type_id")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;
@@ -121,8 +123,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const filteredTenants = tenants?.filter((t) => {
     const search = tenantSearch.toLowerCase();
+    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
     return t.company_name.toLowerCase().includes(search) ||
-      (t.contact_name?.toLowerCase().includes(search) ?? false);
+      contactFull.includes(search);
   }) ?? [];
 
   const handleCreateTenant = async () => {
@@ -134,7 +137,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     try {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: newTenantName.trim(),
-        contact_name: newTenantContact || null,
+        contact_first_name: newTenantContact.split(" ")[0] || null,
+        contact_last_name: newTenantContact.split(" ").slice(1).join(" ") || null,
         contact_email: newTenantEmail || null,
         address: newTenantAddress || null,
         tenant_type_id: newTenantTypeId,
@@ -733,8 +737,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 }}
               >
                 <span>{t.company_name}</span>
-                {t.contact_name && (
-                  <span className="text-muted-foreground ml-1">({t.contact_name})</span>
+                {(t.contact_first_name || t.contact_last_name) && (
+                  <span className="text-muted-foreground ml-1">({[t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ")})</span>
                 )}
               </button>
             ))}

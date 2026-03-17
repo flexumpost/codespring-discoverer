@@ -35,7 +35,8 @@ const TenantsPage = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
+  const [contactFirstName, setContactFirstName] = useState("");
+  const [contactLastName, setContactLastName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
@@ -114,7 +115,8 @@ const TenantsPage = () => {
     mutationFn: async () => {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: companyName.trim(),
-        contact_name: contactName.trim() || null,
+        contact_first_name: contactFirstName.trim() || null,
+        contact_last_name: contactLastName.trim() || null,
         contact_email: contactEmail.trim() || null,
         tenant_type_id: tenantTypeId,
       }).select("id").single();
@@ -134,7 +136,8 @@ const TenantsPage = () => {
             {
               body: {
                 email,
-                full_name: contactName.trim() || companyName.trim(),
+                first_name: contactFirstName.trim() || companyName.trim(),
+                last_name: contactLastName.trim() || "",
                 tenant_ids: [data.id],
                 mode: "invite",
               },
@@ -149,7 +152,8 @@ const TenantsPage = () => {
 
       setDialogOpen(false);
       setCompanyName("");
-      setContactName("");
+      setContactFirstName("");
+      setContactLastName("");
       setContactEmail("");
       setTenantTypeId("");
     },
@@ -291,14 +295,25 @@ const TenantsPage = () => {
                 placeholder="Indtast virksomhedsnavn"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Kontaktperson</Label>
-              <Input
-                id="contact_name"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Fulde navn"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact_first_name">Fornavn</Label>
+                <Input
+                  id="contact_first_name"
+                  value={contactFirstName}
+                  onChange={(e) => setContactFirstName(e.target.value)}
+                  placeholder="Fornavn"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_last_name">Efternavn</Label>
+                <Input
+                  id="contact_last_name"
+                  value={contactLastName}
+                  onChange={(e) => setContactLastName(e.target.value)}
+                  placeholder="Efternavn"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact_email">Kontakt email</Label>

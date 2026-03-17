@@ -16,17 +16,21 @@ type MailItem = Tables<"mail_items">;
 
 function fuzzyMatchTenant(
   name: string,
-  tenants: { id: string; company_name: string; contact_name: string | null }[]
+  tenants: { id: string; company_name: string; contact_first_name: string | null; contact_last_name: string | null }[]
 ): { id: string; company_name: string } | null {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
+  const contactFull = (t: { contact_first_name: string | null; contact_last_name: string | null }) =>
+    [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
   for (const t of tenants) {
     if (t.company_name.toLowerCase() === lower) return t;
-    if (t.contact_name?.toLowerCase() === lower) return t;
+    const cf = contactFull(t);
+    if (cf && cf === lower) return t;
   }
   for (const t of tenants) {
     if (t.company_name.toLowerCase().includes(lower) || lower.includes(t.company_name.toLowerCase())) return t;
-    if (t.contact_name && (t.contact_name.toLowerCase().includes(lower) || lower.includes(t.contact_name.toLowerCase()))) return t;
+    const cf = contactFull(t);
+    if (cf && (cf.includes(lower) || lower.includes(cf))) return t;
   }
   return null;
 }
@@ -99,7 +103,7 @@ export function AssignTenantDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name, contact_name, tenant_type_id")
+        .select("id, company_name, contact_first_name, contact_last_name, tenant_type_id")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;
@@ -136,9 +140,10 @@ export function AssignTenantDialog({
   const filtered = tenants?.filter((t) => {
     if (!search) return true;
     const s = search.toLowerCase();
+    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
     return (
       t.company_name.toLowerCase().includes(s) ||
-      (t.contact_name?.toLowerCase().includes(s) ?? false)
+      contactFull.includes(s)
     );
   }) ?? [];
 
@@ -370,11 +375,12 @@ export function AssignTenantDialog({
       const { data, error } = await supabase
         .from("tenants")
         .insert({
-          company_name: newName.trim(),
-          contact_name: newContact || null,
-          contact_email: newEmail || null,
-          address: newAddress || null,
-          tenant_type_id: newTypeId,
+        company_name: newName.trim(),
+        contact_first_name: newContact.split(" ")[0] || null,
+        contact_last_name: newContact.split(" ").slice(1).join(" ") || null,
+        contact_email: newEmail || null,
+        address: newAddress || null,
+        tenant_type_id: newTypeId,
         })
         .select("id, company_name")
         .single();
@@ -531,8 +537,8 @@ export function AssignTenantDialog({
                 >
                   <div>
                     <span className="font-medium">{t.company_name}</span>
-                    {t.contact_name && (
-                      <span className="text-muted-foreground ml-2">({t.contact_name})</span>
+                    {(t.contact_first_name || t.contact_last_name) && (
+                      <span className="text-muted-foreground ml-2">({[t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ")})</span>
                     )}
                   </div>
                   <div className="flex gap-1">

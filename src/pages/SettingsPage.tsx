@@ -123,7 +123,8 @@ const SettingsPage = () => {
         body: {
           tenant_ids: selectedTenantIds,
           email: newEmail.trim(),
-          full_name: newName.trim(),
+          first_name: newName.split(" ")[0]?.trim() || "",
+          last_name: newName.split(" ").slice(1).join(" ")?.trim() || "",
           mode: "invite",
         },
       });
@@ -163,7 +164,7 @@ const SettingsPage = () => {
       const userIds = relations.map((r) => r.user_id);
       const { data: profiles, error: e2 } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, first_name, last_name, email")
         .in("id", userIds);
       if (e2) throw e2;
 
@@ -268,7 +269,7 @@ const SettingsPage = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Kontaktperson</Label>
-                  <p className="font-medium">{selectedTenant.contact_name || "—"}</p>
+                  <p className="font-medium">{[selectedTenant.contact_first_name, selectedTenant.contact_last_name].filter(Boolean).join(" ") || "—"}</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Kontakt-email</Label>
@@ -289,7 +290,7 @@ const SettingsPage = () => {
                     <Card key={tu.id}>
                       <CardContent className="flex items-center justify-between py-4 px-4">
                         <div>
-                          <p className="font-medium text-sm">{profile?.full_name || "—"}</p>
+                          <p className="font-medium text-sm">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "—"}</p>
                           <p className="text-xs text-muted-foreground">{profile?.email || "—"}</p>
                         </div>
                         {isOwner && (
@@ -301,7 +302,7 @@ const SettingsPage = () => {
                                 onClick={() =>
                                   openEditDialog(
                                     tu.user_id,
-                                    profile?.full_name || "—",
+                                    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "—",
                                     profile?.email || "—"
                                   )
                                 }

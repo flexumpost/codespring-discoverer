@@ -30,7 +30,7 @@ export function OperatorsList() {
       const userIds = roles.map((r) => r.user_id);
       const { data: profiles, error: pErr } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, first_name, last_name, email")
         .in("id", userIds);
       if (pErr) throw pErr;
       return profiles ?? [];
@@ -40,7 +40,7 @@ export function OperatorsList() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("create-operator", {
-        body: { email, password, full_name: fullName },
+        body: { email, password, first_name: fullName.split(" ")[0] || "", last_name: fullName.split(" ").slice(1).join(" ") || "" },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -109,7 +109,7 @@ export function OperatorsList() {
             <TableBody>
               {operators.map((op) => (
                 <TableRow key={op.id}>
-                  <TableCell className="font-medium">{op.full_name || "—"}</TableCell>
+                  <TableCell className="font-medium">{[op.first_name, op.last_name].filter(Boolean).join(" ") || "—"}</TableCell>
                   <TableCell>{op.email}</TableCell>
                 </TableRow>
               ))}

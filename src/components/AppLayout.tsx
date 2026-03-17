@@ -7,7 +7,7 @@ import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const displayName = user?.user_metadata?.full_name || user?.email || "";
+  const displayName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(" ") || user?.user_metadata?.full_name || user?.email || "";
 
   return (
     <SidebarProvider>
