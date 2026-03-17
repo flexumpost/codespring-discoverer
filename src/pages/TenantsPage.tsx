@@ -136,7 +136,8 @@ const TenantsPage = () => {
             {
               body: {
                 email,
-                full_name: contactName.trim() || companyName.trim(),
+                first_name: contactFirstName.trim() || companyName.trim(),
+                last_name: contactLastName.trim() || "",
                 tenant_ids: [data.id],
                 mode: "invite",
               },
