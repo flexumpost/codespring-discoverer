@@ -123,8 +123,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const filteredTenants = tenants?.filter((t) => {
     const search = tenantSearch.toLowerCase();
+    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
     return t.company_name.toLowerCase().includes(search) ||
-      (t.contact_name?.toLowerCase().includes(search) ?? false);
+      contactFull.includes(search);
   }) ?? [];
 
   const handleCreateTenant = async () => {
