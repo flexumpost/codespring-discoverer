@@ -87,7 +87,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
-        .select("id, company_name, contact_name, tenant_type_id")
+        .select("id, company_name, contact_first_name, contact_last_name, tenant_type_id")
         .eq("is_active", true)
         .order("company_name");
       if (error) throw error;
