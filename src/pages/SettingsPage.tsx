@@ -123,7 +123,8 @@ const SettingsPage = () => {
         body: {
           tenant_ids: selectedTenantIds,
           email: newEmail.trim(),
-          full_name: newName.trim(),
+          first_name: newName.split(" ")[0]?.trim() || "",
+          last_name: newName.split(" ").slice(1).join(" ")?.trim() || "",
           mode: "invite",
         },
       });
