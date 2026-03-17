@@ -273,9 +273,9 @@ const TenantDetailPage = () => {
                 <CardTitle className="text-base">Virksomhed</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
+                <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Firmanavn</Label>
-                  <p className="font-medium">{tenant.company_name}</p>
+                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Firmanavn" />
                 </div>
                 {tenant.address && (
                   <div>
