@@ -136,7 +136,7 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Lejertype opdateret");
+      toast.success("Virksomhedsoplysninger opdateret");
     },
     onError: () => toast.error("Kunne ikke gemme lejertype"),
   });
