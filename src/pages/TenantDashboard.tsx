@@ -40,7 +40,7 @@ const ACTION_LABELS: Record<string, string> = {
   send: "Forsendelse",
   afhentning: "Afhentning",
   destruer: "Destruer",
-  daglig: "Lig på kontoret",
+  daglig: "Læg på kontoret",
   anden_afhentningsdag: "Anden afhentningsdag",
   standard_forsendelse: "Standard forsendelse",
   standard_scan: "Standard scanning",

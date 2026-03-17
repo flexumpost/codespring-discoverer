@@ -261,7 +261,7 @@ const CARD_FILTERS: CardFilter[] = [
     countFilter: (item) => item.chosen_action === "destruer" && item.status !== "arkiveret",
   },
   {
-    title: "Lig på kontoret",
+    title: "Læg på kontoret",
     icon: Building2,
     color: "text-primary",
     filter: (item) => item.chosen_action === "daglig",
