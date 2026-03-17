@@ -73,7 +73,7 @@ const TenantDetailPage = () => {
       const userIds = relations.map((r) => r.user_id);
       const { data: profiles, error: e2 } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, first_name, last_name, email")
         .in("id", userIds);
       if (e2) throw e2;
 
