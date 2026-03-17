@@ -35,7 +35,8 @@ const TenantsPage = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
+  const [contactFirstName, setContactFirstName] = useState("");
+  const [contactLastName, setContactLastName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
