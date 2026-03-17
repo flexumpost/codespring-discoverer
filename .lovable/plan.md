@@ -1,63 +1,24 @@
 
+Status lige nu: Det er stadig et problem for den adresse (ikke utålmodighed).
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+Hvad jeg har verificeret:
+- Seneste reset-forsøg rammer backend, men fejler med `User with this email not found` (kl. 16:40 og 16:41).
+- `regnskab@flexum.dk` findes som kontaktmail på lejeren `Care With You`, men lejeren har `user_id = null` (ingen koblet login-bruger).
+- Der findes ingen auth-bruger med `regnskab@flexum.dk`.
+- Derfor kan recovery-link ikke genereres og der sendes ingen ny mail.
 
-### Forretningslogik (opsummering)
+Plan for løsning (hurtigst muligt):
+1. Genskab login-brugeren for `regnskab@flexum.dk` via invitation (samme flow som “opret postmodtager” / invite).
+2. Bekræft at brugeren er oprettet og koblet til lejer (så reset-flowet har en reel konto at nulstille).
+3. Kør “Glemt adgangskode” igen og verificér:
+   - mail dukker op i indbakken
+   - ny `recovery`-log med `pending` -> `sent` i mail-loggen.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Forebyggelse (så det ikke sker igen):
+- Tilføj tydeligere tekst i login-flowet: “Hvis kontoen ikke findes endnu, skal du bruge invitation først.”
+- Tilføj en tydelig “Send invitation igen”-handling på lejer/postmodtager, så man ikke bruger reset på en ikke-oprettet konto.
+- (Valgfrit) log `user_not_found` reset-forsøg i en intern fejllog, så support kan se årsagen med det samme.
 
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
-
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
-
+Teknisk scope:
+- Ingen database-migrering nødvendig for den hurtige løsning.
+- Forbedringerne kræver primært UI-justeringer i login/indstillinger samt mindre backend-logning.
