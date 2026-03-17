@@ -34,9 +34,11 @@ export const RecoveryEmail = ({
         <Text style={text}>
           Vi har modtaget en anmodning om at nulstille din adgangskode til Flexum. Klik på knappen nedenfor for at vælge en ny adgangskode.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Nulstil adgangskode
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Nulstil adgangskode
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke har anmodet om en nulstilling, kan du trygt ignorere denne e-mail. Din adgangskode forbliver uændret.
         </Text>
