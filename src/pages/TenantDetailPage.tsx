@@ -204,7 +204,8 @@ const TenantDetailPage = () => {
 
   const contactChanged =
     tenant &&
-    (contactName !== (tenant.contact_name ?? "") ||
+    (contactFirstName !== (tenant.contact_first_name ?? "") ||
+      contactLastName !== (tenant.contact_last_name ?? "") ||
       contactEmail !== (tenant.contact_email ?? ""));
 
   const shippingChanged =
