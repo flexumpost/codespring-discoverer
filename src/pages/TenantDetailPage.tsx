@@ -100,6 +100,7 @@ const TenantDetailPage = () => {
   });
 
   const [selectedTypeId, setSelectedTypeId] = useState<string>("");
+  const [companyName, setCompanyName] = useState("");
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -112,6 +113,7 @@ const TenantDetailPage = () => {
 
   useEffect(() => {
     if (tenant) {
+      setCompanyName(tenant.company_name);
       setContactName(tenant.contact_name ?? "");
       setContactEmail(tenant.contact_email ?? "");
       setSelectedTypeId(tenant.tenant_type_id);
@@ -128,13 +130,13 @@ const TenantDetailPage = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("tenants")
-        .update({ tenant_type_id: selectedTypeId })
+        .update({ tenant_type_id: selectedTypeId, company_name: companyName })
         .eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Lejertype opdateret");
+      toast.success("Virksomhedsoplysninger opdateret");
     },
     onError: () => toast.error("Kunne ikke gemme lejertype"),
   });
@@ -196,7 +198,7 @@ const TenantDetailPage = () => {
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
-  const typeChanged = tenant && selectedTypeId !== tenant.tenant_type_id;
+  const typeChanged = tenant && (selectedTypeId !== tenant.tenant_type_id || companyName !== tenant.company_name);
 
   const contactChanged =
     tenant &&
@@ -271,9 +273,9 @@ const TenantDetailPage = () => {
                 <CardTitle className="text-base">Virksomhed</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
+                <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Firmanavn</Label>
-                  <p className="font-medium">{tenant.company_name}</p>
+                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Firmanavn" />
                 </div>
                 {tenant.address && (
                   <div>
@@ -298,7 +300,7 @@ const TenantDetailPage = () => {
                 </div>
                 <Button onClick={() => typeMutation.mutate()} disabled={!typeChanged || typeMutation.isPending} size="sm">
                   <Save className="mr-2 h-4 w-4" />
-                  {typeMutation.isPending ? "Gemmer..." : "Gem type"}
+                  {typeMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
               </CardContent>
             </Card>

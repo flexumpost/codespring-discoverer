@@ -1,16 +1,63 @@
 
 
-## Gør Firmanavn redigerbart for operatører
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Ændringer i `src/pages/TenantDetailPage.tsx`
+### Forretningslogik (opsummering)
 
-Firmanavnet vises i dag som statisk tekst (linje 275-276). Det skal ændres til et redigerbart `Input`-felt:
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-1. Tilføj state: `companyName` (initialiseret fra `tenant.company_name` i `useEffect`)
-2. Erstat den statiske `<p>` med et `<Input>`-felt bundet til `companyName`
-3. Inkluder `company_name` i den eksisterende `contactMutation` (eller `typeMutation`) — mest logisk at tilføje det til virksomhedskortet sammen med type-gem-knappen
-4. Opdater `typeChanged`-logikken til også at inkludere firmanavn-ændringer, så "Gem"-knappen aktiveres
-5. Opdater `typeMutation` til at sende `company_name` sammen med `tenant_type_id`
+### Ændringer
 
-Lejere har ikke adgang til denne side (den ligger under `/tenants/:id` som kun er i operatør-navigationen), og RLS tillader kun operatører at opdatere — så ingen yderligere adgangskontrol er nødvendig.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
