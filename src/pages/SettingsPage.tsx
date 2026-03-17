@@ -400,7 +400,7 @@ const SettingsPage = () => {
               onClick={() => createRecipientMutation.mutate()}
               disabled={!canSubmitRecipient || createRecipientMutation.isPending}
             >
-              {createRecipientMutation.isPending ? "Opretter..." : "Opret"}
+              {createRecipientMutation.isPending ? "Sender invitation..." : "Send invitation"}
             </Button>
           </DialogFooter>
         </DialogContent>
