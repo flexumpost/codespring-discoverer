@@ -4,15 +4,12 @@ import * as React from 'npm:react@18.3.1'
 
 import {
   Body,
-  Button,
   Container,
   Head,
   Heading,
   Html,
   Img,
-  Link,
   Preview,
-  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -43,7 +40,7 @@ export const InviteEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at sætte din adgangskode og logge ind for første gang.
         </Text>
-        <Section style={buttonSection} dangerouslySetInnerHTML={{ __html: `
+        <div style={buttonSection} dangerouslySetInnerHTML={{ __html: `
 <!--[if mso]>
 <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${confirmationUrl}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="18%" stroke="f" fillcolor="#00aaeb">
 <w:anchorlock/>
