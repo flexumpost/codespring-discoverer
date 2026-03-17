@@ -1,36 +1,63 @@
 
 
-## Tidsbetinget hilsen i header
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Ændring i `src/components/AppLayout.tsx`
+### Forretningslogik (opsummering)
 
-Erstat den statiske "Hej" med en funktion der vælger hilsen baseret på klokkeslæt, og vis kun fornavn i stedet for fuldt navn:
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-- **06:00–09:59** → "Godmorgen"
-- **10:00–11:59** → "God formiddag"  
-- **12:00–13:59** → "God middag"
-- **14:00–17:59** → "God eftermiddag"
-- **18:00–05:59** → "God aften"
+### Ændringer
 
-Brug kun `first_name` (fra user_metadata) i hilsenen. Fallback til email hvis intet fornavn findes.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-Linje 10-21 ændres til:
+### Kodedetaljer
+
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-const firstName = user?.user_metadata?.first_name || user?.email || "";
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour < 10) return "Godmorgen";
-  if (hour >= 10 && hour < 12) return "God formiddag";
-  if (hour >= 12 && hour < 14) return "God middag";
-  if (hour >= 14 && hour < 18) return "God eftermiddag";
-  return "God aften";
-};
-
-// I JSX:
-<span>…{getGreeting()} {firstName}</span>
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
 ```
 
-Én fil, ingen database-ændringer.
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
