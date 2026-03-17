@@ -375,11 +375,12 @@ export function AssignTenantDialog({
       const { data, error } = await supabase
         .from("tenants")
         .insert({
-          company_name: newName.trim(),
-          contact_name: newContact || null,
-          contact_email: newEmail || null,
-          address: newAddress || null,
-          tenant_type_id: newTypeId,
+        company_name: newName.trim(),
+        contact_first_name: newContact.split(" ")[0] || null,
+        contact_last_name: newContact.split(" ").slice(1).join(" ") || null,
+        contact_email: newEmail || null,
+        address: newAddress || null,
+        tenant_type_id: newTypeId,
         })
         .select("id, company_name")
         .single();
