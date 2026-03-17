@@ -149,6 +149,7 @@ const TenantsPage = () => {
 
       setDialogOpen(false);
       setCompanyName("");
+      setContactName("");
       setContactEmail("");
       setTenantTypeId("");
     },
