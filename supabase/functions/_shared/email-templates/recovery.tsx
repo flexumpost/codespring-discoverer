@@ -63,12 +63,15 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
+const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
 const button = {
   backgroundColor: 'hsl(222.2, 47.4%, 11.2%)',
-  color: 'hsl(210, 40%, 98%)',
+  color: '#ffffff',
   fontSize: '14px',
+  fontWeight: '600' as const,
   borderRadius: '0.5rem',
-  padding: '12px 20px',
+  padding: '12px 24px',
   textDecoration: 'none',
+  display: 'inline-block' as const,
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
