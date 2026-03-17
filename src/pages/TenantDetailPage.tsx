@@ -130,7 +130,7 @@ const TenantDetailPage = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("tenants")
-        .update({ tenant_type_id: selectedTypeId })
+        .update({ tenant_type_id: selectedTypeId, company_name: companyName })
         .eq("id", id!);
       if (error) throw error;
     },
