@@ -17,19 +17,42 @@ const SetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if already signed in (event may have fired before mount)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setIsReady(true);
-    });
+    // Parse hash fragment for access_token (invite/recovery links)
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type = params.get("type");
 
-    // Also listen for future events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") {
-        setIsReady(true);
-      }
-    });
+    if (accessToken) {
+      // Explicitly set session from the URL tokens
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || "",
+      }).then(({ error }) => {
+        if (error) {
+          console.error("Failed to set session from hash:", error);
+          toast({ title: "Fejl", description: "Linket er ugyldigt eller udløbet. Prøv igen.", variant: "destructive" });
+        } else {
+          setIsReady(true);
+          // Clean hash from URL
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      });
+    } else {
+      // No hash tokens — check existing session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) setIsReady(true);
+      });
 
-    return () => subscription.unsubscribe();
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") {
+          setIsReady(true);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

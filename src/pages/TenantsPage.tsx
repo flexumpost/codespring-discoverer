@@ -35,6 +35,7 @@ const TenantsPage = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [companyName, setCompanyName] = useState("");
+  const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
@@ -113,6 +114,7 @@ const TenantsPage = () => {
     mutationFn: async () => {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: companyName.trim(),
+        contact_name: contactName.trim() || null,
         contact_email: contactEmail.trim() || null,
         tenant_type_id: tenantTypeId,
       }).select("id").single();
@@ -132,7 +134,7 @@ const TenantsPage = () => {
             {
               body: {
                 email,
-                full_name: companyName.trim(),
+                full_name: contactName.trim() || companyName.trim(),
                 tenant_ids: [data.id],
                 mode: "invite",
               },
@@ -147,6 +149,7 @@ const TenantsPage = () => {
 
       setDialogOpen(false);
       setCompanyName("");
+      setContactName("");
       setContactEmail("");
       setTenantTypeId("");
     },
@@ -286,6 +289,15 @@ const TenantsPage = () => {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Indtast virksomhedsnavn"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contact_name">Kontaktperson</Label>
+              <Input
+                id="contact_name"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Fulde navn"
               />
             </div>
             <div className="space-y-2">

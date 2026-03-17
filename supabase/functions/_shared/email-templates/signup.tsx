@@ -82,7 +82,7 @@ const text = {
 const link = { color: 'inherit', textDecoration: 'underline' }
 const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
 const button = {
-  backgroundColor: 'hsl(222.2, 47.4%, 11.2%)',
+  backgroundColor: '#00aaeb',
   color: '#ffffff',
   fontSize: '14px',
   fontWeight: '600' as const,
