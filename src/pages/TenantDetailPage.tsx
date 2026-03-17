@@ -385,13 +385,19 @@ const TenantDetailPage = () => {
                   <div className="space-y-3">
                     {tenantUsers.map((tu: any) => {
                       const profile = tu.profile;
+                      const isContactPerson = tu.user_id === tenant?.user_id;
                       return (
                         <div key={tu.id} className="flex items-center gap-3 rounded-lg border p-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
                             <User className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
+                              {isContactPerson && (
+                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Kontaktperson</span>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                           </div>
                         </div>

@@ -1,38 +1,63 @@
 
 
-## Beskyt kontaktpersonen (ejer) mod sletning
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Kontaktpersonen (tenant owner via `tenants.user_id`) optræder i `tenant_users`-tabellen og vises som en almindelig postmodtager med slet-knap. Det skal ikke være muligt at slette kontaktpersonen.
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. `src/pages/SettingsPage.tsx` — Filtrer ejer fra postmodtager-listen**
-- I postmodtager-listen (linje ~287), skjul slet-knappen for den bruger hvis `user_id === selectedTenant.user_id`
-- Alternativt: filtrer brugeren helt fra listen og vis dem separat under "Kontaktoplysninger" (allerede vist der)
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**2. `src/pages/TenantDetailPage.tsx` — Samme beskyttelse i operatør-visningen**
-- I postmodtager-sektionen (linje ~386), marker ejeren tydeligt (f.eks. badge "Kontaktperson") og vis ingen slet-mulighed
+### Kodedetaljer
 
-**3. `supabase/functions/delete-tenant-user/index.ts` — Server-side beskyttelse**
-- Tilføj et check: hvis den bruger der forsøges slettet har `user_id === tenant.user_id`, afvis med fejlbesked "Kontaktpersonen kan ikke slettes"
-- Dette sikrer mod API-kald udenom UI
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Konkret implementation
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
 
-**SettingsPage** — i postmodtager-listen:
-- Sammenlign `tu.user_id` med `selectedTenant?.user_id`
-- Hvis match: vis brugeren med badge "Kontaktperson" i stedet for slet-knap
-- Eller filtrer dem helt ud (de vises allerede under Kontaktoplysninger)
+**2. Lås handlinger fra dagen før forsendelse**
 
-**TenantDetailPage** — i operatørens postmodtager-liste:
-- Sammenlign `tu.user_id` med `tenant?.user_id`
-- Vis badge "Kontaktperson" ved match, ingen slet-ikon
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-**delete-tenant-user edge function** — server-side guard:
-- Slå `tenant_users`-rækken op, find `tenant_id`
-- Tjek om `tenant.user_id === tenant_users.user_id`
-- Returner 403 hvis det er tilfældet
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
 
-Ingen database-migrering nødvendig.
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

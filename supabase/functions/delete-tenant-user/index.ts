@@ -78,6 +78,14 @@ Deno.serve(async (req) => {
 
     const targetUserId = tuRow.user_id;
 
+    // Prevent deleting the contact person (tenant owner)
+    if (targetUserId === tenant.user_id) {
+      return new Response(JSON.stringify({ error: "Kontaktpersonen kan ikke slettes" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Delete tenant_users row
     await admin.from("tenant_users").delete().eq("id", tenant_user_id);
 
