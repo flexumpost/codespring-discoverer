@@ -147,7 +147,7 @@ const TenantDetailPage = () => {
     mutationFn: async () => {
       const { error } = await supabase
         .from("tenants")
-        .update({ contact_name: contactName, contact_email: contactEmail })
+        .update({ contact_first_name: contactFirstName, contact_last_name: contactLastName, contact_email: contactEmail })
         .eq("id", id!);
       if (error) throw error;
     },
