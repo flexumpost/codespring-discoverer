@@ -169,7 +169,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     }
     if (defaultAction === "afhentning") return "Afhentning (standard)";
     if (defaultAction === "destruer") return "Destrueres (standard)";
-    if (defaultAction === "daglig") return "Lig på kontoret (standard)";
+    if (defaultAction === "daglig") return "Læg på kontoret (standard)";
     if (defaultAction && ACTION_LABELS[defaultAction]) {
       return `${ACTION_LABELS[defaultAction]} (standard)`;
     }
