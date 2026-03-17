@@ -42,7 +42,7 @@ const SettingsPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
   // Edit dialog state
@@ -123,8 +123,8 @@ const SettingsPage = () => {
         body: {
           tenant_ids: selectedTenantIds,
           email: newEmail.trim(),
-          password: newPassword,
           full_name: newName.trim(),
+          mode: "invite",
         },
       });
       if (error) throw error;
@@ -132,11 +132,10 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Postmodtager oprettet");
+      toast.success("Invitation sendt per email");
       setDialogOpen(false);
       setNewName("");
       setNewEmail("");
-      setNewPassword("");
       setSelectedTenantIds([]);
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
@@ -147,7 +146,6 @@ const SettingsPage = () => {
 
   const canSubmitRecipient =
     newEmail.trim().length > 0 &&
-    newPassword.length >= 6 &&
     selectedTenantIds.length > 0;
 
   // Fetch linked tenant users (postmodtagere) — two-step to avoid PGRST200
@@ -353,7 +351,7 @@ const SettingsPage = () => {
           <DialogHeader>
             <DialogTitle>Opret ny postmodtager</DialogTitle>
             <DialogDescription>
-              Opret en ny bruger med adgang til dine virksomheder.
+              Personen modtager en invitation per email med et link til at sætte sin adgangskode.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -374,16 +372,6 @@ const SettingsPage = () => {
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 placeholder="email@eksempel.dk"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rec_password">Adgangskode</Label>
-              <Input
-                id="rec_password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min. 6 tegn"
               />
             </div>
             {/* Multi-tenant selection */}
@@ -412,7 +400,7 @@ const SettingsPage = () => {
               onClick={() => createRecipientMutation.mutate()}
               disabled={!canSubmitRecipient || createRecipientMutation.isPending}
             >
-              {createRecipientMutation.isPending ? "Opretter..." : "Opret"}
+              {createRecipientMutation.isPending ? "Sender invitation..." : "Send invitation"}
             </Button>
           </DialogFooter>
         </DialogContent>
