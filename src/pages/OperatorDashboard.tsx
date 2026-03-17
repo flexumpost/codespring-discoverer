@@ -149,7 +149,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
   }
   if (action === "daglig") {
     const updated = new Date(item.updated_at);
-    return `Lig på kontoret - ${formatDanishDateTime(updated)}`;
+    return `Læg på kontoret - ${formatDanishDateTime(updated)}`;
   }
   if (!action) {
     const defaultAction = item.mail_type === "pakke"
