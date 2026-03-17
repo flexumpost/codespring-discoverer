@@ -44,9 +44,11 @@ export const InviteEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at sætte din adgangskode og logge ind for første gang.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Sæt din adgangskode →
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Sæt din adgangskode →
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke forventede denne e-mail, kan du trygt ignorere den.
         </Text>
