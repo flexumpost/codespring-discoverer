@@ -115,7 +115,8 @@ const TenantsPage = () => {
     mutationFn: async () => {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: companyName.trim(),
-        contact_name: contactName.trim() || null,
+        contact_first_name: contactFirstName.trim() || null,
+        contact_last_name: contactLastName.trim() || null,
         contact_email: contactEmail.trim() || null,
         tenant_type_id: tenantTypeId,
       }).select("id").single();
