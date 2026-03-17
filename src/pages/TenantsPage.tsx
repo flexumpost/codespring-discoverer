@@ -313,16 +313,11 @@ const TenantsPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="send_welcome"
-                checked={sendWelcomeOnCreate}
-                onCheckedChange={(checked) => setSendWelcomeOnCreate(checked === true)}
-              />
-              <Label htmlFor="send_welcome" className="cursor-pointer">
-                Send velkomst e-mail
-              </Label>
-            </div>
+            {contactEmail.trim() && (
+              <p className="text-sm text-muted-foreground">
+                ✉️ En invitation sendes automatisk til {contactEmail.trim()}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
