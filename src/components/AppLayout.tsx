@@ -7,7 +7,16 @@ import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const displayName = [user?.user_metadata?.first_name, user?.user_metadata?.last_name].filter(Boolean).join(" ") || user?.user_metadata?.full_name || user?.email || "";
+  const firstName = user?.user_metadata?.first_name || user?.email || "";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 10) return "Godmorgen";
+    if (hour >= 10 && hour < 12) return "God formiddag";
+    if (hour >= 12 && hour < 14) return "God middag";
+    if (hour >= 14 && hour < 18) return "God eftermiddag";
+    return "God aften";
+  };
 
   return (
     <SidebarProvider>
@@ -17,8 +26,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <header className="h-14 flex items-center border-b border-border px-4">
             <SidebarTrigger />
             <img src={flexumLogo} alt="Flexum" className="ml-4 h-7" />
-            {displayName && (
-              <span className="ml-4 text-sm text-muted-foreground">Hej {displayName}</span>
+            {firstName && (
+              <span className="ml-4 text-sm text-muted-foreground">{getGreeting()} {firstName}</span>
             )}
             <div className="ml-auto">
               <NotificationBell />
