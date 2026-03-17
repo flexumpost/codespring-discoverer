@@ -30,7 +30,7 @@ export function OperatorsList() {
       const userIds = roles.map((r) => r.user_id);
       const { data: profiles, error: pErr } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, first_name, last_name, email")
         .in("id", userIds);
       if (pErr) throw pErr;
       return profiles ?? [];
