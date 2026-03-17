@@ -123,8 +123,8 @@ const SettingsPage = () => {
         body: {
           tenant_ids: selectedTenantIds,
           email: newEmail.trim(),
-          password: newPassword,
           full_name: newName.trim(),
+          mode: "invite",
         },
       });
       if (error) throw error;
