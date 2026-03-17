@@ -13,7 +13,8 @@ import { Plus } from "lucide-react";
 export function OperatorsList() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -40,7 +41,7 @@ export function OperatorsList() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("create-operator", {
-        body: { email, password, first_name: fullName.split(" ")[0] || "", last_name: fullName.split(" ").slice(1).join(" ") || "" },
+        body: { email, password, first_name: firstName, last_name: lastName },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -50,7 +51,8 @@ export function OperatorsList() {
       queryClient.invalidateQueries({ queryKey: ["operators-list"] });
       toast.success("Operatør oprettet");
       setOpen(false);
-      setFullName("");
+      setFirstName("");
+      setLastName("");
       setEmail("");
       setPassword("");
     },
@@ -73,8 +75,12 @@ export function OperatorsList() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Fulde navn</Label>
-                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Navn" />
+                <Label>Fornavn</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Fornavn" />
+              </div>
+              <div className="space-y-2">
+                <Label>Efternavn</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Efternavn" />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>
