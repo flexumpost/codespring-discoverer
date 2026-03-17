@@ -37,7 +37,6 @@ const TenantsPage = () => {
   const [companyName, setCompanyName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
-  const [sendWelcomeOnCreate, setSendWelcomeOnCreate] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
 
   const { data: tenants = [], isLoading } = useQuery({
