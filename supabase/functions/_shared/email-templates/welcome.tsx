@@ -81,7 +81,7 @@ const h1 = {
   margin: '0 0 20px',
 }
 const button = {
-  backgroundColor: 'hsl(222.2, 47.4%, 11.2%)',
+  backgroundColor: '#00aaeb',
   color: '#ffffff',
   fontSize: '14px',
   fontWeight: '600' as const,

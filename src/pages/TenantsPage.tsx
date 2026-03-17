@@ -292,6 +292,15 @@ const TenantsPage = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="contact_name">Kontaktperson</Label>
+              <Input
+                id="contact_name"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Fulde navn"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="contact_email">Kontakt email</Label>
               <Input
                 id="contact_email"
