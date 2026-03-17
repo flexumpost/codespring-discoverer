@@ -137,7 +137,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     try {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: newTenantName.trim(),
-        contact_name: newTenantContact || null,
+        contact_first_name: newTenantContact.split(" ")[0] || null,
+        contact_last_name: newTenantContact.split(" ").slice(1).join(" ") || null,
         contact_email: newTenantEmail || null,
         address: newTenantAddress || null,
         tenant_type_id: newTenantTypeId,
