@@ -1,63 +1,17 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Problem: Forkert redirect-URL i invitationen
 
-### Forretningslogik (opsummering)
+Kerneproblemet er at `create-tenant-user/index.ts` bruger `https://flexum.dk` som origin for redirect-URL'en, men appen kører på `https://post.flexum.dk`. Når Supabase's `/verify`-endpoint behandler invite-tokenet, redirecter den brugeren til `https://flexum.dk/set-password#access_token=...`. Hvis `flexum.dk` ikke serverer React-appen (eller redirecter til `post.flexum.dk` og dermed taber hash-fragmentet), ender brugeren aldrig på `/set-password` med gyldige tokens.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Hash-fragmenter (`#access_token=...`) sendes IKKE til serveren ved HTTP-redirects, så ethvert server-side redirect fra `flexum.dk` → `post.flexum.dk` vil miste tokenerne.
 
-### Ændringer
+## Fix
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+**Fil: `supabase/functions/create-tenant-user/index.ts`**
+- Linje 108: Skift `const origin = "https://flexum.dk"` til `const origin = "https://post.flexum.dk"`
 
-### Kodedetaljer
+Derefter redeploy `create-tenant-user`.
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
-
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+Det er hele rettelsen. Resten af flowet (SetPasswordPage parsing af hash-tokens, setSession, visning af password-formularen) fungerer korrekt — det er bare aldrig blevet nået fordi brugeren aldrig lander på den rigtige URL.
 
