@@ -24,19 +24,21 @@ interface RegisterMailDialogProps {
 
 function fuzzyMatchTenant(
   name: string,
-  tenants: { id: string; company_name: string; contact_name: string | null }[]
+  tenants: { id: string; company_name: string; contact_first_name: string | null; contact_last_name: string | null }[]
 ): { id: string; company_name: string } | null {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
-  // Exact match first
+  const contactFull = (t: { contact_first_name: string | null; contact_last_name: string | null }) =>
+    [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
   for (const t of tenants) {
     if (t.company_name.toLowerCase() === lower) return t;
-    if (t.contact_name?.toLowerCase() === lower) return t;
+    const cf = contactFull(t);
+    if (cf && cf === lower) return t;
   }
-  // Partial match
   for (const t of tenants) {
     if (t.company_name.toLowerCase().includes(lower) || lower.includes(t.company_name.toLowerCase())) return t;
-    if (t.contact_name && (t.contact_name.toLowerCase().includes(lower) || lower.includes(t.contact_name.toLowerCase()))) return t;
+    const cf = contactFull(t);
+    if (cf && (cf.includes(lower) || lower.includes(cf))) return t;
   }
   return null;
 }
