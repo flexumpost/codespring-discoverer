@@ -1,25 +1,63 @@
 
 
-## Problem
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-Knappen "Sæt din adgangskode →" vises som et almindeligt tekstlink i mange e-mailklienter (især Outlook) fordi den mangler vigtige CSS-egenskaber og en centreret wrapper.
+### Forretningslogik (opsummering)
 
-## Årsag
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-`Button`-komponenten fra `@react-email/components` genererer et `<a>`-tag. Uden `display: inline-block` og en centrerende `<Section>`-wrapper ignorerer mange e-mailklienter `padding` og `background-color` på inline-elementer.
+### Ændringer
 
-## Ændringer
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**Fil: `supabase/functions/_shared/email-templates/invite.tsx`**
+### Kodedetaljer
 
-1. Importér `Section` fra `@react-email/components`
-2. Wrap `<Button>` i en `<Section style={{ textAlign: 'center', margin: '32px 0' }}>`
-3. Tilføj til `button`-stilen:
-   - `display: 'inline-block'`
-   - `fontWeight: '600'`
-   - `msoLineHeightRule: 'exactly'` (Outlook-fix)
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-Samme ændring bør også gennemføres for de øvrige e-mailskabeloner (signup, recovery, magic-link, email-change, reauthentication) og `welcome.tsx` for konsistens – de bruger alle samme button-mønster.
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
 
-Derefter redeployment af `auth-email-hook` og `send-welcome-email`.
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

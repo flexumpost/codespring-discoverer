@@ -12,6 +12,7 @@ import {
   Img,
   Link,
   Preview,
+  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -43,9 +44,11 @@ export const InviteEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at sætte din adgangskode og logge ind for første gang.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Sæt din adgangskode →
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Sæt din adgangskode →
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke forventede denne e-mail, kan du trygt ignorere den.
         </Text>
@@ -71,12 +74,15 @@ const text = {
   margin: '0 0 25px',
 }
 const link = { color: 'inherit', textDecoration: 'underline' }
+const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
 const button = {
   backgroundColor: 'hsl(222.2, 47.4%, 11.2%)',
-  color: 'hsl(210, 40%, 98%)',
+  color: '#ffffff',
   fontSize: '14px',
+  fontWeight: '600' as const,
   borderRadius: '0.5rem',
-  padding: '12px 20px',
+  padding: '12px 24px',
   textDecoration: 'none',
+  display: 'inline-block' as const,
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }

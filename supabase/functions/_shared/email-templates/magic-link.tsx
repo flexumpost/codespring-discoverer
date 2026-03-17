@@ -11,6 +11,7 @@ import {
   Html,
   Img,
   Preview,
+  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -33,9 +34,11 @@ export const MagicLinkEmail = ({
         <Text style={text}>
           Klik på knappen nedenfor for at logge ind på Flexum. Linket udløber kort efter.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Log ind
-        </Button>
+        <Section style={buttonSection}>
+          <Button style={button} href={confirmationUrl}>
+            Log ind
+          </Button>
+        </Section>
         <Text style={footer}>
           Hvis du ikke har anmodet om dette link, kan du trygt ignorere denne e-mail.
         </Text>
@@ -60,12 +63,15 @@ const text = {
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
+const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
 const button = {
   backgroundColor: 'hsl(222.2, 47.4%, 11.2%)',
-  color: 'hsl(210, 40%, 98%)',
+  color: '#ffffff',
   fontSize: '14px',
+  fontWeight: '600' as const,
   borderRadius: '0.5rem',
-  padding: '12px 20px',
+  padding: '12px 24px',
   textDecoration: 'none',
+  display: 'inline-block' as const,
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
