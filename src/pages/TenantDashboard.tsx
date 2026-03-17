@@ -859,7 +859,12 @@ const TenantDashboard = () => {
                       );
                     }
                     if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, effectiveAction);
+                      // Lite default "scan" = monthly/free; treat as "standard_scan" so immediate "Scan nu" stays available
+                      let actionForExtras = effectiveAction;
+                      if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
+                        actionForExtras = "standard_scan";
+                      }
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
