@@ -1,63 +1,42 @@
 
+Problemforståelse (bekræftet i logs)
+- Nulstilling rammer backend korrekt (`/recover` returnerer 200 flere gange), men der oprettes ingen nye recovery-forsendelser i `email_send_log` efterfølgende forsøg.
+- `auth-email-hook` har kun boot/shutdown-logs og ingen faktiske request-logs i samme periode.
+- Domænet til mails er verificeret, så problemet ligner et hook-routing/aktiveringsproblem snarere end DNS.
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+Plan for stabil løsning (så nulstilling virker uanset hook-status)
+1) Opret en dedikeret backend-funktion til “glemt adgangskode”
+- Ny funktion: `supabase/functions/request-password-reset/index.ts`
+- Input: `email`
+- Flow:
+  - Valider e-mail.
+  - Generér recovery-link server-side via admin-auth API (`generateLink` med `type: "recovery"` og redirect til `https://post.flexum.dk/set-password`).
+  - Render eksisterende `RecoveryEmail` template.
+  - Enqueue mail i eksisterende `auth_emails` kø + skriv `pending` log i `email_send_log` (samme mønster som `auth-email-hook`).
+  - Returnér altid generisk succesbesked (ingen bruger-eksponering).
 
-### Forretningslogik (opsummering)
+2) Opdater forgot-password i frontend
+- Fil: `src/pages/Login.tsx`
+- Erstat direkte `supabase.auth.resetPasswordForEmail(...)` med kald til ny backend-funktion via `supabase.functions.invoke("request-password-reset", { body: { email: resetEmail } })`.
+- Behold samme brugerbesked (“Tjek din e-mail...”) uanset om konto findes.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+3) Konfiguration
+- Tilføj funktionen i `supabase/config.toml` med `verify_jwt = false` (fordi flowet bruges før login).
+- Behold eksisterende `auth-email-hook` uændret til invite/signup/magiclink.
 
-### Ændringer
+4) Sikkerhed og robusthed
+- Ingen enumeration: samme response ved “ukendt e-mail”.
+- Input sanitation (`trim().toLowerCase()`).
+- CORS-headere som øvrige funktioner.
+- Log kun tekniske fejl server-side, ikke følsomme detaljer til klient.
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+5) Verificering efter implementering
+- Kør “Glemt adgangskode” for en kendt konto.
+- Bekræft ny `pending` + `sent` række i `email_send_log` med `template_name = recovery`.
+- Klik link i e-mail og bekræft at `/set-password` åbner korrekt og kan opdatere adgangskode.
+- Gentag med ukendt e-mail og bekræft samme UI-besked (ingen læk af kontostatus).
 
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
-
-**2. Lås handlinger fra dagen før forsendelse**
-
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
-
+Tekniske noter
+- Ingen database-migration nødvendig.
+- Genbrug af eksisterende template (`supabase/functions/_shared/email-templates/recovery.tsx`) og eksisterende kø-infrastruktur.
+- Dette omgår den nuværende ustabile afhængighed af auth hook-triggering for recovery-specifikt, men bevarer resten af auth-mailflowet.
