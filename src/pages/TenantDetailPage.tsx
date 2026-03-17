@@ -113,6 +113,7 @@ const TenantDetailPage = () => {
 
   useEffect(() => {
     if (tenant) {
+      setCompanyName(tenant.company_name);
       setContactName(tenant.contact_name ?? "");
       setContactEmail(tenant.contact_email ?? "");
       setSelectedTypeId(tenant.tenant_type_id);
