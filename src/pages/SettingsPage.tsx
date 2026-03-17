@@ -269,7 +269,7 @@ const SettingsPage = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Kontaktperson</Label>
-                  <p className="font-medium">{selectedTenant.contact_name || "—"}</p>
+                  <p className="font-medium">{[selectedTenant.contact_first_name, selectedTenant.contact_last_name].filter(Boolean).join(" ") || "—"}</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-xs">Kontakt-email</Label>
