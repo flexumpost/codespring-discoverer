@@ -42,7 +42,7 @@ const SettingsPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
   // Edit dialog state
