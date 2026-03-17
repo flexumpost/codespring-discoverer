@@ -302,7 +302,7 @@ const SettingsPage = () => {
                                 onClick={() =>
                                   openEditDialog(
                                     tu.user_id,
-                                    profile?.full_name || "—",
+                                    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "—",
                                     profile?.email || "—"
                                   )
                                 }
