@@ -149,6 +149,33 @@ export type Database = {
         }
         Relationships: []
       }
+      login_logs: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          last_seen_at: string
+          logged_in_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          last_seen_at?: string
+          logged_in_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          last_seen_at?: string
+          logged_in_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mail_item_logs: {
         Row: {
           action: string
