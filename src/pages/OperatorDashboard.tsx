@@ -555,7 +555,7 @@ const OperatorDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedItems.map((item) => {
+              {filteredByType.map((item) => {
                 const canDropScan = (item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && !!item.tenant_id;
                 const handleRowDrop = async (e: React.DragEvent) => {
                   e.preventDefault();

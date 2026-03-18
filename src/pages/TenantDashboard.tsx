@@ -837,7 +837,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mailItems.map((item: any) => (
+            {filteredByType.map((item: any) => (
               <TableRow
                 key={item.id}
                 className={cn("cursor-pointer hover:bg-muted/50", getMailRowColor(item))}
