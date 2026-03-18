@@ -970,7 +970,17 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
+                  {item.status === "arkiveret" && item.chosen_action !== "destruer" ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => reactivateMutation.mutate(item.id)}
+                      title="Genaktivér forsendelse"
+                      className="h-8 w-8 text-blue-600 hover:text-blue-800"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  ) : item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
                     <Button
                       variant="ghost"
                       size="icon"
