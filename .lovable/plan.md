@@ -1,33 +1,63 @@
 
 
-## Plan: Tilføj "Email Log" tab til operatør-indstillinger
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Oversigt
-Tilføj en ny "Email Log" fane under operatør-indstillinger, der viser en liste over alle sendte emails fra systemet (nyeste først), med status-badges for levering.
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. Ny komponent: `src/components/EmailLogTab.tsx`**
-- Henter data fra `email_send_log` via en backend-funktion (da tabellen kun er tilgængelig for `service_role`)
-- Viser en tabel med kolonner: Dato, Template, Modtager, Status
-- Sorteret med nyeste først (`created_at DESC`)
-- Deduplikeret på `message_id` (viser kun seneste status per email)
-- Status-badges med farver: grøn=sent, rød=failed/dlq, gul=pending
-- Simpel pagination (50 per side)
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**2. Ny Edge Function: `supabase/functions/get-email-log/index.ts`**
-- Verificerer at kalderen er operatør
-- Henter deduplikerede email logs med service role
-- Returnerer sorteret liste med pagination-support (offset/limit)
+### Kodedetaljer
 
-**3. Opdater `src/components/OperatorSettingsTabs.tsx`**
-- Tilføj ny tab "Email Log" med `EmailLogTab` komponent
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Bemærkning om levering/åbning
-`email_send_log` gemmer status som `sent`, `failed`, `dlq`, `pending` osv. Resend API'et understøtter webhooks for delivery og open events, men det kræver opsætning af en webhook-endpoint. I første omgang viser vi den status vi har (`sent`/`failed`/`pending`). Delivery- og open-tracking kan tilføjes senere via Resend webhooks.
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
 
-### Filer der oprettes/ændres
-- `supabase/functions/get-email-log/index.ts` — ny
-- `src/components/EmailLogTab.tsx` — ny
-- `src/components/OperatorSettingsTabs.tsx` — tilføj tab
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

@@ -3,6 +3,7 @@ import { OperatorsList } from "@/components/OperatorsList";
 import { PricingSettingsEditor } from "@/components/PricingSettingsEditor";
 import { ClosedDaysCalendar } from "@/components/ClosedDaysCalendar";
 import { EmailTemplatesEditor } from "@/components/EmailTemplatesEditor";
+import { EmailLogTab } from "@/components/EmailLogTab";
 
 export function OperatorSettingsTabs() {
   return (
@@ -12,6 +13,7 @@ export function OperatorSettingsTabs() {
         <TabsTrigger value="pricing">Priser og betingelser</TabsTrigger>
         <TabsTrigger value="calendar">Kalender</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
+        <TabsTrigger value="email-log">Email Log</TabsTrigger>
       </TabsList>
       <TabsContent value="operators">
         <OperatorsList />
@@ -24,6 +26,9 @@ export function OperatorSettingsTabs() {
       </TabsContent>
       <TabsContent value="templates">
         <EmailTemplatesEditor />
+      </TabsContent>
+      <TabsContent value="email-log">
+        <EmailLogTab />
       </TabsContent>
     </Tabs>
   );
