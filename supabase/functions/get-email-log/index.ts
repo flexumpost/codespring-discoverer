@@ -53,10 +53,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const url = new URL(req.url);
-    const offset = parseInt(url.searchParams.get("offset") || "0", 10);
-    const limit = parseInt(url.searchParams.get("limit") || "50", 10);
-    const search = (url.searchParams.get("search") || "").trim();
+    const body = await req.json().catch(() => ({}));
+    const offset = Number(body.offset) || 0;
+    const limit = Number(body.limit) || 50;
+    const search = (body.search || "").trim();
 
     let logsQuery = supabaseAdmin
       .from("email_send_log")
