@@ -26,8 +26,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <header className="h-14 flex items-center border-b border-border px-4">
             <SidebarTrigger />
             <img src={flexumLogo} alt="Flexum" className="ml-4 h-7" />
-            {firstName && (
-              <span className="ml-4 text-sm text-muted-foreground">{getGreeting()} {firstName}</span>
+            {displayName && (
+              <span className="ml-4 text-sm text-muted-foreground">{getGreeting()} {displayName}</span>
             )}
             <div className="ml-auto">
               <NotificationBell />
