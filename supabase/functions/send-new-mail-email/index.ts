@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
+import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
