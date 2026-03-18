@@ -561,10 +561,17 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
       queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
       toast.success("Handling valgt");
+
+      // Fire-and-forget: notify operator email on scan request
+      if (variables.action === "scan") {
+        supabase.functions.invoke("notify-scan-request", {
+          body: { mail_item_id: variables.id },
+        }).catch((err) => console.error("Scan notification email failed:", err));
+      }
     },
     onError: () => {
       toast.error("Kunne ikke vælge handling");
