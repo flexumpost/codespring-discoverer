@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
@@ -676,7 +676,10 @@ const TenantDashboard = () => {
     (selectedItem.status === "laest" || selectedItem.status === "afventer_handling" ||
       selectedItem.status === "ny" || selectedItem.status === "ulaest");
 
+  const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
+
   const cards = [
+    { title: "Alle forsendelser", value: totalActive, icon: Inbox, status: null as FilterStatus },
     { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
     { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
     { title: "Scannet post", value: stats.ulaest, icon: FileCheck, status: "scannet" as FilterStatus },
@@ -709,7 +712,7 @@ const TenantDashboard = () => {
       <h2 className="text-xl md:text-2xl font-bold mb-6">Min post</h2>
 
       {/* Stats cards */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
