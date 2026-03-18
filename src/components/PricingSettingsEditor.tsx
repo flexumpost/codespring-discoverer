@@ -41,6 +41,8 @@ export function PricingSettingsEditor() {
     },
   });
 
+  const rows: PricingRow[] = data ?? [];
+
   if (isLoading) return <p className="text-muted-foreground text-sm">Indlæser priser...</p>;
 
   return (
