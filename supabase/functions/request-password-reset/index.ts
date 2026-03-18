@@ -34,6 +34,23 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    // Rate limit: max 3 recovery emails per email per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count } = await supabase
+      .from('email_send_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_email', cleanEmail)
+      .eq('template_name', 'recovery')
+      .gte('created_at', oneHourAgo)
+
+    if ((count ?? 0) >= 3) {
+      // Silently return success to prevent enumeration
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // Generate recovery link server-side
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',

@@ -89,11 +89,23 @@ Deno.serve(async (req) => {
     // Delete tenant_users row
     await admin.from("tenant_users").delete().eq("id", tenant_user_id);
 
-    // Delete user_roles row
-    await admin.from("user_roles").delete().eq("user_id", targetUserId);
+    // Only delete auth user and roles if they have no other tenant associations
+    const { data: otherLinks } = await admin
+      .from("tenant_users")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .limit(1);
 
-    // Delete auth user
-    await admin.auth.admin.deleteUser(targetUserId);
+    const { data: ownedTenants } = await admin
+      .from("tenants")
+      .select("id")
+      .eq("user_id", targetUserId)
+      .limit(1);
+
+    if ((!otherLinks || otherLinks.length === 0) && (!ownedTenants || ownedTenants.length === 0)) {
+      await admin.from("user_roles").delete().eq("user_id", targetUserId);
+      await admin.auth.admin.deleteUser(targetUserId);
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -487,10 +487,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           .upload(path, photo);
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage
-          .from("mail-photos")
-          .getPublicUrl(path);
-        photoUrl = urlData.publicUrl;
+        // Store just the path — bucket is private, signed URLs generated on read
+        photoUrl = path;
       }
 
       const { error } = await supabase.from("mail_items").insert({

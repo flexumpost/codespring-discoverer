@@ -239,15 +239,13 @@ const BulkUploadPage = () => {
         const { error: uploadErr } = await supabase.storage.from("mail-photos").upload(path, item.file);
         if (uploadErr) throw uploadErr;
 
-        const { data: urlData } = supabase.storage.from("mail-photos").getPublicUrl(path);
-
         const { error: insertErr } = await supabase.from("mail_items").insert({
           operator_id: user.id,
           mail_type: item.mailType,
           stamp_number: item.stampNumber ? parseInt(item.stampNumber, 10) : null,
           sender_name: item.senderName || null,
           tenant_id: item.tenantId,
-          photo_url: urlData.publicUrl,
+          photo_url: path,
         });
         if (insertErr) throw insertErr;
       }
