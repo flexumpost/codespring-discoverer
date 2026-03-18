@@ -505,6 +505,17 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
       if (error) throw error;
 
+      // Fire-and-forget: send email notification to tenant
+      if (selectedTenantId) {
+        supabase.functions.invoke("send-new-mail-email", {
+          body: {
+            tenant_id: selectedTenantId,
+            mail_type: mailType,
+            stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
+          },
+        }).catch((err) => console.error("send-new-mail-email failed:", err));
+      }
+
       toast.success("Post registreret");
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
       resetForm();
