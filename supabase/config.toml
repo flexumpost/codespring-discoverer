@@ -17,3 +17,5 @@ project_id = "hokiuavxyoymcenqlvly"
     verify_jwt = true
   [functions.send-welcome-email]
     verify_jwt = false
+  [functions.log-login]
+    verify_jwt = false
