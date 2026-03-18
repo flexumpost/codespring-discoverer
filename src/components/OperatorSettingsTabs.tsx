@@ -15,6 +15,7 @@ export function OperatorSettingsTabs() {
         <TabsTrigger value="calendar">Kalender</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
         <TabsTrigger value="email-log">Email Log</TabsTrigger>
+        <TabsTrigger value="login-log">Login Log</TabsTrigger>
       </TabsList>
       <TabsContent value="operators">
         <OperatorsList />
