@@ -32,6 +32,9 @@ export function OperatorSettingsTabs() {
       <TabsContent value="email-log">
         <EmailLogTab />
       </TabsContent>
+      <TabsContent value="login-log">
+        <LoginLogTab />
+      </TabsContent>
     </Tabs>
   );
 }
