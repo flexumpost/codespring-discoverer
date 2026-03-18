@@ -620,6 +620,26 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
+  // Reactivate mutation (from archived back to afventer_handling)
+  const reactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("mail_items")
+        .update({ status: "afventer_handling" as MailStatus, chosen_action: null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
+      setSelectedItem(null);
+      toast.success("Forsendelse genaktiveret");
+    },
+    onError: () => {
+      toast.error("Kunne ikke genaktivere forsendelsen");
+    },
+  });
+
   const handleAction = (id: string, action: string) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
       setPickupDialogItem(id);
