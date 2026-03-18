@@ -38,6 +38,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
     const { data: operatorRole, error: roleErr } = await supabaseAdmin
       .from("user_roles")
       .select("role")
