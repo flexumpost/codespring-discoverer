@@ -4,6 +4,7 @@ import { PricingSettingsEditor } from "@/components/PricingSettingsEditor";
 import { ClosedDaysCalendar } from "@/components/ClosedDaysCalendar";
 import { EmailTemplatesEditor } from "@/components/EmailTemplatesEditor";
 import { EmailLogTab } from "@/components/EmailLogTab";
+import { LoginLogTab } from "@/components/LoginLogTab";
 
 export function OperatorSettingsTabs() {
   return (
