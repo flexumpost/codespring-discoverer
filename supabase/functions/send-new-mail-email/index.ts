@@ -86,10 +86,11 @@ Deno.serve(async (req) => {
     }
 
     // Get template
+    const slug = template_slug || "new_shipment";
     const { data: template } = await supabaseAdmin
       .from("email_templates")
       .select("subject, body")
-      .eq("slug", "new_shipment")
+      .eq("slug", slug)
       .maybeSingle();
 
     if (!template) {
