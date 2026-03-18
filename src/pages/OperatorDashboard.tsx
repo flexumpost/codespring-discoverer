@@ -468,6 +468,7 @@ const OperatorDashboard = () => {
     if (b.stamp_number == null) return -1;
     return b.stamp_number - a.stamp_number;
   });
+  const filteredByType = mailTypeFilter === "all" ? sortedItems : sortedItems.filter(i => i.mail_type === mailTypeFilter);
 
   const handleCardClick = (title: string) => {
     setSelectedCard((prev) => (prev === title ? null : title));
