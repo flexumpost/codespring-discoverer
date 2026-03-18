@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
