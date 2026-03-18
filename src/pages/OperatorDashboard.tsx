@@ -378,6 +378,7 @@ const OperatorDashboard = () => {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
   const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
   const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
