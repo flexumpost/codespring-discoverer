@@ -238,15 +238,14 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Åben og scan",
     icon: ScanLine,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "scan" || item.chosen_action === "standard_scan",
+    filter: (item) => itemNeedsScan(item),
     countFilter: (item) => {
       if (item.scan_url) return false;
+      if (!itemNeedsScan(item)) return false;
       if (item.chosen_action === "scan") return true;
-      if (item.chosen_action === "standard_scan") {
-        const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-        return isTodayOrPastDate(scanDate);
-      }
-      return false;
+      // Standard scan (explicit or default) — only count on scheduled date
+      const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return isTodayOrPastDate(scanDate);
     },
   },
   {
