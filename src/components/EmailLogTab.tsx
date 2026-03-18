@@ -105,7 +105,15 @@ export function EmailLogTab() {
 
   return (
     <div className="space-y-4">
-      <Table>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Søg på template eller modtager..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9"
+        />
+      </div>
         <TableHeader>
           <TableRow>
             <TableHead>Dato</TableHead>
