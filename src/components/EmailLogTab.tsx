@@ -66,14 +66,9 @@ export function EmailLogTab() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["email-log", page, debouncedSearch],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        offset: String(page * PAGE_SIZE),
-        limit: String(PAGE_SIZE),
+      const res = await supabase.functions.invoke("get-email-log", {
+        body: { offset: page * PAGE_SIZE, limit: PAGE_SIZE, search: debouncedSearch || undefined },
       });
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      const res = await supabase.functions.invoke(
-        `get-email-log?${params.toString()}`
-      );
       if (res.error) throw res.error;
       return res.data as { logs: EmailLogEntry[]; total: number };
     },
