@@ -345,15 +345,39 @@ export function OperatorMailItemDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuller
-          </Button>
-          {!isDestroyed && (
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Gemmer..." : "Gem ændringer"}
+        <DialogFooter className="flex justify-between sm:justify-between">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={deletingItem}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Slet forsendelse
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Slet forsendelse?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Forsendelsen og tilhørende filer vil blive slettet permanent. Denne handling kan ikke fortrydes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuller</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteItem} disabled={deletingItem}>
+                  {deletingItem ? "Sletter..." : "Slet"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annuller
             </Button>
-          )}
+            {!isDestroyed && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Gemmer..." : "Gem ændringer"}
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
