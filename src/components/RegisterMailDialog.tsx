@@ -60,9 +60,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [showTenantList, setShowTenantList] = useState(false);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
-  const [newTenantContact, setNewTenantContact] = useState("");
+  const [newTenantContactFirstName, setNewTenantContactFirstName] = useState("");
+  const [newTenantContactLastName, setNewTenantContactLastName] = useState("");
   const [newTenantEmail, setNewTenantEmail] = useState("");
-  const [newTenantAddress, setNewTenantAddress] = useState("");
   const [newTenantTypeId, setNewTenantTypeId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -137,13 +137,36 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     try {
       const { data, error } = await supabase.from("tenants").insert({
         company_name: newTenantName.trim(),
-        contact_first_name: newTenantContact.split(" ")[0] || null,
-        contact_last_name: newTenantContact.split(" ").slice(1).join(" ") || null,
-        contact_email: newTenantEmail || null,
-        address: newTenantAddress || null,
+        contact_first_name: newTenantContactFirstName.trim() || null,
+        contact_last_name: newTenantContactLastName.trim() || null,
+        contact_email: newTenantEmail.trim() || null,
         tenant_type_id: newTenantTypeId,
       }).select("id, company_name").single();
       if (error) throw error;
+
+      // Auto-invite if email is provided
+      const email = newTenantEmail.trim();
+      if (email && data?.id) {
+        try {
+          const { error: inviteError } = await supabase.functions.invoke(
+            "create-tenant-user",
+            {
+              body: {
+                email,
+                first_name: newTenantContactFirstName.trim() || newTenantName.trim(),
+                last_name: newTenantContactLastName.trim() || "",
+                tenant_ids: [data.id],
+                mode: "invite",
+              },
+            }
+          );
+          if (inviteError) throw inviteError;
+          toast.success("Invitation sendt til " + email);
+        } catch (err: any) {
+          toast.error("Kunne ikke sende invitation: " + (err?.message || err));
+        }
+      }
+
       setSelectedTenantId(data.id);
       setSelectedTenantName(data.company_name);
       setTenantSearch("");
@@ -748,9 +771,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-primary font-medium"
                 onMouseDown={() => {
                   setNewTenantName(tenantSearch.trim());
-                  setNewTenantContact("");
+                  setNewTenantContactFirstName("");
+                  setNewTenantContactLastName("");
                   setNewTenantEmail("");
-                  setNewTenantAddress("");
                   setNewTenantTypeId("");
                   setShowCreateTenant(true);
                   setShowTenantList(false);
@@ -893,17 +916,22 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-tenant-contact">Kontaktperson</Label>
-              <Input id="new-tenant-contact" value={newTenantContact} onChange={(e) => setNewTenantContact(e.target.value)} placeholder="Valgfrit" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-tenant-first-name">Fornavn</Label>
+                <Input id="new-tenant-first-name" value={newTenantContactFirstName} onChange={(e) => setNewTenantContactFirstName(e.target.value)} placeholder="Valgfrit" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-tenant-last-name">Efternavn</Label>
+                <Input id="new-tenant-last-name" value={newTenantContactLastName} onChange={(e) => setNewTenantContactLastName(e.target.value)} placeholder="Valgfrit" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-tenant-email">Kontakt-email</Label>
               <Input id="new-tenant-email" type="email" value={newTenantEmail} onChange={(e) => setNewTenantEmail(e.target.value)} placeholder="Valgfrit" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-tenant-address">Adresse</Label>
-              <Input id="new-tenant-address" value={newTenantAddress} onChange={(e) => setNewTenantAddress(e.target.value)} placeholder="Valgfrit" />
+              {newTenantEmail.trim() && (
+                <p className="text-xs text-muted-foreground">En invitation sendes automatisk til {newTenantEmail.trim()}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
