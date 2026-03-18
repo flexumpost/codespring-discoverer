@@ -724,7 +724,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           tenantTypeName={tenantTypeName!}
         />
       )}
-      {tenants.length > 0 && (
+      {!overrideTenantId && tenants.length > 0 && (
         <div className="mb-6">
           <TenantSelector
             tenants={tenants}

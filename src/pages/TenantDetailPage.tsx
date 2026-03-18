@@ -232,7 +232,11 @@ const TenantDetailPage = () => {
           </Badge>
         )}
         {tenant && (
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/tenants/${id}/dashboard`)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Vis som lejer
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">

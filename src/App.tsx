@@ -97,6 +97,14 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route
+      path="/tenants/:id/dashboard"
+      element={
+        <ProtectedRoute>
+          <TenantViewPage />
+        </ProtectedRoute>
+      }
+    />
     <Route path="/set-password" element={<SetPasswordPage />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
