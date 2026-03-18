@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   role: AppRole | null;
+  firstName: string;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   role: null,
+  firstName: "",
   loading: true,
   signOut: async () => {},
 });
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [firstName, setFirstName] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,16 +39,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           // Fetch role with setTimeout to avoid Supabase auth deadlock
           setTimeout(async () => {
-            const { data } = await supabase
-              .from("user_roles")
-              .select("role")
-              .eq("user_id", session.user.id)
-              .maybeSingle();
-            setRole(data?.role ?? null);
+            const [{ data: roleData }, { data: profileData }] = await Promise.all([
+              supabase.from("user_roles").select("role").eq("user_id", session.user.id).maybeSingle(),
+              supabase.from("profiles").select("first_name").eq("id", session.user.id).maybeSingle(),
+            ]);
+            setRole(roleData?.role ?? null);
+            setFirstName(profileData?.first_name ?? "");
             setLoading(false);
           }, 0);
         } else {
           setRole(null);
+          setFirstName("");
           setLoading(false);
         }
       }
@@ -65,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, role, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user, role, firstName, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
