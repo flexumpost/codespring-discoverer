@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DefaultActionSetup } from "@/components/DefaultActionSetup";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
@@ -452,6 +454,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
+  const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
 
   // Generate signed URL for scan preview when dialog opens
   useEffect(() => {
@@ -546,6 +549,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       return data;
     },
   });
+
+  const filteredByType = mailTypeFilter === "all" ? mailItems : mailItems.filter((i: any) => i.mail_type === mailTypeFilter);
 
   // Choose action mutation
   const chooseAction = useMutation({
@@ -791,10 +796,30 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         ))}
       </div>
 
+      {/* Mail type filter */}
+      <RadioGroup
+        value={mailTypeFilter}
+        onValueChange={(v) => setMailTypeFilter(v as "all" | "brev" | "pakke")}
+        className="flex items-center gap-4 mb-4"
+      >
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="all" id="tenant-filter-all" />
+          <Label htmlFor="tenant-filter-all" className="cursor-pointer">Alle</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="brev" id="tenant-filter-brev" />
+          <Label htmlFor="tenant-filter-brev" className="cursor-pointer">Breve</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="pakke" id="tenant-filter-pakke" />
+          <Label htmlFor="tenant-filter-pakke" className="cursor-pointer">Pakker</Label>
+        </div>
+      </RadioGroup>
+
       {/* Mail table */}
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
-      ) : mailItems.length === 0 ? (
+      ) : filteredByType.length === 0 ? (
         <p className="text-muted-foreground">Ingen post fundet.</p>
       ) : (
         <Table className="min-w-[800px]">
@@ -814,7 +839,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mailItems.map((item: any) => (
+            {filteredByType.map((item: any) => (
               <TableRow
                 key={item.id}
                 className={cn("cursor-pointer hover:bg-muted/50", getMailRowColor(item))}

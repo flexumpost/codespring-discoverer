@@ -18,6 +18,8 @@ import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; tenant_types?: { name: string } | null } | null };
 
@@ -376,6 +378,7 @@ const OperatorDashboard = () => {
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
   const [assignTenantItem, setAssignTenantItem] = useState<MailItem | null>(null);
   const [pricing, setPricing] = useState<Record<string, Record<string, Record<string, string>>>>({});
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
@@ -465,6 +468,7 @@ const OperatorDashboard = () => {
     if (b.stamp_number == null) return -1;
     return b.stamp_number - a.stamp_number;
   });
+  const filteredByType = mailTypeFilter === "all" ? sortedItems : sortedItems.filter(i => i.mail_type === mailTypeFilter);
 
   const handleCardClick = (title: string) => {
     setSelectedCard((prev) => (prev === title ? null : title));
@@ -516,7 +520,25 @@ const OperatorDashboard = () => {
             />
           </div>
         </div>
-        {sortedItems.length === 0 ? (
+        <RadioGroup
+          value={mailTypeFilter}
+          onValueChange={(v) => setMailTypeFilter(v as "all" | "brev" | "pakke")}
+          className="flex items-center gap-4 mb-3"
+        >
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="all" id="op-filter-all" />
+            <Label htmlFor="op-filter-all" className="cursor-pointer">Alle</Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="brev" id="op-filter-brev" />
+            <Label htmlFor="op-filter-brev" className="cursor-pointer">Breve</Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="pakke" id="op-filter-pakke" />
+            <Label htmlFor="op-filter-pakke" className="cursor-pointer">Pakker</Label>
+          </div>
+        </RadioGroup>
+        {filteredByType.length === 0 ? (
           <p className="text-muted-foreground">Ingen elementer.</p>
         ) : (
           <Table className="min-w-[700px]">
@@ -533,7 +555,7 @@ const OperatorDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedItems.map((item) => {
+              {filteredByType.map((item) => {
                 const canDropScan = (item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && !!item.tenant_id;
                 const handleRowDrop = async (e: React.DragEvent) => {
                   e.preventDefault();
