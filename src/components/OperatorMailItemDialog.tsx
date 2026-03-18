@@ -52,6 +52,25 @@ export function OperatorMailItemDialog({
 
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
+  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer";
+  const [reactivating, setReactivating] = useState(false);
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ status: "afventer_handling" as any, chosen_action: null })
+      .eq("id", item.id);
+    setReactivating(false);
+    if (error) {
+      toast.error("Kunne ikke genaktivere forsendelsen");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse genaktiveret");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
 
   const handleConfirmDestruction = async () => {
     setConfirmingDestruction(true);
