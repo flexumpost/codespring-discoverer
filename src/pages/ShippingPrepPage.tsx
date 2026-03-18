@@ -174,25 +174,46 @@ export default function ShippingPrepPage() {
 
   const sendMutation = useMutation({
     mutationFn: async (ids: string[]) => {
+      const sentItems: { id: string; tenant_id: string; mail_type: string; stamp_number: number | null; tracking_number: string | null }[] = [];
+
       if (tab === "brev") {
         const { error } = await supabase
           .from("mail_items")
           .update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" as const })
           .in("id", ids);
         if (error) throw error;
-      } else {
-        // Pakker: update individually with tracking number
         for (const id of ids) {
+          const item = items.find((i) => i.id === id);
+          if (item) sentItems.push({ id, tenant_id: item.tenant_id, mail_type: item.mail_type, stamp_number: item.stamp_number, tracking_number: null });
+        }
+      } else {
+        for (const id of ids) {
+          const tn = trackingNumbers[id] || null;
           const { error } = await supabase
             .from("mail_items")
             .update({
               chosen_action: "under_forsendelse",
               status: "sendt_med_postnord" as const,
-              tracking_number: trackingNumbers[id] || null,
+              tracking_number: tn,
             } as any)
             .eq("id", id);
           if (error) throw error;
+          const item = items.find((i) => i.id === id);
+          if (item) sentItems.push({ id, tenant_id: item.tenant_id, mail_type: item.mail_type, stamp_number: item.stamp_number, tracking_number: tn });
         }
+      }
+
+      // Send email notifications (fire-and-forget)
+      for (const si of sentItems) {
+        supabase.functions.invoke("send-new-mail-email", {
+          body: {
+            tenant_id: si.tenant_id,
+            mail_type: si.mail_type,
+            stamp_number: si.stamp_number,
+            tracking_number: si.tracking_number,
+            template_slug: "shipment_dispatched",
+          },
+        }).catch((err) => console.error("Email send error:", err));
       }
     },
     onSuccess: () => {

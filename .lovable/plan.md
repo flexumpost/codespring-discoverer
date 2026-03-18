@@ -1,33 +1,63 @@
 
 
-## Plan: "Din pakke er sendt" e-mail med sporingslink
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Problem
-Når operatøren markerer pakker som sendt fra forsendelsessiden, sendes der ingen e-mailnotifikation til lejeren. Der skal sendes en e-mail med pakkeinformation, sporingsknap og "Gå til postkasse"-knap.
+### Forretningslogik (opsummering)
+
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
 ### Ændringer
 
-**1. Ny React Email-skabelon** (`supabase/functions/_shared/email-templates/shipment-dispatched.tsx`)
-- Ny skabelon med: overskrift, brødtekst fra DB-template, pakkeinformation (stempelnummer, type)
-- "Spor din pakke"-knap (blå, kun vist når tracking_number er til stede) → linker til `tracking.postnord.com/...`
-- "Gå til postkasse"-knap → linker til login-URL
-- Samme branding som eksisterende skabeloner (Flexum-logo, bulletproof buttons med VML-fallback)
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**2. Opdater edge function** (`supabase/functions/send-new-mail-email/index.ts`)
-- Accepter ekstra parametre: `tracking_number`, `stamp_number` (allerede der)
-- Når `template_slug === "shipment_dispatched"`: brug den nye `ShipmentDispatchedEmail`-skabelon i stedet for `NewShipmentEmail`
-- Indsæt `{{tracking_number}}` placeholder-support i subject/body
+### Kodedetaljer
 
-**3. DB-migration: indsæt template-række**
-- Indsæt `shipment_dispatched`-skabelon i `email_templates` med passende dansk subject og body-tekst (audience: `tenant`)
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-**4. Trigger e-mail fra ShippingPrepPage** (`src/pages/ShippingPrepPage.tsx`)
-- I `sendMutation.onSuccess` (eller efter hvert succesfuldt update i mutationFn): kald `send-new-mail-email` for hver pakke med `template_slug: "shipment_dispatched"` og `tracking_number`
-- Behøver kun for pakker (tab === "pakke"), men også for breve sendt med DAO
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
 
-### Ændrede filer
-- `supabase/functions/_shared/email-templates/shipment-dispatched.tsx` — ny fil
-- `supabase/functions/send-new-mail-email/index.ts` — udvid med ny skabelon-support
-- `src/pages/ShippingPrepPage.tsx` — tilføj e-mail-trigger efter afsendelse
-- DB-migration — indsæt `shipment_dispatched` template-række
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
+import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
@@ -103,18 +104,21 @@ Deno.serve(async (req) => {
     const name = [tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || tenant.company_name;
     const mailTypeLabel = mail_type === "pakke" ? "pakke" : "forsendelse";
     const stampLabel = stamp_number ? String(stamp_number) : "";
+    const trackingLabel = tracking_number ? String(tracking_number) : "";
 
     const subject = template.subject
       .replace(/\{\{company_name\}\}/g, tenant.company_name)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
-      .replace(/\{\{mail_type\}\}/g, mailTypeLabel);
+      .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
+      .replace(/\{\{tracking_number\}\}/g, trackingLabel);
 
     const bodyRaw = template.body
       .replace(/\{\{company_name\}\}/g, tenant.company_name)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
-      .replace(/\{\{mail_type\}\}/g, mailTypeLabel);
+      .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
+      .replace(/\{\{tracking_number\}\}/g, trackingLabel);
 
     const bodyHtml = bodyRaw
       .replace(/\\n/g, '\n')
@@ -125,9 +129,24 @@ Deno.serve(async (req) => {
 
     const loginUrl = "https://codespring-discoverer.lovable.app/login";
 
-    const html = await renderAsync(
-      NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
-    );
+    let html: string;
+    if (slug === "shipment_dispatched") {
+      html = await renderAsync(
+        ShipmentDispatchedEmail({
+          name,
+          subject,
+          bodyHtml,
+          loginUrl,
+          trackingNumber: trackingLabel || undefined,
+          stampNumber: stampLabel || undefined,
+          mailTypeLabel,
+        })
+      );
+    } else {
+      html = await renderAsync(
+        NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
+      );
+    }
 
     const plainText = bodyRaw.replace(/<[^>]*>/g, "");
 
