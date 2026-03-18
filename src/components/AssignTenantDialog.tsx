@@ -80,7 +80,7 @@ export function AssignTenantDialog({
   const cropImageRef = useRef<HTMLImageElement>(null);
   const ocrRanRef = useRef(false);
 
-  const photoUrl = mailItem.photo_url;
+  const photoUrl = useSignedPhotoUrl(mailItem.photo_url);
 
   // Initialize from mailItem
   useEffect(() => {
