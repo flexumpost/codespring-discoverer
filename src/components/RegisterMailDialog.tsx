@@ -916,17 +916,22 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-tenant-contact">Kontaktperson</Label>
-              <Input id="new-tenant-contact" value={newTenantContact} onChange={(e) => setNewTenantContact(e.target.value)} placeholder="Valgfrit" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="new-tenant-first-name">Fornavn</Label>
+                <Input id="new-tenant-first-name" value={newTenantContactFirstName} onChange={(e) => setNewTenantContactFirstName(e.target.value)} placeholder="Valgfrit" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-tenant-last-name">Efternavn</Label>
+                <Input id="new-tenant-last-name" value={newTenantContactLastName} onChange={(e) => setNewTenantContactLastName(e.target.value)} placeholder="Valgfrit" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="new-tenant-email">Kontakt-email</Label>
               <Input id="new-tenant-email" type="email" value={newTenantEmail} onChange={(e) => setNewTenantEmail(e.target.value)} placeholder="Valgfrit" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="new-tenant-address">Adresse</Label>
-              <Input id="new-tenant-address" value={newTenantAddress} onChange={(e) => setNewTenantAddress(e.target.value)} placeholder="Valgfrit" />
+              {newTenantEmail.trim() && (
+                <p className="text-xs text-muted-foreground">En invitation sendes automatisk til {newTenantEmail.trim()}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
