@@ -543,9 +543,12 @@ const OperatorDashboard = () => {
                     return;
                   }
                   try {
-                    await uploadScanFile(file, item.id, item.tenant_id!);
-                    toast.success("Scanning uploadet");
-                    refreshMail();
+                     await uploadScanFile(file, item.id, item.tenant_id!);
+                     toast.success("Scanning uploadet");
+                     refreshMail();
+                     supabase.functions.invoke("send-new-mail-email", {
+                       body: { tenant_id: item.tenant_id, mail_type: "scan", stamp_number: item.stamp_number, template_slug: "new_scan" },
+                     }).catch((err: any) => console.error("send scan email failed:", err));
                   } catch (err: any) {
                     console.error("Inline scan drop error:", err);
                     toast.error("Kunne ikke uploade scanning");

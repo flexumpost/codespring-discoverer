@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
 
     await supabaseAdmin.from("email_send_log").insert({
       message_id: resendBody.id || crypto.randomUUID(),
-      template_name: "new_shipment",
+      template_name: slug,
       recipient_email: tenant.contact_email,
       status: "sent",
       metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend" },
