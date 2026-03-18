@@ -454,6 +454,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
+  const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
 
   // Generate signed URL for scan preview when dialog opens
   useEffect(() => {
