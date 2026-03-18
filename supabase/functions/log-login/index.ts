@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -20,14 +20,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify user
-    const callerClient = createClient(
+    const token = authHeader.replace("Bearer ", "");
+    const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-    const { data: userData, error: userError } = await callerClient.auth.getUser();
-    if (userError || !userData.user) {
+
+    const {
+      data: { user },
+      error: userError,
+    } = await adminClient.auth.getUser(token);
+
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -36,18 +40,12 @@ Deno.serve(async (req) => {
 
     const { action, session_id } = await req.json();
 
-    // Use service role for writes
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
     if (action === "login") {
       const { data, error } = await adminClient
         .from("login_logs")
         .insert({
-          user_id: userData.user.id,
-          email: userData.user.email!,
+          user_id: user.id,
+          email: user.email ?? "",
         })
         .select("id")
         .single();
@@ -63,7 +61,7 @@ Deno.serve(async (req) => {
         .from("login_logs")
         .update({ last_seen_at: new Date().toISOString() })
         .eq("id", session_id)
-        .eq("user_id", userData.user.id);
+        .eq("user_id", user.id);
 
       if (error) throw error;
       return new Response(JSON.stringify({ ok: true }), {
@@ -76,9 +74,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });

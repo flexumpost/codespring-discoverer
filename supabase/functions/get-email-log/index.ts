@@ -3,12 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
@@ -16,42 +16,47 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const callerClient = createClient(
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: userData, error: userErr } = await callerClient.auth.getUser();
-    if (userErr || !userData.user) {
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabaseAdmin.auth.getUser(token);
+
+    if (userErr || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify operator role
-    const { data: roleCheck } = await callerClient.rpc("is_operator");
-    if (!roleCheck) {
+    const { data: operatorRole, error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "operator")
+      .maybeSingle();
+
+    if (roleErr) throw roleErr;
+    if (!operatorRole) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const url = new URL(req.url);
     const offset = parseInt(url.searchParams.get("offset") || "0", 10);
     const limit = parseInt(url.searchParams.get("limit") || "50", 10);
-    const search = url.searchParams.get("search") || "";
-
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const search = (url.searchParams.get("search") || "").trim();
 
     let logsQuery = supabaseAdmin
       .from("email_send_log")
@@ -64,14 +69,10 @@ Deno.serve(async (req) => {
     }
 
     const { data: logs, error: logsErr } = await logsQuery;
+    if (logsErr) throw logsErr;
 
-    if (logsErr) {
-      throw logsErr;
-    }
-
-    // Deduplicate by message_id client-side (keep latest per message_id)
     const seen = new Set<string>();
-    const deduplicated = [];
+    const deduplicated: typeof logs = [];
     for (const row of logs || []) {
       const key = row.message_id || row.id;
       if (!seen.has(key)) {
@@ -80,7 +81,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get total count for pagination
     let countQuery = supabaseAdmin
       .from("email_send_log")
       .select("id", { count: "exact", head: true });
@@ -89,19 +89,20 @@ Deno.serve(async (req) => {
       countQuery = countQuery.or(`template_name.ilike.%${search}%,recipient_email.ilike.%${search}%`);
     }
 
-    const { count } = await countQuery;
+    const { count, error: countErr } = await countQuery;
+    if (countErr) throw countErr;
 
+    return new Response(JSON.stringify({ logs: deduplicated, total: count || 0 }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    console.error("get-email-log error:", e);
     return new Response(
-      JSON.stringify({ logs: deduplicated, total: count || 0 }),
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (e) {
-    console.error("get-email-log error:", e);
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
-      headers: corsHeaders,
-    });
   }
 });
