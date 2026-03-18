@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
 
     if (!template) {
       return new Response(
-        JSON.stringify({ error: "Template 'new_shipment' not found" }),
+        JSON.stringify({ error: `Template '${slug}' not found` }),
         { status: 404, headers: corsHeaders }
       );
     }
