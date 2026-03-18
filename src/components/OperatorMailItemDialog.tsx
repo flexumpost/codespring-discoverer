@@ -152,7 +152,13 @@ export function OperatorMailItemDialog({
     setDeletingItem(true);
     // Delete photo from storage if exists
     if (item.photo_url) {
-      const photoPath = item.photo_url.split("/mail-photos/")[1];
+      let photoPath = item.photo_url;
+      // Handle legacy full URLs
+      const marker = "/mail-photos/";
+      const idx = item.photo_url.indexOf(marker);
+      if (idx !== -1) {
+        photoPath = item.photo_url.substring(idx + marker.length);
+      }
       if (photoPath) {
         await supabase.storage.from("mail-photos").remove([photoPath]);
       }
