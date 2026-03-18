@@ -1,63 +1,58 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Tilføj "Login Log" tab til operatør-indstillinger
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Oversigt
+Tilføj en ny `login_logs` tabel til at tracke bruger-login-sessioner, og vis dem i en ny "Login Log" fane under operatør-indstillinger. Sessionsvarighed trackes ved at logge login-tidspunkt og opdatere `last_seen_at` periodisk (heartbeat).
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+**1. Database migration: `login_logs` tabel**
+```sql
+CREATE TABLE public.login_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  email text NOT NULL,
+  logged_in_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.login_logs ENABLE ROW LEVEL SECURITY;
 
-### Kodedetaljer
+-- Only service_role can insert/update (via edge function)
+CREATE POLICY "Service role manages login_logs" ON public.login_logs
+  FOR ALL TO public USING (auth.role() = 'service_role') WITH CHECK (auth.role() = 'service_role');
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
-
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+-- Operators can read
+CREATE POLICY "Operators read login_logs" ON public.login_logs
+  FOR SELECT TO authenticated USING (public.is_operator());
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+**2. Edge function: `supabase/functions/log-login/index.ts`**
+- Accepts `{ action: "login" | "heartbeat", session_id?: string }`
+- On `login`: inserts a new row, returns its `id`
+- On `heartbeat`: updates `last_seen_at` for the given session id
+- Uses service role for insert/update
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+**3. Frontend: Track login and heartbeat in `useAuth.tsx`**
+- On `SIGNED_IN` event: call `log-login` with `action: "login"`, store returned session id
+- Set up a 60-second interval heartbeat that calls `log-login` with `action: "heartbeat"` and the session id
+- Clean up interval on sign out or unmount
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+**4. Ny komponent: `src/components/LoginLogTab.tsx`**
+- Similar structure to `EmailLogTab` — table with pagination and search
+- Columns: Dato, Bruger (email), Varighed (calculated from `last_seen_at - logged_in_at`)
+- Sorted by `logged_in_at DESC`
+- Reads directly from `login_logs` table (operators have SELECT access via RLS)
+- Search on email
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+**5. Opdater `OperatorSettingsTabs.tsx`**
+- Add "Login Log" tab after "Email Log"
 
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Filer der oprettes/ændres
+- Database migration (new `login_logs` table)
+- `supabase/functions/log-login/index.ts` — new
+- `src/hooks/useAuth.tsx` — add login tracking + heartbeat
+- `src/components/LoginLogTab.tsx` — new
+- `src/components/OperatorSettingsTabs.tsx` — add tab
 
