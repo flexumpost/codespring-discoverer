@@ -550,6 +550,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
+  const filteredByType = mailTypeFilter === "all" ? mailItems : mailItems.filter((i: any) => i.mail_type === mailTypeFilter);
+
   // Choose action mutation
   const chooseAction = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
