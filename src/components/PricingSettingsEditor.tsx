@@ -30,7 +30,7 @@ type PricingRow = { id: string; tier: string; category: string; field_key: strin
 export function PricingSettingsEditor() {
   const queryClient = useQueryClient();
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["pricing-settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -40,6 +40,8 @@ export function PricingSettingsEditor() {
       return data as PricingRow[];
     },
   });
+
+  const rows: PricingRow[] = data ?? [];
 
   if (isLoading) return <p className="text-muted-foreground text-sm">Indlæser priser...</p>;
 
