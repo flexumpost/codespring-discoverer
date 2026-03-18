@@ -1,41 +1,63 @@
 
 
-## Problem
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-When a tenant's `default_mail_action` is `"scan"` (e.g. Lite tenants with standard scanning), their mail items have `chosen_action = null`. Three places in `OperatorDashboard.tsx` only check `chosen_action === "scan" || chosen_action === "standard_scan"`, so these items:
+### Forretningslogik (opsummering)
 
-1. Don't appear under the "Åben og scan" card filter
-2. Don't show the "Upload scan" button
-3. Don't support inline drag-and-drop scan upload
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-The status text (`getOperatorStatusDisplay`) correctly handles this case (lines 160-181), but the filter and UI conditions don't.
+### Ændringer
 
-## Plan
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**File: `src/pages/OperatorDashboard.tsx`**
+### Kodedetaljer
 
-Create a helper function to determine if an item needs scanning:
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-function itemNeedsScan(item: MailItem): boolean {
-  if (item.chosen_action === "scan" || item.chosen_action === "standard_scan") return true;
-  // Default action is scan and no explicit action chosen
-  if (!item.chosen_action) {
-    const defaultAction = item.mail_type === "pakke"
-      ? item.tenants?.default_package_action
-      : item.tenants?.default_mail_action;
-    if (defaultAction === "scan") return true;
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  return false;
+  return firstThursday;
 }
 ```
 
-Then update three locations:
+**2. Lås handlinger fra dagen før forsendelse**
 
-1. **"Åben og scan" card filter** (line ~230): use `itemNeedsScan(item)` in both `filter` and `countFilter`
-2. **Scan upload button condition** (line ~646): replace `(item.chosen_action === "scan" || item.chosen_action === "standard_scan")` with `itemNeedsScan(item)`
-3. **Inline drag-drop condition** (line ~559): same replacement for `canDropScan`
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
-### Files changed
-- `src/pages/OperatorDashboard.tsx`
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

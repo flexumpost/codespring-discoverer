@@ -85,6 +85,17 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
   return getFirstThursdayOfMonth(nextMonth);
 }
 
+function itemNeedsScan(item: MailItem): boolean {
+  if (item.chosen_action === "scan" || item.chosen_action === "standard_scan") return true;
+  if (!item.chosen_action) {
+    const defaultAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (defaultAction === "scan") return true;
+  }
+  return false;
+}
+
 function formatPickupDisplay(item: MailItem): string | null {
   const isoStr = (item as any).pickup_date;
   if (!isoStr) return null;
@@ -227,15 +238,14 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Åben og scan",
     icon: ScanLine,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "scan" || item.chosen_action === "standard_scan",
+    filter: (item) => itemNeedsScan(item),
     countFilter: (item) => {
       if (item.scan_url) return false;
+      if (!itemNeedsScan(item)) return false;
       if (item.chosen_action === "scan") return true;
-      if (item.chosen_action === "standard_scan") {
-        const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-        return isTodayOrPastDate(scanDate);
-      }
-      return false;
+      // Standard scan (explicit or default) — only count on scheduled date
+      const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return isTodayOrPastDate(scanDate);
     },
   },
   {
@@ -556,7 +566,7 @@ const OperatorDashboard = () => {
             </TableHeader>
             <TableBody>
               {filteredByType.map((item) => {
-                const canDropScan = (item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && !!item.tenant_id;
+                const canDropScan = itemNeedsScan(item) && !(item as any).scan_url && !!item.tenant_id;
                 const handleRowDrop = async (e: React.DragEvent) => {
                   e.preventDefault();
                   setDragOverItemId(null);
@@ -643,7 +653,7 @@ const OperatorDashboard = () => {
                     </button>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    {(item.chosen_action === "scan" || item.chosen_action === "standard_scan") && !(item as any).scan_url && item.tenant_id && (
+                    {itemNeedsScan(item) && !(item as any).scan_url && item.tenant_id && (
                       <ScanUploadButton
                         mailItemId={item.id}
                         tenantId={item.tenant_id}
