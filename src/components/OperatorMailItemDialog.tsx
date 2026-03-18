@@ -44,6 +44,7 @@ export function OperatorMailItemDialog({
   const [notes, setNotes] = useState(item.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [deletingScan, setDeletingScan] = useState(false);
+  const [deletingItem, setDeletingItem] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
@@ -123,6 +124,31 @@ export function OperatorMailItemDialog({
       console.error(error);
     } else {
       toast.success("Scanning slettet");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    setDeletingItem(true);
+    // Delete photo from storage if exists
+    if (item.photo_url) {
+      const photoPath = item.photo_url.split("/mail-photos/")[1];
+      if (photoPath) {
+        await supabase.storage.from("mail-photos").remove([photoPath]);
+      }
+    }
+    // Delete scan from storage if exists
+    if (item.scan_url) {
+      await supabase.storage.from("mail-scans").remove([item.scan_url]);
+    }
+    const { error } = await supabase.from("mail_items").delete().eq("id", item.id);
+    setDeletingItem(false);
+    if (error) {
+      toast.error("Kunne ikke slette forsendelsen");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse slettet");
       onSaved();
       onOpenChange(false);
     }
@@ -319,15 +345,39 @@ export function OperatorMailItemDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuller
-          </Button>
-          {!isDestroyed && (
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Gemmer..." : "Gem ændringer"}
+        <DialogFooter className="flex justify-between sm:justify-between">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={deletingItem}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Slet forsendelse
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Slet forsendelse?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Forsendelsen og tilhørende filer vil blive slettet permanent. Denne handling kan ikke fortrydes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuller</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteItem} disabled={deletingItem}>
+                  {deletingItem ? "Sletter..." : "Slet"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Annuller
             </Button>
-          )}
+            {!isDestroyed && (
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Gemmer..." : "Gem ændringer"}
+              </Button>
+            )}
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
