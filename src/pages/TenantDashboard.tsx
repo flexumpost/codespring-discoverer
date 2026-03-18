@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox, MessageCircle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
@@ -709,7 +709,18 @@ const TenantDashboard = () => {
           />
         </div>
       )}
-      <h2 className="text-xl md:text-2xl font-bold mb-6">Min post</h2>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold">Min post</h2>
+          <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Beta</Badge>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <a href={`mailto:kontakt@flexum.dk?subject=${encodeURIComponent(`Tilbagemelding fra ${selectedTenant?.company_name || ""}`)}`}>
+            <MessageCircle className="h-4 w-4 mr-1" />
+            Giv tilbagemelding
+          </a>
+        </Button>
+      </div>
 
       {/* Stats cards */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
