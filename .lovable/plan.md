@@ -1,63 +1,45 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Problem
 
-### Forretningslogik (opsummering)
+Når en scanning uploades til en forsendelse, oprettes en in-app notifikation via `notify_tenant_on_scan`-triggeren, men der sendes **ingen e-mail** til lejeren. Samme mønster som det tidligere problem med ny post.
 
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+Build-fejlen (`Failed to load native binding` i `@swc/core`) er en forbigående infrastruktur-fejl og ikke relateret til kodeændringer.
 
-### Ændringer
+## Løsning
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+### 1. Opdater `ScanUploadDialog.tsx`
 
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+Efter succesfuld upload (linje ~48, efter `toast.success`), kald en edge function til at sende scan-notifikations-e-mail:
 
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+supabase.functions.invoke("send-new-mail-email", {
+  body: {
+    tenant_id: tenantId,
+    mail_type: "scan",
+    stamp_number: null, // stamp_number er ikke tilgængelig i dialogen
+    template_slug: "new_scan",
+  },
+}).catch((err) => console.error("send scan email failed:", err));
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+### 2. Alternativ: Udvid eksisterende edge function
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+Udvid `send-new-mail-email` til at acceptere en valgfri `template_slug` parameter, så den kan bruges til både `new_shipment` og `new_scan` skabeloner. Hvis `template_slug` ikke er angivet, falder den tilbage til `new_shipment`.
 
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
+### 3. Tilpas scan-upload i OperatorDashboard
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+Operatør-dashboardet har også inline drag-and-drop upload. Scan-uploaden sker via `uploadScanFile()` funktionen. E-mail-kaldet skal tilføjes i `ScanUploadDialog` (dialog-upload) og i `OperatorDashboard.tsx` (inline drag-drop upload) — begge steder efter succesfuld upload.
 
-**3. Opdater memory**
+**Problem**: `uploadScanFile` og inline-droppet har ikke adgang til `stamp_number`. Vi skal hente det fra mail_item-data, som allerede er tilgængeligt i OperatorDashboard via `item.stamp_number`.
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### 4. Forudsætning: E-mail-skabelon
+
+Der skal eksistere en `new_scan` skabelon i `email_templates`-tabellen. Hvis den ikke findes, kan vi genbruge `new_shipment`-skabelonen med `template_slug` som fallback — eller oprette en ny skabelon via en database migration.
+
+### Ændrede filer
+
+1. **`supabase/functions/send-new-mail-email/index.ts`** — Tilføj support for valgfri `template_slug` parameter (default: `new_shipment`)
+2. **`src/components/ScanUploadDialog.tsx`** — Tilføj fire-and-forget kald til edge function efter upload
+3. **`src/pages/OperatorDashboard.tsx`** — Tilføj samme kald efter inline drag-drop scan upload, med `stamp_number` fra item-data
 
