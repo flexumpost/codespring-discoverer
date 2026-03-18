@@ -518,7 +518,25 @@ const OperatorDashboard = () => {
             />
           </div>
         </div>
-        {sortedItems.length === 0 ? (
+        <RadioGroup
+          value={mailTypeFilter}
+          onValueChange={(v) => setMailTypeFilter(v as "all" | "brev" | "pakke")}
+          className="flex items-center gap-4 mb-3"
+        >
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="all" id="op-filter-all" />
+            <Label htmlFor="op-filter-all" className="cursor-pointer">Alle</Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="brev" id="op-filter-brev" />
+            <Label htmlFor="op-filter-brev" className="cursor-pointer">Breve</Label>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <RadioGroupItem value="pakke" id="op-filter-pakke" />
+            <Label htmlFor="op-filter-pakke" className="cursor-pointer">Pakker</Label>
+          </div>
+        </RadioGroup>
+        {filteredByType.length === 0 ? (
           <p className="text-muted-foreground">Ingen elementer.</p>
         ) : (
           <Table className="min-w-[700px]">

@@ -793,10 +793,30 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         ))}
       </div>
 
+      {/* Mail type filter */}
+      <RadioGroup
+        value={mailTypeFilter}
+        onValueChange={(v) => setMailTypeFilter(v as "all" | "brev" | "pakke")}
+        className="flex items-center gap-4 mb-4"
+      >
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="all" id="tenant-filter-all" />
+          <Label htmlFor="tenant-filter-all" className="cursor-pointer">Alle</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="brev" id="tenant-filter-brev" />
+          <Label htmlFor="tenant-filter-brev" className="cursor-pointer">Breve</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <RadioGroupItem value="pakke" id="tenant-filter-pakke" />
+          <Label htmlFor="tenant-filter-pakke" className="cursor-pointer">Pakker</Label>
+        </div>
+      </RadioGroup>
+
       {/* Mail table */}
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
-      ) : mailItems.length === 0 ? (
+      ) : filteredByType.length === 0 ? (
         <p className="text-muted-foreground">Ingen post fundet.</p>
       ) : (
         <Table className="min-w-[800px]">
