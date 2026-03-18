@@ -1,18 +1,29 @@
 
 
-## Opdater profil for regnskab@flexum.dk
+## Ensret "Opret ny lejer"-dialogen i RegisterMailDialog
 
-Profilen for `regnskab@flexum.dk` (id: `efbf4e1a-...`) har tomme navnefelter. 
+### Problem
+Dialogen til oprettelse af ny lejer fra post-registreringen (RegisterMailDialog) har et forældet layout:
+- Enkelt "Kontaktperson"-felt (splittes manuelt på mellemrum)
+- Et "Adresse"-felt som ikke findes i TenantsPage-dialogen
+- Mangler auto-invite-funktionalitet når e-mail er udfyldt
 
-### Ændring
+TenantsPage-dialogen har det korrekte format med separate fornavn/efternavn-felter og automatisk invitation.
 
-Opdater `profiles`-tabellen:
+### Ændringer
 
-```sql
-UPDATE profiles 
-SET first_name = 'Torben', last_name = 'Jensen'
-WHERE id = 'efbf4e1a-f7be-4ae6-9086-ef00e1004360';
-```
+**`src/components/RegisterMailDialog.tsx`**
 
-Efter denne opdatering vil headeren vise "Godmorgen Torben" i stedet for e-mailadressen.
+1. **Erstat state-variabler**: Skift `newTenantContact` og `newTenantAddress` ud med `newTenantContactFirstName` og `newTenantContactLastName`
+
+2. **Opdater dialog-formularen** (linje 878-907): 
+   - Erstat det enkelte "Kontaktperson"-felt med to felter i et grid: "Fornavn" og "Efternavn" (som i TenantsPage)
+   - Fjern "Adresse"-feltet
+   - Tilføj info-tekst når e-mail er udfyldt: "En invitation sendes automatisk til [email]"
+
+3. **Opdater `handleCreateTenant`** (linje 131-157):
+   - Brug de separate fornavn/efternavn-felter direkte i insert
+   - Tilføj auto-invite via `create-tenant-user` edge function når e-mail er udfyldt (samme logik som TenantsPage)
+
+4. **Opdater reset-logik** (linje 750-754): Nulstil de nye state-variabler ved åbning
 
