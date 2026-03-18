@@ -71,10 +71,6 @@ export function getMailRowColor(item: {
     return "bg-yellow-200 dark:bg-yellow-900/40";
   }
 
-  // 7. Arkiveret → grå
-  if (item.status === "arkiveret") {
-    return "bg-gray-200 dark:bg-gray-900/40";
-  }
 
   // 8. Ny / afventer → gul
   return "bg-yellow-100 dark:bg-yellow-900/30";
