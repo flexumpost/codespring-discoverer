@@ -1,63 +1,34 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Diagnose: Hvorfor get-email-log returnerer 401
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
-
-### Ændringer
-
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
-
-### Kodedetaljer
-
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+Problemet er i hvordan `supabase.functions.invoke()` kaldes i `EmailLogTab.tsx`:
 
 ```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
+supabase.functions.invoke(`get-email-log?${params.toString()}`)
 ```
 
-**2. Lås handlinger fra dagen før forsendelse**
+Query-parametrene bliver en del af funktionsnavnet. Infrastrukturen prøver at finde en funktion kaldet `get-email-log?offset=0&limit=50` — som ikke har `verify_jwt = false` i config.toml. Derfor afvises kaldet med 401 **før** funktionskoden overhovedet kører (bekræftet af logs der kun viser Boot/Shutdown, ingen applikationslogs).
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
+Samme problem gælder `log-login` (som også returnerer 401 i network requests).
 
+## Plan
+
+**1. `src/components/EmailLogTab.tsx`** — Send params i body i stedet for query string
 ```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
+const res = await supabase.functions.invoke("get-email-log", {
+  body: { offset: page * PAGE_SIZE, limit: PAGE_SIZE, search: debouncedSearch || undefined },
+});
 ```
 
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+**2. `supabase/functions/get-email-log/index.ts`** — Læs params fra request body (JSON) i stedet for URL searchParams
 
-**3. Opdater memory**
+**3. `src/hooks/useAuth.tsx`** — Tilsvarende fix for `log-login` kaldet, sikr at funktionsnavnet er rent uden query params
 
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+**4. `supabase/functions/log-login/index.ts`** — Verificer at den læser fra body (ser ud til allerede at gøre det)
+
+### Filer der ændres
+- `src/components/EmailLogTab.tsx`
+- `supabase/functions/get-email-log/index.ts`
+- `src/hooks/useAuth.tsx` (verificer)
 
