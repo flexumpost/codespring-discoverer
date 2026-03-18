@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
@@ -86,15 +86,16 @@ Deno.serve(async (req) => {
     }
 
     // Get template
+    const slug = template_slug || "new_shipment";
     const { data: template } = await supabaseAdmin
       .from("email_templates")
       .select("subject, body")
-      .eq("slug", "new_shipment")
+      .eq("slug", slug)
       .maybeSingle();
 
     if (!template) {
       return new Response(
-        JSON.stringify({ error: "Template 'new_shipment' not found" }),
+        JSON.stringify({ error: `Template '${slug}' not found` }),
         { status: 404, headers: corsHeaders }
       );
     }
@@ -153,7 +154,7 @@ Deno.serve(async (req) => {
 
     await supabaseAdmin.from("email_send_log").insert({
       message_id: resendBody.id || crypto.randomUUID(),
-      template_name: "new_shipment",
+      template_name: slug,
       recipient_email: tenant.contact_email,
       status: "sent",
       metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend" },

@@ -48,6 +48,9 @@ export function ScanUploadDialog({ open, onOpenChange, mailItemId, tenantId, onU
       setDone(true);
       toast.success("Scanning uploadet");
       onUploaded();
+      supabase.functions.invoke("send-new-mail-email", {
+        body: { tenant_id: tenantId, mail_type: "scan", template_slug: "new_scan" },
+      }).catch((err) => console.error("send scan email failed:", err));
       setTimeout(() => {
         onOpenChange(false);
         setDone(false);
