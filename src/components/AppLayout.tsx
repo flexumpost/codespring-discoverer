@@ -6,8 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  const firstName = user?.user_metadata?.first_name || user?.email || "";
+  const { user, firstName: profileFirstName } = useAuth();
+  const displayName = profileFirstName || user?.email || "";
 
   const getGreeting = () => {
     const hour = new Date().getHours();
