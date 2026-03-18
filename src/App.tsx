@@ -15,6 +15,7 @@ import ShippingAddressPage from "./pages/ShippingAddressPage";
 import TenantsPage from "./pages/TenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
 import ShippingPrepPage from "./pages/ShippingPrepPage";
+import TenantViewPage from "./pages/TenantViewPage";
 import SetPasswordPage from "./pages/SetPasswordPage";
 import NotFound from "./pages/NotFound";
 
