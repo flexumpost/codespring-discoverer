@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, useRef, createContext, useContext, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -29,6 +29,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [firstName, setFirstName] = useState("");
   const [loading, setLoading] = useState(true);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loginSessionIdRef = useRef<string | null>(null);
+
+  const stopHeartbeat = () => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+    loginSessionIdRef.current = null;
+  };
+
+  const startLoginTracking = async () => {
+    try {
+      const res = await supabase.functions.invoke("log-login", {
+        body: { action: "login" },
+      });
+      if (res.data?.session_id) {
+        loginSessionIdRef.current = res.data.session_id;
+        heartbeatRef.current = setInterval(async () => {
+          if (loginSessionIdRef.current) {
+            await supabase.functions.invoke("log-login", {
+              body: { action: "heartbeat", session_id: loginSessionIdRef.current },
+            });
+          }
+        }, 60_000);
+      }
+    } catch {
+      // silently ignore login tracking errors
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -47,10 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setFirstName(profileData?.first_name ?? "");
             setLoading(false);
           }, 0);
+
+          // Start login tracking on sign in
+          if (_event === "SIGNED_IN") {
+            stopHeartbeat();
+            startLoginTracking();
+          }
         } else {
           setRole(null);
           setFirstName("");
           setLoading(false);
+          stopHeartbeat();
         }
       }
     );
@@ -61,10 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!session) setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      stopHeartbeat();
+    };
   }, []);
 
   const signOut = async () => {
+    stopHeartbeat();
     await supabase.auth.signOut();
   };
 
