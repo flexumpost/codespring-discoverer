@@ -20,38 +20,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const supabaseAdmin = createClient(
+    const callerClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
     );
 
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabaseAdmin.auth.getUser(token);
+    const { data: isOperator, error: isOperatorErr } = await callerClient.rpc("is_operator");
 
-    if (userErr || !user) {
+    if (isOperatorErr) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { data: operatorRole, error: roleErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "operator")
-      .maybeSingle();
-
-    if (roleErr) throw roleErr;
-    if (!operatorRole) {
+    if (!isOperator) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     const body = await req.json().catch(() => ({}));
     const offset = Number(body.offset) || 0;
