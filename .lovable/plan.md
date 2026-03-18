@@ -1,63 +1,34 @@
 
 
-## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
+## Plan: Arkiverede forsendelser skal være synlige og kunne genaktiveres
 
-### Forretningslogik (opsummering)
-
-- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
-- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
-- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
+### Problem
+Når en lejer arkiverer en forsendelse, forsvinder den fra operatør-dashboardet fordi query'en på linje 385 filtrerer arkiverede emner fra (undtagen destruer). Den skal i stedet vises med status "Arkiveret af bruger", og både lejer og operatør skal kunne genaktivere den.
 
 ### Ændringer
 
-| Fil | Ændring |
-|---|---|
-| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
-| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
+**1. Operatør-dashboard query** (`src/pages/OperatorDashboard.tsx`, linje 385)
+- Udvid `.or()`-filteret til også at inkludere arkiverede emner (ikke kun `destruer`):
+  - Fra: `status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord),and(status.eq.arkiveret,chosen_action.eq.destruer)`
+  - Til: `status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)`
 
-### Kodedetaljer
+**2. Status-visning på operatør-dashboardet** (`src/pages/OperatorDashboard.tsx`, `getStatusDisplay()`)
+- Tilføj en case: når `status === "arkiveret"` og `chosen_action !== "destruer"`, vis "Arkiveret af bruger"
 
-**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+**3. Genaktivér-knap på operatør-dashboardet** (`src/components/OperatorMailItemDialog.tsx`)
+- Når `item.status === "arkiveret"` og `chosen_action !== "destruer"`, vis en "Genaktivér"-knap der sætter status tilbage til `afventer_handling` og nulstiller `chosen_action`
 
-```typescript
-function getFirstThursdayOfMonth(): Date {
-  const now = new Date();
-  // Første torsdag i denne måned
-  const first = new Date(now.getFullYear(), now.getMonth(), 1);
-  const dayOfWeek = first.getDay();
-  const offset = (4 - dayOfWeek + 7) % 7;
-  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-  
-  // Hvis den allerede er passeret, tag første torsdag i næste måned
-  if (firstThursday <= now) {
-    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-    const month = (now.getMonth() + 1) % 12;
-    const nextFirst = new Date(year, month, 1);
-    const nextDow = nextFirst.getDay();
-    const nextOffset = (4 - nextDow + 7) % 7;
-    return new Date(year, month, 1 + nextOffset);
-  }
-  return firstThursday;
-}
-```
+**4. Genaktivér-knap på lejer-dashboardet** (`src/pages/TenantDashboard.tsx`)
+- I arkiveret-visningen (når `activeFilter === "arkiveret"` eller i detail-dialogen), vis en "Genaktivér"-knap
+- Opretter en `reactivateMutation` der sætter status til `afventer_handling` og nulstiller `chosen_action`
+- Knappen vises i tabellens handlingskolonne og i detail-dialogen for arkiverede emner (undtagen destruerede)
 
-**2. Lås handlinger fra dagen før forsendelse**
+**5. Farve for arkiverede emner** (`src/lib/mailRowColor.ts`)
+- Flyt arkiveret-checket op i prioritetsrækkefølgen så det ikke overskrives af andre checks
 
-I handlings-sektionen (linje ~496-530), tilføj et check:
-
-```typescript
-const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-shippingDate.setHours(0, 0, 0, 0);
-const packingDay = new Date(shippingDate);
-packingDay.setDate(packingDay.getDate() - 1);
-const isLocked = today >= packingDay;
-```
-
-Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
-
-**3. Opdater memory**
-
-Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+### Ændrede filer
+- `src/pages/OperatorDashboard.tsx`
+- `src/components/OperatorMailItemDialog.tsx`
+- `src/pages/TenantDashboard.tsx`
+- `src/lib/mailRowColor.ts`
 
