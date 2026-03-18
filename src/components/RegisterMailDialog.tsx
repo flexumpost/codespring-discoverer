@@ -771,9 +771,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-primary font-medium"
                 onMouseDown={() => {
                   setNewTenantName(tenantSearch.trim());
-                  setNewTenantContact("");
+                  setNewTenantContactFirstName("");
+                  setNewTenantContactLastName("");
                   setNewTenantEmail("");
-                  setNewTenantAddress("");
                   setNewTenantTypeId("");
                   setShowCreateTenant(true);
                   setShowTenantList(false);
