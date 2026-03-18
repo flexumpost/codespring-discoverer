@@ -129,6 +129,31 @@ export function OperatorMailItemDialog({
     }
   };
 
+  const handleDeleteItem = async () => {
+    setDeletingItem(true);
+    // Delete photo from storage if exists
+    if (item.photo_url) {
+      const photoPath = item.photo_url.split("/mail-photos/")[1];
+      if (photoPath) {
+        await supabase.storage.from("mail-photos").remove([photoPath]);
+      }
+    }
+    // Delete scan from storage if exists
+    if (item.scan_url) {
+      await supabase.storage.from("mail-scans").remove([item.scan_url]);
+    }
+    const { error } = await supabase.from("mail_items").delete().eq("id", item.id);
+    setDeletingItem(false);
+    if (error) {
+      toast.error("Kunne ikke slette forsendelsen");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse slettet");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
   const handleRejectAction = async () => {
     if (!rejectReason.trim()) return;
     setRejecting(true);
