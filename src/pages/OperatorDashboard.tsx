@@ -85,6 +85,17 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
   return getFirstThursdayOfMonth(nextMonth);
 }
 
+function itemNeedsScan(item: MailItem): boolean {
+  if (item.chosen_action === "scan" || item.chosen_action === "standard_scan") return true;
+  if (!item.chosen_action) {
+    const defaultAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (defaultAction === "scan") return true;
+  }
+  return false;
+}
+
 function formatPickupDisplay(item: MailItem): string | null {
   const isoStr = (item as any).pickup_date;
   if (!isoStr) return null;
