@@ -415,10 +415,34 @@ function isWeekend(date: Date): boolean {
   return d === 0 || d === 6;
 }
 
-const TenantDashboard = () => {
+interface TenantDashboardProps {
+  overrideTenantId?: string;
+}
+
+const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId } = useTenants();
+  const tenantsHook = useTenants();
+
+  // When overrideTenantId is provided, fetch that specific tenant directly
+  const { data: overrideTenant } = useQuery({
+    queryKey: ["override-tenant", overrideTenantId],
+    enabled: !!overrideTenantId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("*, tenant_types(name, allowed_actions)")
+        .eq("id", overrideTenantId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const tenants = overrideTenantId ? (overrideTenant ? [overrideTenant] : []) : tenantsHook.tenants;
+  const selectedTenant = overrideTenantId ? (overrideTenant ?? null) : tenantsHook.selectedTenant;
+  const selectedTenantId = overrideTenantId ?? tenantsHook.selectedTenantId;
+  const setSelectedTenantId = tenantsHook.setSelectedTenantId;
   const [activeFilter, setActiveFilter] = useState<FilterStatus>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
@@ -700,7 +724,7 @@ const TenantDashboard = () => {
           tenantTypeName={tenantTypeName!}
         />
       )}
-      {tenants.length > 0 && (
+      {!overrideTenantId && tenants.length > 0 && (
         <div className="mb-6">
           <TenantSelector
             tenants={tenants}

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save, User, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, User, Trash2, Eye } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   AlertDialog,
@@ -232,7 +232,11 @@ const TenantDetailPage = () => {
           </Badge>
         )}
         {tenant && (
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/tenants/${id}/dashboard`)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Vis som lejer
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
