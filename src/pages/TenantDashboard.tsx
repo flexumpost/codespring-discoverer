@@ -676,7 +676,10 @@ const TenantDashboard = () => {
     (selectedItem.status === "laest" || selectedItem.status === "afventer_handling" ||
       selectedItem.status === "ny" || selectedItem.status === "ulaest");
 
+  const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
+
   const cards = [
+    { title: "Alle forsendelser", value: totalActive, icon: Inbox, status: null as FilterStatus },
     { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
     { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
     { title: "Scannet post", value: stats.ulaest, icon: FileCheck, status: "scannet" as FilterStatus },
