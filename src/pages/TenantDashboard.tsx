@@ -1119,6 +1119,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 Download scanning
               </Button>
             )}
+            {selectedItem!.status === "arkiveret" && selectedItem!.chosen_action !== "destruer" && (
+              <Button
+                variant="outline"
+                onClick={() => reactivateMutation.mutate(selectedItem!.id)}
+                disabled={reactivateMutation.isPending}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                {reactivateMutation.isPending ? "Genaktiverer..." : "Genaktivér"}
+              </Button>
+            )}
             {canArchive && selectedItem!.status !== "arkiveret" && (
               <Button
                 variant="outline"
