@@ -114,6 +114,7 @@ export function EmailLogTab() {
           className="pl-9"
         />
       </div>
+      <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Dato</TableHead>
