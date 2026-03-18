@@ -1119,7 +1119,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 Download scanning
               </Button>
             )}
-            {selectedItem!.status === "arkiveret" && selectedItem!.chosen_action !== "destruer" && (
+            {selectedItem?.status === "arkiveret" && selectedItem?.chosen_action !== "destruer" && (
               <Button
                 variant="outline"
                 onClick={() => reactivateMutation.mutate(selectedItem!.id)}
@@ -1129,7 +1129,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 {reactivateMutation.isPending ? "Genaktiverer..." : "Genaktivér"}
               </Button>
             )}
-            {canArchive && selectedItem!.status !== "arkiveret" && (
+            {canArchive && selectedItem?.status !== "arkiveret" && (
               <Button
                 variant="outline"
                 onClick={() => archiveMutation.mutate(selectedItem!.id)}
