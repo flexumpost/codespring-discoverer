@@ -54,13 +54,6 @@ export function EmailLogTab() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["email-log", page],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("get-email-log", {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        body: undefined,
-      });
-      // The edge function uses query params, but invoke doesn't support that easily.
-      // We'll pass offset/limit in body instead.
       const res = await supabase.functions.invoke(
         `get-email-log?offset=${page * PAGE_SIZE}&limit=${PAGE_SIZE}`
       );
