@@ -712,7 +712,7 @@ const TenantDashboard = () => {
       <h2 className="text-xl md:text-2xl font-bold mb-6">Min post</h2>
 
       {/* Stats cards */}
-      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 mb-8">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
