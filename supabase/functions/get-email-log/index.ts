@@ -46,19 +46,24 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const offset = parseInt(url.searchParams.get("offset") || "0", 10);
     const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+    const search = url.searchParams.get("search") || "";
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get deduplicated logs (latest status per message_id) + total count
-    // Using a subquery approach since we can't use DISTINCT ON via the JS client
-    const { data: logs, error: logsErr } = await supabaseAdmin
+    let logsQuery = supabaseAdmin
       .from("email_send_log")
       .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (search) {
+      logsQuery = logsQuery.or(`template_name.ilike.%${search}%,recipient_email.ilike.%${search}%`);
+    }
+
+    const { data: logs, error: logsErr } = await logsQuery;
 
     if (logsErr) {
       throw logsErr;
@@ -76,9 +81,15 @@ Deno.serve(async (req) => {
     }
 
     // Get total count for pagination
-    const { count } = await supabaseAdmin
+    let countQuery = supabaseAdmin
       .from("email_send_log")
       .select("id", { count: "exact", head: true });
+
+    if (search) {
+      countQuery = countQuery.or(`template_name.ilike.%${search}%,recipient_email.ilike.%${search}%`);
+    }
+
+    const { count } = await countQuery;
 
     return new Response(
       JSON.stringify({ logs: deduplicated, total: count || 0 }),
