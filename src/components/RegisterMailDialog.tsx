@@ -60,9 +60,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [showTenantList, setShowTenantList] = useState(false);
   const [showCreateTenant, setShowCreateTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
-  const [newTenantContact, setNewTenantContact] = useState("");
+  const [newTenantContactFirstName, setNewTenantContactFirstName] = useState("");
+  const [newTenantContactLastName, setNewTenantContactLastName] = useState("");
   const [newTenantEmail, setNewTenantEmail] = useState("");
-  const [newTenantAddress, setNewTenantAddress] = useState("");
   const [newTenantTypeId, setNewTenantTypeId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
