@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }, 0);
         } else {
           setRole(null);
+          setFirstName("");
           setLoading(false);
         }
       }
