@@ -96,6 +96,10 @@ function formatPickupDisplay(item: MailItem): string | null {
 }
 
 function getOperatorStatusDisplay(item: MailItem): string {
+  // Archived by tenant (not destruction)
+  if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
+    return "Arkiveret af bruger";
+  }
   if (item.status === "sendt_med_dao") {
     const d = new Date(item.updated_at);
     const day = d.getDate();
@@ -382,7 +386,7 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
-      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord),and(status.eq.arkiveret,chosen_action.eq.destruer)")
+      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     setMailItems(data ?? []);
   };

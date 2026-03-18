@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, ScanLine, ShieldX, AlertTriangle } from "lucide-react";
+import { Trash2, ScanLine, ShieldX, AlertTriangle, Archive } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import type { Tables, Database } from "@/integrations/supabase/types";
@@ -52,6 +52,25 @@ export function OperatorMailItemDialog({
 
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
+  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer";
+  const [reactivating, setReactivating] = useState(false);
+
+  const handleReactivate = async () => {
+    setReactivating(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ status: "afventer_handling" as any, chosen_action: null })
+      .eq("id", item.id);
+    setReactivating(false);
+    if (error) {
+      toast.error("Kunne ikke genaktivere forsendelsen");
+      console.error(error);
+    } else {
+      toast.success("Forsendelse genaktiveret");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
 
   const handleConfirmDestruction = async () => {
     setConfirmingDestruction(true);
@@ -275,6 +294,25 @@ export function OperatorMailItemDialog({
               rows={3}
             />
           </div>
+
+          {/* Reactivate archived item section */}
+          {isArchivedByUser && (
+            <div className="flex items-center justify-between rounded-md border border-blue-300 bg-blue-50 p-3">
+              <div className="flex items-center gap-2">
+                <Archive className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">Arkiveret af bruger</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                onClick={handleReactivate}
+                disabled={reactivating}
+              >
+                {reactivating ? "Genaktiverer..." : "Genaktivér"}
+              </Button>
+            </div>
+          )}
 
           {/* Confirm destruction section */}
           {isPendingDestruction && (

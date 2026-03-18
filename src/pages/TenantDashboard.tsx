@@ -620,6 +620,26 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
+  // Reactivate mutation (from archived back to afventer_handling)
+  const reactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("mail_items")
+        .update({ status: "afventer_handling" as MailStatus, chosen_action: null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
+      queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
+      setSelectedItem(null);
+      toast.success("Forsendelse genaktiveret");
+    },
+    onError: () => {
+      toast.error("Kunne ikke genaktivere forsendelsen");
+    },
+  });
+
   const handleAction = (id: string, action: string) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
       setPickupDialogItem(id);
@@ -950,7 +970,17 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
+                  {item.status === "arkiveret" && item.chosen_action !== "destruer" ? (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => reactivateMutation.mutate(item.id)}
+                      title="Genaktivér forsendelse"
+                      className="h-8 w-8 text-blue-600 hover:text-blue-800"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  ) : item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -1087,6 +1117,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               >
                 <Download className="h-4 w-4" />
                 Download scanning
+              </Button>
+            )}
+            {selectedItem!.status === "arkiveret" && selectedItem!.chosen_action !== "destruer" && (
+              <Button
+                variant="outline"
+                onClick={() => reactivateMutation.mutate(selectedItem!.id)}
+                disabled={reactivateMutation.isPending}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                {reactivateMutation.isPending ? "Genaktiverer..." : "Genaktivér"}
               </Button>
             )}
             {canArchive && selectedItem!.status !== "arkiveret" && (
