@@ -22,7 +22,12 @@ export function getMailRowColor(item: {
     return "bg-teal-200 dark:bg-teal-900/40";
   }
 
-  // 1. Destruer → rød
+  // 1. Arkiveret (ikke destruer) → grå
+  if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
+    return "bg-gray-200 dark:bg-gray-900/40";
+  }
+
+  // 2. Destruer → rød
   if (item.chosen_action === "destruer") {
     return "bg-red-200 dark:bg-red-900/40";
   }

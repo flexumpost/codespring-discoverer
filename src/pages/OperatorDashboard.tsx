@@ -96,6 +96,10 @@ function formatPickupDisplay(item: MailItem): string | null {
 }
 
 function getOperatorStatusDisplay(item: MailItem): string {
+  // Archived by tenant (not destruction)
+  if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
+    return "Arkiveret af bruger";
+  }
   if (item.status === "sendt_med_dao") {
     const d = new Date(item.updated_at);
     const day = d.getDate();

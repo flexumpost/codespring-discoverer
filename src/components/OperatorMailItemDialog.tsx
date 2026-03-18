@@ -295,6 +295,25 @@ export function OperatorMailItemDialog({
             />
           </div>
 
+          {/* Reactivate archived item section */}
+          {isArchivedByUser && (
+            <div className="flex items-center justify-between rounded-md border border-blue-300 bg-blue-50 p-3">
+              <div className="flex items-center gap-2">
+                <Archive className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">Arkiveret af bruger</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                onClick={handleReactivate}
+                disabled={reactivating}
+              >
+                {reactivating ? "Genaktiverer..." : "Genaktivér"}
+              </Button>
+            </div>
+          )}
+
           {/* Confirm destruction section */}
           {isPendingDestruction && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
