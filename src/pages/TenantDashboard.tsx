@@ -62,6 +62,12 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       }
       return addDestruer(["afhentning", "send"].filter(a => a !== currentAction));
     }
+    if (tenantTypeName === "Lite") {
+      if (currentAction === "standard_afhentning") {
+        return addDestruer(["afhentning", "standard_forsendelse"]);
+      }
+      return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+    }
     return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
@@ -1009,6 +1015,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       }
                       if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "send") {
                         actionForExtras = "standard_forsendelse";
+                      }
+                      if (!item.chosen_action && tenantTypeName === "Lite" && item.mail_type === "pakke" && effectiveAction === "afhentning") {
+                        actionForExtras = "standard_afhentning";
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       const availableExtras = extraActions.filter(
