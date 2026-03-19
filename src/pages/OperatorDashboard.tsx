@@ -149,6 +149,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const pickupText = formatPickupDisplay(item);
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
+  if (action === "gratis_afhentning") {
+    const nextDate = getFirstThursdayOfMonth();
+    return `Gratis afhentning ${formatDanishDate(nextDate)}`;
+  }
   if (action === "scan") {
     if (item.scan_url) {
       const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
