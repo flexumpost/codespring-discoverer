@@ -1,49 +1,63 @@
 
-**Diagnose (bekræftet)**
-- Fejlen er **ikke længere UI-scroll**. Dialogen og knappen virker, men gem fejler server-side.
-- Jeg fandt backend-fejl i logs: **`infinite recursion detected in policy for relation "tenants"`**.
-- Årsagen er den nuværende RLS-policy på `tenants`:
-  - `WITH CHECK` indeholder en subquery mod samme tabel (`SELECT ... FROM tenants t WHERE t.id = tenants.id`).
-  - Det skaber rekursion under `UPDATE`, så gem af forsendelsesadresse fejler.
 
-**Implementeringsplan**
-1. **Ret RLS-rekursion i database (hovedfix)**
-   - Opret en `SECURITY DEFINER` funktion (fx `public.tenant_type_matches(_tenant_id uuid, _tenant_type_id uuid)`), der slår `tenant_type_id` op internt.
-   - Drop og genskab policyen **"Tenants update own tenant"** så den bruger funktionen i stedet for direkte subquery i policyen.
-   - Behold samme adgangsniveau som nu (`user_id = auth.uid()`), så vi ændrer mindst muligt funktionelt.
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-2. **Behold beskyttelsen mod tier-eskalering**
-   - Den nye policy skal stadig sikre, at lejer ikke kan ændre `tenant_type_id`.
-   - Kun implementeringsmetoden ændres (fra rekursiv subquery til definer-funktion).
+### Forretningslogik (opsummering)
 
-3. **Gør fejl synlige i UI (hurtigere fejlsøgning fremover)**
-   - I `ShippingAddressGuard` (og samme gemmemønster på `/shipping-address`) vis den konkrete backend-fejl i toast/log (ikke kun generisk “Kunne ikke gemme...”).
-   - Behold den eksisterende “verify persisted” kontrol efter update.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**Konkrete filer der ændres**
-- `supabase/migrations/<ny_migration>.sql`
-  - Opret funktion + opdater policy på `public.tenants`.
-- `src/components/ShippingAddressGuard.tsx`
-  - Forbedret fejlhåndtering/visning.
-- `src/pages/ShippingAddressPage.tsx`
-  - Samme forbedrede fejlhåndtering for konsistens.
+### Ændringer
 
-**Tekniske detaljer (kort)**
-- Nuværende policy-del, der skaber problemet:
-  - `tenant_type_id = (SELECT t.tenant_type_id FROM tenants t WHERE t.id = tenants.id)`
-- Ny retning:
-  - `WITH CHECK (user_id = auth.uid() AND public.tenant_type_matches(id, tenant_type_id))`
-- `SECURITY DEFINER` bryder RLS-rekursionskæden sikkert.
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**Validering efter implementering**
-1. Opret ny lejer via det nye samlede mailflow.
-2. Sæt adgangskode via mail-link.
-3. Log ind som lejer og gem forsendelsesadresse:
-   - Forventet: succes-toast + guard forsvinder.
-4. Bekræft i database at `shipping_confirmed = true` og adressefelter er gemt.
-5. Negativ test: forsøg at ændre `tenant_type_id` som lejer (skal afvises).
+### Kodedetaljer
 
-**Forventet effekt**
-- Gem af forsendelsesadresse virker igen for nye lejere.
-- Samme sikkerhedsniveau bevares.
-- Fremtidige policy-fejl bliver hurtigere at identificere via tydeligere fejlmeddelelser.
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
+
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
+

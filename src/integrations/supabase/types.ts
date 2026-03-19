@@ -601,6 +601,10 @@ export type Database = {
           read_ct: number
         }[]
       }
+      tenant_type_matches: {
+        Args: { _tenant_id: string; _tenant_type_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "operator" | "tenant"
