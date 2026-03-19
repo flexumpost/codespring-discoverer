@@ -31,6 +31,7 @@ const ACTION_LABELS: Record<string, string> = {
   daglig: "Læg på kontoret",
   standard_forsendelse: "Standard forsendelse",
   standard_scan: "Standard scanning",
+  gratis_afhentning: "Gratis afhentning",
 };
 
 const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
@@ -148,6 +149,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const pickupText = formatPickupDisplay(item);
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
+  if (action === "gratis_afhentning") {
+    const nextDate = getFirstThursdayOfMonth(new Date());
+    return `Gratis afhentning ${formatDanishDate(nextDate)}`;
+  }
   if (action === "scan") {
     if (item.scan_url) {
       const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
@@ -262,8 +267,11 @@ const CARD_FILTERS: CardFilter[] = [
     title: "Afhentes",
     icon: Mail,
     color: "text-primary",
-    filter: (item) => item.chosen_action === "afhentning",
+    filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
     countFilter: (item) => {
+      if (item.chosen_action === "gratis_afhentning") {
+        return isTodayDate(getFirstThursdayOfMonth(new Date()));
+      }
       if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
       return isTodayDate(new Date(item.pickup_date));
     },
