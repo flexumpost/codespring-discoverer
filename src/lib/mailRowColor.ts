@@ -61,7 +61,7 @@ export function getMailRowColor(item: {
   // 5. Skal afhentes → lilla
   if (
     item.chosen_action &&
-    ["afhentning", "anden_afhentningsdag"].includes(item.chosen_action)
+    ["afhentning", "anden_afhentningsdag", "gratis_afhentning"].includes(item.chosen_action)
   ) {
     return "bg-purple-200 dark:bg-purple-900/40";
   }
