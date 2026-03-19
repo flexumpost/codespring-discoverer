@@ -55,7 +55,9 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
     return [...actions, "destruer"];
   };
   if (mailType === "pakke") {
-    return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+    const actions = ["afhentning", "standard_forsendelse"];
+    if (tenantTypeName === "Plus") actions.push("anden_afhentningsdag");
+    return addDestruer(actions.filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
     switch (currentAction) {
