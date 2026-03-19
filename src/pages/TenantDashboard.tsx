@@ -682,6 +682,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const handleAction = (id: string, action: string) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
+      // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
+      if (action === "afhentning" && tenantTypeName === "Standard") {
+        const nextThurs = getNextThursday();
+        nextThurs.setHours(9, 0, 0, 0);
+        choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
+        return;
+      }
       setPickupDialogItem(id);
     } else if (action === "destruer") {
       setConfirmDestroy(id);
