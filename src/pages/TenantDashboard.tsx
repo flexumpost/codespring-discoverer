@@ -847,8 +847,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <TableHead>Forsendelsesnr.</TableHead>
               <TableHead>Afsender</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Vælg handling</TableHead>
-              <TableHead>Annuller handling</TableHead>
+              <TableHead>Handlinger</TableHead>
               <TableHead>Gebyr</TableHead>
               <TableHead>Scan</TableHead>
               <TableHead>Modtaget</TableHead>
