@@ -103,6 +103,8 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
+    if (action === "afhentning") return "Standard afhentningsdag";
+    if (action === "anden_afhentningsdag") return "Ekstra afhentningsdag";
   }
   return ACTION_LABELS[action] ?? action;
 }
