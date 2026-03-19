@@ -365,7 +365,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     }
     if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
       if (tier === "Lite") return "50 kr. + porto";
-      if (tier === "Standard") return "30 kr. + porto";
+      if (tier === "Standard") return "0 kr. + porto";
       return "0 kr. + porto";
     }
     return "0 kr.";
