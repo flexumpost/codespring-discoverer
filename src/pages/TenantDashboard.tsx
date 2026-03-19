@@ -688,7 +688,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
       if (action === "afhentning" && tenantTypeName === "Standard") {
         const nextThurs = getNextThursday();
-        nextThurs.setHours(9, 0, 0, 0);
+        nextThurs.setHours(0, 0, 0, 0);
         choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
         return;
       }
