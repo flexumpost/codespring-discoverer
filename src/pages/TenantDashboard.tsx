@@ -223,6 +223,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     return "0 kr.";
   }
   if (tenantTypeName === "Lite") {
+    if (action === "gratis_afhentning") return "0 kr.";
     if (action === "scan") return "50 kr.";
     if (action === "standard_scan") return "0 kr.";
     if (action === "send") return "50 kr. + porto";
