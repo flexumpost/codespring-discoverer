@@ -1,39 +1,34 @@
 
 
-## Fix: "Standard afhentningsdag" skal ikke åbne datovælger for Standard-lejere
+## Fix: Fjern klokkeslet fra "Standard afhentningsdag" for Standard-breve
 
 ### Problem
-Når en Standard-lejer vælger "Standard afhentningsdag" (action = `"afhentning"`), åbner `handleAction` altid datovælger-dialogen. For Standard-lejere er standard afhentningsdag altid den næste torsdag — der er ingen grund til at vælge dato manuelt.
+Når en Standard-lejer vælger "Standard afhentningsdag", gemmes pickup_date med kl. 09:00, og visningen viser "Torsdag den 26. marts kl. 09:00-10:00". For standard afhentningsdag skal der kun vises datoen — intet klokkeslet.
 
 ### Løsning
-Ændr `handleAction` i `src/pages/TenantDashboard.tsx` (linje 683-691), så Standard-lejere med action `"afhentning"` **springer datovælgeren over** og i stedet direkte kalder `choosePickup.mutate` med næste torsdag som `pickup_date`.
 
-### Ændring i `src/pages/TenantDashboard.tsx`
-
-**`handleAction` (linje 683-691):**
+**1. `handleAction` i `src/pages/TenantDashboard.tsx` (linje 687-688)** — gem pickup_date uden klokkeslet (midnat):
 ```typescript
-const handleAction = (id: string, action: string) => {
-  if (action === "afhentning" || action === "anden_afhentningsdag") {
-    // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
-    if (action === "afhentning" && tenantTypeName === "Standard") {
-      const nextThurs = getNextThursday();
-      nextThurs.setHours(9, 0, 0, 0);
-      choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
-      return;
-    }
-    setPickupDialogItem(id);
-  } else if (action === "destruer") {
-    setConfirmDestroy(id);
-  } else {
-    chooseAction.mutate({ id, action });
-  }
-};
+const nextThurs = getNextThursday();
+nextThurs.setHours(0, 0, 0, 0);
 ```
 
-Dette sikrer at:
-- Standard + "Standard afhentningsdag" → auto-sættes til næste torsdag, ingen dialog
-- Standard + "Ekstra afhentningsdag" → datovælger åbnes (uændret)
-- Lite + "Afhentning"/"Ekstra afhentning" → datovælger åbnes (uændret)
+**2. `formatPickupDisplay` i `src/pages/TenantDashboard.tsx` (linje 310-318)** — vis kun dato når klokkeslet er midnat (= standard afhentningsdag):
+```typescript
+function formatPickupDisplay(...): string | null {
+  ...
+  const hour = date.getHours();
+  if (hour === 0) {
+    return `${dayName} den ${d}. ${month}`;
+  }
+  return `${dayName} den ${d}. ${month} kl. ${hour...}`;
+}
+```
 
-Ingen andre ændringer nødvendige.
+**3. `formatPickupDisplay` i `src/pages/OperatorDashboard.tsx` (linje 99-109)** — samme logik: spring klokkeslet over når time = 0:
+```typescript
+if (hour === 0) {
+  return `${dayName} den ${d}. ${month}`;
+}
+```
 
