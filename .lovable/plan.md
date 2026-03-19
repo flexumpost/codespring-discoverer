@@ -1,36 +1,43 @@
 
 
-## Fix: Standard lejer brev-dropdown ved forsendelse
+## Saml "Vælg handling" og "Annuller handling" til én "Handlinger"-kolonne
 
-### Problem
-For Standard-lejere med breve sat til "Forsendelse" mangler valgmuligheden "Ekstra afhentningsdag", og labels/priser matcher ikke specifikationen.
+### Nuværende adfærd
+- Kolonne "Vælg handling": dropdown med ekstra handlinger (kun handlinger udover standard)
+- Kolonne "Annuller handling": Undo-knap der nulstiller til standardhandling
+- To separate kolonner i tabellen
 
-**Nuværende dropdown ved forsendelse:**
-- Scan nu (30 kr.) ✓
-- Standard scanning (0 kr.) ✓
-- Afhentning (30 kr.) ✗ (forkert label og pris)
-- Destruer (0 kr.) ✓
-- *Mangler: Ekstra afhentningsdag*
-
-**Ønsket dropdown:**
-- Standard afhentningsdag (0 kr.)
-- Ekstra afhentningsdag (30 kr.)
-- Standard scanning (0 kr.)
-- Scan nu (30 kr.)
-- Destruktion (0 kr.)
+### Ny adfærd
+- Én kolonne: **"Handlinger"**
+- **Ingen valgt ekstra handling** (`chosen_action === null`): Vis dropdown med ALLE tilgængelige handlinger fra billedets specifikation (inkl. den nuværende standardhandling er allerede aktiv, så den udelades fra listen)
+- **Handling valgt** (`chosen_action !== null`): Dropdown forsvinder, erstattet af en "Annuller handling"-knap
+- **Klik "Annuller handling"**: Nulstiller `chosen_action` til null, status til "ny", dropdown vises igen
 
 ### Ændringer i `src/pages/TenantDashboard.tsx`
 
-**1. Tilføj `anden_afhentningsdag` til Standard brev "send"-case (linje 79)**
-```typescript
-case "send": return addDestruer(["afhentning", "anden_afhentningsdag", "standard_scan", "scan"]);
+**1. Fjern "Annuller handling"-kolonnen (TableHead + TableCell)**
+Slet headeren på linje 851 og den tilhørende TableCell (linje 1013-1035).
+
+**2. Omdøb "Vælg handling" til "Handlinger"**
+Linje 850: `<TableHead>Handlinger</TableHead>`
+
+**3. Omskriv logikken i "Handlinger"-cellen**
+Erstat den nuværende dropdown-logik (linje 929-1012) med:
+
+```
+Hvis sendt/arkiveret/locked → vis "Arkivér"-knap (uændret)
+Hvis chosen_action er sat (og ikke destruer/sendt):
+  → Vis "Annuller handling"-knap (Undo2-ikon + tekst)
+Ellers (ingen valgt handling):
+  → Vis dropdown med alle tilgængelige handlinger for tier+mailtype
+     (filtreret så den aktive standardhandling ikke vises)
 ```
 
-**2. Opdater labels for Standard (linje 103-106)**
-Tilføj Standard-specifikke labels:
-- `afhentning` → "Standard afhentningsdag"
-- `anden_afhentningsdag` → "Ekstra afhentningsdag"
+Dropdown-indholdet bruger de eksisterende `getExtraActions`, `getActionLabel` og `getActionPrice` funktioner — ingen ændring af handlings-logikken.
 
-**3. Ret priser for Standard breve (linje 227-231)**
-Adskil `afhentning` (0 kr.) og `anden_afhentningsdag` (30 kr.) i stedet for at give begge 30 kr.
+### Hvad ændres IKKE
+- Handlings-logikken (getExtraActions, priser, labels) — forbliver uændret
+- Gebyr-kolonnen — viser stadig det korrekte gebyr baseret på aktiv handling
+- Status-kolonnen — uændret
+- Destruer-bekræftelsesdialog, afhentnings-datovælger — uændret
 
