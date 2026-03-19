@@ -270,7 +270,7 @@ const CARD_FILTERS: CardFilter[] = [
     filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
     countFilter: (item) => {
       if (item.chosen_action === "gratis_afhentning") {
-        return isTodayDate(getFirstThursdayOfMonth(new Date()));
+        return isTodayDate(getShippingDate("Lite", "brev"));
       }
       if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
       return isTodayDate(new Date(item.pickup_date));
