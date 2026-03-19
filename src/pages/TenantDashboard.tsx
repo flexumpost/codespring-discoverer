@@ -208,8 +208,7 @@ function getItemFee(
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
   if (chosenAction === "send") {
-    // Standard doesn't have "send hurtigst muligt"
-    if (tenantTypeName === "Standard") return "—";
+    if (tenantTypeName === "Standard") return "0 kr. + porto";
     return extraPrice + " + porto";
   }
   if (chosenAction === "afhentning") {
@@ -250,6 +249,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
     if (action === "standard_scan") return "0 kr.";
+    if (action === "send") return "0 kr. + porto";
     if (action === "afhentning") return "0 kr.";
     if (action === "anden_afhentningsdag") return "30 kr.";
   }
