@@ -380,6 +380,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_type_changes: {
+        Row: {
+          created_at: string
+          created_by: string
+          effective_date: string
+          executed_at: string | null
+          id: string
+          new_tenant_type_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          effective_date: string
+          executed_at?: string | null
+          id?: string
+          new_tenant_type_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          effective_date?: string
+          executed_at?: string | null
+          id?: string
+          new_tenant_type_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_type_changes_new_tenant_type_id_fkey"
+            columns: ["new_tenant_type_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_type_changes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string

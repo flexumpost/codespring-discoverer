@@ -21,3 +21,5 @@ project_id = "hokiuavxyoymcenqlvly"
     verify_jwt = false
   [functions.log-login]
     verify_jwt = false
+  [functions.process-scheduled-type-changes]
+    verify_jwt = false

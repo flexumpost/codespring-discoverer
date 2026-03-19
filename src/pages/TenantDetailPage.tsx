@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save, User, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, Save, User, Trash2, Eye, CalendarIcon, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { da } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   AlertDialog,
@@ -43,6 +48,7 @@ const TenantDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant-detail", id],
@@ -128,19 +134,90 @@ const TenantDetailPage = () => {
     }
   }, [tenant]);
 
+  // Scheduled type changes
+  const [schedDate, setSchedDate] = useState<Date | undefined>(undefined);
+  const [schedTypeId, setSchedTypeId] = useState<string>("");
+
+  const { data: scheduledChanges = [] } = useQuery({
+    queryKey: ["scheduled-type-changes", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scheduled_type_changes")
+        .select("id, new_tenant_type_id, effective_date, executed_at")
+        .eq("tenant_id", id!)
+        .is("executed_at", null)
+        .order("effective_date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const typeMutation = useMutation({
     mutationFn: async () => {
+      // Check if new type is "Retur til afsender"
+      const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
+      const isRetur = selectedType?.name === "Retur til afsender";
+
+      const updatePayload: Record<string, unknown> = {
+        tenant_type_id: selectedTypeId,
+        company_name: companyName,
+      };
+      if (isRetur) {
+        updatePayload.is_active = false;
+      }
+
       const { error } = await supabase
         .from("tenants")
-        .update({ tenant_type_id: selectedTypeId, company_name: companyName })
+        .update(updatePayload)
         .eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Virksomhedsoplysninger opdateret");
+      const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
+      if (selectedType?.name === "Retur til afsender") {
+        toast.success("Lejertype ændret til Retur til afsender — lejeren er nu deaktiveret");
+      } else {
+        toast.success("Virksomhedsoplysninger opdateret");
+      }
     },
     onError: () => toast.error("Kunne ikke gemme lejertype"),
+  });
+
+  const scheduleChangeMutation = useMutation({
+    mutationFn: async () => {
+      if (!schedDate || !schedTypeId || !user?.id) throw new Error("Mangler data");
+      const { error } = await supabase.from("scheduled_type_changes").insert({
+        tenant_id: id!,
+        new_tenant_type_id: schedTypeId,
+        effective_date: format(schedDate, "yyyy-MM-dd"),
+        created_by: user.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
+      setSchedDate(undefined);
+      setSchedTypeId("");
+      toast.success("Planlagt typeskift oprettet");
+    },
+    onError: (err: any) => toast.error(err.message || "Kunne ikke oprette planlagt skift"),
+  });
+
+  const cancelScheduledMutation = useMutation({
+    mutationFn: async (changeId: string) => {
+      const { error } = await supabase
+        .from("scheduled_type_changes")
+        .delete()
+        .eq("id", changeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
+      toast.success("Planlagt typeskift annulleret");
+    },
+    onError: () => toast.error("Kunne ikke annullere"),
   });
 
   const contactMutation = useMutation({
@@ -309,6 +386,80 @@ const TenantDetailPage = () => {
                   <Save className="mr-2 h-4 w-4" />
                   {typeMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
+
+                {/* Scheduled type changes */}
+                <div className="border-t pt-4 mt-4 space-y-3">
+                  <Label className="text-muted-foreground text-xs font-semibold">Planlagt typeskift</Label>
+
+                  {scheduledChanges.length > 0 && (
+                    <div className="space-y-2">
+                      {scheduledChanges.map((sc: any) => {
+                        const typeName2 = tenantTypes.find((t) => t.id === sc.new_tenant_type_id)?.name ?? "Ukendt";
+                        return (
+                          <div key={sc.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                            <div>
+                              <Badge variant="outline" className={TYPE_COLORS[typeName2] ?? ""}>
+                                {typeName2}
+                              </Badge>
+                              <span className="ml-2 text-muted-foreground">
+                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: da })}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => cancelScheduledMutation.mutate(sc.id)}
+                              disabled={cancelScheduledMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <Select value={schedTypeId} onValueChange={setSchedTypeId}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Ny lejertype" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tenantTypes.filter((t) => t.id !== tenant.tenant_type_id).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: da }) : "Vælg dato"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={schedDate}
+                          onSelect={setSchedDate}
+                          disabled={(date) => date <= new Date()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => scheduleChangeMutation.mutate()}
+                      disabled={!schedDate || !schedTypeId || scheduleChangeMutation.isPending}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {scheduleChangeMutation.isPending ? "Opretter..." : "Planlæg skift"}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
