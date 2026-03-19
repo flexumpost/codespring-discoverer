@@ -68,6 +68,12 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       }
       return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
     }
+    if (tenantTypeName === "Standard") {
+      if (currentAction === "standard_afhentning" || currentAction === "standard_forsendelse") {
+        return addDestruer(["afhentning", "send"]);
+      }
+      return addDestruer(["afhentning", "send"].filter(a => a !== currentAction));
+    }
     return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
