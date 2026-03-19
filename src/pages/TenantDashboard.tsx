@@ -374,6 +374,10 @@ function getStatusDisplay(
     const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
     return ["Afhentning bestilt", pickupText ?? undefined];
   }
+  if (item.chosen_action === "gratis_afhentning") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Afhentes", formatDanishDate(nextDate)];
+  }
   if (item.chosen_action === "destruer") {
     return ["Destrueret"];
   }
