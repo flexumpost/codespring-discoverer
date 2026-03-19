@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
 import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
+import { WelcomeShipmentEmail } from "../_shared/email-templates/welcome-shipment.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
@@ -75,7 +76,7 @@ Deno.serve(async (req) => {
     // Get tenant
     const { data: tenant } = await supabaseAdmin
       .from("tenants")
-      .select("id, company_name, contact_first_name, contact_last_name, contact_email")
+      .select("id, company_name, contact_first_name, contact_last_name, contact_email, user_id")
       .eq("id", tenant_id)
       .maybeSingle();
 
@@ -86,8 +87,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine slug: welcome_shipment for new tenants, otherwise provided or default
+    const slug = is_new_tenant ? "welcome_shipment" : (template_slug || "new_shipment");
+
     // Get template
-    const slug = template_slug || "new_shipment";
     const { data: template } = await supabaseAdmin
       .from("email_templates")
       .select("subject, body")
@@ -130,7 +133,28 @@ Deno.serve(async (req) => {
     const loginUrl = "https://codespring-discoverer.lovable.app/login";
 
     let html: string;
-    if (slug === "shipment_dispatched") {
+
+    if (is_new_tenant && tenant.user_id) {
+      // Generate a recovery link so the user can set their password
+      const origin = "https://post.flexum.dk";
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email: tenant.contact_email,
+        options: { redirectTo: `${origin}/set-password` },
+      });
+
+      if (linkError || !linkData?.properties?.action_link) {
+        console.error("Failed to generate recovery link:", linkError);
+        // Fall back to login URL if link generation fails
+        html = await renderAsync(
+          WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: loginUrl })
+        );
+      } else {
+        html = await renderAsync(
+          WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: linkData.properties.action_link })
+        );
+      }
+    } else if (slug === "shipment_dispatched") {
       html = await renderAsync(
         ShipmentDispatchedEmail({
           name,
@@ -141,6 +165,11 @@ Deno.serve(async (req) => {
           stampNumber: stampLabel || undefined,
           mailTypeLabel,
         })
+      );
+    } else if (is_new_tenant) {
+      // New tenant but no user_id yet — fallback to welcome with login URL
+      html = await renderAsync(
+        WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: loginUrl })
       );
     } else {
       html = await renderAsync(
@@ -176,7 +205,7 @@ Deno.serve(async (req) => {
       template_name: slug,
       recipient_email: tenant.contact_email,
       status: "sent",
-      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend" },
+      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: !!is_new_tenant },
     });
 
     return new Response(JSON.stringify({ ok: true, sent: true }), {

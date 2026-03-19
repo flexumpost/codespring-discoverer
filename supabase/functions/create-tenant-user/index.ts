@@ -58,9 +58,9 @@ Deno.serve(async (req) => {
     }
 
     // In non-invite mode, password is required
-    if (mode !== "invite" && !password) {
+    if (mode !== "invite" && mode !== "invite_silent" && !password) {
       return new Response(
-        JSON.stringify({ error: "password required (or use mode: 'invite')" }),
+        JSON.stringify({ error: "password required (or use mode: 'invite' / 'invite_silent')" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -122,6 +122,24 @@ Deno.serve(async (req) => {
         });
       }
       newUserId = inviteData.user.id;
+    } else if (mode === "invite_silent") {
+      // Create user silently — no email sent. Caller will send combined email.
+      const randomPassword = crypto.randomUUID() + crypto.randomUUID();
+      const { data: newUser, error: createError } =
+        await adminClient.auth.admin.createUser({
+          email,
+          password: randomPassword,
+          email_confirm: true,
+          user_metadata: { first_name: first_name || "", last_name: last_name || "" },
+        });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      newUserId = newUser.user.id;
     } else {
       const { data: newUser, error: createError } =
         await adminClient.auth.admin.createUser({
@@ -174,7 +192,7 @@ Deno.serve(async (req) => {
     // Also mark welcome_email_sent_at when invitation was sent (mode=invite, new user)
     for (const tid of tenantIds) {
       const updateFields: Record<string, unknown> = { user_id: newUserId };
-      if (mode === "invite" && !existingUser) {
+      if ((mode === "invite" || mode === "invite_silent") && !existingUser) {
         updateFields.welcome_email_sent_at = new Date().toISOString();
       }
       await adminClient

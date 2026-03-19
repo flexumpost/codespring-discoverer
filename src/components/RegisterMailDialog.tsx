@@ -65,6 +65,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [newTenantEmail, setNewTenantEmail] = useState("");
   const [newTenantTypeId, setNewTenantTypeId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
+  // Track tenant created in this session for combined email flow
+  const [pendingNewTenant, setPendingNewTenant] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   // Crop mode state
@@ -144,27 +146,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       }).select("id, company_name").single();
       if (error) throw error;
 
-      // Auto-invite if email is provided
       const email = newTenantEmail.trim();
       if (email && data?.id) {
-        try {
-          const { error: inviteError } = await supabase.functions.invoke(
-            "create-tenant-user",
-            {
-              body: {
-                email,
-                first_name: newTenantContactFirstName.trim() || newTenantName.trim(),
-                last_name: newTenantContactLastName.trim() || "",
-                tenant_ids: [data.id],
-                mode: "invite",
-              },
-            }
-          );
-          if (inviteError) throw inviteError;
-          toast.success("Invitation sendt til " + email);
-        } catch (err: any) {
-          toast.error("Kunne ikke sende invitation: " + (err?.message || err));
-        }
+        // Defer invitation — will be sent as combined email when mail is registered
+        setPendingNewTenant({
+          id: data.id,
+          email,
+          firstName: newTenantContactFirstName.trim() || newTenantName.trim(),
+          lastName: newTenantContactLastName.trim() || "",
+        });
       }
 
       setSelectedTenantId(data.id);
@@ -442,6 +432,19 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   useEffect(() => {
     if (!open) {
       stopCamera();
+      // If dialog closed without submitting and there's a pending new tenant, send standard invite
+      if (pendingNewTenant) {
+        supabase.functions.invoke("create-tenant-user", {
+          body: {
+            email: pendingNewTenant.email,
+            first_name: pendingNewTenant.firstName,
+            last_name: pendingNewTenant.lastName,
+            tenant_ids: [pendingNewTenant.id],
+            mode: "invite",
+          },
+        }).catch((err) => console.error("Fallback invite failed:", err));
+        setPendingNewTenant(null);
+      }
     }
   }, [open, stopCamera]);
 
@@ -461,6 +464,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setCropLoading(false);
     setOcrRecipient(null);
     setNoAutoMatch(false);
+    setPendingNewTenant(null);
     stopCamera();
   };
 
@@ -491,6 +495,29 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         photoUrl = path;
       }
 
+      // If this is a newly created tenant with email, create user silently first
+      const isNewTenantFlow = pendingNewTenant && selectedTenantId === pendingNewTenant.id;
+      if (isNewTenantFlow) {
+        try {
+          const { error: inviteError } = await supabase.functions.invoke(
+            "create-tenant-user",
+            {
+              body: {
+                email: pendingNewTenant.email,
+                first_name: pendingNewTenant.firstName,
+                last_name: pendingNewTenant.lastName,
+                tenant_ids: [pendingNewTenant.id],
+                mode: "invite_silent",
+              },
+            }
+          );
+          if (inviteError) throw inviteError;
+        } catch (err: any) {
+          console.error("Silent invite failed:", err);
+          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+        }
+      }
+
       const { error } = await supabase.from("mail_items").insert({
         operator_id: user.id,
         mail_type: mailType,
@@ -510,9 +537,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             tenant_id: selectedTenantId,
             mail_type: mailType,
             stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
+            is_new_tenant: !!isNewTenantFlow,
           },
         }).catch((err) => console.error("send-new-mail-email failed:", err));
       }
+
+      // Clear pending new tenant after successful submit
+      setPendingNewTenant(null);
 
       toast.success("Post registreret");
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
