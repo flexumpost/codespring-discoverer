@@ -68,6 +68,12 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       }
       return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
     }
+    if (tenantTypeName === "Standard") {
+      if (currentAction === "standard_afhentning" || currentAction === "standard_forsendelse") {
+        return addDestruer(["afhentning", "send"]);
+      }
+      return addDestruer(["afhentning", "send"].filter(a => a !== currentAction));
+    }
     return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
@@ -687,10 +693,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
       // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
       if (action === "afhentning" && tenantTypeName === "Standard") {
-        const nextThurs = getNextThursday();
-        nextThurs.setHours(0, 0, 0, 0);
-        choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
-        return;
+        const mailItem = mailItems?.find(i => i.id === id);
+        if (mailItem?.mail_type !== "pakke") {
+          const nextThurs = getNextThursday();
+          nextThurs.setHours(0, 0, 0, 0);
+          choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
+          return;
+        }
       }
       setPickupDialogItem(id);
     } else if (action === "destruer") {
@@ -1029,9 +1038,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       if (!item.chosen_action && tenantTypeName === "Lite" && item.mail_type === "pakke" && effectiveAction === "afhentning") {
                         actionForExtras = "standard_afhentning";
                       }
+                      if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type === "pakke") {
+                        if (effectiveAction === "afhentning") actionForExtras = "standard_afhentning";
+                        else if (effectiveAction === "send") actionForExtras = "standard_forsendelse";
+                      }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       const availableExtras = extraActions.filter(
-                        (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
+                        (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan")) || (a === "standard_afhentning" && allowedActions.includes("afhentning"))
                       );
 
                       if (availableExtras.length === 0) {
