@@ -314,6 +314,9 @@ function formatPickupDisplay(pickupDateStr: string | null, notes: string | null)
   const d = date.getDate();
   const month = DANISH_MONTHS[date.getMonth()];
   const hour = date.getHours();
+  if (hour === 0) {
+    return `${dayName} den ${d}. ${month}`;
+  }
   return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
 }
 
@@ -685,7 +688,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
       if (action === "afhentning" && tenantTypeName === "Standard") {
         const nextThurs = getNextThursday();
-        nextThurs.setHours(9, 0, 0, 0);
+        nextThurs.setHours(0, 0, 0, 0);
         choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
         return;
       }
