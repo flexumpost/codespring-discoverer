@@ -58,9 +58,9 @@ Deno.serve(async (req) => {
     }
 
     // In non-invite mode, password is required
-    if (mode !== "invite" && !password) {
+    if (mode !== "invite" && mode !== "invite_silent" && !password) {
       return new Response(
-        JSON.stringify({ error: "password required (or use mode: 'invite')" }),
+        JSON.stringify({ error: "password required (or use mode: 'invite' / 'invite_silent')" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
