@@ -314,6 +314,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     return "0 kr. + porto";
   }
   if (item.chosen_action === "standard_scan") return "0 kr.";
+  if (item.chosen_action === "gratis_afhentning") return "0 kr.";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";
 
@@ -351,7 +352,11 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
         }
       }
     }
-    if (item.chosen_action === "send" || item.chosen_action === "forsendelse") return "0 kr. + porto";
+    if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
+      if (tier === "Lite") return "50 kr. + porto";
+      if (tier === "Standard") return "30 kr. + porto";
+      return "0 kr. + porto";
+    }
     return "0 kr.";
   }
 
@@ -369,6 +374,13 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
         : pd.getDay() === 4;
       if (isFreeDay) return "0 kr.";
     }
+  }
+
+  // send/forsendelse for non-default brev actions
+  if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
+    if (tier === "Lite") return "50 kr. + porto";
+    if (tier === "Standard") return "30 kr. + porto";
+    return "0 kr. + porto";
   }
 
   const feeKey = ACTION_TO_FEE_KEY[item.chosen_action];
