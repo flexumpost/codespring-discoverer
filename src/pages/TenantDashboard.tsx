@@ -1047,6 +1047,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                         if (effectiveAction === "afhentning") actionForExtras = "standard_afhentning";
                         else if (effectiveAction === "send") actionForExtras = "standard_forsendelse";
                       }
+                      if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type !== "pakke" && effectiveAction === "scan") {
+                        actionForExtras = "standard_scan";
+                      }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan")) || (a === "standard_afhentning" && allowedActions.includes("afhentning"))
