@@ -1,24 +1,35 @@
 
 
-## Fix: "Ekstra forsendelse" viser 0 kr. i stedet for 50 kr. for Lite breve
+## Fix: "Gratis afhentning" vises ikke korrekt på operatør-dashboardet
 
-### Årsag
+### Problem
 
-I `getItemFee` (linje 171-172) tjekker koden om `chosenAction === defaultAction`. Når lejerens standardhandling er `"send"` og brugeren vælger "Ekstra forsendelse" (også `"send"`), behandles det som "ingen ændring" → gebyret bliver "0 kr. + porto" i stedet for "50 kr. + porto".
+Operatør-dashboardet kender ikke til handlingen `gratis_afhentning`. Når en lejer vælger "Gratis afhentning", falder operatør-siden igennem alle action-checks i `getOperatorStatusDisplay` og ender på fallback `STATUS_LABELS[item.status]` → "Afventer handling".
 
-### Løsning
+### Ændringer i `src/pages/OperatorDashboard.tsx`
 
-Tilføj en ekstra undtagelse i betingelsen på linje 171-172, så Lite-lejere med `chosenAction === "send"` og `defaultAction === "send"` **ikke** falder ind i gratis-grenen:
-
-**`src/pages/TenantDashboard.tsx` linje 171-172:**
+**1. ACTION_LABELS (linje 26-34)** — tilføj `gratis_afhentning`:
 ```typescript
-if (!chosenAction || (chosenAction === defaultAction &&
-    !(chosenAction === "scan" && defaultAction === "scan" && tenantTypeName === "Lite") &&
-    !(chosenAction === "send" && defaultAction === "send" && tenantTypeName === "Lite"))) {
+gratis_afhentning: "Gratis afhentning",
 ```
 
-Dette sikrer at koden når ned til linje 197-200, som korrekt returnerer "50 kr. + porto" for Lite.
+**2. getOperatorStatusDisplay (efter linje 150)** — tilføj case for `gratis_afhentning`:
+```typescript
+if (action === "gratis_afhentning") {
+  const nextDate = getFirstThursdayOfMonth();
+  return `Gratis afhentning ${formatDanishDate(nextDate)}`;
+}
+```
 
-### Ingen andre ændringer
-Labels, rækkefølge og øvrig gebyr-logik er uændret.
+**3. "Afhentes"-kort filter (linje 265)** — inkludér `gratis_afhentning`:
+```typescript
+filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
+```
+
+**4. Row color (mailRowColor.ts)** — tilføj `gratis_afhentning` til afhentnings-farven (lilla), linje 56:
+```typescript
+["afhentning", "anden_afhentningsdag", "gratis_afhentning"].includes(item.chosen_action)
+```
+
+Ingen database- eller gebyr-ændringer nødvendige — gebyret for `gratis_afhentning` håndteres allerede korrekt (linje 317: "0 kr.").
 
