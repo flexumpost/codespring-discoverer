@@ -235,7 +235,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     return p.feePorto;
   }
   if (tenantTypeName === "Plus") {
-    if (action === "send") return "0 kr. + porto";
+    if (action === "send") return "0 kr.";
     return "0 kr.";
   }
   if (tenantTypeName === "Lite") {
