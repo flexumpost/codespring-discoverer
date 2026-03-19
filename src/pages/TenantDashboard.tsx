@@ -76,7 +76,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       case "afhentning": return addDestruer(["scan", "standard_scan", "send", "anden_afhentningsdag"]);
       case "scan":       return addDestruer(["standard_scan", "send", "afhentning"]);
       case "standard_scan": return addDestruer(["scan", "send", "afhentning"]);
-      case "send":       return addDestruer(["scan", "standard_scan", "afhentning"]);
+      case "send":       return addDestruer(["afhentning", "anden_afhentningsdag", "standard_scan", "scan"]);
       default:           return addDestruer(["scan", "standard_scan", "afhentning", "send"]);
     }
   }
