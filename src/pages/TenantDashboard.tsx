@@ -187,6 +187,8 @@ function getItemFee(
   if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
   // Standard scanning for Lite is free
   if (chosenAction === "standard_scan") return "0 kr.";
+  // Gratis afhentning for Lite is always free
+  if (chosenAction === "gratis_afhentning") return "0 kr.";
   // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
