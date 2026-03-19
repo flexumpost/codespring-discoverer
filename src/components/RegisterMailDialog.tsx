@@ -432,6 +432,19 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   useEffect(() => {
     if (!open) {
       stopCamera();
+      // If dialog closed without submitting and there's a pending new tenant, send standard invite
+      if (pendingNewTenant) {
+        supabase.functions.invoke("create-tenant-user", {
+          body: {
+            email: pendingNewTenant.email,
+            first_name: pendingNewTenant.firstName,
+            last_name: pendingNewTenant.lastName,
+            tenant_ids: [pendingNewTenant.id],
+            mode: "invite",
+          },
+        }).catch((err) => console.error("Fallback invite failed:", err));
+        setPendingNewTenant(null);
+      }
     }
   }, [open, stopCamera]);
 
