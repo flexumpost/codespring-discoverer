@@ -150,7 +150,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
   if (action === "gratis_afhentning") {
-    const nextDate = getFirstThursdayOfMonth(new Date());
+    const nextDate = getShippingDate("Lite", "brev");
     return `Gratis afhentning ${formatDanishDate(nextDate)}`;
   }
   if (action === "scan") {
@@ -270,7 +270,7 @@ const CARD_FILTERS: CardFilter[] = [
     filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
     countFilter: (item) => {
       if (item.chosen_action === "gratis_afhentning") {
-        return isTodayDate(getFirstThursdayOfMonth(new Date()));
+        return isTodayDate(getShippingDate("Lite", "brev"));
       }
       if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
       return isTodayDate(new Date(item.pickup_date));
