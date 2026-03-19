@@ -57,8 +57,7 @@ function formatDanishDateTime(date: Date): string {
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  if (dayOfWeek === 4) return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const daysUntil = (4 - dayOfWeek + 7) % 7;
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil);
 }
 
