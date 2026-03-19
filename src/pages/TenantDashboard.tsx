@@ -55,7 +55,9 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
     return [...actions, "destruer"];
   };
   if (mailType === "pakke") {
-    return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+    const actions = ["afhentning", "standard_forsendelse"];
+    if (tenantTypeName === "Plus") actions.push("anden_afhentningsdag");
+    return addDestruer(actions.filter(a => a !== currentAction));
   }
   if (tenantTypeName === "Plus") {
     switch (currentAction) {
@@ -145,13 +147,13 @@ function getItemFee(
     const prices: Record<string, { fee: string; feePorto: string }> = {
       Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
       Standard: { fee: "30 kr.", feePorto: "30 kr. + porto" },
-      Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+      Plus: { fee: "10 kr.", feePorto: "10 kr. - Gratis porto" },
     };
     const p = prices[tenantTypeName!];
     const effective = chosenAction || defaultAction;
     if (effective === "destruer") return "0 kr.";
     if (effective === "send" || effective === "standard_forsendelse") return p.feePorto;
-    if (effective === "afhentning") return p.fee;
+    if (effective === "afhentning" || effective === "anden_afhentningsdag") return p.fee;
     return p.feePorto;
   }
 
@@ -200,11 +202,11 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     const prices: Record<string, { fee: string; feePorto: string }> = {
       Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
       Standard: { fee: "30 kr.", feePorto: "30 kr. + porto" },
-      Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+      Plus: { fee: "10 kr.", feePorto: "10 kr. - Gratis porto" },
     };
     const p = prices[tenantTypeName!];
     if (action === "send" || action === "standard_forsendelse") return p.feePorto;
-    if (action === "afhentning") return p.fee;
+    if (action === "afhentning" || action === "anden_afhentningsdag") return p.fee;
     return p.feePorto;
   }
   if (tenantTypeName === "Plus") {
