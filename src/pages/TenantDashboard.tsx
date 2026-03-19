@@ -153,7 +153,7 @@ function getItemFee(
     const effective = chosenAction || defaultAction;
     if (effective === "destruer") return "0 kr.";
     if (effective === "send" || effective === "standard_forsendelse") return p.feePorto;
-    if (effective === "afhentning") return p.fee;
+    if (effective === "afhentning" || effective === "anden_afhentningsdag") return p.fee;
     return p.feePorto;
   }
 
