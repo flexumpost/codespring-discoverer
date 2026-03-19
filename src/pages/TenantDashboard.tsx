@@ -930,8 +930,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
                     const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
 
-                    // Check if actions should be locked (packing day = shipping day - 1)
-                    // Only lock when the effective action is "send" (shipping flow)
                     const defaultAction = item.mail_type === "pakke"
                       ? (selectedTenant as any)?.default_package_action
                       : (selectedTenant as any)?.default_mail_action;
@@ -944,6 +942,22 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     packingDay.setDate(packingDay.getDate() - 1);
                     const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
 
+                    // Archived: show reactivate button
+                    if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => reactivateMutation.mutate(item.id)}
+                          title="Genaktivér forsendelse"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-800"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      );
+                    }
+
+                    // Locked/sent/expired: show archive button
                     if (scanExpired || isSentWithDao || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
                         <Button
@@ -957,21 +971,35 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                         </Button>
                       );
                     }
-                    if (item.status !== "arkiveret" && allowedActions.length > 0) {
-                      // Lite default "scan" = monthly/free; treat as "standard_scan" so immediate "Scan nu" stays available
+
+                    // Action chosen (not destruer): show cancel button
+                    if (item.chosen_action && item.chosen_action !== "destruer") {
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => cancelAction.mutate(item.id)}
+                          title="Annuller handling"
+                          className="text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          <Undo2 className="h-4 w-4 mr-1" />
+                          Annuller handling
+                        </Button>
+                      );
+                    }
+
+                    // No action chosen: show dropdown
+                    if (allowedActions.length > 0) {
                       let actionForExtras = effectiveAction;
                       if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
                         actionForExtras = "standard_scan";
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
-                      // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
                       );
-                      // price per action is now computed individually
 
                       if (availableExtras.length === 0) {
-                        // No extra actions (e.g. Plus breve) — show default action badge
                         return defaultAction ? (
                           <Badge className="bg-primary/10 text-primary border-primary/20">
                             {ACTION_LABELS[defaultAction] ?? defaultAction}
@@ -986,7 +1014,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                           disabled={chooseAction.isPending}
                         >
                           <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
-                            <SelectValue placeholder="Ekstra handling" />
+                            <SelectValue placeholder="Vælg handling" />
                           </SelectTrigger>
                           <SelectContent className="z-50 bg-popover">
                             {availableExtras.map((action) => (
@@ -999,6 +1027,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                         </Select>
                       );
                     }
+
                     if (item.chosen_action) {
                       return (
                         <Badge className="bg-primary/10 text-primary border-primary/20">
@@ -1008,29 +1037,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     }
                     return <span className="text-muted-foreground">—</span>;
                   })()}
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  {item.status === "arkiveret" && item.chosen_action !== "destruer" ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => reactivateMutation.mutate(item.id)}
-                      title="Genaktivér forsendelse"
-                      className="h-8 w-8 text-blue-600 hover:text-blue-800"
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </Button>
-                  ) : item.chosen_action && item.chosen_action !== "destruer" && item.status !== "arkiveret" && item.status !== "sendt_med_dao" && item.status !== "sendt_med_postnord" ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => cancelAction.mutate(item.id)}
-                      title="Annuller handling"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
                 </TableCell>
                 <TableCell>
                   {(() => {
