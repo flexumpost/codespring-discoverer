@@ -314,6 +314,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     return "0 kr. + porto";
   }
   if (item.chosen_action === "standard_scan") return "0 kr.";
+  if (item.chosen_action === "gratis_afhentning") return "0 kr.";
   const tier = item.tenants?.tenant_types?.name;
   if (!tier) return "—";
 
