@@ -97,6 +97,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 /** Returns a tenant-type-specific label for an action */
 function getActionLabel(action: string, tenantTypeName: string | undefined): string {
   if (tenantTypeName === "Lite") {
+    if (action === "gratis_afhentning") return "Gratis afhentning";
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
     if (action === "send") return "Send hurtigst muligt";
