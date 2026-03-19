@@ -110,6 +110,16 @@ export function ShippingAddressGuard({ children }: Props) {
         } as any)
         .eq("id", tenant.id);
       if (error) throw error;
+
+      // Verify the update actually persisted (RLS may silently reject)
+      const { data: verify } = await supabase
+        .from("tenants")
+        .select("shipping_confirmed")
+        .eq("id", tenant.id)
+        .single();
+      if (!verify?.shipping_confirmed) {
+        throw new Error("Opdateringen blev ikke gemt. Kontakt venligst support.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
