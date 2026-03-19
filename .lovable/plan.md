@@ -1,43 +1,31 @@
 
 
-## Saml "Vælg handling" og "Annuller handling" til én "Handlinger"-kolonne
+## Tilføj "Gratis afhentning" for Lite breve
 
-### Nuværende adfærd
-- Kolonne "Vælg handling": dropdown med ekstra handlinger (kun handlinger udover standard)
-- Kolonne "Annuller handling": Undo-knap der nulstiller til standardhandling
-- To separate kolonner i tabellen
-
-### Ny adfærd
-- Én kolonne: **"Handlinger"**
-- **Ingen valgt ekstra handling** (`chosen_action === null`): Vis dropdown med ALLE tilgængelige handlinger fra billedets specifikation (inkl. den nuværende standardhandling er allerede aktiv, så den udelades fra listen)
-- **Handling valgt** (`chosen_action !== null`): Dropdown forsvinder, erstattet af en "Annuller handling"-knap
-- **Klik "Annuller handling"**: Nulstiller `chosen_action` til null, status til "ny", dropdown vises igen
+### Problem
+Lite-lejere mangler muligheden "Gratis afhentning" (0 kr.) for breve. Denne handling svarer til afhentning på første torsdag i måneden — gratis.
 
 ### Ændringer i `src/pages/TenantDashboard.tsx`
 
-**1. Fjern "Annuller handling"-kolonnen (TableHead + TableCell)**
-Slet headeren på linje 851 og den tilhørende TableCell (linje 1013-1035).
+**1. Ny action-nøgle: `gratis_afhentning`**
+Tilføj til `ACTION_LABELS`: `gratis_afhentning: "Gratis afhentning"`
 
-**2. Omdøb "Vælg handling" til "Handlinger"**
-Linje 850: `<TableHead>Handlinger</TableHead>`
+**2. Tilføj til Lite brev-handlinger (linje 83-90)**
+Tilføj `gratis_afhentning` til alle Lite breve switch-cases, så den altid er tilgængelig.
 
-**3. Omskriv logikken i "Handlinger"-cellen**
-Erstat den nuværende dropdown-logik (linje 929-1012) med:
+**3. Label (linje 97-102)**
+Lite-specifikt label: `gratis_afhentning` → "Gratis afhentning"
 
-```
-Hvis sendt/arkiveret/locked → vis "Arkivér"-knap (uændret)
-Hvis chosen_action er sat (og ikke destruer/sendt):
-  → Vis "Annuller handling"-knap (Undo2-ikon + tekst)
-Ellers (ingen valgt handling):
-  → Vis dropdown med alle tilgængelige handlinger for tier+mailtype
-     (filtreret så den aktive standardhandling ikke vises)
-```
+**4. Pris (linje 222-228)**
+Tilføj: `if (action === "gratis_afhentning") return "0 kr.";` i Lite-blokken.
 
-Dropdown-indholdet bruger de eksisterende `getExtraActions`, `getActionLabel` og `getActionPrice` funktioner — ingen ændring af handlings-logikken.
+**5. Status-tekst**
+Når `gratis_afhentning` er valgt, vis "Afhentes [første torsdag i måneden]" i status-kolonnen — brug den eksisterende `getFirstThursdayOfMonth()` + `formatDanishDate()`.
+
+**6. Gebyr-kolonnen**
+Sørg for at gebyr viser "0 kr." når `gratis_afhentning` er den aktive handling.
 
 ### Hvad ændres IKKE
-- Handlings-logikken (getExtraActions, priser, labels) — forbliver uændret
-- Gebyr-kolonnen — viser stadig det korrekte gebyr baseret på aktiv handling
-- Status-kolonnen — uændret
-- Destruer-bekræftelsesdialog, afhentnings-datovælger — uændret
+- Øvrige handlinger og priser forbliver uændret
+- Operatør-dashboard og forsendelseslogik uændret
 
