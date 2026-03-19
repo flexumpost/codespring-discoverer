@@ -48,6 +48,7 @@ const TenantDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: tenant, isLoading } = useQuery({
     queryKey: ["tenant-detail", id],
