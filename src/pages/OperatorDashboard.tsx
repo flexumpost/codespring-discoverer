@@ -196,7 +196,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
       const received = new Date(item.received_at);
       return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
     }
-    if (defaultAction === "afhentning") return "Afhentning (standard)";
+    if (defaultAction === "afhentning") {
+      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return `Afhentning (standard) ${formatDanishDate(shipDate)}`;
+    }
     if (defaultAction === "destruer") return "Destrueres (standard)";
     if (defaultAction === "daglig") return "Læg på kontoret (standard)";
     if (defaultAction && ACTION_LABELS[defaultAction]) {
@@ -319,7 +322,31 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 };
 
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
-  if (!item.chosen_action || !item.tenant_id) return "—";
+  if (!item.chosen_action) {
+    if (!item.tenant_id) return "—";
+    const tier = item.tenants?.tenant_types?.name;
+    const defAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (!defAction) return "—";
+
+    if (item.mail_type === "pakke") {
+      if (defAction === "afhentning") {
+        if (tier === "Plus") return "10 kr.";
+        if (tier === "Standard") return "30 kr.";
+        return "50 kr.";
+      }
+      if (defAction === "send") {
+        if (tier === "Plus") return "10 kr. + porto";
+        if (tier === "Standard") return "30 kr. + porto";
+        return "50 kr. + porto";
+      }
+      if (defAction === "destruer") return "0 kr.";
+      return "—";
+    }
+    // Brev default — always included in subscription
+    return "0 kr.";
+  }
   if (item.chosen_action === "standard_forsendelse") {
     if (item.mail_type === "pakke") {
       const tier = item.tenants?.tenant_types?.name;
