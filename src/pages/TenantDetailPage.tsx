@@ -134,19 +134,90 @@ const TenantDetailPage = () => {
     }
   }, [tenant]);
 
+  // Scheduled type changes
+  const [schedDate, setSchedDate] = useState<Date | undefined>(undefined);
+  const [schedTypeId, setSchedTypeId] = useState<string>("");
+
+  const { data: scheduledChanges = [] } = useQuery({
+    queryKey: ["scheduled-type-changes", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("scheduled_type_changes")
+        .select("id, new_tenant_type_id, effective_date, executed_at")
+        .eq("tenant_id", id!)
+        .is("executed_at", null)
+        .order("effective_date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const typeMutation = useMutation({
     mutationFn: async () => {
+      // Check if new type is "Retur til afsender"
+      const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
+      const isRetur = selectedType?.name === "Retur til afsender";
+
+      const updatePayload: Record<string, unknown> = {
+        tenant_type_id: selectedTypeId,
+        company_name: companyName,
+      };
+      if (isRetur) {
+        updatePayload.is_active = false;
+      }
+
       const { error } = await supabase
         .from("tenants")
-        .update({ tenant_type_id: selectedTypeId, company_name: companyName })
+        .update(updatePayload)
         .eq("id", id!);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Virksomhedsoplysninger opdateret");
+      const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
+      if (selectedType?.name === "Retur til afsender") {
+        toast.success("Lejertype ændret til Retur til afsender — lejeren er nu deaktiveret");
+      } else {
+        toast.success("Virksomhedsoplysninger opdateret");
+      }
     },
     onError: () => toast.error("Kunne ikke gemme lejertype"),
+  });
+
+  const scheduleChangeMutation = useMutation({
+    mutationFn: async () => {
+      if (!schedDate || !schedTypeId || !user?.id) throw new Error("Mangler data");
+      const { error } = await supabase.from("scheduled_type_changes").insert({
+        tenant_id: id!,
+        new_tenant_type_id: schedTypeId,
+        effective_date: format(schedDate, "yyyy-MM-dd"),
+        created_by: user.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
+      setSchedDate(undefined);
+      setSchedTypeId("");
+      toast.success("Planlagt typeskift oprettet");
+    },
+    onError: (err: any) => toast.error(err.message || "Kunne ikke oprette planlagt skift"),
+  });
+
+  const cancelScheduledMutation = useMutation({
+    mutationFn: async (changeId: string) => {
+      const { error } = await supabase
+        .from("scheduled_type_changes")
+        .delete()
+        .eq("id", changeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
+      toast.success("Planlagt typeskift annulleret");
+    },
+    onError: () => toast.error("Kunne ikke annullere"),
   });
 
   const contactMutation = useMutation({
