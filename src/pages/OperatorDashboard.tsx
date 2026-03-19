@@ -150,7 +150,7 @@ function getOperatorStatusDisplay(item: MailItem): string {
     return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
   }
   if (action === "gratis_afhentning") {
-    const nextDate = getFirstThursdayOfMonth();
+    const nextDate = getFirstThursdayOfMonth(new Date());
     return `Gratis afhentning ${formatDanishDate(nextDate)}`;
   }
   if (action === "scan") {
