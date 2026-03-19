@@ -98,6 +98,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 function getActionLabel(action: string, tenantTypeName: string | undefined): string {
   if (tenantTypeName === "Lite") {
     if (action === "gratis_afhentning") return "Gratis afhentning";
+    if (action === "afhentning") return "Hurtig afhentning";
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
     if (action === "send") return "Send hurtigst muligt";
