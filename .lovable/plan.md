@@ -1,39 +1,31 @@
 
 
-## Fix: Standard brev — standard scanning skal vise næste torsdag, ikke "inden for 24 timer"
+## Fix: Operatør-dashboard — Standard scanning for breve uden chosen_action
 
 ### Problem
-Når Standard-lejers standardhandling for breve er "Scanning", vises status som "Scannes inden for 24 timer". Det er forkert — standard scanning for Standard-lejere skal scannes den efterfølgende torsdag. "Scan nu" (30 kr.) er den handling, der scanner inden for 24 timer.
+På operatør-dashboardet vises Standard-lejeres breve med default scanning som "Scanning bestilt - modtaget 19. marts kl. 12:23". Det er forkert — det skal vise "Standard scanning [næste torsdag]", ligesom på lejer-dashboardet. Den nuværende tekst antyder 24-timers scanning, men Standard scanning skal ske den efterfølgende torsdag.
 
-### Ændringer
+### Ændring
 
-**1. `src/pages/TenantDashboard.tsx` — `getStatusDisplay` (linje 424-430)**
+**`src/pages/OperatorDashboard.tsx` — `getOperatorStatusDisplay` (linje 186-192)**
 
-Tilføj Standard-lejer til den eksisterende Lite-check, så default `scan` for Standard viser næste torsdag:
+I det eksisterende `if (defaultAction === "scan")` block, tilføj en check for Standard-lejere:
 
 ```typescript
-if (effectiveAction === "scan") {
-  if (tenantTypeName === "Lite" && !item.chosen_action) {
-    const nextDate = getFirstThursdayOfMonth();
-    return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
+if (defaultAction === "scan") {
+  if (item.scan_url) {
+    const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
+    return `Scannet — ${readLabel}`;
   }
-  if (tenantTypeName === "Standard" && !item.chosen_action) {
-    const nextDate = getNextThursday();
-    return ["Standard scanning", formatDanishDate(nextDate)];
+  const tenantType = item.tenants?.tenant_types?.name;
+  if (tenantType === "Standard") {
+    const scanDate = getShippingDate("Standard", "brev");
+    return `Standard scanning ${formatDanishDate(scanDate)}`;
   }
-  return ["Afventer scanning", "Scannes inden for 24 timer"];
+  const received = new Date(item.received_at);
+  return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
 }
 ```
 
-**2. Remap-logik (linje ~1031-1044)** — tilføj remap for Standard brev med default `scan`:
-
-```typescript
-if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type !== "pakke" && effectiveAction === "scan") {
-  actionForExtras = "standard_scan";
-}
-```
-
-Dette sikrer at dropdown'en viser "Scan nu (30 kr.)" som ekstra mulighed, i stedet for at `scan` filtreres ud som den aktuelle handling.
-
-Ingen ændringer til OperatorDashboard nødvendige — operatøren ser kun `standard_scan` eller `scan` som `chosen_action`, og begge cases håndteres allerede korrekt.
+Én ændring, ingen andre filer berørt.
 
