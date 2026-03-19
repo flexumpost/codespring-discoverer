@@ -101,7 +101,7 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
     if (action === "afhentning") return "Hurtig afhentning";
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
-    if (action === "send") return "Send hurtigst muligt";
+    if (action === "send") return "Ekstra forsendelse";
     if (action === "standard_forsendelse") return "Standard forsendelse";
   }
   if (tenantTypeName === "Standard") {
