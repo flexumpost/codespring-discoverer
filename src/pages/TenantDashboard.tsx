@@ -41,6 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
   scan: "Scan nu",
   send: "Forsendelse",
   afhentning: "Afhentning",
+  gratis_afhentning: "Gratis afhentning",
   destruer: "Destruer",
   daglig: "Læg på kontoret",
   anden_afhentningsdag: "Anden afhentningsdag",
@@ -82,11 +83,12 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
-      case "scan":       return addDestruer(["standard_scan", "send", "standard_forsendelse", "afhentning"]);
-      case "standard_scan": return addDestruer(["scan", "send", "standard_forsendelse", "afhentning"]);
-      case "send":       return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
-      default:           return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "afhentning": return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
+      case "gratis_afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "scan":       return addDestruer(["gratis_afhentning", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "standard_scan": return addDestruer(["gratis_afhentning", "scan", "send", "standard_forsendelse", "afhentning"]);
+      case "send":       return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      default:           return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
     }
   }
   return [];
@@ -95,6 +97,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 /** Returns a tenant-type-specific label for an action */
 function getActionLabel(action: string, tenantTypeName: string | undefined): string {
   if (tenantTypeName === "Lite") {
+    if (action === "gratis_afhentning") return "Gratis afhentning";
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
     if (action === "send") return "Send hurtigst muligt";
@@ -184,6 +187,8 @@ function getItemFee(
   if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
   // Standard scanning for Lite is free
   if (chosenAction === "standard_scan") return "0 kr.";
+  // Gratis afhentning for Lite is always free
+  if (chosenAction === "gratis_afhentning") return "0 kr.";
   // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
@@ -220,6 +225,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     return "0 kr.";
   }
   if (tenantTypeName === "Lite") {
+    if (action === "gratis_afhentning") return "0 kr.";
     if (action === "scan") return "50 kr.";
     if (action === "standard_scan") return "0 kr.";
     if (action === "send") return "50 kr. + porto";
@@ -367,6 +373,10 @@ function getStatusDisplay(
   if (item.chosen_action === "afhentning") {
     const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
     return ["Afhentning bestilt", pickupText ?? undefined];
+  }
+  if (item.chosen_action === "gratis_afhentning") {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Afhentes", formatDanishDate(nextDate)];
   }
   if (item.chosen_action === "destruer") {
     return ["Destrueret"];
@@ -996,7 +1006,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       const availableExtras = extraActions.filter(
-                        (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
+                        (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
                       );
 
                       if (availableExtras.length === 0) {
