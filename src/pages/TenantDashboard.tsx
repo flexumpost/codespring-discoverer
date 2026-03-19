@@ -427,6 +427,11 @@ function getStatusDisplay(
       const nextDate = getFirstThursdayOfMonth();
       return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
     }
+    // Standard default scan happens next Thursday
+    if (tenantTypeName === "Standard" && !item.chosen_action) {
+      const nextDate = getNextThursday();
+      return ["Standard scanning", formatDanishDate(nextDate)];
+    }
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
@@ -1041,6 +1046,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type === "pakke") {
                         if (effectiveAction === "afhentning") actionForExtras = "standard_afhentning";
                         else if (effectiveAction === "send") actionForExtras = "standard_forsendelse";
+                      }
+                      if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type !== "pakke" && effectiveAction === "scan") {
+                        actionForExtras = "standard_scan";
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       const availableExtras = extraActions.filter(
