@@ -169,7 +169,8 @@ function getItemFee(
   }
 
   if (!chosenAction || (chosenAction === defaultAction &&
-    !(chosenAction === "scan" && defaultAction === "scan" && tenantTypeName === "Lite"))) {
+    !(chosenAction === "scan" && defaultAction === "scan" && tenantTypeName === "Lite") &&
+    !(chosenAction === "send" && defaultAction === "send" && tenantTypeName === "Lite"))) {
     // Special case: afhentning on a non-free day still costs extra
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
       const pd = parsePickupDate(pickupDateStr, notes);
