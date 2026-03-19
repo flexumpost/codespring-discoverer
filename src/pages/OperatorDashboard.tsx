@@ -196,7 +196,10 @@ function getOperatorStatusDisplay(item: MailItem): string {
       const received = new Date(item.received_at);
       return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
     }
-    if (defaultAction === "afhentning") return "Afhentning (standard)";
+    if (defaultAction === "afhentning") {
+      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return `Afhentning (standard) ${formatDanishDate(shipDate)}`;
+    }
     if (defaultAction === "destruer") return "Destrueres (standard)";
     if (defaultAction === "daglig") return "Læg på kontoret (standard)";
     if (defaultAction && ACTION_LABELS[defaultAction]) {
