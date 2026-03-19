@@ -693,10 +693,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
       // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
       if (action === "afhentning" && tenantTypeName === "Standard") {
-        const nextThurs = getNextThursday();
-        nextThurs.setHours(0, 0, 0, 0);
-        choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
-        return;
+        const mailItem = items?.find(i => i.id === id);
+        if (mailItem?.mail_type !== "pakke") {
+          const nextThurs = getNextThursday();
+          nextThurs.setHours(0, 0, 0, 0);
+          choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
+          return;
+        }
       }
       setPickupDialogItem(id);
     } else if (action === "destruer") {
