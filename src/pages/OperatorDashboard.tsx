@@ -31,6 +31,7 @@ const ACTION_LABELS: Record<string, string> = {
   daglig: "Læg på kontoret",
   standard_forsendelse: "Standard forsendelse",
   standard_scan: "Standard scanning",
+  gratis_afhentning: "Gratis afhentning",
 };
 
 const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
