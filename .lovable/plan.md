@@ -1,44 +1,22 @@
 
 
-## Fix: Standard-lejere — pakke-dropdown skal altid vise alle 3 handlinger
+## Fix: Standard brev "Forsendelse" gebyr skal være "0 kr. + porto"
 
 ### Problem
-For Standard-lejere med pakker falder `getExtraActions` igennem til default-casen, som filtrerer den aktuelle handling fra. Ifølge billedet skal dropdown altid vise alle tre muligheder: Forsendelse, Afhentning og Destruktion — uanset standardhandlingen.
+For Standard-lejere med breve vises gebyret for "Forsendelse" som "30 kr. + porto" (begge dashboards). Da forsendelse er inkluderet i Standard-abonnementet, skal gebyret være **"0 kr. + porto"**.
 
-### Ændringer i `src/pages/TenantDashboard.tsx`
+### Ændringer
 
-**1. `getExtraActions` (linje 58-71)** — tilføj Standard-pakke-logik med remap-håndtering:
-```typescript
-if (mailType === "pakke") {
-  if (tenantTypeName === "Plus") { /* uændret */ }
-  if (tenantTypeName === "Lite") { /* uændret */ }
-  if (tenantTypeName === "Standard") {
-    if (currentAction === "standard_afhentning" || currentAction === "standard_forsendelse") {
-      return addDestruer(["afhentning", "send"]);
-    }
-    return addDestruer(["afhentning", "send"].filter(a => a !== currentAction));
-  }
-  return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
-}
-```
+**1. `src/pages/TenantDashboard.tsx`**
 
-**2. Remap-logik (linje ~1022-1031)** — tilføj remap for Standard-pakker, så standardhandlingen remappes og alle valg forbliver synlige:
-```typescript
-if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type === "pakke") {
-  if (effectiveAction === "afhentning") actionForExtras = "standard_afhentning";
-  else if (effectiveAction === "send") actionForExtras = "standard_forsendelse";
-}
-```
+- **`getDisplayFee` (linje 210-213)**: Når `chosenAction === "send"` og `tenantTypeName === "Standard"`, returner `"0 kr. + porto"` i stedet for `"—"`.
+- **`getActionPrice` (linje 250-255)**: Tilføj `if (action === "send") return "0 kr. + porto";` for Standard-breve, så dropdown-prisen også vises korrekt.
 
-**3. `availableExtras` filter (linje 1034)** — tilføj `standard_afhentning` til allowed-check:
-```typescript
-|| (a === "standard_afhentning" && allowedActions.includes("afhentning"))
-```
+**2. `src/pages/OperatorDashboard.tsx`**
 
-**4. Labels** — `ACTION_LABELS` bruger allerede "Forsendelse" for `send` og "Afhentning" for `afhentning`. Priserne for Standard pakker er allerede korrekte (30 kr. / 30 kr. + porto / 0 kr.).
+- **`getItemFee` (linje 366-370)**: Når `chosen_action === "send"` og `defaultAction === "send"` for Standard brev, returner `"0 kr. + porto"` (allerede dækket af linje 371 `return "0 kr."` — men linje 366-368 fanger det først og returnerer forkert). Ret Standard-casen til `"0 kr. + porto"`.
+- **`getItemFee` (linje 391-394)**: Når `chosen_action === "send"` for Standard brev (non-default), returner `"0 kr. + porto"` i stedet for `"30 kr. + porto"`.
 
-**5. `handleAction`** — Standard-pakker med `"afhentning"` skal åbne datovælgeren (ikke auto-assign torsdag som for breve). Tjek at den eksisterende auto-assign logik kun gælder breve:
-- Den nuværende kode tjekker `tenantTypeName === "Standard"` men skelner ikke mailtype. Tilføj `item.mail_type !== "pakke"` til betingelsen.
-
-Ingen database-ændringer.
+### Opsummering
+Alle steder hvor Standard + brev + forsendelse (`send`) beregner gebyr, ændres til "0 kr. + porto".
 
