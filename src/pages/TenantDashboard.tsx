@@ -83,11 +83,12 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
-      case "scan":       return addDestruer(["standard_scan", "send", "standard_forsendelse", "afhentning"]);
-      case "standard_scan": return addDestruer(["scan", "send", "standard_forsendelse", "afhentning"]);
-      case "send":       return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
-      default:           return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "afhentning": return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "anden_afhentningsdag"]);
+      case "gratis_afhentning": return addDestruer(["scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "scan":       return addDestruer(["gratis_afhentning", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      case "standard_scan": return addDestruer(["gratis_afhentning", "scan", "send", "standard_forsendelse", "afhentning"]);
+      case "send":       return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
+      default:           return addDestruer(["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]);
     }
   }
   return [];
