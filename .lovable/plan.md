@@ -1,51 +1,63 @@
 
 
-## Analyse: Plus-lejer dropdown-regler vs. billedets specifikation
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-### Fundne uoverensstemmelser
+### Forretningslogik (opsummering)
 
-#### Plus Pakker — 2 fejl
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-**Fejl 1: "Anden afhentningsdag" kræver forkert betingelse**
-Koden kræver at `defaultPkgAction === "afhentning"` for at vise "Anden afhentningsdag". Men billedet viser at "Anden afhentningsdag" skal tilbydes **når som helst current action er "afhentning"** — uanset standardhandling. Også i "Ekstra handling"-tabellen vises den ved afhentning.
+### Ændringer
 
-- Nuværende: default=forsendelse + bruger vælger afhentning → **mangler** "Anden afhentningsdag"
-- Korrekt: default=forsendelse + bruger vælger afhentning → **skal vise** "Anden afhentningsdag"
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-**Fejl 2: Forkert aktionsnavn `standard_forsendelse` for pakker**
-Koden bruger `standard_forsendelse` i pakke-dropdowns. Billedet viser bare "Forsendelse (Gebyr 10 kr.)". For Plus-pakker er der ikke et "Standard forsendelse"-koncept — det skal være `send` ("Forsendelse").
+### Kodedetaljer
 
-#### Plus Breve — OK ✓
-Alle kombinationer matcher billedet korrekt.
-
----
-
-### Plan: Ret Plus pakke-logikken
-
-**Fil: `src/pages/TenantDashboard.tsx`**, linje 57-61
-
-Ændr pakke-logikken så:
-- Når `currentAction === "afhentning"` (uanset default): vis `["anden_afhentningsdag", "send", "destruer"]`
-- Ellers: vis `["afhentning", "send"].filter(not current) + "destruer"`
-- Brug `send` i stedet for `standard_forsendelse` for Plus-pakker
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-if (mailType === "pakke") {
-  if (tenantTypeName === "Plus") {
-    if (currentAction === "afhentning") {
-      return addDestruer(["anden_afhentningsdag", "send"]);
-    }
-    return addDestruer(["afhentning", "send"].filter(a => a !== currentAction));
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+  return firstThursday;
 }
 ```
 
-Dette sikrer:
-- Standard=Forsendelse → Afhentning (10 kr.), Destruer (0 kr.) ✓
-- Standard=Afhentning → Anden afhentningsdag (10 kr.), Forsendelse (10 kr.), Destruer (0 kr.) ✓
-- Ekstra=Forsendelse → Afhentning (10 kr.), Destruer (0 kr.) ✓
-- Ekstra=Afhentning → Anden afhentningsdag (10 kr.), Forsendelse (10 kr.), Destruer (0 kr.) ✓
+**2. Lås handlinger fra dagen før forsendelse**
 
-Gebyrerne er allerede korrekte — `getActionPrice` returnerer 10 kr. for både `send` og `afhentning` for Plus-pakker.
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
