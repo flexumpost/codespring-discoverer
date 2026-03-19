@@ -1,40 +1,63 @@
 
 
-## Problem
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-Når en Plus-lejer har "Forsendelse" som standardhandling for pakker og manuelt vælger "Afhentning", vises "Anden afhentningsdag" i dropdown. Det er forkert — "Anden afhentningsdag" skal KUN tilbydes når lejerens **standardhandling** er "Afhentning" (dvs. den automatiske torsdag-afhentning).
+### Forretningslogik (opsummering)
 
-Korrekte regler for Plus-pakker:
-- **Standard = Afhentning** → ekstra: Anden afhentningsdag, Standard forsendelse, Destruer
-- **Standard = Forsendelse** → ekstra: Afhentning (10 kr.), Destruer (0 kr.)
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-## Løsning
+### Ændringer
 
-**Fil: `src/pages/TenantDashboard.tsx`**
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-### 1. Udvid `getExtraActions` med en `defaultAction`-parameter
+### Kodedetaljer
 
-Tilføj en fjerde parameter `defaultAction` til funktionen, så den kan skelne mellem lejerens standard og den aktuelt valgte handling.
-
-### 2. Opdater pakke-logikken for Plus
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
 ```typescript
-if (mailType === "pakke") {
-  if (tenantTypeName === "Plus" && defaultAction === "afhentning" && currentAction === "afhentning") {
-    // Kun vis "anden afhentningsdag" når standard ER afhentning
-    return addDestruer(["anden_afhentningsdag", "standard_forsendelse"]);
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
   }
-  return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+  return firstThursday;
 }
 ```
 
-### 3. Opdater kaldet (linje ~961)
+**2. Lås handlinger fra dagen før forsendelse**
 
-Send `defaultAction` med som fjerde argument:
+I handlings-sektionen (linje ~496-530), tilføj et check:
 
 ```typescript
-const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
 ```
 
-Dette sikrer at en Plus-lejer med forsendelse som standard kun ser "Afhentning" og "Destruer" — aldrig "Anden afhentningsdag".
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 

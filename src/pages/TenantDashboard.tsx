@@ -49,13 +49,13 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
-function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null): string[] {
+function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null, defaultPkgAction?: string | null): string[] {
   const addDestruer = (actions: string[]) => {
     if (currentAction === "destruer") return actions;
     return [...actions, "destruer"];
   };
   if (mailType === "pakke") {
-    if (tenantTypeName === "Plus" && currentAction === "afhentning") {
+    if (tenantTypeName === "Plus" && defaultPkgAction === "afhentning" && currentAction === "afhentning") {
       return addDestruer(["anden_afhentningsdag", "standard_forsendelse"]);
     }
     return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
@@ -958,7 +958,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
                         actionForExtras = "standard_scan";
                       }
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras);
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
