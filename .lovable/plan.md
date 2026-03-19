@@ -1,35 +1,41 @@
 
 
-## Fix: "Gratis afhentning" vises ikke korrekt på operatør-dashboardet
+## Fix: Lite-lejere med pakker og standard "Afhentning" kan ikke vælge afhentningstidspunkt
 
 ### Problem
+Når en Lite-lejer har "Afhentning" som standardhandling for pakker, filtreres "Afhentning" ud af dropdown-listen (fordi `getExtraActions` fjerner den aktive handling). Lejeren kan derfor ikke booke et specifikt afhentningstidspunkt på en anden dag.
 
-Operatør-dashboardet kender ikke til handlingen `gratis_afhentning`. Når en lejer vælger "Gratis afhentning", falder operatør-siden igennem alle action-checks i `getOperatorStatusDisplay` og ender på fallback `STATUS_LABELS[item.status]` → "Afventer handling".
+### Løsning
+Tilføj en remap i dropdown-logikken (ligesom for breve med `standard_scan` og `standard_forsendelse`), så Lite-pakker med default "afhentning" remappes til en intern nøgle, der holder "afhentning" tilgængelig i dropdown.
 
-### Ændringer i `src/pages/OperatorDashboard.tsx`
+### Ændringer i `src/pages/TenantDashboard.tsx`
 
-**1. ACTION_LABELS (linje 26-34)** — tilføj `gratis_afhentning`:
+**1. Remap for pakker (linje ~1010-1012)** — tilføj efter de eksisterende remaps:
 ```typescript
-gratis_afhentning: "Gratis afhentning",
-```
-
-**2. getOperatorStatusDisplay (efter linje 150)** — tilføj case for `gratis_afhentning`:
-```typescript
-if (action === "gratis_afhentning") {
-  const nextDate = getFirstThursdayOfMonth();
-  return `Gratis afhentning ${formatDanishDate(nextDate)}`;
+if (!item.chosen_action && tenantTypeName === "Lite" && item.mail_type === "pakke" && effectiveAction === "afhentning") {
+  actionForExtras = "standard_afhentning";
 }
 ```
 
-**3. "Afhentes"-kort filter (linje 265)** — inkludér `gratis_afhentning`:
+**2. `getExtraActions` (linje 58-66)** — udvid Lite-pakke-logikken til at håndtere `standard_afhentning`:
 ```typescript
-filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
+if (mailType === "pakke") {
+  if (tenantTypeName === "Lite") {
+    if (currentAction === "standard_afhentning") {
+      return addDestruer(["afhentning", "standard_forsendelse"]);
+    }
+    return addDestruer(["afhentning", "standard_forsendelse"].filter(a => a !== currentAction));
+  }
+  // ... existing Plus/default logic
+}
 ```
 
-**4. Row color (mailRowColor.ts)** — tilføj `gratis_afhentning` til afhentnings-farven (lilla), linje 56:
-```typescript
-["afhentning", "anden_afhentningsdag", "gratis_afhentning"].includes(item.chosen_action)
-```
+**3. `availableExtras` filter (linje 1014-1015)** — sikr at `standard_afhentning`-remappet fungerer korrekt (ingen ændring nødvendig, da "afhentning" allerede er i `allowedActions`).
 
-Ingen database- eller gebyr-ændringer nødvendige — gebyret for `gratis_afhentning` håndteres allerede korrekt (linje 317: "0 kr.").
+**4. Labels og priser** — "Afhentning" for Lite-pakker skal vise "50 kr." (allerede håndteret af eksisterende gebyr-logik). Baseret på det uploadede billede er de korrekte muligheder:
+- Forsendelse: 50 kr. (+ porto)
+- Afhentning: 50 kr.
+- Destruktion: 0 kr.
+
+Ingen database-ændringer nødvendige.
 
