@@ -76,7 +76,7 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
       case "afhentning": return addDestruer(["scan", "standard_scan", "send", "anden_afhentningsdag"]);
       case "scan":       return addDestruer(["standard_scan", "send", "afhentning"]);
       case "standard_scan": return addDestruer(["scan", "send", "afhentning"]);
-      case "send":       return addDestruer(["scan", "standard_scan", "afhentning"]);
+      case "send":       return addDestruer(["afhentning", "anden_afhentningsdag", "standard_scan", "scan"]);
       default:           return addDestruer(["scan", "standard_scan", "afhentning", "send"]);
     }
   }
@@ -103,6 +103,8 @@ function getActionLabel(action: string, tenantTypeName: string | undefined): str
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "Scan nu";
     if (action === "standard_scan") return "Standard scanning";
+    if (action === "afhentning") return "Standard afhentningsdag";
+    if (action === "anden_afhentningsdag") return "Ekstra afhentningsdag";
   }
   return ACTION_LABELS[action] ?? action;
 }
@@ -227,7 +229,8 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
     if (action === "standard_scan") return "0 kr.";
-    if (action === "afhentning" || action === "anden_afhentningsdag") return "30 kr.";
+    if (action === "afhentning") return "0 kr.";
+    if (action === "anden_afhentningsdag") return "30 kr.";
   }
   return "";
 }
