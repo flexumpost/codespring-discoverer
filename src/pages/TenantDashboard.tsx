@@ -206,7 +206,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     };
     const p = prices[tenantTypeName!];
     if (action === "send" || action === "standard_forsendelse") return p.feePorto;
-    if (action === "afhentning") return p.fee;
+    if (action === "afhentning" || action === "anden_afhentningsdag") return p.fee;
     return p.feePorto;
   }
   if (tenantTypeName === "Plus") {
