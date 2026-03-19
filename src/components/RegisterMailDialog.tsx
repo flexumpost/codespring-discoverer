@@ -146,27 +146,15 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       }).select("id, company_name").single();
       if (error) throw error;
 
-      // Auto-invite if email is provided
       const email = newTenantEmail.trim();
       if (email && data?.id) {
-        try {
-          const { error: inviteError } = await supabase.functions.invoke(
-            "create-tenant-user",
-            {
-              body: {
-                email,
-                first_name: newTenantContactFirstName.trim() || newTenantName.trim(),
-                last_name: newTenantContactLastName.trim() || "",
-                tenant_ids: [data.id],
-                mode: "invite",
-              },
-            }
-          );
-          if (inviteError) throw inviteError;
-          toast.success("Invitation sendt til " + email);
-        } catch (err: any) {
-          toast.error("Kunne ikke sende invitation: " + (err?.message || err));
-        }
+        // Defer invitation — will be sent as combined email when mail is registered
+        setPendingNewTenant({
+          id: data.id,
+          email,
+          firstName: newTenantContactFirstName.trim() || newTenantName.trim(),
+          lastName: newTenantContactLastName.trim() || "",
+        });
       }
 
       setSelectedTenantId(data.id);
