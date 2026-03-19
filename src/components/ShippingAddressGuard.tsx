@@ -110,6 +110,16 @@ export function ShippingAddressGuard({ children }: Props) {
         } as any)
         .eq("id", tenant.id);
       if (error) throw error;
+
+      // Verify the update actually persisted (RLS may silently reject)
+      const { data: verify } = await supabase
+        .from("tenants")
+        .select("shipping_confirmed")
+        .eq("id", tenant.id)
+        .single();
+      if (!verify?.shipping_confirmed) {
+        throw new Error("Opdateringen blev ikke gemt. Kontakt venligst support.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
@@ -146,7 +156,7 @@ export function ShippingAddressGuard({ children }: Props) {
   return (
     <Dialog open={true}>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >

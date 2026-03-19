@@ -1,19 +1,63 @@
 
 
-## Problem
+## Ret Lite-forsendelseslogik og lås handlinger dagen før forsendelse
 
-The ShippingAddressGuard dialog has no `overflow-y-auto` or `max-h` constraint. The DialogContent uses `fixed top-[50%] translate-y-[-50%]` positioning without scroll. With 7 form fields + header + button, the dialog overflows the viewport on smaller screens, making the "Gem forsendelsesadresse" button unreachable.
+### Forretningslogik (opsummering)
 
-Additionally, if the RLS update silently fails (PostgREST returns 200 with 0 rows affected), the mutation reports success but nothing is saved — the guard re-appears with no error feedback.
+- **Lite breve**: Sendes den første torsdag i måneden. Breve modtaget mellem to første-torsdage samles op til den næste.
+- **Standard/Plus**: Sendes den førstkommende torsdag (uændret).
+- **Alle**: Dagen før forsendelse (onsdag) pakkes brevene i kuverter. Fra den dag skal handlinger være låst — kun "Arkivér" er mulig.
 
-## Plan
+### Ændringer
 
-**File: `src/components/ShippingAddressGuard.tsx`**
+| Fil | Ændring |
+|---|---|
+| `src/pages/TenantDashboard.tsx` | Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth` så den returnerer første torsdag i **indeværende** måned, og hvis den dato allerede er passeret, returnerer første torsdag i **næste** måned |
+| `src/pages/TenantDashboard.tsx` | Tilføj logik der låser handlingsvalg (viser kun "Arkivér") når dagens dato ≥ forsendelsesdato minus 1 dag (kuvertpakningsdagen) |
 
-1. **Add scrolling to dialog**: Add `max-h-[90vh] overflow-y-auto` to the DialogContent so the form is scrollable on small screens and the save button is always reachable.
+### Kodedetaljer
 
-2. **Detect silent RLS failure**: After the `.update()` call, re-fetch the tenant row to verify `shipping_confirmed` was actually set to `true`. If not, throw an error so the user sees a meaningful error toast instead of a false success.
+**1. Ret `getFirstThursdayOfNextMonth` → `getFirstThursdayOfMonth`**
 
-### Files changed
-- `src/components/ShippingAddressGuard.tsx`
+```typescript
+function getFirstThursdayOfMonth(): Date {
+  const now = new Date();
+  // Første torsdag i denne måned
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  const dayOfWeek = first.getDay();
+  const offset = (4 - dayOfWeek + 7) % 7;
+  const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
+  
+  // Hvis den allerede er passeret, tag første torsdag i næste måned
+  if (firstThursday <= now) {
+    const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const month = (now.getMonth() + 1) % 12;
+    const nextFirst = new Date(year, month, 1);
+    const nextDow = nextFirst.getDay();
+    const nextOffset = (4 - nextDow + 7) % 7;
+    return new Date(year, month, 1 + nextOffset);
+  }
+  return firstThursday;
+}
+```
+
+**2. Lås handlinger fra dagen før forsendelse**
+
+I handlings-sektionen (linje ~496-530), tilføj et check:
+
+```typescript
+const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+shippingDate.setHours(0, 0, 0, 0);
+const packingDay = new Date(shippingDate);
+packingDay.setDate(packingDay.getDate() - 1);
+const isLocked = today >= packingDay;
+```
+
+Når `isLocked` er true og brevet ikke allerede er arkiveret, vises kun "Arkivér"-knappen (samme som `scanExpired`-logikken).
+
+**3. Opdater memory**
+
+Forsendelseslogikken for Lite ændres fra "første torsdag i **efterfølgende** måned" til "første torsdag i **måneden** (hvis ikke passeret, ellers næste måned)".
 
