@@ -188,6 +188,11 @@ function getOperatorStatusDisplay(item: MailItem): string {
         const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
         return `Scannet — ${readLabel}`;
       }
+      const tenantType = item.tenants?.tenant_types?.name;
+      if (tenantType === "Standard") {
+        const scanDate = getShippingDate("Standard", "brev");
+        return `Standard scanning ${formatDanishDate(scanDate)}`;
+      }
       const received = new Date(item.received_at);
       return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
     }
