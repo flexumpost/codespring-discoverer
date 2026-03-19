@@ -147,7 +147,7 @@ function getItemFee(
     const prices: Record<string, { fee: string; feePorto: string }> = {
       Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
       Standard: { fee: "30 kr.", feePorto: "30 kr. + porto" },
-      Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+      Plus: { fee: "10 kr.", feePorto: "10 kr. - Gratis porto" },
     };
     const p = prices[tenantTypeName!];
     const effective = chosenAction || defaultAction;
