@@ -65,6 +65,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [newTenantEmail, setNewTenantEmail] = useState("");
   const [newTenantTypeId, setNewTenantTypeId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
+  // Track tenant created in this session for combined email flow
+  const [pendingNewTenant, setPendingNewTenant] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
   // Crop mode state
