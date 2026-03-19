@@ -83,12 +83,13 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
   }
   if (tenantTypeName === "Lite") {
     switch (currentAction) {
-      case "afhentning": return addDestruer(["scan", "standard_scan", "standard_forsendelse", "send", "gratis_afhentning", "anden_afhentningsdag"]);
-      case "gratis_afhentning": return addDestruer(["scan", "standard_scan", "standard_forsendelse", "send", "afhentning"]);
-      case "scan":       return addDestruer(["standard_scan", "standard_forsendelse", "send", "afhentning", "gratis_afhentning"]);
-      case "standard_scan": return addDestruer(["scan", "standard_forsendelse", "send", "afhentning", "gratis_afhentning"]);
-      case "send":       return addDestruer(["scan", "standard_scan", "standard_forsendelse", "afhentning", "gratis_afhentning"]);
-      default:           return addDestruer(["scan", "standard_scan", "standard_forsendelse", "send", "afhentning", "gratis_afhentning"]);
+      case "afhentning": return addDestruer(["gratis_afhentning", "standard_forsendelse", "send", "standard_scan", "scan"]);
+      case "gratis_afhentning": return addDestruer(["afhentning", "standard_forsendelse", "send", "standard_scan", "scan"]);
+      case "scan":       return addDestruer(["gratis_afhentning", "afhentning", "standard_forsendelse", "send", "standard_scan"]);
+      case "standard_scan": return addDestruer(["gratis_afhentning", "afhentning", "standard_forsendelse", "send", "scan"]);
+      case "send":       return addDestruer(["gratis_afhentning", "afhentning", "standard_forsendelse", "standard_scan", "scan"]);
+      case "standard_forsendelse": return addDestruer(["gratis_afhentning", "afhentning", "send", "standard_scan", "scan"]);
+      default:           return addDestruer(["gratis_afhentning", "afhentning", "standard_forsendelse", "send", "standard_scan", "scan"]);
     }
   }
   return [];
@@ -98,11 +99,11 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 function getActionLabel(action: string, tenantTypeName: string | undefined): string {
   if (tenantTypeName === "Lite") {
     if (action === "gratis_afhentning") return "Gratis afhentning";
-    if (action === "afhentning") return "Hurtig afhentning";
+    if (action === "afhentning") return "Ekstra afhentning";
     if (action === "scan") return "Scan nu";
-    if (action === "standard_scan") return "Standard scanning";
+    if (action === "standard_scan") return "Gratis scanning";
     if (action === "send") return "Ekstra forsendelse";
-    if (action === "standard_forsendelse") return "Standard forsendelse";
+    if (action === "standard_forsendelse") return "Forsendelse";
   }
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "Scan nu";
