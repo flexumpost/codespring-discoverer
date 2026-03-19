@@ -1,31 +1,37 @@
 
 
-## Tilføj "Gratis afhentning" for Lite breve
+## Fix Lite brev: "Send hurtigst muligt" gebyr + dropdown-rækkefølge
 
-### Problem
-Lite-lejere mangler muligheden "Gratis afhentning" (0 kr.) for breve. Denne handling svarer til afhentning på første torsdag i måneden — gratis.
+### Problem 1: "Send hurtigst muligt" gebyr viser ikke "50 kr. + porto"
+Operatør-dashboardet bruger `ACTION_TO_FEE_KEY` → `ekstraForsendelse` → "50 kr." uden "+ porto"-suffiks. Gebyret skal inkludere porto-teksten.
 
-### Ændringer i `src/pages/TenantDashboard.tsx`
+### Problem 2: Dropdown-rækkefølge og label
+- "Gratis afhentning" skal flyttes ned under "Afhentning"
+- "Afhentning" skal omdøbes til "Hurtig afhentning"
 
-**1. Ny action-nøgle: `gratis_afhentning`**
-Tilføj til `ACTION_LABELS`: `gratis_afhentning: "Gratis afhentning"`
+---
 
-**2. Tilføj til Lite brev-handlinger (linje 83-90)**
-Tilføj `gratis_afhentning` til alle Lite breve switch-cases, så den altid er tilgængelig.
+### Ændringer
 
-**3. Label (linje 97-102)**
-Lite-specifikt label: `gratis_afhentning` → "Gratis afhentning"
+**`src/pages/OperatorDashboard.tsx`**
 
-**4. Pris (linje 222-228)**
-Tilføj: `if (action === "gratis_afhentning") return "0 kr.";` i Lite-blokken.
+1. I `getItemFee`: Tilføj eksplicit håndtering af `send` for Lite breve, så gebyret returnerer "50 kr. + porto" i stedet for bare "50 kr." fra pricing-tabellen. Indsæt check før `ACTION_TO_FEE_KEY`-opslaget:
+   ```typescript
+   if (item.chosen_action === "send" && tier === "Lite" && item.mail_type === "brev") return "50 kr. + porto";
+   ```
 
-**5. Status-tekst**
-Når `gratis_afhentning` er valgt, vis "Afhentes [første torsdag i måneden]" i status-kolonnen — brug den eksisterende `getFirstThursdayOfMonth()` + `formatDanishDate()`.
+**`src/pages/TenantDashboard.tsx`**
 
-**6. Gebyr-kolonnen**
-Sørg for at gebyr viser "0 kr." når `gratis_afhentning` er den aktive handling.
+2. **Dropdown-rækkefølge**: I alle Lite brev switch-cases, flyt `gratis_afhentning` til efter `afhentning`:
+   ```
+   Før:  ["gratis_afhentning", "scan", "standard_scan", "send", "standard_forsendelse", "afhentning"]
+   Efter: ["scan", "standard_scan", "send", "standard_forsendelse", "afhentning", "gratis_afhentning"]
+   ```
 
-### Hvad ændres IKKE
-- Øvrige handlinger og priser forbliver uændret
-- Operatør-dashboard og forsendelseslogik uændret
+3. **Label**: Omdøb `afhentning` for Lite til "Hurtig afhentning":
+   ```typescript
+   if (action === "afhentning") return "Hurtig afhentning";
+   ```
+
+4. **Verificér gebyr-kolonne**: `getItemFee` linje 195-198 returnerer allerede "50 kr. + porto" for Lite `send` — bekræft at dette virker korrekt i alle scenarier (når `send` ikke er standardhandling).
 
