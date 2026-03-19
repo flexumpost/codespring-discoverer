@@ -1,22 +1,39 @@
 
 
-## Fix: Standard brev "Forsendelse" gebyr skal være "0 kr. + porto"
+## Fix: Standard brev — standard scanning skal vise næste torsdag, ikke "inden for 24 timer"
 
 ### Problem
-For Standard-lejere med breve vises gebyret for "Forsendelse" som "30 kr. + porto" (begge dashboards). Da forsendelse er inkluderet i Standard-abonnementet, skal gebyret være **"0 kr. + porto"**.
+Når Standard-lejers standardhandling for breve er "Scanning", vises status som "Scannes inden for 24 timer". Det er forkert — standard scanning for Standard-lejere skal scannes den efterfølgende torsdag. "Scan nu" (30 kr.) er den handling, der scanner inden for 24 timer.
 
 ### Ændringer
 
-**1. `src/pages/TenantDashboard.tsx`**
+**1. `src/pages/TenantDashboard.tsx` — `getStatusDisplay` (linje 424-430)**
 
-- **`getDisplayFee` (linje 210-213)**: Når `chosenAction === "send"` og `tenantTypeName === "Standard"`, returner `"0 kr. + porto"` i stedet for `"—"`.
-- **`getActionPrice` (linje 250-255)**: Tilføj `if (action === "send") return "0 kr. + porto";` for Standard-breve, så dropdown-prisen også vises korrekt.
+Tilføj Standard-lejer til den eksisterende Lite-check, så default `scan` for Standard viser næste torsdag:
 
-**2. `src/pages/OperatorDashboard.tsx`**
+```typescript
+if (effectiveAction === "scan") {
+  if (tenantTypeName === "Lite" && !item.chosen_action) {
+    const nextDate = getFirstThursdayOfMonth();
+    return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
+  }
+  if (tenantTypeName === "Standard" && !item.chosen_action) {
+    const nextDate = getNextThursday();
+    return ["Standard scanning", formatDanishDate(nextDate)];
+  }
+  return ["Afventer scanning", "Scannes inden for 24 timer"];
+}
+```
 
-- **`getItemFee` (linje 366-370)**: Når `chosen_action === "send"` og `defaultAction === "send"` for Standard brev, returner `"0 kr. + porto"` (allerede dækket af linje 371 `return "0 kr."` — men linje 366-368 fanger det først og returnerer forkert). Ret Standard-casen til `"0 kr. + porto"`.
-- **`getItemFee` (linje 391-394)**: Når `chosen_action === "send"` for Standard brev (non-default), returner `"0 kr. + porto"` i stedet for `"30 kr. + porto"`.
+**2. Remap-logik (linje ~1031-1044)** — tilføj remap for Standard brev med default `scan`:
 
-### Opsummering
-Alle steder hvor Standard + brev + forsendelse (`send`) beregner gebyr, ændres til "0 kr. + porto".
+```typescript
+if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type !== "pakke" && effectiveAction === "scan") {
+  actionForExtras = "standard_scan";
+}
+```
+
+Dette sikrer at dropdown'en viser "Scan nu (30 kr.)" som ekstra mulighed, i stedet for at `scan` filtreres ud som den aktuelle handling.
+
+Ingen ændringer til OperatorDashboard nødvendige — operatøren ser kun `standard_scan` eller `scan` som `chosen_action`, og begge cases håndteres allerede korrekt.
 
