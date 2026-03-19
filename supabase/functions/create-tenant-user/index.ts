@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     // Also mark welcome_email_sent_at when invitation was sent (mode=invite, new user)
     for (const tid of tenantIds) {
       const updateFields: Record<string, unknown> = { user_id: newUserId };
-      if (mode === "invite" && !existingUser) {
+      if ((mode === "invite" || mode === "invite_silent") && !existingUser) {
         updateFields.welcome_email_sent_at = new Date().toISOString();
       }
       await adminClient
