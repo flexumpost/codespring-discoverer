@@ -427,6 +427,11 @@ function getStatusDisplay(
       const nextDate = getFirstThursdayOfMonth();
       return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
     }
+    // Standard default scan happens next Thursday
+    if (tenantTypeName === "Standard" && !item.chosen_action) {
+      const nextDate = getNextThursday();
+      return ["Standard scanning", formatDanishDate(nextDate)];
+    }
     return ["Afventer scanning", "Scannes inden for 24 timer"];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
