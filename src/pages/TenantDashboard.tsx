@@ -195,7 +195,7 @@ function getItemFee(
   }
   // Plus: everything is free
   if (tenantTypeName === "Plus") {
-    if (chosenAction === "send") return "0 kr. + porto";
+    if (chosenAction === "send") return "0 kr.";
     return "0 kr.";
   }
   // Standard forsendelse for Lite is free + porto
