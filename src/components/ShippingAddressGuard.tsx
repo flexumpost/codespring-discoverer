@@ -146,7 +146,7 @@ export function ShippingAddressGuard({ children }: Props) {
   return (
     <Dialog open={true}>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto [&>button]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
