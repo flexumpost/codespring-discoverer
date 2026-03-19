@@ -958,7 +958,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
                         actionForExtras = "standard_scan";
                       }
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras);
+                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
                       // Filter: only show extra actions, exclude the current default
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan"))
