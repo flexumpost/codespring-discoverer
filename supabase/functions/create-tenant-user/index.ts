@@ -122,6 +122,24 @@ Deno.serve(async (req) => {
         });
       }
       newUserId = inviteData.user.id;
+    } else if (mode === "invite_silent") {
+      // Create user silently — no email sent. Caller will send combined email.
+      const randomPassword = crypto.randomUUID() + crypto.randomUUID();
+      const { data: newUser, error: createError } =
+        await adminClient.auth.admin.createUser({
+          email,
+          password: randomPassword,
+          email_confirm: true,
+          user_metadata: { first_name: first_name || "", last_name: last_name || "" },
+        });
+
+      if (createError) {
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      newUserId = newUser.user.id;
     } else {
       const { data: newUser, error: createError } =
         await adminClient.auth.admin.createUser({
