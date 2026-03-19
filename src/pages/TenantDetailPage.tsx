@@ -386,6 +386,80 @@ const TenantDetailPage = () => {
                   <Save className="mr-2 h-4 w-4" />
                   {typeMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
+
+                {/* Scheduled type changes */}
+                <div className="border-t pt-4 mt-4 space-y-3">
+                  <Label className="text-muted-foreground text-xs font-semibold">Planlagt typeskift</Label>
+
+                  {scheduledChanges.length > 0 && (
+                    <div className="space-y-2">
+                      {scheduledChanges.map((sc: any) => {
+                        const typeName2 = tenantTypes.find((t) => t.id === sc.new_tenant_type_id)?.name ?? "Ukendt";
+                        return (
+                          <div key={sc.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+                            <div>
+                              <Badge variant="outline" className={TYPE_COLORS[typeName2] ?? ""}>
+                                {typeName2}
+                              </Badge>
+                              <span className="ml-2 text-muted-foreground">
+                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: da })}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => cancelScheduledMutation.mutate(sc.id)}
+                              disabled={cancelScheduledMutation.isPending}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <Select value={schedTypeId} onValueChange={setSchedTypeId}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Ny lejertype" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tenantTypes.filter((t) => t.id !== tenant.tenant_type_id).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: da }) : "Vælg dato"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={schedDate}
+                          onSelect={setSchedDate}
+                          disabled={(date) => date <= new Date()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => scheduleChangeMutation.mutate()}
+                      disabled={!schedDate || !schedTypeId || scheduleChangeMutation.isPending}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {scheduleChangeMutation.isPending ? "Opretter..." : "Planlæg skift"}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
