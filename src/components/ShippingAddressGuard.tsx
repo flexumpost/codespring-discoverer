@@ -125,8 +125,9 @@ export function ShippingAddressGuard({ children }: Props) {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
       toast.success("Forsendelsesadresse bekræftet");
     },
-    onError: () => {
-      toast.error("Kunne ikke gemme forsendelsesadresse");
+    onError: (err: any) => {
+      console.error("ShippingAddressGuard save error:", err);
+      toast.error(err?.message || "Kunne ikke gemme forsendelsesadresse");
     },
   });
 
