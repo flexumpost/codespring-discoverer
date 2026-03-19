@@ -482,6 +482,29 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         photoUrl = path;
       }
 
+      // If this is a newly created tenant with email, create user silently first
+      const isNewTenantFlow = pendingNewTenant && selectedTenantId === pendingNewTenant.id;
+      if (isNewTenantFlow) {
+        try {
+          const { error: inviteError } = await supabase.functions.invoke(
+            "create-tenant-user",
+            {
+              body: {
+                email: pendingNewTenant.email,
+                first_name: pendingNewTenant.firstName,
+                last_name: pendingNewTenant.lastName,
+                tenant_ids: [pendingNewTenant.id],
+                mode: "invite_silent",
+              },
+            }
+          );
+          if (inviteError) throw inviteError;
+        } catch (err: any) {
+          console.error("Silent invite failed:", err);
+          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+        }
+      }
+
       const { error } = await supabase.from("mail_items").insert({
         operator_id: user.id,
         mail_type: mailType,
@@ -501,9 +524,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             tenant_id: selectedTenantId,
             mail_type: mailType,
             stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
+            is_new_tenant: !!isNewTenantFlow,
           },
         }).catch((err) => console.error("send-new-mail-email failed:", err));
       }
+
+      // Clear pending new tenant after successful submit
+      setPendingNewTenant(null);
 
       toast.success("Post registreret");
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
