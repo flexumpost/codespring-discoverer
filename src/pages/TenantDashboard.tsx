@@ -341,6 +341,15 @@ function getStatusDisplay(
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
+  // Afhentet by operator
+  if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
+    const d = new Date((item as any).updated_at ?? Date.now());
+    const day = d.getDate();
+    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
+    const hours = d.getHours().toString().padStart(2, "0");
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    return [`Afhentet ${day}. ${monthNames[d.getMonth()]} kl. ${hours}:${mins}`];
+  }
   // Sendt med DAO
   if (item.status === "sendt_med_dao") {
     const d = new Date((item as any).updated_at ?? Date.now());

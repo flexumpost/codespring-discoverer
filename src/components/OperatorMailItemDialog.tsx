@@ -533,6 +533,24 @@ export function OperatorMailItemDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Operator action confirmation dialog */}
+    <AlertDialog open={showOperatorActionConfirm} onOpenChange={setShowOperatorActionConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{operatorActionLabels[operatorAction] ?? "Udfør handling"}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {operatorActionDescriptions[operatorAction] ?? "Er du sikker?"}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuller</AlertDialogCancel>
+          <AlertDialogAction onClick={handleOperatorAction} disabled={executingAction}>
+            {executingAction ? "Udfører..." : "Bekræft"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
