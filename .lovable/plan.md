@@ -1,38 +1,30 @@
 
 
-## Tilføj "Rekommanderet" funktionalitet
+## Skjul "Retur til afsender"-forsendelser fra operatør-dashboardet
 
 ### Oversigt
-Tilføj et `is_registered` boolean-felt til `mail_items`, en checkbox i registreringsdialogen (auto-afkrydset via OCR), og visning af mærket på begge dashboards.
+Forsendelser tilknyttet lejere af typen "Retur til afsender" skal filtreres fra i operatørens forsendelsesoversigt, da disse breve returneres og ikke er i operatørens besiddelse.
 
-### Ændringer
+### Ændring
 
-**1. Database-migration**
-- Tilføj kolonne `is_registered boolean NOT NULL DEFAULT false` til `mail_items`.
+**`src/pages/OperatorDashboard.tsx`** — `refreshMail` funktionen (linje ~461-468)
 
-**2. OCR Edge Function (`supabase/functions/ocr-stamp/index.ts`)**
-- Tilføj `is_registered` (boolean) til tool-call parametrene i prompten.
-- Instruer modellen: sæt `true` hvis teksten "Rekommanderet" eller "Registered" ses på forsendelsen.
-- Returner `is_registered` i response JSON.
+Efter data hentes, filtrér poster fra hvor `tenants?.tenant_types?.name === "Retur til afsender"`:
 
-**3. `src/components/RegisterMailDialog.tsx`**
-- Tilføj state `isRegistered` (boolean, default `false`).
-- I `runOcr`: sæt `isRegistered` til `true` hvis OCR returnerer `is_registered: true`.
-- Tilføj en Checkbox med label "Rekommanderet" i formfelterne (efter afsender-feltet).
-- Inkludér `is_registered: isRegistered` i `mail_items.insert()`.
-- Reset `isRegistered` i `resetForm()`.
+```typescript
+const refreshMail = async () => {
+  const { data } = await supabase
+    .from("mail_items")
+    .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
+    .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)")
+    .order("stamp_number", { ascending: false, nullsFirst: false });
+  // Filtrér "Retur til afsender" lejere fra
+  const filtered = (data ?? []).filter(
+    (item) => item.tenants?.tenant_types?.name !== "Retur til afsender"
+  );
+  setMailItems(filtered);
+};
+```
 
-**4. `src/pages/TenantDashboard.tsx`**
-- I afsender-kolonnen (linje ~936): vis et `<Badge>` med teksten "Rekommanderet" ved siden af afsendernavnet, hvis `item.is_registered === true`.
-
-**5. `src/pages/OperatorDashboard.tsx`**
-- På forsendelseslinjen (nær type-badge ~669): vis et lille bold **R** i en firkant (`<span className="inline-flex items-center justify-center w-5 h-5 border border-current font-bold text-xs">R</span>`) hvis `item.is_registered === true`.
-
-**6. `src/components/BulkUploadDropzone.tsx`** (hvis bulk-upload også bruger mail_items insert)
-- Sikre at `is_registered` default til `false` — ingen ændring nødvendig da DB default håndterer det.
-
-### Tekniske detaljer
-- Kolonne: `is_registered boolean NOT NULL DEFAULT false` — ingen eksisterende data påvirkes.
-- OCR-prompten udvides med et ekstra tool-parameter `is_registered` (boolean).
-- TypeScript-typen opdateres automatisk efter migration.
+Filtreringen sker client-side efter fetch, da tenant_types-relationen allerede er inkluderet i select. Ingen database-ændring nødvendig.
 
