@@ -43,6 +43,7 @@ export const RecoveryEmail = ({
 <a href="${confirmationUrl}" style="background-color:#00aaeb;color:#ffffff;font-size:14px;font-weight:600;border-radius:0.5rem;padding:12px 24px;text-decoration:none;display:inline-block;mso-line-height-rule:exactly;">Nulstil adgangskode →</a>
 <!--<![endif]-->
         ` }} />
+        <Text style={hint}>Linket er aktivt i 1 time.</Text>
         <Text style={footer}>
           Hvis du ikke har anmodet om en nulstilling, kan du trygt ignorere denne e-mail. Din adgangskode forbliver uændret.
         </Text>
@@ -68,4 +69,5 @@ const text = {
   margin: '0 0 25px',
 }
 const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
+const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }

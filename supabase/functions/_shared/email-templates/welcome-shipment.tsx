@@ -45,6 +45,7 @@ export const WelcomeShipmentEmail = ({
 <a href="${confirmationUrl}" style="background-color:#00aaeb;color:#ffffff;font-size:14px;font-weight:600;border-radius:0.5rem;padding:12px 24px;text-decoration:none;display:inline-block;mso-line-height-rule:exactly;">Sæt din adgangskode →</a>
 <!--<![endif]-->
         ` }} />
+        <Text style={hint}>Linket er aktivt i 24 timer.</Text>
         <Text style={footer}>
           Denne e-mail er sendt fra Flexum. Kontakt os hvis du har spørgsmål.
         </Text>
@@ -64,4 +65,5 @@ const h1 = {
   margin: '0 0 20px',
 }
 const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
+const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }

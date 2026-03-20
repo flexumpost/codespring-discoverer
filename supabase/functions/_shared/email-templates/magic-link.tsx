@@ -26,19 +26,20 @@ export const MagicLinkEmail = ({
 }: MagicLinkEmailProps) => (
   <Html lang="da" dir="ltr">
     <Head />
-    <Preview>Dit login-link til Flexum</Preview>
+    <Preview>Dit login-link til Flexum – aktivt i 1 time</Preview>
     <Body style={main}>
       <Container style={container}>
         <Img src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png" alt="Flexum" width="120" height="auto" style={{ marginBottom: '24px' }} />
         <Heading style={h1}>Dit login-link</Heading>
         <Text style={text}>
-          Klik på knappen nedenfor for at logge ind på Flexum. Linket udløber kort efter.
+          Klik på knappen nedenfor for at logge ind på Flexum.
         </Text>
         <Section style={buttonSection}>
           <Button style={button} href={confirmationUrl}>
             Log ind
           </Button>
         </Section>
+        <Text style={hint}>Linket er aktivt i 1 time.</Text>
         <Text style={footer}>
           Hvis du ikke har anmodet om dette link, kan du trygt ignorere denne e-mail.
         </Text>
@@ -74,4 +75,5 @@ const button = {
   textDecoration: 'none',
   display: 'inline-block' as const,
 }
+const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }

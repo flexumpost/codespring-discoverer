@@ -51,6 +51,7 @@ export const InviteEmail = ({
 <a href="${confirmationUrl}" style="background-color:#00aaeb;color:#ffffff;font-size:14px;font-weight:600;border-radius:0.5rem;padding:12px 24px;text-decoration:none;display:inline-block;mso-line-height-rule:exactly;">Sæt din adgangskode →</a>
 <!--<![endif]-->
         ` }} />
+        <Text style={hint}>Linket er aktivt i 24 timer.</Text>
         <Text style={footer}>
           Hvis du ikke forventede denne e-mail, kan du trygt ignorere den.
         </Text>
@@ -76,4 +77,5 @@ const text = {
   margin: '0 0 25px',
 }
 const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
+const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
