@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
