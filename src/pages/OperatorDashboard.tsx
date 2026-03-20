@@ -112,6 +112,15 @@ function formatPickupDisplay(item: MailItem): string | null {
 }
 
 function getOperatorStatusDisplay(item: MailItem): string {
+  // Picked up by tenant
+  if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
+    const d = new Date(item.updated_at);
+    const day = d.getDate();
+    const month = DANISH_MONTHS[d.getMonth()];
+    const hours = d.getHours().toString().padStart(2, "0");
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    return `Afhentet ${day}. ${month} kl. ${hours}:${mins}`;
+  }
   // Archived by tenant (not destruction)
   if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
     return "Arkiveret af bruger";

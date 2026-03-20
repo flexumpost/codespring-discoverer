@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Trash2, ScanLine, ShieldX, AlertTriangle, Archive } from "lucide-react";
+import { Trash2, ScanLine, ShieldX, AlertTriangle, Archive, HandCoins } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import type { Tables, Database } from "@/integrations/supabase/types";
@@ -49,10 +49,16 @@ export function OperatorMailItemDialog({
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [confirmingDestruction, setConfirmingDestruction] = useState(false);
+  const [operatorAction, setOperatorAction] = useState<string>("");
+  const [executingAction, setExecutingAction] = useState(false);
+  const [showOperatorActionConfirm, setShowOperatorActionConfirm] = useState(false);
 
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
-  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer";
+  const isPickedUp = item.chosen_action === "afhentet" && item.status === "arkiveret";
+  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer" && item.chosen_action !== "afhentet";
+  const isSent = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
+  const isFinalized = isDestroyed || isPickedUp || isSent || item.status === "arkiveret";
   const [reactivating, setReactivating] = useState(false);
 
   const handleReactivate = async () => {
@@ -201,6 +207,50 @@ export function OperatorMailItemDialog({
       onSaved();
       onOpenChange(false);
     }
+  };
+
+  const handleOperatorAction = async () => {
+    setExecutingAction(true);
+    let updateData: Record<string, any> = {};
+    if (operatorAction === "afhentet") {
+      updateData = { chosen_action: "afhentet", status: "arkiveret" };
+    } else if (operatorAction === "destruer") {
+      updateData = { chosen_action: "destruer", status: "arkiveret" };
+    } else if (operatorAction === "sendt") {
+      updateData = { chosen_action: "under_forsendelse", status: "sendt_med_dao" };
+    }
+    const { error } = await supabase
+      .from("mail_items")
+      .update(updateData)
+      .eq("id", item.id);
+    setExecutingAction(false);
+    if (error) {
+      toast.error("Kunne ikke udføre handlingen");
+      console.error(error);
+    } else {
+      const labels: Record<string, string> = {
+        afhentet: "Markeret som afhentet",
+        destruer: "Markeret som destrueret",
+        sendt: "Markeret som sendt",
+      };
+      toast.success(labels[operatorAction] || "Handling udført");
+      setShowOperatorActionConfirm(false);
+      setOperatorAction("");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
+  const operatorActionLabels: Record<string, string> = {
+    afhentet: "Markér som afhentet",
+    destruer: "Markér som destrueret",
+    sendt: "Markér som sendt",
+  };
+
+  const operatorActionDescriptions: Record<string, string> = {
+    afhentet: "Forsendelsen markeres som fysisk afhentet af lejeren. Lejeren vil kun kunne arkivere.",
+    destruer: "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
+    sendt: "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
   };
 
   return (
@@ -356,6 +406,35 @@ export function OperatorMailItemDialog({
             </div>
           )}
 
+          {/* Operator manual action section */}
+          {!isFinalized && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <HandCoins className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Operatør handling</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={operatorAction} onValueChange={setOperatorAction}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Vælg handling..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="afhentet">Markér som afhentet</SelectItem>
+                    <SelectItem value="destruer">Markér som destrueret</SelectItem>
+                    <SelectItem value="sendt">Markér som sendt</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!operatorAction}
+                  onClick={() => setShowOperatorActionConfirm(true)}
+                >
+                  Udfør
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Delete scan section */}
           {item.scan_url && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
@@ -450,6 +529,24 @@ export function OperatorMailItemDialog({
             disabled={rejecting || !rejectReason.trim()}
           >
             {rejecting ? "Afviser..." : "Afvis handling"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* Operator action confirmation dialog */}
+    <AlertDialog open={showOperatorActionConfirm} onOpenChange={setShowOperatorActionConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{operatorActionLabels[operatorAction] ?? "Udfør handling"}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {operatorActionDescriptions[operatorAction] ?? "Er du sikker?"}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuller</AlertDialogCancel>
+          <AlertDialogAction onClick={handleOperatorAction} disabled={executingAction}>
+            {executingAction ? "Udfører..." : "Bekræft"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
