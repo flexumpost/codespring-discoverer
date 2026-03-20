@@ -235,6 +235,7 @@ export function OperatorMailItemDialog({
         afhentet: "Markeret som afhentet",
         destruer: "Markeret som destrueret",
         sendt: "Markeret som sendt",
+        sendt_retur: "Markeret som sendt retur",
       };
       toast.success(labels[operatorAction] || "Handling udført");
       setShowOperatorActionConfirm(false);
