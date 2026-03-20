@@ -166,7 +166,16 @@ const TenantsPage = () => {
   });
 
   const canSubmit = companyName.trim() && tenantTypeId;
-  
+
+  const typeCounts = useMemo(() => {
+    const counts = { Lite: 0, Standard: 0, Plus: 0 };
+    tenants.forEach(t => {
+      const name = t.tenant_types?.name;
+      if (name && name in counts) counts[name as keyof typeof counts]++;
+    });
+    return counts;
+  }, [tenants]);
+
   const filteredTenants = useMemo(() => {
     return tenants.filter(t => {
       const matchesSearch = !searchQuery || t.company_name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -232,6 +241,14 @@ const TenantsPage = () => {
             Ubetalt faktura
           </Label>
         </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        {(["Lite", "Standard", "Plus"] as const).map((type) => (
+          <Badge key={type} variant="outline" className={`${TYPE_COLORS[type]} text-xs`}>
+            {type}: {typeCounts[type]}
+          </Badge>
+        ))}
       </div>
 
       {isLoading ? (
