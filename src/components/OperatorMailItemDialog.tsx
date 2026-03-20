@@ -219,6 +219,8 @@ export function OperatorMailItemDialog({
       updateData = { chosen_action: "destruer", status: "arkiveret" };
     } else if (operatorAction === "sendt") {
       updateData = { chosen_action: "under_forsendelse", status: "sendt_med_dao" };
+    } else if (operatorAction === "sendt_retur") {
+      updateData = { chosen_action: "sendt_retur", status: "sendt_retur" };
     }
     const { error } = await supabase
       .from("mail_items")
