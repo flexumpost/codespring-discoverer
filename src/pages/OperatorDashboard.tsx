@@ -683,7 +683,12 @@ const OperatorDashboard = () => {
                     onClick={(e) => { e.stopPropagation(); setAssignTenantItem(item); }}
                   >
                     {item.tenants?.company_name ? (
-                      <span className="text-primary hover:underline">{item.tenants.company_name}</span>
+                      <span className="text-primary hover:underline">
+                        {item.tenants.company_name}
+                        {item.tenants?.has_unpaid_invoice && (
+                          <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">Ubetalt</Badge>
+                        )}
+                      </span>
                     ) : (
                       <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
                     )}

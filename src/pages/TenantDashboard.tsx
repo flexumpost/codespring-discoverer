@@ -921,8 +921,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             {filteredByType.map((item: any) => (
               <TableRow
                 key={item.id}
-                className={cn("cursor-pointer hover:bg-muted/50", getMailRowColor(item))}
-                onClick={() => handleRowClick(item)}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50",
+                  getMailRowColor(item),
+                  hasUnpaidInvoice && "opacity-50 pointer-events-none"
+                )}
+                onClick={() => !hasUnpaidInvoice && handleRowClick(item)}
               >
                 <TableCell>
                   <PhotoHoverPreview photoUrl={item.photo_url} />
