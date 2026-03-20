@@ -2,6 +2,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
