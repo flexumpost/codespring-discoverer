@@ -160,6 +160,7 @@ export default function ShippingPrepPage() {
         tenant_id: item.tenant_id,
         company_name: item.tenants?.company_name ?? "Ukendt",
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
+        has_unpaid_invoice: item.tenants?.has_unpaid_invoice ?? false,
         default_mail_action: item.tenants?.default_mail_action ?? null,
         default_package_action: item.tenants?.default_package_action ?? null,
         shipping_recipient: item.tenants?.shipping_recipient ?? null,
