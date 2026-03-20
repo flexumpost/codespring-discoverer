@@ -21,7 +21,23 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
 export function useTenants() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const ctx = useContext(TenantContext);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("tenants-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tenants" },
+        () => queryClient.invalidateQueries({ queryKey: ["my-tenants"] })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fallback local state when used outside provider (e.g. operator pages)
   const [localId, setLocalId] = useState<string | null>(null);
