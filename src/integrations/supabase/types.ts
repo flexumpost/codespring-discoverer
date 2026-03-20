@@ -683,6 +683,7 @@ export type Database = {
         | "arkiveret"
         | "sendt_med_dao"
         | "sendt_med_postnord"
+        | "sendt_retur"
       mail_type: "brev" | "pakke"
     }
     CompositeTypes: {
@@ -820,6 +821,7 @@ export const Constants = {
         "arkiveret",
         "sendt_med_dao",
         "sendt_med_postnord",
+        "sendt_retur",
       ],
       mail_type: ["brev", "pakke"],
     },

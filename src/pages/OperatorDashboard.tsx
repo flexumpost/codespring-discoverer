@@ -137,6 +137,12 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const month = DANISH_MONTHS[d.getMonth()];
     return `Sendt med PostNord ${day}. ${month}`;
   }
+  if (item.status === "sendt_retur") {
+    const d = new Date(item.updated_at);
+    const day = d.getDate();
+    const month = DANISH_MONTHS[d.getMonth()];
+    return `Sendt retur ${day}. ${month}`;
+  }
   const action = item.chosen_action;
   if (action === "standard_scan") {
     const tenantType = item.tenants?.tenant_types?.name;
@@ -226,6 +232,7 @@ const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> 
   arkiveret: "Arkiveret",
   sendt_med_dao: "Sendt med DAO",
   sendt_med_postnord: "Sendt med PostNord",
+  sendt_retur: "Sendt retur",
 };
 
 type CardFilter = {
@@ -462,7 +469,7 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name, default_mail_action, default_package_action, has_unpaid_invoice, tenant_types(name))")
-      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)")
+      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret,sendt_retur)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     const filtered = (data ?? []).filter(
       (item: any) => item.tenants?.tenant_types?.name !== "Retur til afsender"

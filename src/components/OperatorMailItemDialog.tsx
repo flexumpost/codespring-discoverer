@@ -58,7 +58,8 @@ export function OperatorMailItemDialog({
   const isPickedUp = item.chosen_action === "afhentet" && item.status === "arkiveret";
   const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer" && item.chosen_action !== "afhentet";
   const isSent = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
-  const isFinalized = isDestroyed || isPickedUp || isSent || item.status === "arkiveret";
+  const isSentRetur = item.status === "sendt_retur";
+  const isFinalized = isDestroyed || isPickedUp || isSent || isSentRetur || item.status === "arkiveret";
   const [reactivating, setReactivating] = useState(false);
 
   const handleReactivate = async () => {
@@ -218,6 +219,8 @@ export function OperatorMailItemDialog({
       updateData = { chosen_action: "destruer", status: "arkiveret" };
     } else if (operatorAction === "sendt") {
       updateData = { chosen_action: "under_forsendelse", status: "sendt_med_dao" };
+    } else if (operatorAction === "sendt_retur") {
+      updateData = { chosen_action: "sendt_retur", status: "sendt_retur" };
     }
     const { error } = await supabase
       .from("mail_items")
@@ -232,6 +235,7 @@ export function OperatorMailItemDialog({
         afhentet: "Markeret som afhentet",
         destruer: "Markeret som destrueret",
         sendt: "Markeret som sendt",
+        sendt_retur: "Markeret som sendt retur",
       };
       toast.success(labels[operatorAction] || "Handling udført");
       setShowOperatorActionConfirm(false);
@@ -245,12 +249,14 @@ export function OperatorMailItemDialog({
     afhentet: "Markér som afhentet",
     destruer: "Markér som destrueret",
     sendt: "Markér som sendt",
+    sendt_retur: "Markér som sendt retur",
   };
 
   const operatorActionDescriptions: Record<string, string> = {
     afhentet: "Forsendelsen markeres som fysisk afhentet af lejeren. Lejeren vil kun kunne arkivere.",
     destruer: "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
     sendt: "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
+    sendt_retur: "Forsendelsen markeres som sendt retur til afsender. Lejeren vil kun kunne arkivere.",
   };
 
   return (
@@ -422,6 +428,7 @@ export function OperatorMailItemDialog({
                     <SelectItem value="afhentet">Markér som afhentet</SelectItem>
                     <SelectItem value="destruer">Markér som destrueret</SelectItem>
                     <SelectItem value="sendt">Markér som sendt</SelectItem>
+                    <SelectItem value="sendt_retur">Markér som sendt retur</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

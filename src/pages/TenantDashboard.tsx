@@ -35,6 +35,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
   arkiveret: "Arkiveret",
   sendt_med_dao: "Sendt med DAO",
   sendt_med_postnord: "Sendt med PostNord",
+  sendt_retur: "Sendt retur",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -363,6 +364,13 @@ function getStatusDisplay(
     const day = d.getDate();
     const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
     return [`Sendt med PostNord ${day}. ${monthNames[d.getMonth()]}`];
+  }
+  // Sendt retur
+  if (item.status === "sendt_retur") {
+    const d = new Date((item as any).updated_at ?? Date.now());
+    const day = d.getDate();
+    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
+    return [`Sendt retur ${day}. ${monthNames[d.getMonth()]}`];
   }
   // Action rejected by operator
   if ((item as any).action_rejected_reason && !item.chosen_action) {
@@ -1003,7 +1011,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
-                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
+                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord" || item.status === "sendt_retur";
 
                     const defaultAction = item.mail_type === "pakke"
                       ? (selectedTenant as any)?.default_package_action
