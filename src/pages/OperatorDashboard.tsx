@@ -21,7 +21,7 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
-type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; tenant_types?: { name: string } | null } | null };
+type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; has_unpaid_invoice?: boolean; tenant_types?: { name: string } | null } | null };
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Scan nu",
