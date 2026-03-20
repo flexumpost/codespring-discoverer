@@ -1,5 +1,5 @@
-import { useState, useMemo, createContext, useContext, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect, createContext, useContext, ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
