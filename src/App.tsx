@@ -77,7 +77,7 @@ const AppRoutes = () => (
     <Route
       path="/shipping-prep"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <ShippingPrepPage />
         </ProtectedRoute>
       }
