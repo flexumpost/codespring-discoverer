@@ -841,6 +841,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         </Button>
       </div>
 
+      {hasUnpaidInvoice && (
+        <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-destructive">Ubetalt faktura — forsendelser bliver ikke behandlet</p>
+            <p className="text-sm text-muted-foreground mt-1">Så snart udestående faktura er betalt, bliver behandlingen genoptaget.</p>
+          </div>
+        </div>
+      )}
+
       {/* Stats cards */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
         {cards.map((card) => (
