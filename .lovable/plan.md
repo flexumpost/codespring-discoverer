@@ -1,53 +1,38 @@
 
 
-## Tilføj rolle-filter (Lejere / Operatører) til Login Log
+## Tilføj "Rekommanderet" funktionalitet
 
-### Problem
-Login log viser alle logins uden mulighed for at filtrere på brugertype.
-
-### Løsning
-Tilføj to radio buttons over søgefeltet: "Lejere" (default) og "Operatører". Filtreringen sker via en database-funktion, da `login_logs` ikke har en direkte relation til `user_roles`.
+### Oversigt
+Tilføj et `is_registered` boolean-felt til `mail_items`, en checkbox i registreringsdialogen (auto-afkrydset via OCR), og visning af mærket på begge dashboards.
 
 ### Ændringer
 
-**1. Database-migration: RPC-funktion til filtreret login-log**
+**1. Database-migration**
+- Tilføj kolonne `is_registered boolean NOT NULL DEFAULT false` til `mail_items`.
 
-Opret en `get_login_logs` funktion der joiner `login_logs` med `user_roles` og filtrerer på rolle:
+**2. OCR Edge Function (`supabase/functions/ocr-stamp/index.ts`)**
+- Tilføj `is_registered` (boolean) til tool-call parametrene i prompten.
+- Instruer modellen: sæt `true` hvis teksten "Rekommanderet" eller "Registered" ses på forsendelsen.
+- Returner `is_registered` i response JSON.
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_login_logs(
-  _role text,
-  _search text DEFAULT '',
-  _limit int DEFAULT 50,
-  _offset int DEFAULT 0
-)
-RETURNS TABLE (
-  id uuid, user_id uuid, email text,
-  logged_in_at timestamptz, last_seen_at timestamptz,
-  total_count bigint
-)
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT l.id, l.user_id, l.email, l.logged_in_at, l.last_seen_at,
-    COUNT(*) OVER() AS total_count
-  FROM login_logs l
-  WHERE
-    CASE WHEN _role = 'operator'
-      THEN EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = l.user_id AND r.role = 'operator')
-      ELSE NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = l.user_id AND r.role = 'operator')
-    END
-    AND (_search = '' OR l.email ILIKE '%' || _search || '%')
-  ORDER BY l.logged_in_at DESC
-  LIMIT _limit OFFSET _offset
-$$;
-```
+**3. `src/components/RegisterMailDialog.tsx`**
+- Tilføj state `isRegistered` (boolean, default `false`).
+- I `runOcr`: sæt `isRegistered` til `true` hvis OCR returnerer `is_registered: true`.
+- Tilføj en Checkbox med label "Rekommanderet" i formfelterne (efter afsender-feltet).
+- Inkludér `is_registered: isRegistered` i `mail_items.insert()`.
+- Reset `isRegistered` i `resetForm()`.
 
-**2. `src/components/LoginLogTab.tsx`**
+**4. `src/pages/TenantDashboard.tsx`**
+- I afsender-kolonnen (linje ~936): vis et `<Badge>` med teksten "Rekommanderet" ved siden af afsendernavnet, hvis `item.is_registered === true`.
 
-- Tilføj state `roleFilter` med default `"tenant"`
-- Tilføj `RadioGroup` med to `RadioGroupItem`: "Lejere" (`tenant`) og "Operatører" (`operator`)
-- Placér radio buttons over søgefeltet
-- Ændr query til at kalde `supabase.rpc("get_login_logs", { _role, _search, _limit, _offset })` i stedet for direkte tabelforespørgsel
-- Inkludér `roleFilter` i queryKey så listen genindlæses ved skift
+**5. `src/pages/OperatorDashboard.tsx`**
+- På forsendelseslinjen (nær type-badge ~669): vis et lille bold **R** i en firkant (`<span className="inline-flex items-center justify-center w-5 h-5 border border-current font-bold text-xs">R</span>`) hvis `item.is_registered === true`.
+
+**6. `src/components/BulkUploadDropzone.tsx`** (hvis bulk-upload også bruger mail_items insert)
+- Sikre at `is_registered` default til `false` — ingen ændring nødvendig da DB default håndterer det.
+
+### Tekniske detaljer
+- Kolonne: `is_registered boolean NOT NULL DEFAULT false` — ingen eksisterende data påvirkes.
+- OCR-prompten udvides med et ekstra tool-parameter `is_registered` (boolean).
+- TypeScript-typen opdateres automatisk efter migration.
 
