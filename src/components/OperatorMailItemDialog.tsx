@@ -49,10 +49,16 @@ export function OperatorMailItemDialog({
   const [rejectReason, setRejectReason] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [confirmingDestruction, setConfirmingDestruction] = useState(false);
+  const [operatorAction, setOperatorAction] = useState<string>("");
+  const [executingAction, setExecutingAction] = useState(false);
+  const [showOperatorActionConfirm, setShowOperatorActionConfirm] = useState(false);
 
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
-  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer";
+  const isPickedUp = item.chosen_action === "afhentet" && item.status === "arkiveret";
+  const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer" && item.chosen_action !== "afhentet";
+  const isSent = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
+  const isFinalized = isDestroyed || isPickedUp || isSent || item.status === "arkiveret";
   const [reactivating, setReactivating] = useState(false);
 
   const handleReactivate = async () => {
