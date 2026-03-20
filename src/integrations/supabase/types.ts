@@ -619,6 +619,22 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_login_logs: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _role: string
+          _search?: string
+        }
+        Returns: {
+          email: string
+          id: string
+          last_seen_at: string
+          logged_in_at: string
+          total_count: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
