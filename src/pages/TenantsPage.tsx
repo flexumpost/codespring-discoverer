@@ -41,6 +41,8 @@ const TenantsPage = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterUnpaid, setFilterUnpaid] = useState(false);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
