@@ -222,6 +222,7 @@ const TenantsPage = () => {
                 <TableHead>Lejer navn</TableHead>
                 <TableHead>Lejertype</TableHead>
                 <TableHead>Velkomst e-mail</TableHead>
+                <TableHead>Ubetalt faktura</TableHead>
                 <TableHead className="text-right">Nye breve</TableHead>
               </TableRow>
             </TableHeader>
