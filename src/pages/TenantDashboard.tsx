@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox, MessageCircle } from "lucide-react";
+import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox, MessageCircle, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
@@ -809,6 +809,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") &&
     ((selectedTenant as any).default_mail_action == null || (selectedTenant as any).default_package_action == null);
 
+  const hasUnpaidInvoice = !!(selectedTenant as any)?.has_unpaid_invoice;
+
   return (
     <div>
       {needsDefaultActions && (
@@ -838,6 +840,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           </a>
         </Button>
       </div>
+
+      {hasUnpaidInvoice && (
+        <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="font-semibold text-destructive">Ubetalt faktura — forsendelser bliver ikke behandlet</p>
+            <p className="text-sm text-muted-foreground mt-1">Så snart udestående faktura er betalt, bliver behandlingen genoptaget.</p>
+          </div>
+        </div>
+      )}
 
       {/* Stats cards */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-5 mb-8">
@@ -909,8 +921,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             {filteredByType.map((item: any) => (
               <TableRow
                 key={item.id}
-                className={cn("cursor-pointer hover:bg-muted/50", getMailRowColor(item))}
-                onClick={() => handleRowClick(item)}
+                className={cn(
+                  "cursor-pointer hover:bg-muted/50",
+                  getMailRowColor(item),
+                  hasUnpaidInvoice && "opacity-50 pointer-events-none"
+                )}
+                onClick={() => !hasUnpaidInvoice && handleRowClick(item)}
               >
                 <TableCell>
                   <PhotoHoverPreview photoUrl={item.photo_url} />

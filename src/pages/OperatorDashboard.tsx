@@ -21,7 +21,7 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
-type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; tenant_types?: { name: string } | null } | null };
+type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; has_unpaid_invoice?: boolean; tenant_types?: { name: string } | null } | null };
 
 const ACTION_LABELS: Record<string, string> = {
   scan: "Scan nu",
@@ -461,7 +461,7 @@ const OperatorDashboard = () => {
   const refreshMail = async () => {
     const { data } = await supabase
       .from("mail_items")
-      .select("*, tenants(company_name, default_mail_action, default_package_action, tenant_types(name))")
+      .select("*, tenants(company_name, default_mail_action, default_package_action, has_unpaid_invoice, tenant_types(name))")
       .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     const filtered = (data ?? []).filter(
@@ -683,7 +683,12 @@ const OperatorDashboard = () => {
                     onClick={(e) => { e.stopPropagation(); setAssignTenantItem(item); }}
                   >
                     {item.tenants?.company_name ? (
-                      <span className="text-primary hover:underline">{item.tenants.company_name}</span>
+                      <span className="text-primary hover:underline">
+                        {item.tenants.company_name}
+                        {item.tenants?.has_unpaid_invoice && (
+                          <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">Ubetalt</Badge>
+                        )}
+                      </span>
                     ) : (
                       <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
                     )}
