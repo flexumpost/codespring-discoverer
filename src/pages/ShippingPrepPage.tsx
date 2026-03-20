@@ -305,7 +305,7 @@ export default function ShippingPrepPage() {
       }
       const group = map.get(addrKey)!;
       if (!group.companies.some((c) => c.name === item.company_name)) {
-        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name });
+        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name, hasUnpaidInvoice: item.has_unpaid_invoice });
       }
       group.items.push(item);
     }
