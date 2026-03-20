@@ -78,6 +78,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const cropMode = cropTarget !== null;
   const [ocrRecipient, setOcrRecipient] = useState<string | null>(null);
   const [noAutoMatch, setNoAutoMatch] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
