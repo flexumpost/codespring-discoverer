@@ -256,7 +256,7 @@ const TenantsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tenants.map((tenant) => {
+              {filteredTenants.map((tenant) => {
                 const typeName = (tenant.tenant_types as any)?.name as string | undefined;
                 const newCount = newMailCounts[tenant.id] ?? 0;
                 return (
