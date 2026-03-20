@@ -486,6 +486,9 @@ const TenantDetailPage = () => {
                   <Save className="mr-2 h-4 w-4" />
                   {contactMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
+                {tenant.contact_email && !tenant.welcome_email_sent_at && (
+                  <ResendInviteButton tenantId={tenant.id} />
+                )}
               </CardContent>
             </Card>
 
