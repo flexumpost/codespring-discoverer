@@ -1,30 +1,27 @@
 
 
-## Vis antal lejere per type (Lite/Standard/Plus) på lejeroversigten
-
-### Oversigt
-Tilføj en linje med tællere for Lite, Standard og Plus lejere mellem søgefeltet og tabellen.
+## Tilføj procentdel og afstand til lejertype-badges
 
 ### Ændring
 
 **`src/pages/TenantsPage.tsx`**
 
-1. Tilføj et `useMemo` der tæller aktive lejere per type:
-   ```typescript
-   const typeCounts = useMemo(() => {
-     const counts = { Lite: 0, Standard: 0, Plus: 0 };
-     tenants.forEach(t => {
-       const name = t.tenant_types?.name;
-       if (name && name in counts) counts[name]++;
-     });
-     return counts;
-   }, [tenants]);
-   ```
+1. **Beregn procentdel** i badge-renderingen: `total = Lite + Standard + Plus`, vis `(XX%)` efter antallet.
 
-2. Indsæt en `flex gap-4` container efter søge/filter-linjen (efter linje ~232) med tre farvekodede badges:
-   - `Lite: X` (blå badge)
-   - `Standard: X` (grøn badge)  
-   - `Plus: X` (turkis badge)
-   
-   Bruger de eksisterende `TYPE_COLORS` til styling.
+2. **Tilføj `mb-[10px]`** på badge-containeren for 10px afstand til tabellen.
+
+```typescript
+// Linje 246-252 ændres til:
+<div className="flex items-center gap-3 mb-[10px]">
+  {(["Lite", "Standard", "Plus"] as const).map((type) => {
+    const total = typeCounts.Lite + typeCounts.Standard + typeCounts.Plus;
+    const pct = total > 0 ? Math.round((typeCounts[type] / total) * 100) : 0;
+    return (
+      <Badge key={type} variant="outline" className={`${TYPE_COLORS[type]} text-xs`}>
+        {type}: {typeCounts[type]} ({pct}%)
+      </Badge>
+    );
+  })}
+</div>
+```
 
