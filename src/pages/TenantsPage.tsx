@@ -167,14 +167,22 @@ const TenantsPage = () => {
 
   const canSubmit = companyName.trim() && tenantTypeId;
   
-  const allSelected = tenants.length > 0 && tenants.every(t => selectedTenantIds.has(t.id));
-  const someSelected = tenants.some(t => selectedTenantIds.has(t.id));
+  const filteredTenants = useMemo(() => {
+    return tenants.filter(t => {
+      const matchesSearch = !searchQuery || t.company_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesUnpaid = !filterUnpaid || t.has_unpaid_invoice;
+      return matchesSearch && matchesUnpaid;
+    });
+  }, [tenants, searchQuery, filterUnpaid]);
+
+  const allSelected = filteredTenants.length > 0 && filteredTenants.every(t => selectedTenantIds.has(t.id));
+  const someSelected = filteredTenants.some(t => selectedTenantIds.has(t.id));
 
   const toggleAll = () => {
     if (allSelected) {
       setSelectedTenantIds(new Set());
     } else {
-      setSelectedTenantIds(new Set(tenants.map(t => t.id)));
+      setSelectedTenantIds(new Set(filteredTenants.map(t => t.id)));
     }
   };
 
