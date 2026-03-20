@@ -1,5 +1,5 @@
-import { useState, useMemo, createContext, useContext, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect, createContext, useContext, ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -21,7 +21,23 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
 export function useTenants() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const ctx = useContext(TenantContext);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("tenants-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "tenants" },
+        () => queryClient.invalidateQueries({ queryKey: ["my-tenants"] })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Fallback local state when used outside provider (e.g. operator pages)
   const [localId, setLocalId] = useState<string | null>(null);
