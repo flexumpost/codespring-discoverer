@@ -450,6 +450,11 @@ export default function ShippingPrepPage() {
                                 >
                                   {c.typeName}
                                 </Badge>
+                                {c.hasUnpaidInvoice && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 leading-4">
+                                    Ubetalt faktura
+                                  </Badge>
+                                )}
                                 <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(c.name)} />
                               </span>
                             ))}
