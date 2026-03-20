@@ -32,7 +32,7 @@ export const MagicLinkEmail = ({
         <Img src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png" alt="Flexum" width="120" height="auto" style={{ marginBottom: '24px' }} />
         <Heading style={h1}>Dit login-link</Heading>
         <Text style={text}>
-          Klik på knappen nedenfor for at logge ind på Flexum. Linket udløber kort efter.
+          Klik på knappen nedenfor for at logge ind på Flexum.
         </Text>
         <Section style={buttonSection}>
           <Button style={button} href={confirmationUrl}>
