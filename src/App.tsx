@@ -45,7 +45,7 @@ const AppRoutes = () => (
     <Route
       path="/bulk-upload"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <BulkUploadPage />
         </ProtectedRoute>
       }
