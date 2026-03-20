@@ -203,6 +203,7 @@ serve(async (req) => {
         stamp_number = digits.length > 0 ? digits : null;
         recipient_name = args.recipient_name?.trim() || null;
         sender_name = args.sender_name?.trim() || null;
+        is_registered = args.is_registered === true;
       } catch (parseErr) {
         console.error("Failed to parse tool call args:", parseErr);
       }
