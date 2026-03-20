@@ -535,6 +535,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         tenant_id: selectedTenantId,
         notes: notes || null,
         photo_url: photoUrl,
+        is_registered: isRegistered,
       });
 
       if (error) throw error;
