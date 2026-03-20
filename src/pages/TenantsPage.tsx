@@ -166,7 +166,16 @@ const TenantsPage = () => {
   });
 
   const canSubmit = companyName.trim() && tenantTypeId;
-  
+
+  const typeCounts = useMemo(() => {
+    const counts = { Lite: 0, Standard: 0, Plus: 0 };
+    tenants.forEach(t => {
+      const name = t.tenant_types?.name;
+      if (name && name in counts) counts[name as keyof typeof counts]++;
+    });
+    return counts;
+  }, [tenants]);
+
   const filteredTenants = useMemo(() => {
     return tenants.filter(t => {
       const matchesSearch = !searchQuery || t.company_name.toLowerCase().includes(searchQuery.toLowerCase());
