@@ -472,6 +472,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setCropLoading(false);
     setOcrRecipient(null);
     setNoAutoMatch(false);
+    setIsRegistered(false);
     setPendingNewTenant(null);
     stopCamera();
   };
