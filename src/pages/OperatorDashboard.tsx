@@ -463,7 +463,7 @@ const OperatorDashboard = () => {
     const { data } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name, default_mail_action, default_package_action, has_unpaid_invoice, tenant_types(name))")
-      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret)")
+      .or("status.in.(ny,afventer_handling,ulaest,laest,sendt_med_dao,sendt_med_postnord,arkiveret,sendt_retur)")
       .order("stamp_number", { ascending: false, nullsFirst: false });
     const filtered = (data ?? []).filter(
       (item: any) => item.tenants?.tenant_types?.name !== "Retur til afsender"
