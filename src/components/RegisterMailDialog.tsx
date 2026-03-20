@@ -239,6 +239,12 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         toast.success("Afsender fundet: " + detectedSender);
       }
 
+      // Handle is_registered
+      if (data?.is_registered === true) {
+        setIsRegistered(true);
+        toast.success("Rekommanderet forsendelse registreret");
+      }
+
       // Handle recipient name
       if (recipientName) {
         setOcrRecipient(recipientName);
