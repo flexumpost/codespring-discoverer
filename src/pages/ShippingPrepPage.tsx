@@ -94,6 +94,7 @@ type MailItemWithTenant = {
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
+  has_unpaid_invoice: boolean;
   default_mail_action: string | null;
   default_package_action: string | null;
   shipping_recipient: string | null;
