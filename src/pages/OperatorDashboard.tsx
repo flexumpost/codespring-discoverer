@@ -137,6 +137,12 @@ function getOperatorStatusDisplay(item: MailItem): string {
     const month = DANISH_MONTHS[d.getMonth()];
     return `Sendt med PostNord ${day}. ${month}`;
   }
+  if (item.status === "sendt_retur") {
+    const d = new Date(item.updated_at);
+    const day = d.getDate();
+    const month = DANISH_MONTHS[d.getMonth()];
+    return `Sendt retur ${day}. ${month}`;
+  }
   const action = item.chosen_action;
   if (action === "standard_scan") {
     const tenantType = item.tenants?.tenant_types?.name;

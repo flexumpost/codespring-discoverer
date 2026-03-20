@@ -428,6 +428,7 @@ export function OperatorMailItemDialog({
                     <SelectItem value="afhentet">Markér som afhentet</SelectItem>
                     <SelectItem value="destruer">Markér som destrueret</SelectItem>
                     <SelectItem value="sendt">Markér som sendt</SelectItem>
+                    <SelectItem value="sendt_retur">Markér som sendt retur</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

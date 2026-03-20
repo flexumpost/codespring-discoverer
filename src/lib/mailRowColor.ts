@@ -22,6 +22,11 @@ export function getMailRowColor(item: {
     return "bg-teal-200 dark:bg-teal-900/40";
   }
 
+  // 0c. Sendt retur → orange
+  if (item.status === "sendt_retur") {
+    return "bg-orange-200 dark:bg-orange-900/40";
+  }
+
   // 1. Arkiveret (ikke destruer) → grå
   if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
     return "bg-gray-200 dark:bg-gray-900/40";
