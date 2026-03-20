@@ -193,6 +193,7 @@ serve(async (req) => {
     let stamp_number: string | null = null;
     let recipient_name: string | null = null;
     let sender_name: string | null = null;
+    let is_registered = false;
 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
