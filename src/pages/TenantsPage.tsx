@@ -234,6 +234,14 @@ const TenantsPage = () => {
         </div>
       </div>
 
+      <div className="flex items-center gap-3">
+        {(["Lite", "Standard", "Plus"] as const).map((type) => (
+          <Badge key={type} variant="outline" className={`${TYPE_COLORS[type]} text-xs`}>
+            {type}: {typeCounts[type]}
+          </Badge>
+        ))}
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
       ) : (
