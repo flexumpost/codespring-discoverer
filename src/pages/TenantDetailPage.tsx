@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowLeft, Save, User, Trash2, Eye, CalendarIcon, X } from "lucide-react";
+import { ArrowLeft, Save, User, Trash2, Eye, CalendarIcon, X, MailPlus } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -42,6 +42,34 @@ const TYPE_COLORS: Record<string, string> = {
   Fastlejer: "bg-amber-100 text-amber-800 border-amber-200",
   Nabo: "bg-cyan-100 text-cyan-800 border-cyan-200",
   "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
+};
+
+const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
+  const [sending, setSending] = useState(false);
+  const handleResend = async () => {
+    setSending(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("send-new-mail-email", {
+        body: { tenant_id: tenantId, is_new_tenant: true },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success("Invitation gensendt");
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke gensende invitation");
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={handleResend} disabled={sending}>
+      <MailPlus className="mr-2 h-4 w-4" />
+      {sending ? "Sender..." : "Gensend invitation"}
+    </Button>
+  );
 };
 
 const TenantDetailPage = () => {
@@ -486,6 +514,9 @@ const TenantDetailPage = () => {
                   <Save className="mr-2 h-4 w-4" />
                   {contactMutation.isPending ? "Gemmer..." : "Gem"}
                 </Button>
+                {tenant.contact_email && tenant.user_id && (
+                  <ResendInviteButton tenantId={tenant.id} />
+                )}
               </CardContent>
             </Card>
 
