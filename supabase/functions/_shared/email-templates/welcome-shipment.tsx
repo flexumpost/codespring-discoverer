@@ -65,4 +65,5 @@ const h1 = {
   margin: '0 0 20px',
 }
 const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
+const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
