@@ -85,7 +85,7 @@ const AppRoutes = () => (
     <Route
       path="/tenants"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <TenantsPage />
         </ProtectedRoute>
       }
@@ -93,7 +93,7 @@ const AppRoutes = () => (
     <Route
       path="/tenants/:id"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <TenantDetailPage />
         </ProtectedRoute>
       }
