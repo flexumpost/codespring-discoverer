@@ -39,6 +39,7 @@ export const MagicLinkEmail = ({
             Log ind
           </Button>
         </Section>
+        <Text style={hint}>Linket er aktivt i 1 time.</Text>
         <Text style={footer}>
           Hvis du ikke har anmodet om dette link, kan du trygt ignorere denne e-mail.
         </Text>
