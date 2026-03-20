@@ -94,6 +94,7 @@ type MailItemWithTenant = {
   tenant_id: string;
   company_name: string;
   tenant_type_name: string;
+  has_unpaid_invoice: boolean;
   default_mail_action: string | null;
   default_package_action: string | null;
   shipping_recipient: string | null;
@@ -143,7 +144,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city, shipping_state, shipping_country)")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, has_unpaid_invoice, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city, shipping_state, shipping_country)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -159,6 +160,7 @@ export default function ShippingPrepPage() {
         tenant_id: item.tenant_id,
         company_name: item.tenants?.company_name ?? "Ukendt",
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
+        has_unpaid_invoice: item.tenants?.has_unpaid_invoice ?? false,
         default_mail_action: item.tenants?.default_mail_action ?? null,
         default_package_action: item.tenants?.default_package_action ?? null,
         shipping_recipient: item.tenants?.shipping_recipient ?? null,
@@ -284,7 +286,7 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
@@ -303,7 +305,7 @@ export default function ShippingPrepPage() {
       }
       const group = map.get(addrKey)!;
       if (!group.companies.some((c) => c.name === item.company_name)) {
-        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name });
+        group.companies.push({ name: item.company_name, typeName: item.tenant_type_name, hasUnpaidInvoice: item.has_unpaid_invoice });
       }
       group.items.push(item);
     }
@@ -448,6 +450,11 @@ export default function ShippingPrepPage() {
                                 >
                                   {c.typeName}
                                 </Badge>
+                                {c.hasUnpaidInvoice && (
+                                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0 leading-4">
+                                    Ubetalt faktura
+                                  </Badge>
+                                )}
                                 <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(c.name)} />
                               </span>
                             ))}
