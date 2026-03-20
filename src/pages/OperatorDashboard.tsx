@@ -666,9 +666,14 @@ const OperatorDashboard = () => {
                     <PhotoHoverPreview photoUrl={item.photo_url} />
                   </TableCell>
                   <TableCell>
-                    <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
-                      {item.mail_type === "pakke" ? "Pakke" : "Brev"}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
+                        {item.mail_type === "pakke" ? "Pakke" : "Brev"}
+                      </Badge>
+                      {(item as any).is_registered && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 border border-current font-bold text-xs rounded-sm">R</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell
                     className="cursor-pointer"

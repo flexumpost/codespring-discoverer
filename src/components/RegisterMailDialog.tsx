@@ -885,6 +885,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
       </div>
 
+      {/* Rekommanderet */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="is_registered"
+          checked={isRegistered}
+          onCheckedChange={(checked) => setIsRegistered(checked === true)}
+        />
+        <Label htmlFor="is_registered" className="cursor-pointer text-sm font-normal">
+          Rekommanderet
+        </Label>
+      </div>
+
       {/* Noter */}
       <div className="space-y-2">
         <Label htmlFor="notes">Noter (valgfrit)</Label>

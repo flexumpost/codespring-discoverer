@@ -216,10 +216,10 @@ serve(async (req) => {
       stamp_number = digits.length > 0 ? digits : null;
     }
 
-    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name);
+    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name, "is_registered:", is_registered);
 
     return new Response(
-      JSON.stringify({ stamp_number, recipient_name, sender_name }),
+      JSON.stringify({ stamp_number, recipient_name, sender_name, is_registered }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

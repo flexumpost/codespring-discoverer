@@ -933,7 +933,14 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     )}
                   </div>
                 </TableCell>
-                <TableCell>{item.sender_name ?? "—"}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1.5">
+                    {item.sender_name ?? "—"}
+                    {(item as any).is_registered && (
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Rekommanderet</Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   {(() => {
                     const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
