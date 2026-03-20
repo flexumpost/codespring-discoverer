@@ -26,7 +26,7 @@ export const MagicLinkEmail = ({
 }: MagicLinkEmailProps) => (
   <Html lang="da" dir="ltr">
     <Head />
-    <Preview>Dit login-link til Flexum</Preview>
+    <Preview>Dit login-link til Flexum – aktivt i 1 time</Preview>
     <Body style={main}>
       <Container style={container}>
         <Img src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png" alt="Flexum" width="120" height="auto" style={{ marginBottom: '24px' }} />
