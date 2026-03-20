@@ -35,6 +35,7 @@ const STATUS_LABELS: Record<MailStatus, string> = {
   arkiveret: "Arkiveret",
   sendt_med_dao: "Sendt med DAO",
   sendt_med_postnord: "Sendt med PostNord",
+  sendt_retur: "Sendt retur",
 };
 
 const ACTION_LABELS: Record<string, string> = {
