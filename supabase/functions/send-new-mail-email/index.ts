@@ -4,6 +4,10 @@ import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
 import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
 import { WelcomeShipmentEmail } from "../_shared/email-templates/welcome-shipment.tsx";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
