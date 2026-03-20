@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     const trackingLabel = tracking_number ? escapeHtml(String(tracking_number)) : "";
 
     const subject = template.subject
-      .replace(/\{\{company_name\}\}/g, tenant.company_name)
+      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
