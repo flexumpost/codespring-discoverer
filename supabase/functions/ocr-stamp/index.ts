@@ -154,8 +154,12 @@ serve(async (req) => {
                     type: "string",
                     description: "Afsenderens navn eller firmanavn (inkl. logo-genkendelse, f.eks. PostNord, DHL, GLS). Returner tom streng hvis ikke fundet.",
                   },
+                  is_registered: {
+                    type: "boolean",
+                    description: "Sæt til true hvis forsendelsen er markeret som 'Rekommanderet' eller 'Registered'. Ellers false.",
+                  },
                 },
-                required: ["stamp_number", "recipient_name", "sender_name"],
+                required: ["stamp_number", "recipient_name", "sender_name", "is_registered"],
                 additionalProperties: false,
               },
             },
