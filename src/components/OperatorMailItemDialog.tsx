@@ -249,12 +249,14 @@ export function OperatorMailItemDialog({
     afhentet: "Markér som afhentet",
     destruer: "Markér som destrueret",
     sendt: "Markér som sendt",
+    sendt_retur: "Markér som sendt retur",
   };
 
   const operatorActionDescriptions: Record<string, string> = {
     afhentet: "Forsendelsen markeres som fysisk afhentet af lejeren. Lejeren vil kun kunne arkivere.",
     destruer: "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
     sendt: "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
+    sendt_retur: "Forsendelsen markeres som sendt retur til afsender. Lejeren vil kun kunne arkivere.",
   };
 
   return (
