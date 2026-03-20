@@ -58,7 +58,8 @@ export function OperatorMailItemDialog({
   const isPickedUp = item.chosen_action === "afhentet" && item.status === "arkiveret";
   const isArchivedByUser = item.status === "arkiveret" && item.chosen_action !== "destruer" && item.chosen_action !== "afhentet";
   const isSent = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
-  const isFinalized = isDestroyed || isPickedUp || isSent || item.status === "arkiveret";
+  const isSentRetur = item.status === "sendt_retur";
+  const isFinalized = isDestroyed || isPickedUp || isSent || isSentRetur || item.status === "arkiveret";
   const [reactivating, setReactivating] = useState(false);
 
   const handleReactivate = async () => {
