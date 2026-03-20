@@ -1,33 +1,62 @@
 
 
-## Send email ved ændring af "Ubetalt faktura" status
+## Tilføj "Markér som sendt retur" operatørhandling
 
 ### Oversigt
-Når operatøren markerer/afmarkerer "Ubetalt faktura" for en lejer, sendes en e-mail til lejeren via den eksisterende `send-new-mail-email` Edge Function med to nye email-skabeloner.
+Tilføj en ny status `sendt_retur` til `mail_status` enum og en ny operatørhandling "Markér som sendt retur". Forsendelsen forbliver synlig for lejeren men uden mulighed for handling. Samme princip gælder for alle andre operatørhandlinger (afhentet, destrueret, sendt) — forsendelsen skal forblive synlig i lejerens oversigt.
 
 ### Ændringer
 
-**1. Database: To nye email-skabeloner**
+**1. Database-migration**
+- Tilføj `sendt_retur` til `mail_status` enum:
+  ```sql
+  ALTER TYPE public.mail_status ADD VALUE IF NOT EXISTS 'sendt_retur';
+  ```
 
-Indsæt to nye rækker i `email_templates`:
-- `invoice_unpaid` (audience: "tenant") — Emne: "Forsendelser sat på pause" — Besked om at forsendelser ikke behandles pga. ubetalt faktura.
-- `invoice_paid` (audience: "tenant") — Emne: "Forsendelser genoptaget" — Besked om at behandling er genoptaget.
+**2. `src/components/OperatorMailItemDialog.tsx`**
+- Tilføj `sendt_retur` til operatørhandlings-select:
+  ```
+  <SelectItem value="sendt_retur">Markér som sendt retur</SelectItem>
+  ```
+- I `handleOperatorAction`: tilføj case for `sendt_retur`:
+  ```typescript
+  } else if (operatorAction === "sendt_retur") {
+    updateData = { chosen_action: "sendt_retur", status: "sendt_retur" };
+  }
+  ```
+- Tilføj labels og descriptions for `sendt_retur`.
+- Tilføj `sendt_retur` til `isFinalized`-check (linje ~61):
+  ```typescript
+  const isSentRetur = item.status === "sendt_retur";
+  const isFinalized = isDestroyed || isPickedUp || isSent || isSentRetur || item.status === "arkiveret";
+  ```
 
-**2. `supabase/functions/send-new-mail-email/index.ts`**
+**3. `src/pages/OperatorDashboard.tsx`**
+- Tilføj `sendt_retur` til statuslabels:
+  ```typescript
+  sendt_retur: "Sendt retur",
+  ```
+- Tilføj `sendt_retur` til status-filteret i `refreshMail` query (`.or()`).
+- Tilføj visning i `getStatusDisplay` for `sendt_retur`.
 
-Udvid funktionen til at håndtere de nye skabeloner:
-- Acceptér et nyt optional felt `invoice_status_change` i request body.
-- Når `template_slug` er `invoice_unpaid` eller `invoice_paid`, render en simpel e-mail (genbruge `NewShipmentEmail`-layoutet) med skabelonens indhold.
-- Kræver ikke `mail_type` eller `stamp_number` — disse felter er valgfrie.
+**4. `src/pages/TenantDashboard.tsx`**
+- Tilføj `sendt_retur` til statuslabels.
+- I handlingskolonnen: tilføj `sendt_retur` til `isSentWithDao`-check (eller separat), så lejeren kun ser "Arkivér"-knappen:
+  ```typescript
+  const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord" || item.status === "sendt_retur";
+  ```
+- I statuskolonnen: vis "Sendt retur" som status-tekst.
 
-**3. `src/pages/TenantsPage.tsx`**
-
-I `onCheckedChange`-handleren for ubetalt faktura-checkboxen:
-- Efter succesfuld database-opdatering, kald `supabase.functions.invoke("send-new-mail-email", { body: { tenant_id: tenant.id, template_slug: newVal ? "invoice_unpaid" : "invoice_paid" } })`.
-- Vis en toast ved succes/fejl.
+**5. `src/lib/mailRowColor.ts`**
+- Tilføj farve for `sendt_retur` (f.eks. grå eller orange):
+  ```typescript
+  if (item.status === "sendt_retur") {
+    return "bg-orange-200 dark:bg-orange-900/40";
+  }
+  ```
 
 ### Tekniske detaljer
-- Genbruger den eksisterende Edge Function og email-infrastruktur (Resend).
-- Skabelonerne bruger `{{company_name}}` og `{{name}}` placeholders som de eksisterende.
-- Ingen ny Edge Function nødvendig.
+- Ny enum-værdi `sendt_retur` i `mail_status` — kræver kun en `ADD VALUE` migration.
+- TypeScript-typen opdateres automatisk efter migration.
+- Forsendelsen forbliver synlig for lejeren men med handlinger låst til kun "Arkivér" (samme mønster som `sendt_med_dao`).
 
