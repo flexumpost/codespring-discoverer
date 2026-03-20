@@ -1,35 +1,53 @@
 
 
-## Operatør-handlinger i "Rediger forsendelse" dialog
+## Tilføj rolle-filter (Lejere / Operatører) til Login Log
 
-### Oversigt
-Tilføj tre nye operatør-handlinger i redigeringsdialogen, der giver operatøren mulighed for manuelt at opdatere status for forsendelser.
+### Problem
+Login log viser alle logins uden mulighed for at filtrere på brugertype.
 
-### Handlinger
-
-| Handling | DB-ændring | Effekt for lejer |
-|----------|-----------|-----------------|
-| Afhentet | `chosen_action="afhentet"`, `status="arkiveret"` | Kun "Arkiver" tilgængelig |
-| Destrueret | `chosen_action="destruer"`, `status="arkiveret"` | Kun "Arkiver" tilgængelig |
-| Sendt | `status="sendt_med_dao"`, `chosen_action="under_forsendelse"` | Kun "Arkiver" tilgængelig |
-
-Ingen database-migration nødvendig — `chosen_action` er et frit tekstfelt, og alle nødvendige statusser eksisterer allerede i `mail_status` enum.
+### Løsning
+Tilføj to radio buttons over søgefeltet: "Lejere" (default) og "Operatører". Filtreringen sker via en database-funktion, da `login_logs` ikke har en direkte relation til `user_roles`.
 
 ### Ændringer
 
-**1. `src/components/OperatorMailItemDialog.tsx`**
-- Tilføj en ny sektion "Operatør handling" med en Select-dropdown og en "Udfør"-knap
-- Valgmuligheder: "Markér som afhentet", "Markér som destrueret", "Markér som sendt"
-- "Afhentet" sætter `chosen_action="afhentet"` + `status="arkiveret"`
-- "Destrueret" sætter `chosen_action="destruer"` + `status="arkiveret"`
-- "Sendt" sætter `status="sendt_med_dao"` + `chosen_action="under_forsendelse"`
-- Hver handling kræver bekræftelse via AlertDialog
-- Sektionen vises kun for forsendelser der ikke allerede er arkiveret/sendt
+**1. Database-migration: RPC-funktion til filtreret login-log**
 
-**2. `src/pages/OperatorDashboard.tsx`**
-- I `getOperatorStatusDisplay`: tilføj check for `chosen_action === "afhentet"` → vis "Afhentet [dato klokkeslet]" med `updated_at`
+Opret en `get_login_logs` funktion der joiner `login_logs` med `user_roles` og filtrerer på rolle:
 
-**3. `src/pages/TenantDashboard.tsx`**
-- I status-visning: tilføj check for `chosen_action === "afhentet"` → vis "Afhentet [dato klokkeslet]"
-- Lejeren kan allerede kun "Arkivere" da status er `arkiveret`
+```sql
+CREATE OR REPLACE FUNCTION public.get_login_logs(
+  _role text,
+  _search text DEFAULT '',
+  _limit int DEFAULT 50,
+  _offset int DEFAULT 0
+)
+RETURNS TABLE (
+  id uuid, user_id uuid, email text,
+  logged_in_at timestamptz, last_seen_at timestamptz,
+  total_count bigint
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT l.id, l.user_id, l.email, l.logged_in_at, l.last_seen_at,
+    COUNT(*) OVER() AS total_count
+  FROM login_logs l
+  WHERE
+    CASE WHEN _role = 'operator'
+      THEN EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = l.user_id AND r.role = 'operator')
+      ELSE NOT EXISTS (SELECT 1 FROM user_roles r WHERE r.user_id = l.user_id AND r.role = 'operator')
+    END
+    AND (_search = '' OR l.email ILIKE '%' || _search || '%')
+  ORDER BY l.logged_in_at DESC
+  LIMIT _limit OFFSET _offset
+$$;
+```
+
+**2. `src/components/LoginLogTab.tsx`**
+
+- Tilføj state `roleFilter` med default `"tenant"`
+- Tilføj `RadioGroup` med to `RadioGroupItem`: "Lejere" (`tenant`) og "Operatører" (`operator`)
+- Placér radio buttons over søgefeltet
+- Ændr query til at kalde `supabase.rpc("get_login_logs", { _role, _search, _limit, _offset })` i stedet for direkte tabelforespørgsel
+- Inkludér `roleFilter` i queryKey så listen genindlæses ved skift
 
