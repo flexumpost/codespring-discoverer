@@ -2,6 +2,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -99,12 +103,13 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const name = tenant.contact_name || tenant.company_name;
+      const name = escapeHtml(tenant.contact_name || tenant.company_name);
+      const companyNameEscaped = escapeHtml(tenant.company_name);
       const subject = template.subject
-        .replace(/\{\{company_name\}\}/g, tenant.company_name)
+        .replace(/\{\{company_name\}\}/g, companyNameEscaped)
         .replace(/\{\{name\}\}/g, name);
       const bodyRaw = template.body
-        .replace(/\{\{company_name\}\}/g, tenant.company_name)
+        .replace(/\{\{company_name\}\}/g, companyNameEscaped)
         .replace(/\{\{name\}\}/g, name);
 
       // Convert newlines to <p> tags for proper formatting

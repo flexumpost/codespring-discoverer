@@ -4,6 +4,10 @@ import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
 import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
 import { WelcomeShipmentEmail } from "../_shared/email-templates/welcome-shipment.tsx";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -104,20 +108,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    const name = [tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || tenant.company_name;
+    const name = escapeHtml([tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || tenant.company_name);
+    const companyNameEscaped = escapeHtml(tenant.company_name);
     const mailTypeLabel = mail_type === "pakke" ? "pakke" : "forsendelse";
-    const stampLabel = stamp_number ? String(stamp_number) : "";
-    const trackingLabel = tracking_number ? String(tracking_number) : "";
+    const stampLabel = stamp_number ? escapeHtml(String(stamp_number)) : "";
+    const trackingLabel = tracking_number ? escapeHtml(String(tracking_number)) : "";
 
     const subject = template.subject
-      .replace(/\{\{company_name\}\}/g, tenant.company_name)
+      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
       .replace(/\{\{tracking_number\}\}/g, trackingLabel);
 
     const bodyRaw = template.body
-      .replace(/\{\{company_name\}\}/g, tenant.company_name)
+      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)

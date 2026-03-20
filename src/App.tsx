@@ -21,11 +21,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "operator" | "tenant" }) {
+  const { session, role, loading } = useAuth();
 
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  if (requiredRole && role !== requiredRole) return <Navigate to="/" replace />;
 
   return <>{children}</>;
 }
@@ -44,7 +45,7 @@ const AppRoutes = () => (
     <Route
       path="/bulk-upload"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <BulkUploadPage />
         </ProtectedRoute>
       }
@@ -68,7 +69,7 @@ const AppRoutes = () => (
     <Route
       path="/settings"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <SettingsPage />
         </ProtectedRoute>
       }
@@ -76,7 +77,7 @@ const AppRoutes = () => (
     <Route
       path="/shipping-prep"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <ShippingPrepPage />
         </ProtectedRoute>
       }
@@ -84,7 +85,7 @@ const AppRoutes = () => (
     <Route
       path="/tenants"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <TenantsPage />
         </ProtectedRoute>
       }
@@ -92,7 +93,7 @@ const AppRoutes = () => (
     <Route
       path="/tenants/:id"
       element={
-        <ProtectedRoute>
+        <ProtectedRoute requiredRole="operator">
           <TenantDetailPage />
         </ProtectedRoute>
       }
