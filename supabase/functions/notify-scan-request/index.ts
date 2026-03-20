@@ -74,8 +74,8 @@ Deno.serve(async (req) => {
     }
 
     const tenant = (item as any).tenants;
-    const companyName = tenant?.company_name ?? "Ukendt lejer";
-    const stampLabel = item.stamp_number ? ` (nr. ${item.stamp_number})` : "";
+    const companyName = escapeHtml(tenant?.company_name ?? "Ukendt lejer");
+    const stampLabel = item.stamp_number ? ` (nr. ${escapeHtml(String(item.stamp_number))})` : "";
 
     const subject = `Scan-anmodning: ${companyName}${stampLabel}`;
     const html = `

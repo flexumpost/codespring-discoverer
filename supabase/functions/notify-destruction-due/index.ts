@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
     // Build email content
     const rows = items.map((item: any) => {
       const tenant = item.tenants;
-      const company = tenant?.company_name ?? "Ukendt lejer";
-      const stamp = item.stamp_number ? `Nr. ${item.stamp_number}` : "Uden nr.";
+      const company = escapeHtml(tenant?.company_name ?? "Ukendt lejer");
+      const stamp = item.stamp_number ? `Nr. ${escapeHtml(String(item.stamp_number))}` : "Uden nr.";
       const type = item.mail_type === "pakke" ? "Pakke" : "Brev";
       const scannedAt = item.scanned_at
         ? new Date(item.scanned_at).toLocaleDateString("da-DK")
