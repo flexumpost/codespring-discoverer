@@ -215,6 +215,25 @@ const TenantsPage = () => {
         </div>
       </div>
 
+      <div className="flex items-center gap-4 mb-4">
+        <Input
+          placeholder="Søg på lejer navn..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="filter-unpaid"
+            checked={filterUnpaid}
+            onCheckedChange={(checked) => setFilterUnpaid(!!checked)}
+          />
+          <Label htmlFor="filter-unpaid" className="text-sm font-normal cursor-pointer whitespace-nowrap">
+            Ubetalt faktura
+          </Label>
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
       ) : (
