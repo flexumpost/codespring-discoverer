@@ -44,6 +44,34 @@ const TYPE_COLORS: Record<string, string> = {
   "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
 };
 
+const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
+  const [sending, setSending] = useState(false);
+  const handleResend = async () => {
+    setSending(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await supabase.functions.invoke("send-new-mail-email", {
+        body: { tenant_id: tenantId, is_new_tenant: true },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      toast.success("Invitation gensendt");
+    } catch (err: any) {
+      toast.error(err.message || "Kunne ikke gensende invitation");
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={handleResend} disabled={sending}>
+      <MailPlus className="mr-2 h-4 w-4" />
+      {sending ? "Sender..." : "Gensend invitation"}
+    </Button>
+  );
+};
+
 const TenantDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
