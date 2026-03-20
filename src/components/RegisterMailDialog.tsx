@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop, ArrowDownToLine } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
