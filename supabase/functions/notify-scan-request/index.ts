@@ -55,15 +55,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch mail item with tenant info
-    const { data: item } = await supabaseAdmin
+    // Fetch mail item with tenant info using caller's client so RLS enforces access
+    const { data: item } = await callerClient
       .from("mail_items")
       .select("id, stamp_number, mail_type, tenant_id, tenants(company_name)")
       .eq("id", mail_item_id)
       .maybeSingle();
 
     if (!item) {
-      return new Response(JSON.stringify({ error: "Mail item not found" }), {
+      return new Response(JSON.stringify({ error: "Not found or access denied" }), {
         status: 404,
         headers: corsHeaders,
       });
