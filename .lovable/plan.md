@@ -1,21 +1,35 @@
 
 
-## Fix: Plus brev forsendelse — gebyr skal være "0 kr." uden porto
+## Operatør-handlinger i "Rediger forsendelse" dialog
 
-### Problem
-For Plus-lejere vises brev-forsendelse som "0 kr. + porto" på både lejer- og operatør-dashboardet. Plus-lejere skal have gratis porto på breve, så gebyret skal blot være "0 kr.".
+### Oversigt
+Tilføj tre nye operatør-handlinger i redigeringsdialogen, der giver operatøren mulighed for manuelt at opdatere status for forsendelser.
+
+### Handlinger
+
+| Handling | DB-ændring | Effekt for lejer |
+|----------|-----------|-----------------|
+| Afhentet | `chosen_action="afhentet"`, `status="arkiveret"` | Kun "Arkiver" tilgængelig |
+| Destrueret | `chosen_action="destruer"`, `status="arkiveret"` | Kun "Arkiver" tilgængelig |
+| Sendt | `status="sendt_med_dao"`, `chosen_action="under_forsendelse"` | Kun "Arkiver" tilgængelig |
+
+Ingen database-migration nødvendig — `chosen_action` er et frit tekstfelt, og alle nødvendige statusser eksisterer allerede i `mail_status` enum.
 
 ### Ændringer
 
-**1. `src/pages/TenantDashboard.tsx`**
-
-- Linje 198: Ændr `return "0 kr. + porto"` → `return "0 kr."` (i `getFeeDisplay`, Plus brev `chosen_action === "send"`)
-- Linje 238: Ændr `return "0 kr. + porto"` → `return "0 kr."` (i `getFeeForAction`, Plus brev `action === "send"`)
+**1. `src/components/OperatorMailItemDialog.tsx`**
+- Tilføj en ny sektion "Operatør handling" med en Select-dropdown og en "Udfør"-knap
+- Valgmuligheder: "Markér som afhentet", "Markér som destrueret", "Markér som sendt"
+- "Afhentet" sætter `chosen_action="afhentet"` + `status="arkiveret"`
+- "Destrueret" sætter `chosen_action="destruer"` + `status="arkiveret"`
+- "Sendt" sætter `status="sendt_med_dao"` + `chosen_action="under_forsendelse"`
+- Hver handling kræver bekræftelse via AlertDialog
+- Sektionen vises kun for forsendelser der ikke allerede er arkiveret/sendt
 
 **2. `src/pages/OperatorDashboard.tsx`**
+- I `getOperatorStatusDisplay`: tilføj check for `chosen_action === "afhentet"` → vis "Afhentet [dato klokkeslet]" med `updated_at`
 
-- Linje 401: Ændr `return "0 kr. + porto"` → `return "0 kr."` (Plus brev send, inden for default-action blok)
-- Linje 426: Ændr `return "0 kr. + porto"` → `return "0 kr."` (Plus brev send/forsendelse, non-default)
-
-Begge steder rammes kun Plus-lejere med brev — pakke-logikken (som korrekt viser "10 kr. - Gratis porto") er uberørt.
+**3. `src/pages/TenantDashboard.tsx`**
+- I status-visning: tilføj check for `chosen_action === "afhentet"` → vis "Afhentet [dato klokkeslet]"
+- Lejeren kan allerede kun "Arkivere" da status er `arkiveret`
 
