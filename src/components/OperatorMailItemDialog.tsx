@@ -406,6 +406,35 @@ export function OperatorMailItemDialog({
             </div>
           )}
 
+          {/* Operator manual action section */}
+          {!isFinalized && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <HandCoins className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Operatør handling</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={operatorAction} onValueChange={setOperatorAction}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Vælg handling..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="afhentet">Markér som afhentet</SelectItem>
+                    <SelectItem value="destruer">Markér som destrueret</SelectItem>
+                    <SelectItem value="sendt">Markér som sendt</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!operatorAction}
+                  onClick={() => setShowOperatorActionConfirm(true)}
+                >
+                  Udfør
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Delete scan section */}
           {item.scan_url && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
