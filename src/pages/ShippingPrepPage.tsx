@@ -286,7 +286,7 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
