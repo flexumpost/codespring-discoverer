@@ -1004,7 +1004,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {(() => {
                     const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
-                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord";
+                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord" || item.status === "sendt_retur";
 
                     const defaultAction = item.mail_type === "pakke"
                       ? (selectedTenant as any)?.default_package_action
