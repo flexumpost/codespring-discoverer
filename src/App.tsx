@@ -21,11 +21,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: "operator" | "tenant" }) {
+  const { session, role, loading } = useAuth();
 
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  if (requiredRole && role !== requiredRole) return <Navigate to="/" replace />;
 
   return <>{children}</>;
 }
