@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
@@ -41,6 +41,8 @@ const TenantsPage = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [tenantTypeId, setTenantTypeId] = useState("");
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterUnpaid, setFilterUnpaid] = useState(false);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
@@ -165,14 +167,22 @@ const TenantsPage = () => {
 
   const canSubmit = companyName.trim() && tenantTypeId;
   
-  const allSelected = tenants.length > 0 && tenants.every(t => selectedTenantIds.has(t.id));
-  const someSelected = tenants.some(t => selectedTenantIds.has(t.id));
+  const filteredTenants = useMemo(() => {
+    return tenants.filter(t => {
+      const matchesSearch = !searchQuery || t.company_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesUnpaid = !filterUnpaid || t.has_unpaid_invoice;
+      return matchesSearch && matchesUnpaid;
+    });
+  }, [tenants, searchQuery, filterUnpaid]);
+
+  const allSelected = filteredTenants.length > 0 && filteredTenants.every(t => selectedTenantIds.has(t.id));
+  const someSelected = filteredTenants.some(t => selectedTenantIds.has(t.id));
 
   const toggleAll = () => {
     if (allSelected) {
       setSelectedTenantIds(new Set());
     } else {
-      setSelectedTenantIds(new Set(tenants.map(t => t.id)));
+      setSelectedTenantIds(new Set(filteredTenants.map(t => t.id)));
     }
   };
 
@@ -205,6 +215,25 @@ const TenantsPage = () => {
         </div>
       </div>
 
+      <div className="flex items-center gap-4 mb-4">
+        <Input
+          placeholder="Søg på lejer navn..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="max-w-sm"
+        />
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="filter-unpaid"
+            checked={filterUnpaid}
+            onCheckedChange={(checked) => setFilterUnpaid(!!checked)}
+          />
+          <Label htmlFor="filter-unpaid" className="text-sm font-normal cursor-pointer whitespace-nowrap">
+            Ubetalt faktura
+          </Label>
+        </div>
+      </div>
+
       {isLoading ? (
         <p className="text-muted-foreground">Indlæser...</p>
       ) : (
@@ -227,7 +256,7 @@ const TenantsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tenants.map((tenant) => {
+              {filteredTenants.map((tenant) => {
                 const typeName = (tenant.tenant_types as any)?.name as string | undefined;
                 const newCount = newMailCounts[tenant.id] ?? 0;
                 return (
@@ -314,10 +343,10 @@ const TenantsPage = () => {
                   </TableRow>
                 );
               })}
-              {tenants.length === 0 && (
+              {filteredTenants.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Ingen lejere fundet
+                    {tenants.length === 0 ? "Ingen lejere fundet" : "Ingen lejere matcher søgningen"}
                   </TableCell>
                 </TableRow>
               )}
