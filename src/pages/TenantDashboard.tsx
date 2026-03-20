@@ -809,6 +809,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") &&
     ((selectedTenant as any).default_mail_action == null || (selectedTenant as any).default_package_action == null);
 
+  const hasUnpaidInvoice = !!(selectedTenant as any)?.has_unpaid_invoice;
+
   return (
     <div>
       {needsDefaultActions && (
