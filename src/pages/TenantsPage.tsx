@@ -294,10 +294,25 @@ const TenantsPage = () => {
                         checked={!!(tenant as any).has_unpaid_invoice}
                         onCheckedChange={async (checked) => {
                           const newVal = !!checked;
-                          await supabase
+                          const { error: updateErr } = await supabase
                             .from("tenants")
                             .update({ has_unpaid_invoice: newVal } as any)
                             .eq("id", tenant.id);
+                          if (updateErr) {
+                            toast.error("Kunne ikke opdatere status");
+                            return;
+                          }
+                          // Send email notification
+                          supabase.functions.invoke("send-new-mail-email", {
+                            body: {
+                              tenant_id: tenant.id,
+                              template_slug: newVal ? "invoice_unpaid" : "invoice_paid",
+                            },
+                          }).then(({ error: emailErr }) => {
+                            if (emailErr) {
+                              console.error("Invoice email error:", emailErr);
+                            }
+                          });
                           // If unchecking, recalculate overdue shipping dates
                           if (!newVal) {
                             const now = new Date();
