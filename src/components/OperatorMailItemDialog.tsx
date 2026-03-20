@@ -209,6 +209,50 @@ export function OperatorMailItemDialog({
     }
   };
 
+  const handleOperatorAction = async () => {
+    setExecutingAction(true);
+    let updateData: Record<string, any> = {};
+    if (operatorAction === "afhentet") {
+      updateData = { chosen_action: "afhentet", status: "arkiveret" };
+    } else if (operatorAction === "destruer") {
+      updateData = { chosen_action: "destruer", status: "arkiveret" };
+    } else if (operatorAction === "sendt") {
+      updateData = { chosen_action: "under_forsendelse", status: "sendt_med_dao" };
+    }
+    const { error } = await supabase
+      .from("mail_items")
+      .update(updateData)
+      .eq("id", item.id);
+    setExecutingAction(false);
+    if (error) {
+      toast.error("Kunne ikke udføre handlingen");
+      console.error(error);
+    } else {
+      const labels: Record<string, string> = {
+        afhentet: "Markeret som afhentet",
+        destruer: "Markeret som destrueret",
+        sendt: "Markeret som sendt",
+      };
+      toast.success(labels[operatorAction] || "Handling udført");
+      setShowOperatorActionConfirm(false);
+      setOperatorAction("");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
+  const operatorActionLabels: Record<string, string> = {
+    afhentet: "Markér som afhentet",
+    destruer: "Markér som destrueret",
+    sendt: "Markér som sendt",
+  };
+
+  const operatorActionDescriptions: Record<string, string> = {
+    afhentet: "Forsendelsen markeres som fysisk afhentet af lejeren. Lejeren vil kun kunne arkivere.",
+    destruer: "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
+    sendt: "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
+  };
+
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
