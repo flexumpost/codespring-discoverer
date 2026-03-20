@@ -515,6 +515,7 @@ export type Database = {
           created_at: string
           default_mail_action: string | null
           default_package_action: string | null
+          has_unpaid_invoice: boolean
           id: string
           is_active: boolean
           shipping_address: string | null
@@ -539,6 +540,7 @@ export type Database = {
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
+          has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
           shipping_address?: string | null
@@ -563,6 +565,7 @@ export type Database = {
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
+          has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
           shipping_address?: string | null
