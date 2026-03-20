@@ -1,0 +1,1 @@
+ALTER TABLE public.mail_items ADD COLUMN is_registered boolean NOT NULL DEFAULT false;

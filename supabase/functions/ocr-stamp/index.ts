@@ -117,7 +117,7 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "Du er en OCR-assistent der analyserer fotos af forsendelser (breve og pakker).\n\nFORSENDELSESNUMMER (stamp_number):\n- Find det KORTE stempelnummer (typisk 3-6 cifre) som er trykt eller stemplet paa forsendelsen.\n- Ignorer LANGE stregkode-numre (10+ cifre) - disse er IKKE forsendelsesnummeret.\n- Stempelnummeret staar ofte alene, tydeligt synligt, og kan vaere haandskrevet eller stemplet.\n\nMODTAGER (recipient_name):\n- Modtageren er den person eller virksomhed forsendelsen er ADRESSERET TIL.\n- Modtageradressen er typisk den STOERSTE adresseblok, ofte placeret centralt eller nederst paa forsendelsen.\n\nAFSENDER (sender_name):\n- Afsenderen er den person eller virksomhed der har SENDT forsendelsen.\n- Afsenderadressen er typisk MINDRE og placeret oeverst til venstre, i et adressevindue, eller paa bagsiden.\n- VIGTIGT: Transportoer-logoer (PostNord, DHL, GLS, DPD, FedEx, UPS, Bring, DAO) er IKKE afsenderen. Afsenderen er firmaet/personen i retur-adressen.\n\nBrug funktionen extract_mail_info til at returnere resultaterne.",
+              "Du er en OCR-assistent der analyserer fotos af forsendelser (breve og pakker).\n\nFORSENDELSESNUMMER (stamp_number):\n- Find det KORTE stempelnummer (typisk 3-6 cifre) som er trykt eller stemplet paa forsendelsen.\n- Ignorer LANGE stregkode-numre (10+ cifre) - disse er IKKE forsendelsesnummeret.\n- Stempelnummeret staar ofte alene, tydeligt synligt, og kan vaere haandskrevet eller stemplet.\n\nMODTAGER (recipient_name):\n- Modtageren er den person eller virksomhed forsendelsen er ADRESSERET TIL.\n- Modtageradressen er typisk den STOERSTE adresseblok, ofte placeret centralt eller nederst paa forsendelsen.\n\nAFSENDER (sender_name):\n- Afsenderen er den person eller virksomhed der har SENDT forsendelsen.\n- Afsenderadressen er typisk MINDRE og placeret oeverst til venstre, i et adressevindue, eller paa bagsiden.\n- VIGTIGT: Transportoer-logoer (PostNord, DHL, GLS, DPD, FedEx, UPS, Bring, DAO) er IKKE afsenderen. Afsenderen er firmaet/personen i retur-adressen.\n\nREKOMMANDERET (is_registered):\n- Sæt til true hvis teksten 'Rekommanderet', 'Registered', 'R-brev' eller lignende ses på forsendelsen.\n- Sæt til false hvis ingen sådan tekst findes.\n\nBrug funktionen extract_mail_info til at returnere resultaterne.",
           },
           {
             role: "user",
@@ -154,8 +154,12 @@ serve(async (req) => {
                     type: "string",
                     description: "Afsenderens navn eller firmanavn (inkl. logo-genkendelse, f.eks. PostNord, DHL, GLS). Returner tom streng hvis ikke fundet.",
                   },
+                  is_registered: {
+                    type: "boolean",
+                    description: "Sæt til true hvis forsendelsen er markeret som 'Rekommanderet' eller 'Registered'. Ellers false.",
+                  },
                 },
-                required: ["stamp_number", "recipient_name", "sender_name"],
+                required: ["stamp_number", "recipient_name", "sender_name", "is_registered"],
                 additionalProperties: false,
               },
             },
@@ -189,6 +193,7 @@ serve(async (req) => {
     let stamp_number: string | null = null;
     let recipient_name: string | null = null;
     let sender_name: string | null = null;
+    let is_registered = false;
 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
@@ -198,6 +203,7 @@ serve(async (req) => {
         stamp_number = digits.length > 0 ? digits : null;
         recipient_name = args.recipient_name?.trim() || null;
         sender_name = args.sender_name?.trim() || null;
+        is_registered = args.is_registered === true;
       } catch (parseErr) {
         console.error("Failed to parse tool call args:", parseErr);
       }
@@ -210,10 +216,10 @@ serve(async (req) => {
       stamp_number = digits.length > 0 ? digits : null;
     }
 
-    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name);
+    console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name, "is_registered:", is_registered);
 
     return new Response(
-      JSON.stringify({ stamp_number, recipient_name, sender_name }),
+      JSON.stringify({ stamp_number, recipient_name, sender_name, is_registered }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

@@ -220,6 +220,7 @@ export type Database = {
           chosen_action: string | null
           created_at: string
           id: string
+          is_registered: boolean
           mail_type: Database["public"]["Enums"]["mail_type"]
           note_read: boolean
           notes: string | null
@@ -241,6 +242,7 @@ export type Database = {
           chosen_action?: string | null
           created_at?: string
           id?: string
+          is_registered?: boolean
           mail_type?: Database["public"]["Enums"]["mail_type"]
           note_read?: boolean
           notes?: string | null
@@ -262,6 +264,7 @@ export type Database = {
           chosen_action?: string | null
           created_at?: string
           id?: string
+          is_registered?: boolean
           mail_type?: Database["public"]["Enums"]["mail_type"]
           note_read?: boolean
           notes?: string | null

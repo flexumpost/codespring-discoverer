@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { Camera, Upload, X, VideoOff, ZoomIn, Loader2, UserPlus, Crop, ArrowDownToLine } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
@@ -77,6 +78,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const cropMode = cropTarget !== null;
   const [ocrRecipient, setOcrRecipient] = useState<string | null>(null);
   const [noAutoMatch, setNoAutoMatch] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -235,6 +237,12 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       if (detectedSender && !senderName) {
         setSenderName(detectedSender);
         toast.success("Afsender fundet: " + detectedSender);
+      }
+
+      // Handle is_registered
+      if (data?.is_registered === true) {
+        setIsRegistered(true);
+        toast.success("Rekommanderet forsendelse registreret");
       }
 
       // Handle recipient name
@@ -464,6 +472,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setCropLoading(false);
     setOcrRecipient(null);
     setNoAutoMatch(false);
+    setIsRegistered(false);
     setPendingNewTenant(null);
     stopCamera();
   };
@@ -526,6 +535,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         tenant_id: selectedTenantId,
         notes: notes || null,
         photo_url: photoUrl,
+        is_registered: isRegistered,
       });
 
       if (error) throw error;
@@ -873,6 +883,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       <div className="space-y-2">
         <Label htmlFor="sender">Afsender (valgfrit)</Label>
         <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
+      </div>
+
+      {/* Rekommanderet */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="is_registered"
+          checked={isRegistered}
+          onCheckedChange={(checked) => setIsRegistered(checked === true)}
+        />
+        <Label htmlFor="is_registered" className="cursor-pointer text-sm font-normal">
+          Rekommanderet
+        </Label>
       </div>
 
       {/* Noter */}
