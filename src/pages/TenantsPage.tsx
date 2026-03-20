@@ -260,6 +260,50 @@ const TenantsPage = () => {
                         <span className="text-muted-foreground">–</span>
                       )}
                     </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={!!(tenant as any).has_unpaid_invoice}
+                        onCheckedChange={async (checked) => {
+                          const newVal = !!checked;
+                          await supabase
+                            .from("tenants")
+                            .update({ has_unpaid_invoice: newVal } as any)
+                            .eq("id", tenant.id);
+                          // If unchecking, recalculate overdue shipping dates
+                          if (!newVal) {
+                            const now = new Date();
+                            const nextThurs = (() => {
+                              const d = new Date();
+                              const day = d.getDay();
+                              const daysUntil = (4 - day + 7) % 7 || 7;
+                              d.setDate(d.getDate() + daysUntil);
+                              d.setHours(0, 0, 0, 0);
+                              return d;
+                            })();
+                            const { data: overdueItems } = await supabase
+                              .from("mail_items")
+                              .select("id, pickup_date")
+                              .eq("tenant_id", tenant.id)
+                              .not("status", "in", "(arkiveret,sendt_med_dao,sendt_med_postnord)")
+                              .not("pickup_date", "is", null)
+                              .lt("pickup_date", now.toISOString());
+                            if (overdueItems && overdueItems.length > 0) {
+                              for (const mi of overdueItems) {
+                                await supabase
+                                  .from("mail_items")
+                                  .update({ pickup_date: nextThurs.toISOString() } as any)
+                                  .eq("id", mi.id);
+                              }
+                            }
+                          }
+                          queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
+                        }}
+                        aria-label={`Ubetalt faktura for ${tenant.company_name}`}
+                      />
+                      {!!(tenant as any).has_unpaid_invoice && (
+                        <AlertTriangle className="inline h-3.5 w-3.5 ml-1.5 text-destructive" />
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       {newCount > 0 ? (
                         <Badge variant="destructive">{newCount}</Badge>
