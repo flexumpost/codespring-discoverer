@@ -1,21 +1,42 @@
 
+Målet er at fjerne den vedvarende `401 Unauthorized` på **Gensend invitation**.
 
-## Fix: "Gensend invitation" returnerer 401
+### Hvorfor fejlen stadig sker
+- Requesten sender faktisk `Authorization: Bearer ...` korrekt.
+- Tokenet indeholder et `session_id`, som auth-serveren ikke længere kender (`session_not_found` i logs).
+- `send-new-mail-email` validerer i dag med `auth.getUser()`, som kræver en aktiv server-session — derfor 401, selv om JWT-signaturen er gyldig.
 
-### Problem
-`send-new-mail-email` er ikke opført i `supabase/config.toml`, så den bruger standard `verify_jwt = true`. Det betyder at Supabase's gateway verificerer JWT'en **før** funktionens kode kører. Hvis tokenet er udløbet eller stale, returneres 401 uden at funktionen overhovedet eksekveres.
+### Plan (konkret implementering)
 
-Funktionen validerer allerede auth manuelt i koden (linje 42-66), så gateway-verifikation er overflødig og skaber problemer.
+1) **Skift auth-validering i `send-new-mail-email` fra `getUser()` til `getClaims()`**
+- Fil: `supabase/functions/send-new-mail-email/index.ts`
+- Erstat:
+  - `const { data: claims, error: claimsErr } = await supabaseUser.auth.getUser();`
+- Med:
+  - udtræk token fra `Authorization` header
+  - `auth.getClaims(token)` for at læse `sub`
+  - brug `sub` som `callerId` til rollecheck i `user_roles`
+- Behold eksisterende operator-check (`role = operator`) og resten af flowet uændret.
 
-### Ændring
+2) **Gør samme auth-mønster i `log-login`**
+- Fil: `supabase/functions/log-login/index.ts`
+- Samme skifte til `getClaims()` for at undgå de 401-fejl, der også ses dér.
+- Det fjerner støj/runtime-fejl fra login-tracking.
 
-**`supabase/config.toml`** — Tilføj:
-```toml
-[functions.send-new-mail-email]
-  verify_jwt = false
-```
+3) **Frontend robusthed på “Gensend invitation”**
+- Fil: `src/pages/TenantDetailPage.tsx` (`ResendInviteButton`)
+- Fjern manuel token-injektion (`getSession` + custom `Authorization` header) og kald `supabase.functions.invoke(...)` direkte.
+- Tilføj venlig fejltekst ved 401: “Din session er udløbet – log ind igen”.
 
-Dette matcher mønsteret brugt af alle andre Edge Functions i projektet. Funktionen fortsætter med at validere operatør-rollen i koden.
+4) **Deploy og verifikation**
+- Deploy: `send-new-mail-email` og `log-login`.
+- Test:
+  - Klik **Gensend invitation** på lejerdetalje-side.
+  - Bekræft 200-respons i network.
+  - Bekræft ny `welcome_shipment`/relevant loglinje i email-log.
+  - Bekræft at 401-runtimefejl for disse to funktioner stopper.
 
-Deploy `send-new-mail-email` efter ændringen.
-
+### Tekniske noter
+- Ingen database-migrationer er nødvendige.
+- Ingen ændringer i RLS/policies er nødvendige for denne fix.
+- Fixen er målrettet auth-valideringsmønsteret i Edge Functions, som er årsagen til den konkrete 401-loop.
