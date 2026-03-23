@@ -49,17 +49,17 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
   const handleResend = async () => {
     setSending(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
       const res = await supabase.functions.invoke("send-new-mail-email", {
         body: { tenant_id: tenantId, is_new_tenant: true },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
       toast.success("Invitation gensendt");
     } catch (err: any) {
-      toast.error(err.message || "Kunne ikke gensende invitation");
+      const msg = err.message?.includes("401") || err.message?.includes("Unauthorized")
+        ? "Din session er udløbet – log ind igen"
+        : (err.message || "Kunne ikke gensende invitation");
+      toast.error(msg);
     } finally {
       setSending(false);
     }

@@ -36,19 +36,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is operator
+    // Verify caller via JWT claims (avoids session_not_found errors)
     const supabaseUser = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
-    const { data: claims, error: claimsErr } = await supabaseUser.auth.getUser();
-    if (claimsErr || !claims.user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsErr } = await supabaseUser.auth.getClaims(token);
+    if (claimsErr || !claimsData?.claims?.sub) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: corsHeaders,
       });
     }
+    const callerId = claimsData.claims.sub as string;
+    const callerEmail = (claimsData.claims.email as string) ?? "";
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -58,7 +61,7 @@ Deno.serve(async (req) => {
     const { data: roleCheck } = await supabaseAdmin
       .from("user_roles")
       .select("id")
-      .eq("user_id", claims.user.id)
+      .eq("user_id", callerId)
       .eq("role", "operator")
       .maybeSingle();
 
