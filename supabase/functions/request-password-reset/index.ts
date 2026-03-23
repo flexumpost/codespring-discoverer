@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
         subject: 'Nulstil din adgangskode',
         html,
         text,
-        purpose: 'transactional',
+        purpose: 'auth',
         label: 'recovery',
         queued_at: new Date().toISOString(),
       },
