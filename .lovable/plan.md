@@ -1,23 +1,32 @@
 
 
-## Forlæng magic link gyldighed til 24 timer
+## Fix: Recovery-e-mail fejler med "missing_unsubscribe"
 
 ### Problem
-Magic links har som standard 1 times gyldighed i auth-systemet. Velkomst-e-mailen til nye lejere bruger `type: "magiclink"`, så linket udløber efter 1 time.
+I `request-password-reset/index.ts` linje 103 sættes `purpose: "transactional"` på recovery-e-mailen. Email API'et kræver at transaktionelle e-mails har et `unsubscribe_token`. Recovery-mails er auth-e-mails og skal bruge `purpose: "auth"`.
 
-### Løsning
-Forlæng OTP/magic link udløbstiden i auth-konfigurationen fra 3600 sekunder (1 time) til 86400 sekunder (24 timer). Opdater også teksten i e-mail-skabelonen.
+Fejlen i process-email-queue logs:
+```
+Email API error: 400 {"type":"missing_unsubscribe","message":"Transactional emails must include an unsubscribe_token"}
+```
 
-### Ændringer
+E-mailen blev forsøgt 5 gange og er nu i dead-letter queue.
 
-1. **Auth-konfiguration** — Sæt `mailer_otp_exp` til 86400 (24 timer) via `configure_auth` værktøjet.
+### Ændring
 
-2. **`supabase/functions/_shared/email-templates/welcome-shipment.tsx` (linje 48)** — Ændr tekst:
-   - Fra: `Linket er aktivt i 1 time.`
-   - Til: `Linket er aktivt i 24 timer.`
+**`supabase/functions/request-password-reset/index.ts` — linje 103**
 
-3. **Deploy** `send-new-mail-email` for at opdatere skabelonen.
+Ændr:
+```
+purpose: 'transactional',
+```
+Til:
+```
+purpose: 'auth',
+```
+
+Deploy `request-password-reset` efter ændringen.
 
 ### Bemærkning
-Denne ændring påvirker ALLE magic links og OTP-koder i systemet (inkl. password reset). Hvis password reset bør forblive på 1 time, er dette en afvejning. Alternativt kan vi skifte welcome-shipment til `type: "invite"` igen — men det virkede ikke for allerede bekræftede brugere. Den simpleste løsning er at sætte global OTP expiry til 24 timer.
+Efter fix skal brugeren teste "Glemt adgangskode" igen, da den forrige e-mail er tabt (DLQ efter 5 fejlede forsøg).
 
