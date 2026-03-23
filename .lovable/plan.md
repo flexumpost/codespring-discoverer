@@ -1,85 +1,39 @@
 
 
-## Overfør gebyrlogik fra operatør-dashboard til forsendelsessiden
+## Fix: Recovery-e-mails fejler med 404 "run_not_found"
 
-### Tilgang
-Ja, det er den nemmeste løsning. Operatør-dashboardets `getItemFee()` (linje 340-450) har den korrekte logik. Vi tilpasser den til ShippingPrepPage's flade datastruktur (`item.tenant_type_name` i stedet for `item.tenants?.tenant_types?.name`).
+### Problem
+`request-password-reset` sætter `run_id: messageId` i køen, hvor `messageId` er et tilfældigt UUID. Når `process-email-queue` sender e-mailen, inkluderer den `run_id` i API-kaldet (linje 259). Email API'et forventer en gyldig, forud-oprettet `run_id` — det tilfældige UUID findes ikke, så API'et returnerer 404 `run_not_found`.
+
+Recovery-e-mails har `purpose: "transactional"`, og transaktionelle e-mails skal bruge `idempotency_key` i stedet for `run_id`. Queue-processoren håndterer dette korrekt — den inkluderer kun `run_id` hvis det er sat.
 
 ### Ændring
 
-**`src/pages/ShippingPrepPage.tsx` — erstat `getShippingFee` (linje 109-131)**
+**`supabase/functions/request-password-reset/index.ts` (linje 91-107)**
 
-Kopier logikken fra OperatorDashboard's `getItemFee`, tilpasset til den flade type:
+I `enqueue_email`-payloaden:
+- Fjern `run_id: messageId`
+- Tilføj `idempotency_key: \`recovery-\${messageId}\``
 
 ```typescript
-function getShippingFee(item: MailItemWithTenant): string {
-  const tier = item.tenant_type_name;
-  const defaultAction = item.mail_type === "pakke"
-    ? item.default_package_action
-    : item.default_mail_action;
-
-  if (!item.chosen_action) {
-    if (!defaultAction) return "—";
-    if (item.mail_type === "pakke") {
-      if (defaultAction === "afhentning") {
-        if (tier === "Plus") return "10 kr.";
-        if (tier === "Standard") return "30 kr.";
-        return "50 kr.";
-      }
-      if (defaultAction === "send") {
-        if (tier === "Plus") return "10 kr. + porto";
-        if (tier === "Standard") return "30 kr. + porto";
-        return "50 kr. + porto";
-      }
-      if (defaultAction === "destruer") return "0 kr.";
-      return "—";
-    }
-    return "0 kr.";
-  }
-
-  if (item.chosen_action === "standard_forsendelse") {
-    if (item.mail_type === "pakke") {
-      if (tier === "Plus") return "10 kr. + porto";
-      if (tier === "Standard") return "30 kr. + porto";
-      return "50 kr. + porto";
-    }
-    return "0 kr. + porto";
-  }
-  if (item.chosen_action === "standard_scan") return "0 kr.";
-  if (item.chosen_action === "gratis_afhentning") return "0 kr.";
-  if (!tier) return "—";
-
-  if (item.mail_type === "pakke") {
-    if (item.chosen_action === "destruer") return "0 kr.";
-    if (item.chosen_action === "afhentning") {
-      if (tier === "Plus") return "10 kr.";
-      if (tier === "Standard") return "30 kr.";
-      return "50 kr.";
-    }
-    if (tier === "Plus") return "10 kr. + porto";
-    if (tier === "Standard") return "30 kr. + porto";
-    return "50 kr. + porto";
-  }
-
-  // Brev: tjek om handlingen er default
-  if (item.chosen_action === defaultAction) {
-    if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
-      if (tier === "Lite") return "50 kr. + porto";
-      if (tier === "Standard") return "0 kr. + porto";
-      return "0 kr.";
-    }
-    return "0 kr.";
-  }
-
-  if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
-    if (tier === "Lite") return "50 kr. + porto";
-    if (tier === "Standard") return "0 kr. + porto";
-    return "0 kr.";
-  }
-
-  return "0 kr.";
-}
+const { error: enqueueError } = await supabase.rpc('enqueue_email', {
+  queue_name: 'auth_emails',
+  payload: {
+    // run_id fjernet — transaktionelle e-mails bruger idempotency_key
+    idempotency_key: `recovery-${messageId}`,
+    message_id: messageId,
+    to: cleanEmail,
+    from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+    sender_domain: SENDER_DOMAIN,
+    subject: 'Nulstil din adgangskode',
+    html,
+    text,
+    purpose: 'transactional',
+    label: 'recovery',
+    queued_at: new Date().toISOString(),
+  },
+})
 ```
 
-Dette er en direkte overførsel af den fungerende logik fra operatør-dashboardet, tilpasset ShippingPrepPage's flade datastruktur.
+Derefter deploy `request-password-reset` Edge Function.
 
