@@ -1,29 +1,23 @@
 
 
-## Fix: "Sæt din adgangskode"-link peger på forkert domæne
+## Forlæng magic link gyldighed til 24 timer
 
 ### Problem
-I `supabase/functions/send-new-mail-email/index.ts` linje 141 er `loginUrl` hardkodet til:
-```
-https://codespring-discoverer.lovable.app/login
-```
+Magic links har som standard 1 times gyldighed i auth-systemet. Velkomst-e-mailen til nye lejere bruger `type: "magiclink"`, så linket udløber efter 1 time.
 
-Denne URL bruges som fallback i welcome-emails og som `loginUrl` i NewShipmentEmail og ShipmentDispatchedEmail. Den burde pege på `https://post.flexum.dk/login`.
+### Løsning
+Forlæng OTP/magic link udløbstiden i auth-konfigurationen fra 3600 sekunder (1 time) til 86400 sekunder (24 timer). Opdater også teksten i e-mail-skabelonen.
 
-`origin` (linje 147) er allerede korrekt sat til `https://post.flexum.dk`, men `loginUrl` blev aldrig opdateret.
+### Ændringer
 
-### Ændring
+1. **Auth-konfiguration** — Sæt `mailer_otp_exp` til 86400 (24 timer) via `configure_auth` værktøjet.
 
-**`supabase/functions/send-new-mail-email/index.ts` — linje 141**
+2. **`supabase/functions/_shared/email-templates/welcome-shipment.tsx` (linje 48)** — Ændr tekst:
+   - Fra: `Linket er aktivt i 1 time.`
+   - Til: `Linket er aktivt i 24 timer.`
 
-Ændr:
-```typescript
-const loginUrl = "https://codespring-discoverer.lovable.app/login";
-```
-Til:
-```typescript
-const loginUrl = "https://post.flexum.dk/login";
-```
+3. **Deploy** `send-new-mail-email` for at opdatere skabelonen.
 
-Deploy `send-new-mail-email` efter ændringen.
+### Bemærkning
+Denne ændring påvirker ALLE magic links og OTP-koder i systemet (inkl. password reset). Hvis password reset bør forblive på 1 time, er dette en afvejning. Alternativt kan vi skifte welcome-shipment til `type: "invite"` igen — men det virkede ikke for allerede bekræftede brugere. Den simpleste løsning er at sætte global OTP expiry til 24 timer.
 
