@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     const { data: roleCheck } = await supabaseAdmin
       .from("user_roles")
       .select("id")
-      .eq("user_id", claims.user.id)
+      .eq("user_id", callerId)
       .eq("role", "operator")
       .maybeSingle();
 
