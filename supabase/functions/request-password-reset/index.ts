@@ -92,35 +92,41 @@ Deno.serve(async (req) => {
       status: 'pending',
     })
 
-    // Enqueue in auth_emails queue
-    const { error: enqueueError } = await supabase.rpc('enqueue_email', {
-      queue_name: 'auth_emails',
-      payload: {
-        idempotency_key: `recovery-${messageId}`,
-        message_id: messageId,
-        to: cleanEmail,
-        from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-        sender_domain: SENDER_DOMAIN,
+    // Send directly via Resend API
+    const resendKey = Deno.env.get('RESEND_API_KEY')
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Flexum <kontakt@flexum.dk>',
+        to: [cleanEmail],
         subject: 'Nulstil din adgangskode',
         html,
         text,
-        purpose: 'auth',
-        label: 'recovery',
-        queued_at: new Date().toISOString(),
-      },
+      }),
     })
 
-    if (enqueueError) {
-      console.error('Failed to enqueue recovery email', { error: enqueueError })
+    if (!resendRes.ok) {
+      const errBody = await resendRes.text()
+      console.error('Resend API error:', resendRes.status, errBody)
       await supabase.from('email_send_log').insert({
         message_id: messageId,
         template_name: 'recovery',
         recipient_email: cleanEmail,
         status: 'failed',
-        error_message: 'Failed to enqueue email',
+        error_message: `Resend ${resendRes.status}: ${errBody}`,
       })
     } else {
-      console.log('Recovery email enqueued', { email: cleanEmail })
+      console.log('Recovery email sent', { email: cleanEmail })
+      await supabase.from('email_send_log').insert({
+        message_id: messageId,
+        template_name: 'recovery',
+        recipient_email: cleanEmail,
+        status: 'sent',
+      })
     }
 
     return new Response(JSON.stringify({ success: true }), {
