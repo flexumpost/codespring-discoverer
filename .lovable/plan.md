@@ -1,37 +1,51 @@
 
 
-## Tilføj "Linket er aktivt i X timer" til tidsbegrænsede e-mails
+## Fix gebyrberegning på "Send breve og pakker" siden
 
-### Oversigt
-Tilføj en tekst der informerer modtageren om hvor længe linket er gyldigt i de e-mails der indeholder tidsbegrænsede links.
+### Problem
+`getShippingFee()` i ShippingPrepPage.tsx bruger kun `chosen_action` til at beregne gebyret, men ignorerer `default_mail_action` og `default_package_action`. Når en Lite-lejer har `default_mail_action = "standard_forsendelse"` og `chosen_action = null`, falder logikken igennem til tier-baseret pris (50 kr. + porto) i stedet for at genkende det som standard forsendelse (0 kr. + porto).
 
-### Berørte e-mails og udløbstider
-- **Invite** (`invite.tsx`) — 24 timer (invite token)
-- **Recovery** (`recovery.tsx`) — 1 time (recovery token)
-- **Magic Link** (`magic-link.tsx`) — 1 time (magic link token)
-- **Welcome Shipment** (`welcome-shipment.tsx`) — 24 timer (invite token, brugt ved ny lejer)
+TenantDashboard bruger `chosenAction || defaultAction` korrekt, men ShippingPrepPage gør det ikke.
 
-### Ændringer
+### Ændring
 
-**1. `supabase/functions/_shared/email-templates/invite.tsx`**
-- Tilføj efter knappen, før footer-teksten:
-  `<Text style={hint}>Linket er aktivt i 24 timer.</Text>`
+**`src/pages/ShippingPrepPage.tsx` — `getShippingFee` funktionen (linje 109-124)**
 
-**2. `supabase/functions/_shared/email-templates/recovery.tsx`**
-- Tilføj efter knappen, før footer-teksten:
-  `<Text style={hint}>Linket er aktivt i 1 time.</Text>`
+Erstat den simple funktion med logik der matcher TenantDashboard:
 
-**3. `supabase/functions/_shared/email-templates/magic-link.tsx`**
-- Erstat den eksisterende vage tekst "Linket udløber kort efter" med en præcis tekst.
-- Tilføj efter knappen: `<Text style={hint}>Linket er aktivt i 1 time.</Text>`
-
-**4. `supabase/functions/_shared/email-templates/welcome-shipment.tsx`**
-- Tilføj efter knappen, før footer-teksten:
-  `<Text style={hint}>Linket er aktivt i 24 timer.</Text>`
-
-### Styling
-Alle fire filer får en `hint`-stil:
 ```typescript
-const hint = { fontSize: '12px', color: '#999999', textAlign: 'center', margin: '0 0 24px' }
+function getShippingFee(item: MailItemWithTenant): string {
+  const tier = item.tenant_type_name;
+  const defaultAction = item.mail_type === "pakke"
+    ? item.default_package_action
+    : item.default_mail_action;
+  const effective = item.chosen_action || defaultAction;
+
+  if (item.mail_type === "pakke") {
+    if (effective === "destruer") return "0 kr.";
+    if (tier === "Plus") return "10 kr. - Gratis porto";
+    if (tier === "Standard") return "30 kr. + porto";
+    return "50 kr. + porto";
+  }
+
+  // Breve
+  if (effective === "destruer") return "0 kr.";
+  if (tier === "Plus") return "0 kr.";
+  if (tier === "Standard") {
+    if (effective === "send") return "0 kr. + porto";
+    return "0 kr. + porto";
+  }
+  // Lite
+  if (effective === "standard_forsendelse") return "0 kr. + porto";
+  if (effective === "send") return "50 kr. + porto";
+  // Fallback: standard forsendelse for Lite
+  return "0 kr. + porto";
+}
 ```
+
+Nøgleforskelle fra nuværende kode:
+- Bruger `effective = chosen_action || default_action` i stedet for kun `chosen_action`
+- Matcher Plus-pakke format: "10 kr. - Gratis porto" (som TenantDashboard)
+- Håndterer destruer-handlingen (0 kr.)
+- Standard forsendelse for Lite korrekt identificeret som "0 kr. + porto"
 
