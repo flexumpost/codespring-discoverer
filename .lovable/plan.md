@@ -1,46 +1,26 @@
 
 
-## Fix: Recovery-e-mails blokeret af rate limit der tæller forkert
+## Fix: Recovery-e-mail fejler med "invalid_parameter" (manglende run_id)
 
 ### Problem
-`request-password-reset` returnerer 200 men sender ingen e-mail. Årsagen er rate limit-tjekket (linje 39-44), som tæller **alle rækker** i `email_send_log` med `template_name='recovery'` den sidste time — inklusiv de 5 `failed`-rækker og 1 `dlq`-række fra det forrige fejlede forsøg (med `missing_unsubscribe`-fejlen). Det giver 7 rækker, som overstiger grænsen på 3, så funktionen returnerer stille success uden at sende.
+`request-password-reset` enqueuer recovery-e-mailen med `purpose: 'auth'` i Lovable's email-kø. Email API'et kræver et `run_id` for auth-e-mails — dette `run_id` genereres kun af Lovable's auth-webhook-system (auth-email-hook). Da `request-password-reset` er en custom funktion der bypasser auth-hooket, har den intet `run_id`, og API'et afviser med 400 "invalid_parameter".
 
-Rate limit bør tælle **unikke forsøg** (distinkte `message_id`), ikke alle log-rækker.
+### Løsning
+Send recovery-e-mailen direkte via Resend API (som `send-new-mail-email` allerede gør for andre e-mails), i stedet for at enqueue den i Lovable's email-kø. RESEND_API_KEY er allerede konfigureret.
 
-### Ændringer
+### Ændring
 
 **`supabase/functions/request-password-reset/index.ts`**
 
-1. Ændr rate limit-forespørgslen til at tælle distinkte `message_id` i stedet for alle rækker. Da Supabase JS-klienten ikke understøtter `COUNT(DISTINCT ...)`, skift til en RPC eller hent rækker og dedupliker i koden:
-   - Hent `message_id` kolonnen (ikke bare `id`) for de seneste recovery-rækker
-   - Dedupliker med `new Set()` og tjek størrelsen mod grænsen
+Erstat enqueue-blokken (linje 95-124) med et direkte Resend API-kald:
 
-2. Opdater grænsen fra 3 til 5 (brugerens valg)
+1. Hent `RESEND_API_KEY` fra environment
+2. Send via `fetch("https://api.resend.com/emails", ...)` med `from: "Flexum <kontakt@flexum.dk>"`
+3. Log `sent` eller `failed` i `email_send_log` baseret på Resend-responsen
+4. Fjern `enqueue_email` RPC-kaldet
 
-```typescript
-// Erstat linje 37-52 med:
-const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-const { data: recentRows } = await supabase
-  .from('email_send_log')
-  .select('message_id')
-  .eq('recipient_email', cleanEmail)
-  .eq('template_name', 'recovery')
-  .gte('created_at', oneHourAgo)
+Dette matcher det eksisterende mønster i `send-new-mail-email` og undgår hele run_id-problemet.
 
-const uniqueAttempts = new Set(
-  (recentRows ?? []).map(r => r.message_id).filter(Boolean)
-).size
-
-if (uniqueAttempts >= 5) {
-  return new Response(JSON.stringify({ success: true }), {
-    status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  })
-}
-```
-
-3. Deploy `request-password-reset`
-
-### Bemærkning
-Neutral succesbesked bibeholdes ved rate limit (som aftalt) for at forhindre konto-enumeration.
+### Deploy
+Redeploy `request-password-reset` efter ændringen.
 
