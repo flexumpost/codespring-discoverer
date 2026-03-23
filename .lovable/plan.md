@@ -1,17 +1,15 @@
 
 
-## Fix gebyrberegning på "Send breve og pakker" siden
+## Overfør gebyrlogik fra operatør-dashboard til forsendelsessiden
 
-### Problem
-`getShippingFee()` i ShippingPrepPage.tsx bruger kun `chosen_action` til at beregne gebyret, men ignorerer `default_mail_action` og `default_package_action`. Når en Lite-lejer har `default_mail_action = "standard_forsendelse"` og `chosen_action = null`, falder logikken igennem til tier-baseret pris (50 kr. + porto) i stedet for at genkende det som standard forsendelse (0 kr. + porto).
-
-TenantDashboard bruger `chosenAction || defaultAction` korrekt, men ShippingPrepPage gør det ikke.
+### Tilgang
+Ja, det er den nemmeste løsning. Operatør-dashboardets `getItemFee()` (linje 340-450) har den korrekte logik. Vi tilpasser den til ShippingPrepPage's flade datastruktur (`item.tenant_type_name` i stedet for `item.tenants?.tenant_types?.name`).
 
 ### Ændring
 
-**`src/pages/ShippingPrepPage.tsx` — `getShippingFee` funktionen (linje 109-124)**
+**`src/pages/ShippingPrepPage.tsx` — erstat `getShippingFee` (linje 109-131)**
 
-Erstat den simple funktion med logik der matcher TenantDashboard:
+Kopier logikken fra OperatorDashboard's `getItemFee`, tilpasset til den flade type:
 
 ```typescript
 function getShippingFee(item: MailItemWithTenant): string {
@@ -19,33 +17,69 @@ function getShippingFee(item: MailItemWithTenant): string {
   const defaultAction = item.mail_type === "pakke"
     ? item.default_package_action
     : item.default_mail_action;
-  const effective = item.chosen_action || defaultAction;
+
+  if (!item.chosen_action) {
+    if (!defaultAction) return "—";
+    if (item.mail_type === "pakke") {
+      if (defaultAction === "afhentning") {
+        if (tier === "Plus") return "10 kr.";
+        if (tier === "Standard") return "30 kr.";
+        return "50 kr.";
+      }
+      if (defaultAction === "send") {
+        if (tier === "Plus") return "10 kr. + porto";
+        if (tier === "Standard") return "30 kr. + porto";
+        return "50 kr. + porto";
+      }
+      if (defaultAction === "destruer") return "0 kr.";
+      return "—";
+    }
+    return "0 kr.";
+  }
+
+  if (item.chosen_action === "standard_forsendelse") {
+    if (item.mail_type === "pakke") {
+      if (tier === "Plus") return "10 kr. + porto";
+      if (tier === "Standard") return "30 kr. + porto";
+      return "50 kr. + porto";
+    }
+    return "0 kr. + porto";
+  }
+  if (item.chosen_action === "standard_scan") return "0 kr.";
+  if (item.chosen_action === "gratis_afhentning") return "0 kr.";
+  if (!tier) return "—";
 
   if (item.mail_type === "pakke") {
-    if (effective === "destruer") return "0 kr.";
-    if (tier === "Plus") return "10 kr. - Gratis porto";
+    if (item.chosen_action === "destruer") return "0 kr.";
+    if (item.chosen_action === "afhentning") {
+      if (tier === "Plus") return "10 kr.";
+      if (tier === "Standard") return "30 kr.";
+      return "50 kr.";
+    }
+    if (tier === "Plus") return "10 kr. + porto";
     if (tier === "Standard") return "30 kr. + porto";
     return "50 kr. + porto";
   }
 
-  // Breve
-  if (effective === "destruer") return "0 kr.";
-  if (tier === "Plus") return "0 kr.";
-  if (tier === "Standard") {
-    if (effective === "send") return "0 kr. + porto";
-    return "0 kr. + porto";
+  // Brev: tjek om handlingen er default
+  if (item.chosen_action === defaultAction) {
+    if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
+      if (tier === "Lite") return "50 kr. + porto";
+      if (tier === "Standard") return "0 kr. + porto";
+      return "0 kr.";
+    }
+    return "0 kr.";
   }
-  // Lite
-  if (effective === "standard_forsendelse") return "0 kr. + porto";
-  if (effective === "send") return "50 kr. + porto";
-  // Fallback: standard forsendelse for Lite
-  return "0 kr. + porto";
+
+  if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
+    if (tier === "Lite") return "50 kr. + porto";
+    if (tier === "Standard") return "0 kr. + porto";
+    return "0 kr.";
+  }
+
+  return "0 kr.";
 }
 ```
 
-Nøgleforskelle fra nuværende kode:
-- Bruger `effective = chosen_action || default_action` i stedet for kun `chosen_action`
-- Matcher Plus-pakke format: "10 kr. - Gratis porto" (som TenantDashboard)
-- Håndterer destruer-handlingen (0 kr.)
-- Standard forsendelse for Lite korrekt identificeret som "0 kr. + porto"
+Dette er en direkte overførsel af den fungerende logik fra operatør-dashboardet, tilpasset ShippingPrepPage's flade datastruktur.
 
