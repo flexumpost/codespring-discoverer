@@ -61,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let isInitialSession = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
@@ -78,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
           }, 0);
 
-          // Start login tracking on sign in
-          if (_event === "SIGNED_IN") {
+          // Only track login on actual sign-in, not session restore
+          if (_event === "SIGNED_IN" && !isInitialSession) {
             stopHeartbeat();
             startLoginTracking();
           }
@@ -89,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           stopHeartbeat();
         }
+
+        isInitialSession = false;
       }
     );
 
