@@ -1,22 +1,22 @@
 
 
-## Bloker søgemaskine-indexering + fix build-fejl
+## Fix: Plus-pakker viser fejlagtigt "Gratis porto"
 
-### Build-fejl
-`bun.lock` blev utilsigtet redigeret i forrige besked. Filen skal gendannes til valid JSON-format. Kører `bun install` for at regenerere den.
+### Problem
+I `TenantDashboard.tsx` har Plus-pakker prisvisningen `"10 kr. - Gratis porto"` for forsendelse. Dette er forkert — gratis porto gælder kun for Plus-lejeres **breve**, ikke pakker. Pakker skal altid vise `"10 kr. + porto"`.
 
-### Ændringer
+### Ændring
 
-1. **`public/robots.txt`** — Bloker alle søgemaskiner:
-   ```
-   User-agent: *
-   Disallow: /
-   ```
+**`src/pages/TenantDashboard.tsx`** — To steder (linje 174 og linje 231):
 
-2. **`index.html`** — Tilføj `noindex`/`nofollow` meta-tag i `<head>`:
-   ```html
-   <meta name="robots" content="noindex, nofollow" />
-   ```
+Ændr begge forekomster af:
+```typescript
+Plus: { fee: "10 kr.", feePorto: "10 kr. - Gratis porto" },
+```
+Til:
+```typescript
+Plus: { fee: "10 kr.", feePorto: "10 kr. + porto" },
+```
 
-3. **Fix build** — Kør `bun install` for at gendanne `bun.lock`.
+Dette retter prisvisningen i både gebyr-kolonnen og dropdown-menuen for pakkehandlinger.
 
