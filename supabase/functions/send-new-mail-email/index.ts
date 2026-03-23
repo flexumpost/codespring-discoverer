@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
       // Generate a recovery link so the user can set their password
       const origin = "https://post.flexum.dk";
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: "invite",
+        type: "magiclink",
         email: tenant.contact_email,
         options: { redirectTo: `${origin}/set-password` },
       });
