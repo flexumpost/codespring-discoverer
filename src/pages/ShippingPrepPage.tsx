@@ -108,19 +108,26 @@ type MailItemWithTenant = {
 
 function getShippingFee(item: MailItemWithTenant): string {
   const tier = item.tenant_type_name;
+  const defaultAction = item.mail_type === "pakke"
+    ? item.default_package_action
+    : item.default_mail_action;
+  const effective = item.chosen_action || defaultAction;
 
   if (item.mail_type === "pakke") {
-    if (tier === "Plus") return "10 kr. + porto";
+    if (effective === "destruer") return "0 kr.";
+    if (tier === "Plus") return "10 kr. - Gratis porto";
     if (tier === "Standard") return "30 kr. + porto";
     return "50 kr. + porto";
   }
 
   // Breve
-  if (item.chosen_action === "standard_forsendelse") return "0 kr. + porto";
-  // "send" = ekstra forsendelse
-  if (tier === "Lite") return "50 kr. + porto";
-  if (tier === "Standard") return "30 kr. + porto";
-  return "0 kr. + porto"; // Plus
+  if (effective === "destruer") return "0 kr.";
+  if (tier === "Plus") return "0 kr.";
+  if (tier === "Standard") return "0 kr. + porto";
+  // Lite
+  if (effective === "standard_forsendelse") return "0 kr. + porto";
+  if (effective === "send") return "50 kr. + porto";
+  return "0 kr. + porto";
 }
 
 export default function ShippingPrepPage() {
