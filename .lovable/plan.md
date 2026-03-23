@@ -1,39 +1,41 @@
 
 
-## Fix: Recovery-e-mails fejler med 404 "run_not_found"
+## Analyse: Invite-link fører til login i stedet for "Sæt adgangskode"
 
 ### Problem
-`request-password-reset` sætter `run_id: messageId` i køen, hvor `messageId` er et tilfældigt UUID. Når `process-email-queue` sender e-mailen, inkluderer den `run_id` i API-kaldet (linje 259). Email API'et forventer en gyldig, forud-oprettet `run_id` — det tilfældige UUID findes ikke, så API'et returnerer 404 `run_not_found`.
+Invite-linket bruger `generateLink({ type: "invite" })`, men brugeren (`ph@orex.dk`) blev allerede oprettet med `invite_silent` mode, som sætter `email_confirmed_at` automatisk. Når Supabase's `/auth/v1/verify` endpoint modtager et invite-token for en bruger der allerede er bekræftet, fejler verifikationen — brugeren redirectes uden gyldige session-tokens (ingen `access_token` i URL-hash).
 
-Recovery-e-mails har `purpose: "transactional"`, og transaktionelle e-mails skal bruge `idempotency_key` i stedet for `run_id`. Queue-processoren håndterer dette korrekt — den inkluderer kun `run_id` hvis det er sat.
+SetPasswordPage modtager derfor ingen tokens, viser "Indlæser..." og brugeren ender med at navigere til login manuelt.
 
-### Ændring
+**Dette rammer alle nye lejere** da de alle oprettes med `email_confirm: true` (bekræftet fra start), hvorefter invite-tokenet ikke kan "re-bekræfte" dem.
 
-**`supabase/functions/request-password-reset/index.ts` (linje 91-107)**
+### Løsning
+Skift fra `type: "invite"` til `type: "magiclink"` i `send-new-mail-email/index.ts`. Magic links:
+- Virker for allerede bekræftede brugere
+- Genererer gyldige session-tokens i redirect-URL'en
+- Sender `access_token` i hash-fragment som SetPasswordPage forventer
 
-I `enqueue_email`-payloaden:
-- Fjern `run_id: messageId`
-- Tilføj `idempotency_key: \`recovery-\${messageId}\``
+### Ændringer
+
+**`supabase/functions/send-new-mail-email/index.ts` (linje 145-149)**
+- Ændr `type: "invite"` → `type: "magiclink"` i `generateLink`-kaldet
+- Opdater `redirectTo` til at pege på `/set-password`
 
 ```typescript
-const { error: enqueueError } = await supabase.rpc('enqueue_email', {
-  queue_name: 'auth_emails',
-  payload: {
-    // run_id fjernet — transaktionelle e-mails bruger idempotency_key
-    idempotency_key: `recovery-${messageId}`,
-    message_id: messageId,
-    to: cleanEmail,
-    from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-    sender_domain: SENDER_DOMAIN,
-    subject: 'Nulstil din adgangskode',
-    html,
-    text,
-    purpose: 'transactional',
-    label: 'recovery',
-    queued_at: new Date().toISOString(),
-  },
-})
+const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+  type: "magiclink",
+  email: tenant.contact_email,
+  options: { redirectTo: `${origin}/set-password` },
+});
 ```
 
-Derefter deploy `request-password-reset` Edge Function.
+**`supabase/functions/_shared/email-templates/welcome-shipment.tsx`**
+- Opdater teksten "Linket er aktivt i 24 timer" til den korrekte gyldighedsperiode for magic links (1 time)
+
+Deploy `send-new-mail-email` Edge Function efter ændringen.
+
+### Bemærkning
+Magic links har 1 times udløb (kortere end invites 24 timer). Hvis 24-timers gyldighed er vigtig, kan vi alternativt bruge `type: "recovery"` som også virker for bekræftede brugere, og ligeledes har 1 times udløb. Begge er bedre end `invite` som slet ikke virker for allerede bekræftede brugere.
+
+For at opnå længere gyldighed kan vi justere Supabase auth-konfigurationen for magic link/OTP expiry.
 
