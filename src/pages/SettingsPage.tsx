@@ -204,7 +204,7 @@ const SettingsPage = () => {
     return (
       <AppLayout>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold">Indstillinger</h2>
+          <h2 className="text-2xl font-bold">{t("settings.title")}</h2>
         </div>
         <OperatorSettingsTabs />
       </AppLayout>
