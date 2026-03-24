@@ -355,7 +355,7 @@ const SettingsPage = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="rec_name">Navn</Label>
+              <Label htmlFor="rec_name">{t("settings.name")}</Label>
               <Input
                 id="rec_name"
                 value={newName}
