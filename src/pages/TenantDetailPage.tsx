@@ -400,10 +400,10 @@ const TenantDetailPage = () => {
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Lejertype</Label>
+                  <Label className="text-muted-foreground text-xs">{t("tenantDetail.tenantType")}</Label>
                   <Select value={selectedTypeId} onValueChange={setSelectedTypeId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Vælg lejertype" />
+                      <SelectValue placeholder={t("tenantDetail.selectTenantType")} />
                     </SelectTrigger>
                     <SelectContent>
                       {tenantTypes.map((t) => (
