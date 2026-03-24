@@ -170,12 +170,12 @@ const ShippingAddressPage = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_state">Stat</Label>
-                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder="Stat (valgfrit)" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_state">{t("shipping.state")}</Label>
+                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder={t("shipping.statePlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_country">Land *</Label>
-                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_country">{t("shipping.country")}</Label>
+                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder={t("shipping.countryPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <Button onClick={() => shippingMutation.mutate()} disabled={!hasShippingChanges || !shippingValid || shippingMutation.isPending}>
                 <Save className="mr-2 h-4 w-4" />
