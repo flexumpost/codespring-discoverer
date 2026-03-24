@@ -569,7 +569,7 @@ const TenantDetailPage = () => {
             {tenantUsers.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Postmodtagere</CardTitle>
+                  <CardTitle className="text-base">{t("tenantDetail.mailRecipients")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
