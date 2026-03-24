@@ -237,7 +237,7 @@ const SettingsPage = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label className="text-muted-foreground text-xs">Firmanavn</Label>
+                  <Label className="text-muted-foreground text-xs">{t("settings.companyName")}</Label>
                   <p className="font-medium">{selectedTenant.company_name}</p>
                 </div>
                 {selectedTenant.address && (
