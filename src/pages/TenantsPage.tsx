@@ -398,7 +398,7 @@ const TenantsPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact_last_name">Efternavn</Label>
+                <Label htmlFor="contact_last_name">{t("tenants.lastName")}</Label>
                 <Input
                   id="contact_last_name"
                   value={contactLastName}
