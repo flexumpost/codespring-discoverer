@@ -233,7 +233,7 @@ const SettingsPage = () => {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Virksomhed</CardTitle>
+                <CardTitle className="text-base">{t("settings.company")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
