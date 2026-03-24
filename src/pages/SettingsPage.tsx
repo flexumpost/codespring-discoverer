@@ -413,7 +413,7 @@ const SettingsPage = () => {
             <DialogDescription>{t("settings.editCompanyDesc", { name: editingUser?.name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label>Virksomheder</Label>
+            <Label>{t("settings.companies")}</Label>
             <div className="space-y-2 rounded-md border p-3">
               {tenants.map((t) => (
                 <div key={t.id} className="flex items-center gap-2">
