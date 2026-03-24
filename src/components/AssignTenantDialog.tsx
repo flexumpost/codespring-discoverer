@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { UserPlus, Search, Loader2, Crop, ZoomIn, X, ArrowDownToLine } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { validateStampNumber } from "@/lib/validateStampNumber";
+import { useTranslation } from "react-i18next";
 
 type MailItem = Tables<"mail_items">;
 
@@ -49,6 +50,7 @@ export function AssignTenantDialog({
   onOpenChange,
   onAssigned,
 }: AssignTenantDialogProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [assigning, setAssigning] = useState(false);
@@ -60,7 +62,6 @@ export function AssignTenantDialog({
   const [newTypeId, setNewTypeId] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // OCR state
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrRecipient, setOcrRecipient] = useState<string | null>(null);
   const [noAutoMatch, setNoAutoMatch] = useState(false);
@@ -68,14 +69,12 @@ export function AssignTenantDialog({
   const [senderName, setSenderName] = useState("");
   const [suggestedTenantId, setSuggestedTenantId] = useState<string | null>(null);
 
-  // Crop state
   const [cropTarget, setCropTarget] = useState<"tenant" | "stamp" | "sender" | null>(null);
   const [cropLoading, setCropLoading] = useState(false);
   const [cropRect, setCropRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
   const [isCropping, setIsCropping] = useState(false);
   const cropMode = cropTarget !== null;
 
-  // Zoom state
   const [showZoom, setShowZoom] = useState(false);
 
   const cropImageRef = useRef<HTMLImageElement>(null);
@@ -83,7 +82,6 @@ export function AssignTenantDialog({
 
   const photoUrl = useSignedPhotoUrl(mailItem.photo_url);
 
-  // Initialize from mailItem
   useEffect(() => {
     if (open) {
       setStampNumber(mailItem.stamp_number?.toString() ?? "");
@@ -138,12 +136,12 @@ export function AssignTenantDialog({
     enabled: open,
   });
 
-  const filtered = tenants?.filter((t) => {
+  const filtered = tenants?.filter((tn) => {
     if (!search) return true;
     const s = search.toLowerCase();
-    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
+    const contactFull = [tn.contact_first_name, tn.contact_last_name].filter(Boolean).join(" ").toLowerCase();
     return (
-      t.company_name.toLowerCase().includes(s) ||
+      tn.company_name.toLowerCase().includes(s) ||
       contactFull.includes(s)
     );
   }) ?? [];
@@ -157,18 +155,17 @@ export function AssignTenantDialog({
     if (match) {
       setSuggestedTenantId(match.id);
       setSearch("");
-      toast.success(`Lejer matchet automatisk: ${match.company_name}`);
+      toast.success(t("registerMail.tenantMatched") + `: ${match.company_name}`);
       setNoAutoMatch(false);
     } else {
       setNoAutoMatch(true);
-      toast.info(`Modtager "${recipientName}" matchede ingen lejer`);
+      toast.info(t("registerMail.noMatch", { name: recipientName }));
     }
-  }, [tenants]);
+  }, [tenants, t]);
 
-  // Auto-OCR when dialog opens with a photo and no tenant assigned
   useEffect(() => {
     if (!open || !photoUrl || ocrRanRef.current || !tenants) return;
-    if (mailItem.tenant_id) return; // Already has tenant, skip auto-OCR
+    if (mailItem.tenant_id) return;
     ocrRanRef.current = true;
     runOcrFromUrl(photoUrl);
   }, [open, photoUrl, tenants, mailItem.tenant_id]);
@@ -176,7 +173,6 @@ export function AssignTenantDialog({
   const runOcrFromUrl = async (url: string) => {
     setOcrLoading(true);
     try {
-      // Fetch image and convert to base64
       const response = await fetch(url);
       const blob = await response.blob();
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -192,16 +188,14 @@ export function AssignTenantDialog({
 
       if (error) throw error;
 
-      // Handle stamp number
       if (data?.stamp_number && !stampNumber) {
         const validation = validateStampNumber(String(data.stamp_number), recentStampNumbers);
         if (validation.valid) {
           setStampNumber(data.stamp_number);
-          toast.success("Forsendelsesnr. fundet: " + data.stamp_number);
+          toast.success(t("registerMail.stampFound") + ": " + data.stamp_number);
         }
       }
 
-      // Smart swap: if sender matches a tenant but recipient doesn't, swap them
       let recipientName = data?.recipient_name ?? "";
       let detectedSender = data?.sender_name ?? "";
       if (tenants && recipientName && detectedSender) {
@@ -227,7 +221,7 @@ export function AssignTenantDialog({
       }
     } catch (err: any) {
       console.error("OCR error:", err);
-      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+      toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
       setOcrLoading(false);
     }
@@ -246,7 +240,7 @@ export function AssignTenantDialog({
       const h = Math.abs(cropRect.endY - cropRect.startY) * scaleY;
 
       if (w < 10 || h < 10) {
-        toast.error("Markér et større område");
+        toast.error(t("registerMail.selectLargerArea"));
         setCropLoading(false);
         return;
       }
@@ -266,39 +260,39 @@ export function AssignTenantDialog({
 
       const ocrText = data?.ocr_text;
       if (ocrText) {
-        toast.success(`Aflæst tekst: "${ocrText}"`);
+        toast.success(t("registerMail.readText", { text: ocrText }));
         if (cropTarget === "stamp") {
           const digits = ocrText.replace(/\D/g, "");
           if (digits) {
             setStampNumber(digits);
-            toast.success("Forsendelsesnr. sat: " + digits);
+            toast.success(t("registerMail.numberSet") + ": " + digits);
           } else {
-            toast.info("Ingen cifre fundet i det markerede område");
+            toast.info(t("registerMail.noDigitsFound"));
           }
         } else if (cropTarget === "sender") {
           setSenderName(ocrText);
-          toast.success("Afsender sat: " + ocrText);
+          toast.success(t("registerMail.senderSet") + ": " + ocrText);
         } else if (cropTarget === "tenant") {
           if (tenants) {
             const match = fuzzyMatchTenant(ocrText, tenants);
             if (match) {
               setSuggestedTenantId(match.id);
               setSearch("");
-              toast.success(`Lejer matchet: ${match.company_name}`);
+              toast.success(t("registerMail.tenantMatchedCrop") + `: ${match.company_name}`);
             } else {
               setSearch(ocrText);
-              toast.info("Ingen match – teksten er sat som søgning");
+              toast.info(t("registerMail.noMatchSearch"));
             }
           }
         }
       } else {
-        toast.info("Kunne ikke aflæse tekst i det markerede område");
+        toast.info(t("registerMail.couldNotReadArea"));
       }
 
       setCropTarget(null);
       setCropRect(null);
     } catch (err: any) {
-      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+      toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
       setCropLoading(false);
     }
@@ -341,7 +335,6 @@ export function AssignTenantDialog({
     try {
       const updatePayload: Record<string, unknown> = { tenant_id: tenantId };
 
-      // Also update stamp_number and sender_name if changed
       const newStamp = stampNumber ? parseInt(stampNumber, 10) : null;
       if (newStamp !== mailItem.stamp_number) {
         updatePayload.stamp_number = newStamp;
@@ -356,11 +349,11 @@ export function AssignTenantDialog({
         .update(updatePayload)
         .eq("id", mailItem.id);
       if (error) throw error;
-      toast.success("Lejer tildelt");
+      toast.success(t("assignTenant.tenantAssigned"));
       onAssigned();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error("Kunne ikke tildele lejer: " + err.message);
+      toast.error(t("assignTenant.couldNotAssign") + ": " + err.message);
     } finally {
       setAssigning(false);
     }
@@ -368,7 +361,7 @@ export function AssignTenantDialog({
 
   const handleCreate = async () => {
     if (!newName.trim() || !newTypeId) {
-      toast.error("Udfyld venligst firmanavn og lejertype");
+      toast.error(t("registerMail.fillCompanyAndType"));
       return;
     }
     setCreating(true);
@@ -387,10 +380,10 @@ export function AssignTenantDialog({
         .single();
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["tenants-active"] });
-      toast.success(`Lejer "${data.company_name}" oprettet`);
+      toast.success(t("registerMail.tenantCreated", { name: data.company_name }));
       await handleAssign(data.id);
     } catch (err: any) {
-      toast.error("Kunne ikke oprette lejer: " + err.message);
+      toast.error(t("registerMail.couldNotCreateTenant") + ": " + err.message);
     } finally {
       setCreating(false);
     }
@@ -430,7 +423,7 @@ export function AssignTenantDialog({
         <img
           ref={cropImageRef}
           src={photoUrl}
-          alt="Forsendelse"
+          alt={t("assignTenant.shipment")}
           className="w-full h-auto object-contain select-none"
           draggable={false}
           crossOrigin="anonymous"
@@ -449,45 +442,43 @@ export function AssignTenantDialog({
         {cropMode && !cropRect && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="bg-black/60 text-white px-3 py-1.5 rounded-md text-sm font-medium">
-              {cropTarget === "stamp" ? "Tegn en boks omkring forsendelsesnr." : cropTarget === "sender" ? "Tegn en boks omkring afsenderen" : "Tegn en boks omkring navnet"}
+              {cropTarget === "stamp" ? t("registerMail.drawBoxStamp") : cropTarget === "sender" ? t("registerMail.drawBoxSender") : t("registerMail.drawBoxName")}
             </span>
           </div>
         )}
       </div>
-      {/* Crop controls */}
       {!cropMode ? (
         <div className="flex gap-2 flex-wrap">
           <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => { setCropTarget("tenant"); setCropRect(null); }}>
-            <Crop className="h-4 w-4 mr-2" /> Markér navn
+            <Crop className="h-4 w-4 mr-2" /> {t("registerMail.markName")}
           </Button>
           <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => { setCropTarget("sender"); setCropRect(null); }}>
-            <Crop className="h-4 w-4 mr-2" /> Markér afsender
+            <Crop className="h-4 w-4 mr-2" /> {t("registerMail.markSender")}
           </Button>
           <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => { setCropTarget("stamp"); setCropRect(null); }}>
-            <Crop className="h-4 w-4 mr-2" /> Markér nr.
+            <Crop className="h-4 w-4 mr-2" /> {t("registerMail.markStamp")}
           </Button>
         </div>
       ) : (
         <div className="flex gap-2 items-center">
           {cropLoading && (
             <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" /> Læser...
+              <Loader2 className="h-3 w-3 animate-spin" /> {t("registerMail.reading")}
             </div>
           )}
           <Button type="button" variant="outline" size="sm" onClick={() => { setCropTarget(null); setCropRect(null); }}>
-            Annuller
+            {t("common.cancel")}
           </Button>
         </div>
       )}
-      {/* OCR metadata fields */}
       <div className="space-y-2 pt-2 border-t">
         <div>
-          <Label className="text-xs">Forsendelsesnr.</Label>
-          <Input type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" className="h-8 text-sm" disabled={ocrLoading} />
+          <Label className="text-xs">{t("assignTenant.stampNumber")}</Label>
+          <Input type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder={t("registerMail.stampPlaceholder")} className="h-8 text-sm" disabled={ocrLoading} />
         </div>
         <div>
-          <Label className="text-xs">Afsender</Label>
-          <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" className="h-8 text-sm" disabled={ocrLoading} />
+          <Label className="text-xs">{t("assignTenant.senderName")}</Label>
+          <Input value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={t("registerMail.senderPlaceholder")} className="h-8 text-sm" disabled={ocrLoading} />
         </div>
       </div>
     </div>
@@ -497,7 +488,7 @@ export function AssignTenantDialog({
     <div className="space-y-3">
       {ocrLoading && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Kører OCR...
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("assignTenant.runningOcr")}
         </div>
       )}
 
@@ -507,7 +498,7 @@ export function AssignTenantDialog({
           className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer"
           onClick={() => setSearch(ocrRecipient)}
         >
-          OCR fandt: "{ocrRecipient}"
+          {t("registerMail.ocrFound", { text: ocrRecipient })}
           <ArrowDownToLine className="h-3 w-3" />
         </button>
       )}
@@ -517,7 +508,7 @@ export function AssignTenantDialog({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Søg lejer..."
+              placeholder={t("assignTenant.searchTenant")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -527,27 +518,27 @@ export function AssignTenantDialog({
 
           <div className="max-h-64 overflow-y-auto border rounded-md divide-y">
             {filtered.length === 0 ? (
-              <p className="p-3 text-sm text-muted-foreground">Ingen lejere fundet</p>
+              <p className="p-3 text-sm text-muted-foreground">{t("assignTenant.noTenantsFound")}</p>
             ) : (
-              filtered.map((t) => (
+              filtered.map((tn) => (
                 <button
-                  key={t.id}
+                  key={tn.id}
                   className="w-full text-left px-3 py-2 hover:bg-accent transition-colors flex items-center justify-between text-sm disabled:opacity-50"
-                  onClick={() => handleAssign(t.id)}
+                  onClick={() => handleAssign(tn.id)}
                   disabled={assigning}
                 >
                   <div>
-                    <span className="font-medium">{t.company_name}</span>
-                    {(t.contact_first_name || t.contact_last_name) && (
-                      <span className="text-muted-foreground ml-2">({[t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ")})</span>
+                    <span className="font-medium">{tn.company_name}</span>
+                    {(tn.contact_first_name || tn.contact_last_name) && (
+                      <span className="text-muted-foreground ml-2">({[tn.contact_first_name, tn.contact_last_name].filter(Boolean).join(" ")})</span>
                     )}
                   </div>
                   <div className="flex gap-1">
-                    {t.id === suggestedTenantId && (
-                      <Badge variant="default" className="text-xs">foreslået</Badge>
+                    {tn.id === suggestedTenantId && (
+                      <Badge variant="default" className="text-xs">{t("common.suggested")}</Badge>
                     )}
-                    {t.id === mailItem.tenant_id && (
-                      <Badge variant="secondary" className="text-xs">aktuel</Badge>
+                    {tn.id === mailItem.tenant_id && (
+                      <Badge variant="secondary" className="text-xs">{t("common.current")}</Badge>
                     )}
                   </div>
                 </button>
@@ -560,31 +551,31 @@ export function AssignTenantDialog({
             className="w-full gap-2"
             onClick={() => setShowCreate(true)}
           >
-            <UserPlus className="h-4 w-4" /> Opret ny lejer
+            <UserPlus className="h-4 w-4" /> {t("assignTenant.createNewTenant")}
           </Button>
         </>
       ) : (
         <div className="space-y-3">
           <div>
-            <Label>Firmanavn *</Label>
+            <Label>{t("assignTenant.companyName")}</Label>
             <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
           </div>
           <div>
-            <Label>Kontaktperson</Label>
+            <Label>{t("assignTenant.contactPerson")}</Label>
             <Input value={newContact} onChange={(e) => setNewContact(e.target.value)} />
           </div>
           <div>
-            <Label>E-mail</Label>
+            <Label>{t("assignTenant.email")}</Label>
             <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
           </div>
           <div>
-            <Label>Adresse</Label>
+            <Label>{t("assignTenant.address")}</Label>
             <Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
           </div>
           <div>
-            <Label>Lejertype *</Label>
+            <Label>{t("assignTenant.tenantType")}</Label>
             <Select value={newTypeId} onValueChange={setNewTypeId}>
-              <SelectTrigger><SelectValue placeholder="Vælg type" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("assignTenant.selectType")} /></SelectTrigger>
               <SelectContent>
                 {tenantTypes?.map((tt) => (
                   <SelectItem key={tt.id} value={tt.id}>{tt.name}</SelectItem>
@@ -594,10 +585,10 @@ export function AssignTenantDialog({
           </div>
           <div className="flex gap-2">
             <Button variant="outline" className="flex-1" onClick={resetCreate}>
-              Tilbage
+              {t("common.back")}
             </Button>
             <Button className="flex-1" onClick={handleCreate} disabled={creating}>
-              {creating ? "Opretter..." : "Opret og tildel"}
+              {creating ? t("common.creating") : t("assignTenant.createAndAssign")}
             </Button>
           </div>
         </div>
@@ -610,7 +601,7 @@ export function AssignTenantDialog({
       <Dialog open={open} onOpenChange={(v) => { if (!v) resetCreate(); onOpenChange(v); }}>
         <DialogContent className={hasPhoto ? "max-w-4xl" : "max-w-md"}>
           <DialogHeader>
-            <DialogTitle>Tildel lejer</DialogTitle>
+            <DialogTitle>{t("assignTenant.title")}</DialogTitle>
           </DialogHeader>
 
           {hasPhoto ? (
@@ -623,12 +614,11 @@ export function AssignTenantDialog({
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Zoom overlay */}
       <Dialog open={showZoom} onOpenChange={setShowZoom}>
         <DialogContent className="sm:max-w-[90vw] max-h-[95vh] p-2">
           {photoUrl && (
