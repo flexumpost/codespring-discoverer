@@ -90,7 +90,7 @@ const ShippingAddressPage = () => {
     },
     onError: (err: any) => {
       console.error("ShippingAddress save error:", err);
-      toast.error(err?.message || "Kunne ikke gemme forsendelsesadresse");
+      toast.error(err?.message || t("shipping.couldNotSave"));
     },
   });
 
