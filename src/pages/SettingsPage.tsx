@@ -280,7 +280,7 @@ const SettingsPage = () => {
 
             {/* Postmodtagere */}
             {tuError && (
-              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+              <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
             {tenantUsers && tenantUsers.length > 0 && (
               <div className="space-y-3">
