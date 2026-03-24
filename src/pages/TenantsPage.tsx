@@ -389,7 +389,7 @@ const TenantsPage = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contact_first_name">Fornavn</Label>
+                <Label htmlFor="contact_first_name">{t("tenants.firstName")}</Label>
                 <Input
                   id="contact_first_name"
                   value={contactFirstName}
