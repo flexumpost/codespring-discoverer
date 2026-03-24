@@ -383,12 +383,8 @@ const TenantsPage = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="company_name">Virksomhedsnavn *</Label>
-              <Input
-                id="company_name"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Indtast virksomhedsnavn"
+              <Label htmlFor="company_name">{t("tenants.companyName")} *</Label>
+              <Input id="company_name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t("tenants.enterCompanyName")}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
