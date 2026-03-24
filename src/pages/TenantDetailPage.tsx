@@ -333,7 +333,7 @@ const TenantDetailPage = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-2xl font-bold">
-          {isLoading ? "Indlæser..." : tenant?.company_name ?? "Lejer ikke fundet"}
+          {isLoading ? t("common.loading") : tenant?.company_name ?? t("tenantDetail.tenantNotFound")}
         </h2>
         {typeName && (
           <Badge variant="outline" className={TYPE_COLORS[typeName] ?? ""}>
