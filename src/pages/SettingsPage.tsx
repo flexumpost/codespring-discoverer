@@ -224,11 +224,9 @@ const SettingsPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !selectedTenant ? (
-        <p className="text-muted-foreground">
-          Ingen lejer-profil fundet for din konto.
-        </p>
+        <p className="text-muted-foreground">{t("settings.noTenantProfile")}</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1: Company + Contact (read-only) */}
