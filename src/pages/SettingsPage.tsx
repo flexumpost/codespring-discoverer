@@ -350,10 +350,8 @@ const SettingsPage = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Opret ny postmodtager</DialogTitle>
-            <DialogDescription>
-              Personen modtager en invitation per email med et link til at sætte sin adgangskode.
-            </DialogDescription>
+            <DialogTitle>{t("settings.createMailRecipient")}</DialogTitle>
+            <DialogDescription>{t("settings.recipientInviteDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
