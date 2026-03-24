@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Save } from "lucide-react";
 
 const ShippingAddressPage = () => {
+  const { t } = useTranslation();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
