@@ -242,7 +242,7 @@ const SettingsPage = () => {
                 </div>
                 {selectedTenant.address && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Adresse</Label>
+                    <Label className="text-muted-foreground text-xs">{t("settings.address")}</Label>
                     <p className="font-medium">{selectedTenant.address}</p>
                   </div>
                 )}
