@@ -130,28 +130,19 @@ const TenantsPage = () => {
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
-      toast.success("Lejer oprettet");
+      toast.success(t("tenants.tenantCreated"));
 
-      // Auto-invite: if email is provided, invite user (sends branded welcome email automatically)
       const email = contactEmail.trim();
       if (email && data?.id) {
         try {
           const { error: inviteError } = await supabase.functions.invoke(
             "create-tenant-user",
-            {
-              body: {
-                email,
-                first_name: contactFirstName.trim() || companyName.trim(),
-                last_name: contactLastName.trim() || "",
-                tenant_ids: [data.id],
-                mode: "invite",
-              },
-            }
+            { body: { email, first_name: contactFirstName.trim() || companyName.trim(), last_name: contactLastName.trim() || "", tenant_ids: [data.id], mode: "invite" } }
           );
           if (inviteError) throw inviteError;
-          toast.success("Velkomst e-mail sendt til " + email);
+          toast.success(t("tenants.welcomeEmailSent", { email }));
         } catch (err: any) {
-          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+          toast.error(t("tenants.couldNotCreateUser") + ": " + (err?.message || err));
         }
       }
 
