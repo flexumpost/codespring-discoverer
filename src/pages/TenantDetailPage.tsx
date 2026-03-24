@@ -232,9 +232,9 @@ const TenantDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
       setSchedDate(undefined);
       setSchedTypeId("");
-      toast.success("Planlagt typeskift oprettet");
+      toast.success(t("tenantDetail.scheduledChangeCreated"));
     },
-    onError: (err: any) => toast.error(err.message || "Kunne ikke oprette planlagt skift"),
+    onError: (err: any) => toast.error(err.message || t("tenantDetail.couldNotSave")),
   });
 
   const cancelScheduledMutation = useMutation({
