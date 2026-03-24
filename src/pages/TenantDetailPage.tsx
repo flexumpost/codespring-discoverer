@@ -386,12 +386,12 @@ const TenantDetailPage = () => {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Virksomhed</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.company")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Firmanavn</Label>
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Firmanavn" />
+                  <Label className="text-muted-foreground text-xs">{t("tenantDetail.companyName")}</Label>
+                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t("tenantDetail.companyName")} />
                 </div>
                 {tenant.address && (
                   <div>
