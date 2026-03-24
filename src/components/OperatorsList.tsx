@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 export function OperatorsList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -21,18 +23,11 @@ export function OperatorsList() {
   const { data: operators = [], isLoading } = useQuery({
     queryKey: ["operators-list"],
     queryFn: async () => {
-      const { data: roles, error } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "operator");
+      const { data: roles, error } = await supabase.from("user_roles").select("user_id").eq("role", "operator");
       if (error) throw error;
       if (!roles.length) return [];
-
       const userIds = roles.map((r) => r.user_id);
-      const { data: profiles, error: pErr } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email")
-        .in("id", userIds);
+      const { data: profiles, error: pErr } = await supabase.from("profiles").select("id, first_name, last_name, email").in("id", userIds);
       if (pErr) throw pErr;
       return profiles ?? [];
     },
@@ -49,51 +44,43 @@ export function OperatorsList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["operators-list"] });
-      toast.success("Operatør oprettet");
-      setOpen(false);
-      setFirstName("");
-      setLastName("");
-      setEmail("");
-      setPassword("");
+      toast.success(t("operators.operatorCreated"));
+      setOpen(false); setFirstName(""); setLastName(""); setEmail(""); setPassword("");
     },
-    onError: (e: Error) => toast.error(e.message || "Kunne ikke oprette operatør"),
+    onError: (e: Error) => toast.error(e.message || t("operators.couldNotCreate")),
   });
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Operatører</CardTitle>
+        <CardTitle className="text-base">{t("operators.title")}</CardTitle>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="mr-1 h-4 w-4" /> Opret operatør
-            </Button>
+            <Button size="sm"><Plus className="mr-1 h-4 w-4" /> {t("operators.createOperator")}</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Opret ny operatør</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>{t("operators.createNewOperator")}</DialogTitle></DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Fornavn</Label>
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Fornavn" />
+                <Label>{t("operators.firstName")}</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder={t("operators.firstName")} />
               </div>
               <div className="space-y-2">
-                <Label>Efternavn</Label>
-                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Efternavn" />
+                <Label>{t("operators.lastName")}</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder={t("operators.lastName")} />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
+                <Label>{t("operators.email")}</Label>
                 <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@eksempel.dk" />
               </div>
               <div className="space-y-2">
-                <Label>Adgangskode</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mindst 6 tegn" />
+                <Label>{t("operators.password")}</Label>
+                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("operators.passwordPlaceholder")} />
               </div>
             </div>
             <DialogFooter>
               <Button onClick={() => createMutation.mutate()} disabled={!email || !password || createMutation.isPending}>
-                {createMutation.isPending ? "Opretter..." : "Opret"}
+                {createMutation.isPending ? t("common.creating") : t("common.create")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -101,15 +88,15 @@ export function OperatorsList() {
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <p className="text-muted-foreground text-sm">Indlæser...</p>
+          <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
         ) : operators.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Ingen operatører fundet.</p>
+          <p className="text-muted-foreground text-sm">{t("operators.noOperators")}</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Navn</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>{t("operators.name")}</TableHead>
+                <TableHead>{t("operators.email")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

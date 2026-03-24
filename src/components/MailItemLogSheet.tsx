@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { User, Clock } from "lucide-react";
@@ -21,47 +18,6 @@ interface LogEntry {
   profile_email: string | null;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  ny: "Ny",
-  afventer_handling: "Afventer handling",
-  ulaest: "Ulæst",
-  laest: "Læst",
-  arkiveret: "Arkiveret",
-  sendt_med_dao: "Sendt med DAO",
-  sendt_med_postnord: "Sendt med PostNord",
-};
-
-const ACTION_LABELS: Record<string, string> = {
-  scan: "Scan nu",
-  send: "Forsendelse",
-  afhentning: "Afhentning",
-  destruer: "Destruer",
-  daglig: "Læg på kontoret",
-  standard_forsendelse: "Standard forsendelse",
-  standard_scan: "Standard scanning",
-};
-
-function formatAction(log: LogEntry): string {
-  switch (log.action) {
-    case "created":
-      return "Forsendelse oprettet";
-    case "status_changed":
-      return `Status ændret fra "${STATUS_LABELS[log.old_value ?? ""] ?? log.old_value}" til "${STATUS_LABELS[log.new_value ?? ""] ?? log.new_value}"`;
-    case "action_chosen":
-      return `Handling valgt: ${ACTION_LABELS[log.new_value ?? ""] ?? log.new_value}`;
-    case "action_cleared":
-      return `Handling nulstillet (var: ${ACTION_LABELS[log.old_value ?? ""] ?? log.old_value})`;
-    case "scan_uploaded":
-      return "Scanning uploadet";
-    case "tenant_assigned":
-      return "Tildelt lejer";
-    case "notes_changed":
-      return "Note opdateret";
-    default:
-      return log.action;
-  }
-}
-
 interface Props {
   mailItemId: string | null;
   open: boolean;
@@ -69,8 +25,33 @@ interface Props {
 }
 
 export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
+  const { t, i18n } = useTranslation();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const getStatusLabel = (val: string) => t(`status.${val}`, val);
+  const getActionLabel = (val: string) => t(`actions.${val}`, val);
+
+  function formatAction(log: LogEntry): string {
+    switch (log.action) {
+      case "created":
+        return t("mailItemLog.created");
+      case "status_changed":
+        return t("mailItemLog.statusChanged", { old: getStatusLabel(log.old_value ?? ""), new: getStatusLabel(log.new_value ?? "") });
+      case "action_chosen":
+        return t("mailItemLog.actionChosen", { action: getActionLabel(log.new_value ?? "") });
+      case "action_cleared":
+        return t("mailItemLog.actionCleared", { action: getActionLabel(log.old_value ?? "") });
+      case "scan_uploaded":
+        return t("mailItemLog.scanUploaded");
+      case "tenant_assigned":
+        return t("mailItemLog.tenantAssigned");
+      case "notes_changed":
+        return t("mailItemLog.notesChanged");
+      default:
+        return log.action;
+    }
+  }
 
   useEffect(() => {
     if (!open || !mailItemId) return;
@@ -89,7 +70,6 @@ export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
         return;
       }
 
-      // Fetch profile names for all unique user_ids
       const userIds = [...new Set((data as any[]).filter((d) => d.user_id).map((d) => d.user_id))];
       let profileMap: Record<string, { full_name: string | null; email: string }> = {};
 
@@ -120,15 +100,15 @@ export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full">
         <SheetHeader className="p-6 pb-2">
-          <SheetTitle>Forsendelseslog</SheetTitle>
-          <SheetDescription>Alle handlinger for denne forsendelse</SheetDescription>
+          <SheetTitle>{t("mailItemLog.title")}</SheetTitle>
+          <SheetDescription>{t("mailItemLog.subtitle")}</SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-6 pb-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground py-4">Indlæser…</p>
+            <p className="text-sm text-muted-foreground py-4">{t("common.loading")}</p>
           ) : logs.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">Ingen log-poster fundet.</p>
+            <p className="text-sm text-muted-foreground py-4">{t("mailItemLog.noLogs")}</p>
           ) : (
             <ol className="relative border-l border-border ml-3 space-y-6 py-2">
               {logs.map((log) => (
@@ -138,17 +118,13 @@ export function MailItemLogSheet({ mailItemId, open, onOpenChange }: Props) {
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {new Date(log.created_at).toLocaleString("da-DK", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
+                      {new Date(log.created_at).toLocaleString(i18n.language === "da" ? "da-DK" : "en-GB", {
+                        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
                       })}
                     </span>
                     <span className="flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      {log.profile_name || log.profile_email || "System"}
+                      {log.profile_name || log.profile_email || t("common.system")}
                     </span>
                   </div>
                 </li>
