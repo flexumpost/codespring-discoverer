@@ -1,76 +1,68 @@
 
 
-## Internationalisering (i18n) — Dansk/Engelsk med sprogskifter
+## Fuldstændig i18n-refaktorering — Fase 2
 
-### Omfang
-Appen har hardkodede danske strenge i **25+ filer** (14 pages, 10+ komponenter). Der er ca. 500+ unikke tekststrenge der skal oversættes.
+Alle sider og komponenter skal opdateres til at bruge `t()` fra react-i18next, og LanguageToggle skal indsættes i UI'et.
 
-### Tilgang: react-i18next
+### Ændringer
 
-1. **Installer `react-i18next` og `i18next`** — industristandard for React i18n
+**1. Indsæt LanguageToggle i UI**
+- `AppLayout.tsx` — Tilføj `<LanguageToggle />` i headeren ved siden af NotificationBell
+- `Login.tsx` — Tilføj `<LanguageToggle />` øverst på login-siden
 
-2. **Opret oversættelsesfiler**
-   - `src/i18n/locales/da.json` — alle danske strenge (nuværende tekster)
-   - `src/i18n/locales/en.json` — engelske oversættelser
-   - Struktur grupperet pr. område: `common`, `nav`, `dashboard`, `login`, `settings`, `tenants`, `shipping`, `notifications`, osv.
+**2. Refaktorer sider (14 filer)**
+Erstat alle hardkodede strenge med `t()` kald:
+- `Login.tsx` — login-form labels, fejlbeskeder, toast-tekster
+- `OperatorDashboard.tsx` — ACTION_LABELS, STATUS_LABELS, tabel-headers, knapper, søgefelt, toast-beskeder
+- `TenantDashboard.tsx` — ACTION_LABELS, STATUS_LABELS, tabel-headers, dropdown-labels, pris-tekster
+- `TenantsPage.tsx` — titler, tabel-headers, statusser
+- `TenantDetailPage.tsx` — alle labels og sektioner
+- `TenantViewPage.tsx` — profilvisning, labels
+- `SettingsPage.tsx` — indstillinger, tabs, labels
+- `ShippingAddressPage.tsx` — formular-labels
+- `ShippingPrepPage.tsx` — forsendelsesflow-tekster
+- `BulkUploadPage.tsx` — upload-instruktioner
+- `NotificationsPage.tsx` — titler, knapper
+- `SetPasswordPage.tsx` — formular-labels
+- `NotFound.tsx` — fejlside-tekster
+- `Index.tsx` — routing/redirects (minimal)
 
-3. **Opret `src/i18n/index.ts`** — i18next konfiguration med:
-   - Default sprog: `da`
-   - Fallback: `da`
-   - Sprog gemmes i `localStorage` så valget huskes
+**3. Refaktorer komponenter (~12 filer)**
+- `AppSidebar.tsx` — menupunkter, log ud-knap
+- `AppLayout.tsx` — hilsener (Godmorgen osv.)
+- `NotificationBell.tsx` — tooltip, labels
+- `RegisterMailDialog.tsx` — formular, labels, toast
+- `AssignTenantDialog.tsx` — dialog-tekster
+- `MailItemLogSheet.tsx` — log-labels
+- `OperatorMailItemDialog.tsx` — dialog-tekster, handlinger
+- `ShippingAddressGuard.tsx` — advarsel-tekster
+- `DefaultActionSetup.tsx` — dialog, dropdown-labels
+- `EmailTemplatesEditor.tsx` — editor-labels
+- `ClosedDaysCalendar.tsx` — kalender-labels
+- `OperatorsList.tsx` — liste-labels
+- `BulkMailReviewTable.tsx` — tabel-headers
+- `BulkUploadDropzone.tsx` — instruktioner
+- `PricingOverview.tsx` / `PricingSettingsEditor.tsx` — pris-labels
+- `EnvelopePrint.tsx` — print-labels
 
-4. **Sprogskifter i header** — Toggle-knap i `AppLayout.tsx` header (ved siden af NotificationBell):
-   - Simpel DA/EN toggle med flag-ikoner eller tekst
-   - Også på Login-siden (uden header)
+**4. Opdater oversættelsesfiler**
+- Tilføj eventuelle manglende nøgler til `da.json` og `en.json` undervejs
 
-5. **Opdater alle filer** — Erstat hardkodede strenge med `t()` kald:
-   - **Sider** (14 filer): Login, OperatorDashboard, TenantDashboard, TenantsPage, TenantDetailPage, TenantViewPage, SettingsPage, ShippingAddressPage, ShippingPrepPage, BulkUploadPage, NotificationsPage, SetPasswordPage, NotFound, Index
-   - **Komponenter** (~12 filer): AppLayout, AppSidebar, NotificationBell, RegisterMailDialog, AssignTenantDialog, MailItemLogSheet, OperatorMailItemDialog, ShippingAddressGuard, DefaultActionSetup, EmailTemplatesEditor, ClosedDaysCalendar, OperatorsList, m.fl.
-   - **Dato-formatering**: Brug `date-fns/locale` dynamisk baseret på valgt sprog (`da` eller `enGB`)
-   - **Labels/records** som `ACTION_LABELS`, `STATUS_LABELS`: Gør dem til funktioner der bruger `t()`
-
-6. **Initialiser i18n i `src/main.tsx`** — Import `src/i18n` før app render
-
-### Tekniske detaljer
-
-```text
-src/
-├── i18n/
-│   ├── index.ts              ← i18next config
-│   └── locales/
-│       ├── da.json            ← ~500 danske strenge
-│       └── en.json            ← ~500 engelske strenge
+### Mønster for hver fil
+```tsx
+import { useTranslation } from "react-i18next";
+// ...
+const { t } = useTranslation();
+// Erstat "Godmorgen" → t("greeting.morning")
+// Erstat "Forsendelse" → t("actions.send")
 ```
 
-Oversættelsesfil-struktur (eksempel):
-```json
-{
-  "nav": {
-    "dashboard": "Dashboard",
-    "tenants": "Tenants",
-    "settings": "Settings",
-    "shippingPrep": "Send letters and packages",
-    "shippingAddress": "Shipping address",
-    "signOut": "Sign out"
-  },
-  "greeting": {
-    "morning": "Good morning",
-    "lateMorning": "Good late morning",
-    "noon": "Good afternoon",
-    "afternoon": "Good afternoon",
-    "evening": "Good evening"
-  },
-  "actions": {
-    "scan": "Scan now",
-    "send": "Shipment",
-    "pickup": "Pickup",
-    "destroy": "Destroy"
-  }
-}
+For konstanter som `ACTION_LABELS` — konvertér til funktion:
+```tsx
+const getActionLabels = (t: TFunction) => ({
+  scan: t("actions.scan"),
+  send: t("actions.send"),
+  // ...
+});
 ```
-
-### Vigtigt
-- Dette er en stor opgave der berører 25+ filer
-- Alle toast-beskeder, labels, placeholders, titler og tooltips skal oversættes
-- Database-enums (som `mail_status`) forbliver på dansk i databasen — kun UI-labels oversættes
 
