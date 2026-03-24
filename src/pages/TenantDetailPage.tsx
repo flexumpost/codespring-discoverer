@@ -583,9 +583,9 @@ const TenantDetailPage = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
+                              <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || t("tenantDetail.withoutName")}</p>
                               {isContactPerson && (
-                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Kontaktperson</span>
+                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{t("tenantDetail.contactPersonLabel")}</span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
