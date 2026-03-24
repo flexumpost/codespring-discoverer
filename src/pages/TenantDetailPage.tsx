@@ -262,9 +262,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Kontaktoplysninger gemt");
+      toast.success(t("tenantDetail.contactInfoSaved"));
     },
-    onError: () => toast.error("Kunne ikke gemme"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const shippingMutation = useMutation({
