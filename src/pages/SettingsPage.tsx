@@ -360,7 +360,7 @@ const SettingsPage = () => {
                 id="rec_name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Fulde navn"
+                placeholder={t("settings.fullName")}
               />
             </div>
             <div className="space-y-2">
