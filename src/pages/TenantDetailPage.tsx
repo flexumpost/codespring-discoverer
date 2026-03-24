@@ -209,12 +209,12 @@ const TenantDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
       const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
       if (selectedType?.name === "Retur til afsender") {
-        toast.success("Lejertype ændret til Retur til afsender — lejeren er nu deaktiveret");
+        toast.success(t("tenantDetail.typeChangedToRetur"));
       } else {
-        toast.success("Virksomhedsoplysninger opdateret");
+        toast.success(t("tenantDetail.companyInfoUpdated"));
       }
     },
-    onError: () => toast.error("Kunne ikke gemme lejertype"),
+    onError: () => toast.error(t("tenantDetail.couldNotSaveType")),
   });
 
   const scheduleChangeMutation = useMutation({
