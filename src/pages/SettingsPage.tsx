@@ -364,7 +364,7 @@ const SettingsPage = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rec_email">Email</Label>
+              <Label htmlFor="rec_email">{t("settings.email")}</Label>
               <Input
                 id="rec_email"
                 type="email"
