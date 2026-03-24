@@ -247,9 +247,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
-      toast.success("Planlagt typeskift annulleret");
+      toast.success(t("tenantDetail.scheduledChangeCancelled"));
     },
-    onError: () => toast.error("Kunne ikke annullere"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const contactMutation = useMutation({
