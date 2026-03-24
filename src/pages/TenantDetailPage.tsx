@@ -455,7 +455,7 @@ const TenantDetailPage = () => {
                   <div className="flex flex-col gap-2">
                     <Select value={schedTypeId} onValueChange={setSchedTypeId}>
                       <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Ny lejertype" />
+                        <SelectValue placeholder={t("tenantDetail.newTenantType")} />
                       </SelectTrigger>
                       <SelectContent>
                         {tenantTypes.filter((t) => t.id !== tenant.tenant_type_id).map((t) => (
