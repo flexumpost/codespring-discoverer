@@ -154,7 +154,7 @@ const TenantsPage = () => {
       setTenantTypeId("");
     },
     onError: (err: Error) => {
-      toast.error("Kunne ikke oprette lejer: " + err.message);
+      toast.error(t("tenants.couldNotCreateTenant") + ": " + err.message);
     },
   });
 
