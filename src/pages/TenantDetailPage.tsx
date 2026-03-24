@@ -421,7 +421,7 @@ const TenantDetailPage = () => {
 
                 {/* Scheduled type changes */}
                 <div className="border-t pt-4 mt-4 space-y-3">
-                  <Label className="text-muted-foreground text-xs font-semibold">Planlagt typeskift</Label>
+                  <Label className="text-muted-foreground text-xs font-semibold">{t("tenantDetail.scheduledTypeChange")}</Label>
 
                   {scheduledChanges.length > 0 && (
                     <div className="space-y-2">
