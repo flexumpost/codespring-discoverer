@@ -80,8 +80,8 @@ function isTodayOrPastDate(date: Date): boolean {
 }
 
 function formatI18nDate(date: Date, t: (key: string, opts?: any) => string): string {
-  const days = t("dates.days", { returnObjects: true }) as string[];
-  const months = t("dates.months", { returnObjects: true }) as string[];
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
   const theWord = t("dates.the");
   const day = days[date.getDay()];
   const d = date.getDate();
@@ -90,7 +90,7 @@ function formatI18nDate(date: Date, t: (key: string, opts?: any) => string): str
 }
 
 function formatI18nDateTime(date: Date, t: (key: string, opts?: any) => string): string {
-  const months = t("dates.months", { returnObjects: true }) as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
   const atWord = t("dates.at");
   const d = date.getDate();
   const month = months[date.getMonth()];
