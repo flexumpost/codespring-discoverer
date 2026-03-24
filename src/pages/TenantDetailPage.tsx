@@ -284,9 +284,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Forsendelsesadresse gemt");
+      toast.success(t("tenantDetail.shippingAddressSaved"));
     },
-    onError: () => toast.error("Kunne ikke gemme"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const deleteMutation = useMutation({
