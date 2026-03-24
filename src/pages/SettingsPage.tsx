@@ -434,7 +434,7 @@ const SettingsPage = () => {
               onClick={() => saveEditMutation.mutate()}
               disabled={editTenantIds.length === 0 || saveEditMutation.isPending}
             >
-              {saveEditMutation.isPending ? "Gemmer..." : "Gem"}
+              {saveEditMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

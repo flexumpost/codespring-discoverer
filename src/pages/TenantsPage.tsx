@@ -414,7 +414,7 @@ const TenantsPage = () => {
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="email@eksempel.dk"
+                placeholder={t("tenants.emailPlaceholder")}
               />
             </div>
             <div className="space-y-2">

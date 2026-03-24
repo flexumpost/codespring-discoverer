@@ -179,7 +179,7 @@ const ShippingAddressPage = () => {
               </div>
               <Button onClick={() => shippingMutation.mutate()} disabled={!hasShippingChanges || !shippingValid || shippingMutation.isPending}>
                 <Save className="mr-2 h-4 w-4" />
-                {shippingMutation.isPending ? "Gemmer..." : "Gem forsendelsesadresse"}
+                {shippingMutation.isPending ? t("common.saving") : t("shipping.saveAddress")}
               </Button>
             </CardContent>
           </Card>
