@@ -469,7 +469,7 @@ const TenantDetailPage = () => {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: da }) : "Vælg dato"}
+                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: dateLocale }) : t("tenantDetail.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
