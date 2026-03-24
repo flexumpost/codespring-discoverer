@@ -33,6 +33,7 @@ const formatDate = (dateStr: string) => {
 };
 
 const TenantsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
