@@ -104,8 +104,8 @@ function formatPickupDisplay(item: MailItem, t: (key: string, opts?: any) => str
   if (!isoStr) return null;
   const date = new Date(isoStr);
   if (isNaN(date.getTime())) return null;
-  const days = t("dates.days", { returnObjects: true }) as string[];
-  const months = t("dates.months", { returnObjects: true }) as string[];
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
   const theWord = t("dates.the");
   const atWord = t("dates.at");
   const dayName = days[date.getDay()];
