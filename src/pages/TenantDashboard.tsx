@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenants } from "@/hooks/useTenants";
@@ -23,32 +24,37 @@ import { toast } from "sonner";
 import { DefaultActionSetup } from "@/components/DefaultActionSetup";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import type { Database } from "@/integrations/supabase/types";
+import type { TFunction } from "i18next";
 
 type MailStatus = Database["public"]["Enums"]["mail_status"];
 type MailItem = Database["public"]["Tables"]["mail_items"]["Row"];
 
-const STATUS_LABELS: Record<MailStatus, string> = {
-  ny: "Ny",
-  afventer_handling: "Afventer handling",
-  ulaest: "Ulæst",
-  laest: "Læst",
-  arkiveret: "Arkiveret",
-  sendt_med_dao: "Sendt med DAO",
-  sendt_med_postnord: "Sendt med PostNord",
-  sendt_retur: "Sendt retur",
-};
+function getStatusLabels(t: TFunction): Record<MailStatus, string> {
+  return {
+    ny: t("status.ny"),
+    afventer_handling: t("status.afventer_handling"),
+    ulaest: t("status.ulaest"),
+    laest: t("status.laest"),
+    arkiveret: t("status.arkiveret"),
+    sendt_med_dao: t("status.sendt_med_dao"),
+    sendt_med_postnord: t("status.sendt_med_postnord"),
+    sendt_retur: t("status.sendt_retur"),
+  };
+}
 
-const ACTION_LABELS: Record<string, string> = {
-  scan: "Scan nu",
-  send: "Forsendelse",
-  afhentning: "Afhentning",
-  gratis_afhentning: "Gratis afhentning",
-  destruer: "Destruer",
-  daglig: "Læg på kontoret",
-  anden_afhentningsdag: "Anden afhentningsdag",
-  standard_forsendelse: "Standard forsendelse",
-  standard_scan: "Standard scanning",
-};
+function getActionLabelsMap(t: TFunction): Record<string, string> {
+  return {
+    scan: t("actions.scan"),
+    send: t("actions.send"),
+    afhentning: t("actions.afhentning"),
+    gratis_afhentning: t("actions.gratis_afhentning"),
+    destruer: t("actions.destruer"),
+    daglig: t("actions.daglig"),
+    anden_afhentningsdag: t("actions.anden_afhentningsdag"),
+    standard_forsendelse: t("actions.standard_forsendelse"),
+    standard_scan: t("actions.standard_scan"),
+  };
+}
 
 /** Returns the extra actions available for a given tier, mail type and current effective action */
 function getExtraActions(tenantTypeName: string | undefined, mailType: string, currentAction?: string | null, defaultPkgAction?: string | null): string[] {
@@ -109,22 +115,19 @@ function getExtraActions(tenantTypeName: string | undefined, mailType: string, c
 }
 
 /** Returns a tenant-type-specific label for an action */
-function getActionLabel(action: string, tenantTypeName: string | undefined): string {
+function getActionLabel(action: string, tenantTypeName: string | undefined, t: TFunction): string {
   if (tenantTypeName === "Lite") {
-    if (action === "gratis_afhentning") return "Gratis afhentning";
-    if (action === "afhentning") return "Ekstra afhentning";
-    if (action === "scan") return "Scan nu";
-    if (action === "standard_scan") return "Gratis scanning";
-    if (action === "send") return "Ekstra forsendelse";
-    if (action === "standard_forsendelse") return "Forsendelse";
+    const key = `actionLabels.lite.${action}`;
+    const val = t(key);
+    if (val !== key) return val;
   }
   if (tenantTypeName === "Standard") {
-    if (action === "scan") return "Scan nu";
-    if (action === "standard_scan") return "Standard scanning";
-    if (action === "afhentning") return "Standard afhentningsdag";
-    if (action === "anden_afhentningsdag") return "Ekstra afhentningsdag";
+    const key = `actionLabels.standard.${action}`;
+    const val = t(key);
+    if (val !== key) return val;
   }
-  return ACTION_LABELS[action] ?? action;
+  const actionLabels = getActionLabelsMap(t);
+  return actionLabels[action] ?? action;
 }
 
 /** Parse a pickup date from the dedicated column or legacy notes field */
@@ -133,7 +136,6 @@ function parsePickupDate(pickupDate: string | null, notes: string | null): Date 
     const d = new Date(pickupDate);
     return isNaN(d.getTime()) ? null : d;
   }
-  // Legacy fallback
   if (notes && notes.startsWith("PICKUP:")) {
     const d = new Date(notes.replace("PICKUP:", ""));
     return isNaN(d.getTime()) ? null : d;
@@ -143,10 +145,9 @@ function parsePickupDate(pickupDate: string | null, notes: string | null): Date 
 
 /** Check if a pickup date falls on a "free Thursday" for the given tier */
 function isFreeTorsdag(date: Date, tenantTypeName: string | undefined): boolean {
-  if (date.getDay() !== 4) return false; // not a Thursday
-  if (tenantTypeName === "Standard") return true; // any Thursday is free
+  if (date.getDay() !== 4) return false;
+  if (tenantTypeName === "Standard") return true;
   if (tenantTypeName === "Lite") {
-    // Only the first Thursday of the month is free
     const first = new Date(date.getFullYear(), date.getMonth(), 1);
     const dow = first.getDay();
     const offset = (4 - dow + 7) % 7;
@@ -163,10 +164,12 @@ function getItemFee(
   chosenAction: string | null,
   defaultAction: string | null,
   pickupDateStr: string | null,
-  notes: string | null
+  notes: string | null,
+  t: TFunction
 ): string {
-  // No action chosen → standard handling
-  // Pakke-specific fees per tier
+  const kr = (n: number) => t("tenantDashboard.krUnit", { count: n });
+  const krPorto = (n: number) => `${n} kr. + porto`;
+
   if (mailType === "pakke" && (tenantTypeName === "Lite" || tenantTypeName === "Standard" || tenantTypeName === "Plus")) {
     const prices: Record<string, { fee: string; feePorto: string }> = {
       Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
@@ -184,7 +187,6 @@ function getItemFee(
   if (!chosenAction || (chosenAction === defaultAction &&
     !(chosenAction === "scan" && defaultAction === "scan" && tenantTypeName === "Lite") &&
     !(chosenAction === "send" && defaultAction === "send" && tenantTypeName === "Lite"))) {
-    // Special case: afhentning on a non-free day still costs extra
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
       const pd = parsePickupDate(pickupDateStr, notes);
       if (pd && !isFreeTorsdag(pd, tenantTypeName)) {
@@ -194,18 +196,12 @@ function getItemFee(
     if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
     return "0 kr.";
   }
-  // Plus: everything is free
   if (tenantTypeName === "Plus") {
-    if (chosenAction === "send") return "0 kr.";
     return "0 kr.";
   }
-  // Standard forsendelse for Lite is free + porto
   if (chosenAction === "standard_forsendelse") return "0 kr. + porto";
-  // Standard scanning for Lite is free
   if (chosenAction === "standard_scan") return "0 kr.";
-  // Gratis afhentning for Lite is always free
   if (chosenAction === "gratis_afhentning") return "0 kr.";
-  // Extra handling prices
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
   if (chosenAction === "send") {
@@ -223,7 +219,6 @@ function getItemFee(
 /** Returns the price label for an action in the dropdown */
 function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string): string {
   if (action === "destruer") return "0 kr.";
-  // Pakke-specific prices per tier
   if (mailType === "pakke" && (tenantTypeName === "Lite" || tenantTypeName === "Standard" || tenantTypeName === "Plus")) {
     const prices: Record<string, { fee: string; feePorto: string }> = {
       Lite: { fee: "50 kr.", feePorto: "50 kr. + porto" },
@@ -236,7 +231,6 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
     return p.feePorto;
   }
   if (tenantTypeName === "Plus") {
-    if (action === "send") return "0 kr.";
     return "0 kr.";
   }
   if (tenantTypeName === "Lite") {
@@ -261,17 +255,14 @@ type FilterStatus = "ny" | "afventer_scanning" | "scannet" | "arkiveret" | null;
 
 /* ── Date helpers ── */
 
-const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
-const DANISH_MONTHS = [
-  "januar", "februar", "marts", "april", "maj", "juni",
-  "juli", "august", "september", "oktober", "november", "december",
-];
-
-function formatDanishDate(date: Date): string {
-  const day = DANISH_DAYS[date.getDay()];
+function formatI18nDate(date: Date, t: TFunction): string {
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const day = days[date.getDay()];
   const d = date.getDate();
-  const month = DANISH_MONTHS[date.getMonth()];
-  return `${day} den ${d}. ${month}`;
+  const month = months[date.getMonth()];
+  const the = t("dates.the");
+  return the ? `${day} ${the} ${d}. ${month}` : `${day} ${d}. ${month}`;
 }
 
 /** First Thursday of this month (or next month if already passed) */
@@ -281,8 +272,6 @@ function getFirstThursdayOfMonth(): Date {
   const dayOfWeek = first.getDay();
   const offset = (4 - dayOfWeek + 7) % 7;
   const firstThursday = new Date(now.getFullYear(), now.getMonth(), 1 + offset);
-
-  // If already passed, use first Thursday of next month
   if (firstThursday <= now) {
     const year = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
     const month = (now.getMonth() + 1) % 12;
@@ -298,7 +287,7 @@ function getFirstThursdayOfMonth(): Date {
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7; // if today is Thu, use next Thu
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
   const d = new Date(now);
   d.setDate(d.getDate() + daysUntil);
   return d;
@@ -314,17 +303,22 @@ function getNextShippingDate(tenantType: string | undefined, mailType: string): 
 
 /* ── Pickup helpers ── */
 
-function formatPickupDisplay(pickupDateStr: string | null, notes: string | null): string | null {
+function formatPickupDisplay(pickupDateStr: string | null, notes: string | null, t: TFunction): string | null {
   const date = parsePickupDate(pickupDateStr, notes);
   if (!date) return null;
-  const dayName = DANISH_DAYS[date.getDay()];
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const dayName = days[date.getDay()];
   const d = date.getDate();
-  const month = DANISH_MONTHS[date.getMonth()];
+  const month = months[date.getMonth()];
+  const the = t("dates.the");
+  const at = t("dates.at");
   const hour = date.getHours();
   if (hour === 0) {
-    return `${dayName} den ${d}. ${month}`;
+    return the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
   }
-  return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
+  const prefix = the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+  return `${prefix} ${at} ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
 }
 
 function getDaysLeftForScan(scannedAt: string | null): number | null {
@@ -336,133 +330,129 @@ function getDaysLeftForScan(scannedAt: string | null): number | null {
   return Math.max(0, 30 - daysSince);
 }
 
+function formatDateWithMonth(date: Date, t: TFunction): string {
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  return `${date.getDate()}. ${months[date.getMonth()]}`;
+}
+
+function formatDateTimeWithMonth(date: Date, t: TFunction): string {
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const at = t("dates.at");
+  const hours = date.getHours().toString().padStart(2, "0");
+  const mins = date.getMinutes().toString().padStart(2, "0");
+  return `${date.getDate()}. ${months[date.getMonth()]} ${at} ${hours}:${mins}`;
+}
+
 function getStatusDisplay(
   item: { chosen_action: string | null; scan_url: string | null; status: string; mail_type: string; notes: string | null; pickup_date?: string | null; scanned_at?: string | null; action_rejected_reason?: string | null },
   tenantTypeName: string | undefined,
+  t: TFunction,
   defaultMailAction?: string | null,
   defaultPackageAction?: string | null
 ): [string, string?] {
-  // Afhentet by operator
   if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
     const d = new Date((item as any).updated_at ?? Date.now());
-    const day = d.getDate();
-    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
-    const hours = d.getHours().toString().padStart(2, "0");
-    const mins = d.getMinutes().toString().padStart(2, "0");
-    return [`Afhentet ${day}. ${monthNames[d.getMonth()]} kl. ${hours}:${mins}`];
+    return [`${t("statusDisplay.pickedUp")} ${formatDateTimeWithMonth(d, t)}`];
   }
-  // Sendt med DAO
   if (item.status === "sendt_med_dao") {
     const d = new Date((item as any).updated_at ?? Date.now());
-    const day = d.getDate();
-    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
-    return [`Sendt med DAO ${day}. ${monthNames[d.getMonth()]}`];
+    return [`${t("statusDisplay.sentWithDao")} ${formatDateWithMonth(d, t)}`];
   }
-  // Sendt med PostNord
   if (item.status === "sendt_med_postnord") {
     const d = new Date((item as any).updated_at ?? Date.now());
-    const day = d.getDate();
-    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
-    return [`Sendt med PostNord ${day}. ${monthNames[d.getMonth()]}`];
+    return [`${t("statusDisplay.sentWithPostNord")} ${formatDateWithMonth(d, t)}`];
   }
-  // Sendt retur
   if (item.status === "sendt_retur") {
     const d = new Date((item as any).updated_at ?? Date.now());
-    const day = d.getDate();
-    const monthNames = ["januar","februar","marts","april","maj","juni","juli","august","september","oktober","november","december"];
-    return [`Sendt retur ${day}. ${monthNames[d.getMonth()]}`];
+    return [`${t("statusDisplay.sentReturn")} ${formatDateWithMonth(d, t)}`];
   }
-  // Action rejected by operator
   if ((item as any).action_rejected_reason && !item.chosen_action) {
-    return ["Handling afvist"];
+    return [t("statusDisplay.actionRejected")];
   }
   if (item.chosen_action === "scan" && !item.scan_url) {
-    return ["Afventer scanning", "Scannes inden for 24 timer"];
+    return [t("statusDisplay.awaitingScan"), t("statusDisplay.scannedWithin24h")];
   }
   if (item.chosen_action === "scan" && item.scan_url) {
     const daysLeft = getDaysLeftForScan(item.scanned_at ?? null);
     if (daysLeft !== null && daysLeft <= 0) {
-      return ["Brevet er destrueret"];
+      return [t("statusDisplay.letterDestroyed")];
     }
-    const statusLabel = item.status === "ulaest" ? "Ulæst" : item.status === "laest" ? "Læst" : "Scannet";
-    const subtitle = daysLeft !== null ? `Fysisk brev gemmes i ${daysLeft} dage` : undefined;
+    const statusLabel = item.status === "ulaest" ? t("statusDisplay.unread") : item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.scanned");
+    const subtitle = daysLeft !== null ? t("statusDisplay.physicalLetterKept", { days: daysLeft }) : undefined;
     return [statusLabel, subtitle];
   }
   if (item.chosen_action === "standard_forsendelse") {
     if (item.mail_type === "pakke") {
       const nextDate = getNextThursday();
-      return ["Sendes senest", formatDanishDate(nextDate)];
+      return [t("statusDisplay.sentLatest"), formatI18nDate(nextDate, t)];
     }
     const nextDate = getFirstThursdayOfMonth();
-    return ["Sendes", formatDanishDate(nextDate)];
+    return [t("statusDisplay.sentOn"), formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "standard_scan") {
     const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
-    return ["Scannes", formatDanishDate(nextDate)];
+    return [t("statusDisplay.scanScheduled"), formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "send") {
     const nextDate = getNextThursday();
-    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
-    return [label, formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? t("statusDisplay.sentLatest") : t("statusDisplay.sentOn");
+    return [label, formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "afhentning") {
-    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes);
-    return ["Afhentning bestilt", pickupText ?? undefined];
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
+    return [t("statusDisplay.pickupOrdered"), pickupText ?? undefined];
   }
   if (item.chosen_action === "gratis_afhentning") {
     const nextDate = getFirstThursdayOfMonth();
-    return ["Afhentes", formatDanishDate(nextDate)];
+    return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "destruer") {
-    return ["Destrueret"];
+    return [t("statusDisplay.destroyed")];
   }
   if (item.chosen_action === "daglig") {
-    return ["Lægges på kontoret"];
+    return [t("statusDisplay.officeDelivery")];
   }
-  // No action chosen → use tenant default
   const effectiveAction = item.mail_type === "pakke"
     ? defaultPackageAction
     : defaultMailAction;
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
     const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
-    const label = item.mail_type === "pakke" ? "Sendes senest" : "Sendes";
-    return [label, formatDanishDate(nextDate)];
+    const label = item.mail_type === "pakke" ? t("statusDisplay.sentLatest") : t("statusDisplay.sentOn");
+    return [label, formatI18nDate(nextDate, t)];
   }
   if (effectiveAction === "afhentning") {
-    // Lite default pickup uses monthly Thursday; Standard/Plus use weekly
     if (tenantTypeName === "Lite" && !item.chosen_action) {
       const nextDate = getFirstThursdayOfMonth();
-      return ["Afhentes", formatDanishDate(nextDate)];
+      return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
     }
     const nextDate = getNextThursday();
-    return ["Afhentes", formatDanishDate(nextDate)];
+    return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
   }
   if (effectiveAction === "scan") {
-    // Lite default scan happens on first Thursday of month
     if (tenantTypeName === "Lite" && !item.chosen_action) {
       const nextDate = getFirstThursdayOfMonth();
-      return ["Scannes gratis den første torsdag i måneden", formatDanishDate(nextDate)];
+      return [t("statusDisplay.scanFreeMonthly"), formatI18nDate(nextDate, t)];
     }
-    // Standard default scan happens next Thursday
     if (tenantTypeName === "Standard" && !item.chosen_action) {
       const nextDate = getNextThursday();
-      return ["Standard scanning", formatDanishDate(nextDate)];
+      return [t("statusDisplay.standardScan"), formatI18nDate(nextDate, t)];
     }
-    return ["Afventer scanning", "Scannes inden for 24 timer"];
+    return [t("statusDisplay.awaitingScan"), t("statusDisplay.scannedWithin24h")];
   }
   if (effectiveAction === "daglig" || tenantTypeName === "Fastlejer") {
-    return ["Lægges på kontoret"];
+    return [t("statusDisplay.officeDelivery")];
   }
   if (effectiveAction === "destruer") {
-    return ["Destrueres"];
+    return [t("statusDisplay.destroyedLabel")];
   }
-  return [STATUS_LABELS[item.status as MailStatus] ?? item.status];
+  const statusLabels = getStatusLabels(t);
+  return [statusLabels[item.status as MailStatus] ?? item.status];
 }
 
 function getPickupHours(date: Date | undefined): string[] {
   if (!date) return [];
-  const day = date.getDay(); // 5 = Friday
+  const day = date.getDay();
   const maxHour = day === 5 ? 14 : 16;
   const hours: string[] = [];
   for (let h = 9; h <= maxHour; h++) {
@@ -481,11 +471,11 @@ interface TenantDashboardProps {
 }
 
 const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const tenantsHook = useTenants();
 
-  // When overrideTenantId is provided, fetch that specific tenant directly
   const { data: overrideTenant } = useQuery({
     queryKey: ["override-tenant", overrideTenantId],
     enabled: !!overrideTenantId,
@@ -515,7 +505,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
 
-  // Generate signed URL for scan preview when dialog opens
   useEffect(() => {
     setScanSignedUrl(null);
     if (!selectedItem?.scan_url) return;
@@ -533,12 +522,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const hasMultipleTenants = tenants.length > 1;
 
-  // Derive allowed actions and tenant type name
   const allowedActions: string[] =
     (selectedTenant?.tenant_types as any)?.allowed_actions as string[] ?? [];
   const tenantTypeName: string | undefined = (selectedTenant?.tenant_types as any)?.name;
 
-  // Fetch stats filtered by selected tenant
   const { data: stats = { ny: 0, afventer_scanning: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
     queryKey: ["tenant-stats", selectedTenantId],
     enabled: !!user && !!selectedTenantId,
@@ -550,7 +537,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           .eq("status", status)
           .eq("tenant_id", selectedTenantId!);
 
-      // Count items awaiting scanning: chosen_action='scan' and scan_url is null
       const scanPendingRes = await supabase
         .from("mail_items")
         .select("id", { count: "exact", head: true })
@@ -558,7 +544,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         .eq("chosen_action", "scan")
         .is("scan_url", null);
 
-      // Count scanned unread items for "Scannet post" card
       const scannetUlaestRes = await supabase
         .from("mail_items")
         .select("id", { count: "exact", head: true })
@@ -581,7 +566,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
-  // Fetch mail items filtered by selected tenant
   const { data: mailItems = [], isLoading } = useQuery({
     refetchInterval: 30000,
     queryKey: ["tenant-mail", activeFilter, selectedTenantId],
@@ -611,7 +595,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const filteredByType = mailTypeFilter === "all" ? mailItems : mailItems.filter((i: any) => i.mail_type === mailTypeFilter);
 
-  // Choose action mutation
   const chooseAction = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
       const { error } = await supabase
@@ -623,9 +606,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
       queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
-      toast.success("Handling valgt");
+      toast.success(t("tenantDashboard.actionChosen"));
 
-      // Fire-and-forget: notify operator email on scan request
       if (variables.action === "scan") {
         supabase.functions.invoke("notify-scan-request", {
           body: { mail_item_id: variables.id },
@@ -633,11 +615,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       }
     },
     onError: () => {
-      toast.error("Kunne ikke vælge handling");
+      toast.error(t("tenantDashboard.couldNotChooseAction"));
     },
   });
 
-  // Cancel action mutation
   const cancelAction = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -649,14 +630,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
       queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
-      toast.success("Handling annulleret");
+      toast.success(t("tenantDashboard.actionCancelled"));
     },
     onError: () => {
-      toast.error("Kunne ikke annullere handling");
+      toast.error(t("tenantDashboard.couldNotCancelAction"));
     },
   });
 
-  // Mark as read mutation
   const markAsRead = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -671,7 +651,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
-  // Archive mutation
   const archiveMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -684,14 +663,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
       queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
       setSelectedItem(null);
-      toast.success("Forsendelse arkiveret");
+      toast.success(t("tenantDashboard.shipmentArchived"));
     },
     onError: () => {
-      toast.error("Kunne ikke arkivere");
+      toast.error(t("tenantDashboard.couldNotArchive"));
     },
   });
 
-  // Reactivate mutation (from archived back to afventer_handling)
   const reactivateMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -704,16 +682,15 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
       queryClient.invalidateQueries({ queryKey: ["tenant-stats"] });
       setSelectedItem(null);
-      toast.success("Forsendelse genaktiveret");
+      toast.success(t("tenantDashboard.shipmentReactivated"));
     },
     onError: () => {
-      toast.error("Kunne ikke genaktivere forsendelsen");
+      toast.error(t("tenantDashboard.couldNotReactivate"));
     },
   });
 
   const handleAction = (id: string, action: string) => {
     if (action === "afhentning" || action === "anden_afhentningsdag") {
-      // Standard-lejere: "Standard afhentningsdag" auto-assigns next Thursday
       if (action === "afhentning" && tenantTypeName === "Standard") {
         const mailItem = mailItems?.find(i => i.id === id);
         if (mailItem?.mail_type !== "pakke") {
@@ -731,7 +708,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     }
   };
 
-  // Pickup mutation
   const choosePickup = useMutation({
     mutationFn: async ({ id, pickupIso }: { id: string; pickupIso: string }) => {
       const { error } = await supabase
@@ -750,10 +726,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       setPickupDialogItem(null);
       setPickupDate(undefined);
       setPickupHour(undefined);
-      toast.success("Afhentning bestilt");
+      toast.success(t("tenantDashboard.pickupOrdered"));
     },
     onError: () => {
-      toast.error("Kunne ikke bestille afhentning");
+      toast.error(t("tenantDashboard.couldNotOrderPickup"));
     },
   });
 
@@ -762,7 +738,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   };
 
   const handleRowClick = async (item: MailItem) => {
-    // Fetch fresh data for this item
     const { data: fresh } = await supabase
       .from("mail_items")
       .select("*, tenants(company_name)")
@@ -773,7 +748,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     if (current.scan_url && (current.status === "ulaest" || current.status === "ny")) {
       markAsRead.mutate(current.id);
     }
-    // Mark operator note as read
     if (current.notes && !(current as any).note_read) {
       await supabase.from("mail_items").update({ note_read: true }).eq("id", current.id);
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });
@@ -786,11 +760,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       .from("mail-scans")
       .createSignedUrl(selectedItem.scan_url, 60);
     if (error || !data?.signedUrl) {
-      toast.error("Kunne ikke hente scanning");
+      toast.error(t("tenantDashboard.couldNotDownloadScan"));
       return;
     }
     window.open(data.signedUrl, "_blank");
-    // Mark as read only when scan is downloaded
     if (selectedItem.status === "ulaest" || selectedItem.status === "ny") {
       markAsRead.mutate(selectedItem.id);
     }
@@ -803,21 +776,24 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
 
+  const ACTION_LABELS = getActionLabelsMap(t);
+
   const cards = [
-    { title: "Alle forsendelser", value: totalActive, icon: Inbox, status: null as FilterStatus },
-    { title: "Ny forsendelse", value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
-    { title: "Afventer scanning", value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
-    { title: "Scannet post", value: stats.ulaest, icon: FileCheck, status: "scannet" as FilterStatus },
-    { title: "Arkiveret", value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
+    { title: t("tenantDashboard.allShipments"), value: totalActive, icon: Inbox, status: null as FilterStatus },
+    { title: t("tenantDashboard.newShipment"), value: stats.ny, icon: Mail, status: "ny" as FilterStatus },
+    { title: t("tenantDashboard.awaitingScan"), value: stats.afventer_scanning, icon: ScanLine, status: "afventer_scanning" as FilterStatus },
+    { title: t("tenantDashboard.scannedMail"), value: stats.ulaest, icon: FileCheck, status: "scannet" as FilterStatus },
+    { title: t("tenantDashboard.archived"), value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
   ];
 
-  // Check if default actions need to be set (first login flow)
   const needsDefaultActions =
     selectedTenant &&
     ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") &&
     ((selectedTenant as any).default_mail_action == null || (selectedTenant as any).default_package_action == null);
 
   const hasUnpaidInvoice = !!(selectedTenant as any)?.has_unpaid_invoice;
+
+  const locale = i18n.language === "da" ? "da-DK" : "en-GB";
 
   return (
     <div>
@@ -838,13 +814,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       )}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl md:text-2xl font-bold">Min post</h2>
-          <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Beta</Badge>
+          <h2 className="text-xl md:text-2xl font-bold">{t("tenantDashboard.title")}</h2>
+          <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">{t("tenantDashboard.beta")}</Badge>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <a href={`mailto:kontakt@flexum.dk?subject=${encodeURIComponent(`Tilbagemelding fra ${selectedTenant?.company_name || ""}`)}`}>
+          <a href={`mailto:kontakt@flexum.dk?subject=${encodeURIComponent(`${t("tenantDashboard.giveFeedback")} - ${selectedTenant?.company_name || ""}`)}`}>
             <MessageCircle className="h-4 w-4 mr-1" />
-            Giv tilbagemelding
+            {t("tenantDashboard.giveFeedback")}
           </a>
         </Button>
       </div>
@@ -853,8 +829,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/5 p-4 flex items-start gap-3">
           <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
           <div>
-            <p className="font-semibold text-destructive">Ubetalt faktura — forsendelser bliver ikke behandlet</p>
-            <p className="text-sm text-muted-foreground mt-1">Så snart udestående faktura er betalt, bliver behandlingen genoptaget.</p>
+            <p className="font-semibold text-destructive">{t("tenantDashboard.unpaidInvoiceTitle")}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t("tenantDashboard.unpaidInvoiceDesc")}</p>
           </div>
         </div>
       )}
@@ -892,37 +868,37 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       >
         <div className="flex items-center gap-1.5">
           <RadioGroupItem value="all" id="tenant-filter-all" />
-          <Label htmlFor="tenant-filter-all" className="cursor-pointer">Alle</Label>
+          <Label htmlFor="tenant-filter-all" className="cursor-pointer">{t("common.all")}</Label>
         </div>
         <div className="flex items-center gap-1.5">
           <RadioGroupItem value="brev" id="tenant-filter-brev" />
-          <Label htmlFor="tenant-filter-brev" className="cursor-pointer">Breve</Label>
+          <Label htmlFor="tenant-filter-brev" className="cursor-pointer">{t("common.letters")}</Label>
         </div>
         <div className="flex items-center gap-1.5">
           <RadioGroupItem value="pakke" id="tenant-filter-pakke" />
-          <Label htmlFor="tenant-filter-pakke" className="cursor-pointer">Pakker</Label>
+          <Label htmlFor="tenant-filter-pakke" className="cursor-pointer">{t("common.packages")}</Label>
         </div>
       </RadioGroup>
 
       {/* Mail table */}
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : filteredByType.length === 0 ? (
-        <p className="text-muted-foreground">Ingen post fundet.</p>
+        <p className="text-muted-foreground">{t("tenantDashboard.noMailFound")}</p>
       ) : (
         <Table className="min-w-[800px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[60px]">Foto</TableHead>
-              <TableHead>Type</TableHead>
-              {hasMultipleTenants && <TableHead>Virksomhed</TableHead>}
-              <TableHead>Forsendelsesnr.</TableHead>
-              <TableHead>Afsender</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Handlinger</TableHead>
-              <TableHead>Gebyr</TableHead>
-              <TableHead>Scan</TableHead>
-              <TableHead>Modtaget</TableHead>
+              <TableHead className="w-[60px]">{t("common.photo")}</TableHead>
+              <TableHead>{t("common.type")}</TableHead>
+              {hasMultipleTenants && <TableHead>{t("tenantDashboard.company")}</TableHead>}
+              <TableHead>{t("operatorDashboard.stampNumber")}</TableHead>
+              <TableHead>{t("tenantDashboard.sender")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead>{t("common.actions")}</TableHead>
+              <TableHead>{t("common.fee")}</TableHead>
+              <TableHead>{t("common.scan")}</TableHead>
+              <TableHead>{t("common.received")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -941,7 +917,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 </TableCell>
                 <TableCell>
                   <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
-                    {item.mail_type === "pakke" ? "Pakke" : "Brev"}
+                    {item.mail_type === "pakke" ? t("common.package") : t("common.letter")}
                   </Badge>
                 </TableCell>
                 {hasMultipleTenants && (
@@ -961,13 +937,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   <div className="flex items-center gap-1.5">
                     {item.sender_name ?? "—"}
                     {(item as any).is_registered && (
-                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Rekommanderet</Badge>
+                      <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{t("common.registered")}</Badge>
                     )}
                   </div>
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                     const rejectedReason = (item as any).action_rejected_reason;
                     if (rejectedReason && !item.chosen_action) {
                       return (
@@ -1001,7 +977,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                             }}
                           >
                             <ExternalLink className="h-3 w-3" />
-                            Spor pakken
+                            {t("tenantDashboard.trackPackage")}
                           </Button>
                         )}
                       </div>
@@ -1025,14 +1001,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     packingDay.setDate(packingDay.getDate() - 1);
                     const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
 
-                    // Archived: show reactivate button
                     if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
                       return (
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => reactivateMutation.mutate(item.id)}
-                          title="Genaktivér forsendelse"
+                          title={t("tenantDashboard.reactivateShipment")}
                           className="h-8 w-8 text-blue-600 hover:text-blue-800"
                         >
                           <Undo2 className="h-4 w-4" />
@@ -1040,7 +1015,6 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                       );
                     }
 
-                    // Locked/sent/expired: show archive button
                     if (scanExpired || isSentWithDao || (isLockedForShipping && item.status !== "arkiveret")) {
                       return (
                         <Button
@@ -1050,28 +1024,26 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                           onClick={() => archiveMutation.mutate(item.id)}
                           disabled={archiveMutation.isPending}
                         >
-                          Arkivér
+                          {t("common.archive")}
                         </Button>
                       );
                     }
 
-                    // Action chosen (not destruer): show cancel button
                     if (item.chosen_action && item.chosen_action !== "destruer") {
                       return (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => cancelAction.mutate(item.id)}
-                          title="Annuller handling"
+                          title={t("tenantDashboard.cancelAction")}
                           className="text-xs text-muted-foreground hover:text-destructive"
                         >
                           <Undo2 className="h-4 w-4 mr-1" />
-                          Annuller handling
+                          {t("tenantDashboard.cancelAction")}
                         </Button>
                       );
                     }
 
-                    // No action chosen: show dropdown
                     if (allowedActions.length > 0) {
                       let actionForExtras = effectiveAction;
                       if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
@@ -1110,12 +1082,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                           disabled={chooseAction.isPending}
                         >
                           <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
-                            <SelectValue placeholder="Vælg handling" />
+                            <SelectValue placeholder={t("tenantDashboard.selectAction")} />
                           </SelectTrigger>
                           <SelectContent className="z-50 bg-popover">
                             {availableExtras.map((action) => (
                               <SelectItem key={action} value={action} className="text-xs">
-                                {getActionLabel(action, tenantTypeName)}
+                                {getActionLabel(action, tenantTypeName, t)}
                                 {(() => { const p = getActionPrice(action, tenantTypeName, item.mail_type); return p ? ` (${p})` : ""; })()}
                               </SelectItem>
                             ))}
@@ -1139,7 +1111,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes);
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes, t);
                     return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>
@@ -1156,7 +1128,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
                     onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
                   >
-                    {new Date(item.received_at).toLocaleDateString("da-DK")}
+                    {new Date(item.received_at).toLocaleDateString(locale)}
                   </button>
                 </TableCell>
               </TableRow>
@@ -1169,7 +1141,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       <Dialog open={!!selectedItem} onOpenChange={() => setSelectedItem(null)}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Forsendelsesdetaljer</DialogTitle>
+            <DialogTitle>{t("tenantDashboard.shipmentDetails")}</DialogTitle>
           </DialogHeader>
           {selectedItem && (
             <div className={selectedItem.scan_url ? "grid grid-cols-3 gap-6" : ""}>
@@ -1179,20 +1151,20 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     selectedItem.scan_url.toLowerCase().endsWith(".pdf") ? (
                       <iframe
                         src={scanSignedUrl}
-                        title="Scannet dokument"
+                        title={t("tenantDashboard.scannedDocument")}
                         className="w-full h-[70vh] rounded"
                       />
                     ) : (
                       <img
                         src={scanSignedUrl}
-                        alt="Scannet dokument"
+                        alt={t("tenantDashboard.scannedDocument")}
                         className="w-full max-h-[70vh] object-contain rounded"
                       />
                     )
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <ScanLine className="h-8 w-8 animate-pulse" />
-                      <span className="text-sm">Indlæser forhåndsvisning…</span>
+                      <span className="text-sm">{t("tenantDashboard.scanPreviewLoading")}</span>
                     </div>
                   )}
                 </div>
@@ -1200,23 +1172,23 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <div className={`space-y-4 ${selectedItem.scan_url ? "col-span-1" : ""}`}>
                 <div className="space-y-3 text-sm">
                   <div>
-                    <span className="text-muted-foreground">Type</span>
+                    <span className="text-muted-foreground">{t("common.type")}</span>
                     <p className="font-medium">
-                      {selectedItem.mail_type === "pakke" ? "Pakke" : "Brev"}
+                      {selectedItem.mail_type === "pakke" ? t("common.package") : t("common.letter")}
                     </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Forsendelsesnr.</span>
+                    <span className="text-muted-foreground">{t("operatorDashboard.stampNumber")}</span>
                     <p className="font-medium">{selectedItem.stamp_number ?? "—"}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Afsender</span>
-                    <p className="font-medium">{selectedItem.sender_name ?? "Ukendt"}</p>
+                    <span className="text-muted-foreground">{t("tenantDashboard.sender")}</span>
+                    <p className="font-medium">{selectedItem.sender_name ?? t("common.unknown")}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Status</span>
+                    <span className="text-muted-foreground">{t("common.status")}</span>
                     {(() => {
-                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                       return (
                         <div>
                           <Badge variant="outline">{line1}</Badge>
@@ -1226,23 +1198,23 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     })()}
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Valgt handling</span>
+                    <span className="text-muted-foreground">{t("tenantDashboard.chosenAction")}</span>
                     <p className="font-medium">
                       {selectedItem.chosen_action
                         ? ACTION_LABELS[selectedItem.chosen_action] ?? selectedItem.chosen_action
-                        : "Ingen"}
+                        : t("common.none")}
                     </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Modtaget</span>
+                    <span className="text-muted-foreground">{t("common.received")}</span>
                     <p className="font-medium">
-                      {new Date(selectedItem.received_at).toLocaleDateString("da-DK")}
+                      {new Date(selectedItem.received_at).toLocaleDateString(locale)}
                     </p>
                   </div>
                 </div>
               {selectedItem.notes && !selectedItem.notes.startsWith("PICKUP:") && (
                   <div className="text-sm">
-                    <span className="text-muted-foreground">Noter fra operatør</span>
+                    <span className="text-muted-foreground">{t("tenantDashboard.operatorNote")}</span>
                     <p className="mt-1 rounded bg-muted p-3">{selectedItem.notes}</p>
                   </div>
                 )}
@@ -1258,7 +1230,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 onClick={handleDownloadScan}
               >
                 <Download className="h-4 w-4" />
-                Download scanning
+                {t("tenantDashboard.downloadScan")}
               </Button>
             )}
             {selectedItem?.status === "arkiveret" && selectedItem?.chosen_action !== "destruer" && (
@@ -1268,7 +1240,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={reactivateMutation.isPending}
               >
                 <Undo2 className="mr-2 h-4 w-4" />
-                {reactivateMutation.isPending ? "Genaktiverer..." : "Genaktivér"}
+                {reactivateMutation.isPending ? t("common.reactivating") : t("common.reactivate")}
               </Button>
             )}
             {canArchive && selectedItem?.status !== "arkiveret" && (
@@ -1278,11 +1250,11 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={archiveMutation.isPending}
               >
                 <Archive className="mr-2 h-4 w-4" />
-                {archiveMutation.isPending ? "Arkiverer..." : "Arkivér"}
+                {archiveMutation.isPending ? t("tenantDashboard.archiving") : t("common.archive")}
               </Button>
             )}
             <Button variant="ghost" onClick={() => setSelectedItem(null)}>
-              Luk
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1292,10 +1264,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Foto</DialogTitle>
+            <DialogTitle>{t("common.photo")}</DialogTitle>
           </DialogHeader>
           {photoPreview && (
-            <img src={photoPreview} alt="Forsendelse" className="w-full rounded" />
+            <img src={photoPreview} alt={t("tenantDashboard.shipmentDetails")} className="w-full rounded" />
           )}
         </DialogContent>
       </Dialog>
@@ -1304,14 +1276,14 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       <Dialog open={!!confirmDestroy} onOpenChange={() => setConfirmDestroy(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Bekræft destruering</DialogTitle>
+            <DialogTitle>{t("tenantDashboard.confirmDestroyTitle")}</DialogTitle>
             <DialogDescription>
-              Er du sikker på at du vil destruere denne forsendelse? <strong>Denne handling kan ikke ændres efterfølgende.</strong> Forsendelsen vil blive destrueret af operatøren og kan ikke genskabes.
+              {t("tenantDashboard.confirmDestroyDesc")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDestroy(null)}>
-              Annuller
+              {t("common.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -1322,7 +1294,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 }
               }}
             >
-              Destruer
+              {t("actions.destruer")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1341,9 +1313,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Vælg afhentningstidspunkt</DialogTitle>
+            <DialogTitle>{t("tenantDashboard.pickupDialogTitle")}</DialogTitle>
             <DialogDescription>
-              Vælg dato og tidsrum for afhentning.
+              {t("tenantDashboard.pickupDialogDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -1364,7 +1336,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             {pickupDate && (
               <Select value={pickupHour} onValueChange={setPickupHour}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Vælg tidsrum" />
+                  <SelectValue placeholder={t("tenantDashboard.selectTimeSlot")} />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
                   {getPickupHours(pickupDate).map((slot) => (
@@ -1385,7 +1357,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 setPickupHour(undefined);
               }}
             >
-              Annuller
+              {t("common.cancel")}
             </Button>
             <Button
               disabled={!pickupDate || !pickupHour || choosePickup.isPending}
@@ -1401,7 +1373,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 }
               }}
             >
-              {choosePickup.isPending ? "Bestiller..." : "Bestil afhentning"}
+              {choosePickup.isPending ? t("tenantDashboard.orderingPickup") : t("tenantDashboard.orderPickup")}
             </Button>
           </DialogFooter>
         </DialogContent>
