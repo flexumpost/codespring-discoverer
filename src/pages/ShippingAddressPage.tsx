@@ -125,9 +125,9 @@ const ShippingAddressPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !selectedTenant ? (
-        <p className="text-muted-foreground">Ingen lejer-profil fundet for din konto.</p>
+        <p className="text-muted-foreground">{t("shipping.noTenantProfile")}</p>
       ) : (
         <div className="grid gap-6 max-w-lg">
           <Card>
