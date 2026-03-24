@@ -112,7 +112,7 @@ const TenantsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
     },
     onError: (err: Error) => {
-      toast.error("Kunne ikke sende velkomst e-mail: " + err.message);
+      toast.error(t("tenants.couldNotSendWelcome") + ": " + err.message);
     },
   });
 
