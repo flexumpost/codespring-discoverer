@@ -121,7 +121,7 @@ const ShippingAddressPage = () => {
           selectedTenantId={selectedTenantId}
           onSelect={setSelectedTenantId}
         />
-        <h2 className="text-2xl font-bold mt-4">Forsendelsesadresse</h2>
+        <h2 className="text-2xl font-bold mt-4">{t("shipping.title")}</h2>
       </div>
 
       {isLoading ? (
