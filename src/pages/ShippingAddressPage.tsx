@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 import { Save } from "lucide-react";
 
 const ShippingAddressPage = () => {
+  const { t } = useTranslation();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
@@ -84,11 +86,11 @@ const ShippingAddressPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
-      toast.success("Forsendelsesadresse gemt");
+      toast.success(t("shipping.addressSaved"));
     },
     onError: (err: any) => {
       console.error("ShippingAddress save error:", err);
-      toast.error(err?.message || "Kunne ikke gemme forsendelsesadresse");
+      toast.error(err?.message || t("shipping.couldNotSave"));
     },
   });
 
@@ -119,18 +121,18 @@ const ShippingAddressPage = () => {
           selectedTenantId={selectedTenantId}
           onSelect={setSelectedTenantId}
         />
-        <h2 className="text-2xl font-bold mt-4">Forsendelsesadresse</h2>
+        <h2 className="text-2xl font-bold mt-4">{t("shipping.title")}</h2>
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !selectedTenant ? (
-        <p className="text-muted-foreground">Ingen lejer-profil fundet for din konto.</p>
+        <p className="text-muted-foreground">{t("shipping.noTenantProfile")}</p>
       ) : (
         <div className="grid gap-6 max-w-lg">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Forsendelsesadresse</CardTitle>
+              <CardTitle className="text-base">{t("shipping.shippingAddress")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {showCheckbox && (
@@ -141,43 +143,43 @@ const ShippingAddressPage = () => {
                     onCheckedChange={(checked) => handleSyncToggle(!!checked)}
                   />
                   <Label htmlFor="same_address" className="cursor-pointer font-normal">
-                    Samme forsendelsesadresse som {referenceTenant!.company_name}
+                    {t("shipping.sameAddressAs", { name: referenceTenant!.company_name })}
                   </Label>
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="shipping_recipient">Modtager navn *</Label>
-                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_recipient">{t("shipping.recipientName")}</Label>
+                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder={t("shipping.recipientPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_co">c/o navn</Label>
-                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_co">{t("shipping.coName")}</Label>
+                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder={t("shipping.coPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_address">Adresse *</Label>
-                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_address">{t("shipping.address")}</Label>
+                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("shipping.addressPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_zip">Postnummer *</Label>
-                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." disabled={fieldsDisabled} />
+                  <Label htmlFor="shipping_zip">{t("shipping.zipCode")}</Label>
+                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder={t("shipping.zipPlaceholder")} disabled={fieldsDisabled} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_city">By *</Label>
-                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" disabled={fieldsDisabled} />
+                  <Label htmlFor="shipping_city">{t("shipping.city")}</Label>
+                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder={t("shipping.cityPlaceholder")} disabled={fieldsDisabled} />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_state">Stat</Label>
-                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder="Stat (valgfrit)" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_state">{t("shipping.state")}</Label>
+                <Input id="shipping_state" value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder={t("shipping.statePlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_country">Land *</Label>
-                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_country">{t("shipping.country")}</Label>
+                <Input id="shipping_country" value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder={t("shipping.countryPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <Button onClick={() => shippingMutation.mutate()} disabled={!hasShippingChanges || !shippingValid || shippingMutation.isPending}>
                 <Save className="mr-2 h-4 w-4" />
-                {shippingMutation.isPending ? "Gemmer..." : "Gem forsendelsesadresse"}
+                {shippingMutation.isPending ? t("common.saving") : t("shipping.saveAddress")}
               </Button>
             </CardContent>
           </Card>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
@@ -34,6 +35,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const SettingsPage = () => {
+  const { t } = useTranslation();
   const { role, user } = useAuth();
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
@@ -99,13 +101,13 @@ const SettingsPage = () => {
       }
     },
     onSuccess: () => {
-      toast.success("Virksomhedstilknytning opdateret");
+      toast.success(t("settings.companyAssignmentUpdated"));
       setEditDialogOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Kunne ikke opdatere tilknytning");
+      toast.error(err.message || t("settings.couldNotUpdateAssignment"));
     },
   });
 
@@ -133,7 +135,7 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Invitation sendt per email");
+      toast.success(t("settings.invitationSent"));
       setDialogOpen(false);
       setNewName("");
       setNewEmail("");
@@ -141,7 +143,7 @@ const SettingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Kunne ikke oprette postmodtager");
+      toast.error(err.message || t("settings.couldNotCreateRecipient"));
     },
   });
 
@@ -187,11 +189,11 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Postmodtager slettet");
+      toast.success(t("settings.recipientDeleted"));
       queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Kunne ikke slette postmodtager");
+      toast.error(err.message || t("settings.couldNotDeleteRecipient"));
     },
   });
 
@@ -202,7 +204,7 @@ const SettingsPage = () => {
     return (
       <AppLayout>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold">Indstillinger</h2>
+          <h2 className="text-2xl font-bold">{t("settings.title")}</h2>
         </div>
         <OperatorSettingsTabs />
       </AppLayout>
@@ -218,37 +220,35 @@ const SettingsPage = () => {
           selectedTenantId={selectedTenantId}
           onSelect={setSelectedTenantId}
         />
-        <h2 className="text-2xl font-bold mt-4">Indstillinger</h2>
+        <h2 className="text-2xl font-bold mt-4">{t("settings.title")}</h2>
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !selectedTenant ? (
-        <p className="text-muted-foreground">
-          Ingen lejer-profil fundet for din konto.
-        </p>
+        <p className="text-muted-foreground">{t("settings.noTenantProfile")}</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1: Company + Contact (read-only) */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Virksomhed</CardTitle>
+                <CardTitle className="text-base">{t("settings.company")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label className="text-muted-foreground text-xs">Firmanavn</Label>
+                  <Label className="text-muted-foreground text-xs">{t("settings.companyName")}</Label>
                   <p className="font-medium">{selectedTenant.company_name}</p>
                 </div>
                 {selectedTenant.address && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Adresse</Label>
+                    <Label className="text-muted-foreground text-xs">{t("settings.address")}</Label>
                     <p className="font-medium">{selectedTenant.address}</p>
                   </div>
                 )}
                 {typeName && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Lejertype</Label>
+                    <Label className="text-muted-foreground text-xs">{t("settings.tenantType")}</Label>
                     <div className="mt-1">
                       <Badge
                         variant="outline"
@@ -264,15 +264,15 @@ const SettingsPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kontaktoplysninger</CardTitle>
+                <CardTitle className="text-base">{t("settings.contactInfo")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Kontaktperson</Label>
+                  <Label className="text-muted-foreground text-xs">{t("settings.contactPerson")}</Label>
                   <p className="font-medium">{[selectedTenant.contact_first_name, selectedTenant.contact_last_name].filter(Boolean).join(" ") || "—"}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Kontakt-email</Label>
+                  <Label className="text-muted-foreground text-xs">{t("settings.contactEmail")}</Label>
                   <p className="font-medium">{selectedTenant.contact_email || "—"}</p>
                 </div>
               </CardContent>
@@ -280,7 +280,7 @@ const SettingsPage = () => {
 
             {/* Postmodtagere */}
             {tuError && (
-              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+              <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
             {tenantUsers && tenantUsers.length > 0 && (
               <div className="space-y-3">
@@ -334,7 +334,7 @@ const SettingsPage = () => {
               onClick={openDialog}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Opret ny postmodtager
+              {t("settings.createMailRecipient")}
             </Button>
           </div>
 
@@ -350,35 +350,33 @@ const SettingsPage = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Opret ny postmodtager</DialogTitle>
-            <DialogDescription>
-              Personen modtager en invitation per email med et link til at sætte sin adgangskode.
-            </DialogDescription>
+            <DialogTitle>{t("settings.createMailRecipient")}</DialogTitle>
+            <DialogDescription>{t("settings.recipientInviteDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="rec_name">Navn</Label>
+              <Label htmlFor="rec_name">{t("settings.name")}</Label>
               <Input
                 id="rec_name"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Fulde navn"
+                placeholder={t("settings.fullName")}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="rec_email">Email</Label>
+              <Label htmlFor="rec_email">{t("settings.email")}</Label>
               <Input
                 id="rec_email"
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="email@eksempel.dk"
+                placeholder={t("tenants.emailPlaceholder")}
               />
             </div>
             {/* Multi-tenant selection */}
             {tenants.length > 1 && (
               <div className="space-y-2">
-                <Label>Tilknyt til virksomheder</Label>
+                <Label>{t("settings.assignToCompanies")}</Label>
                 <div className="space-y-2 rounded-md border p-3">
                   {tenants.map((t) => (
                     <div key={t.id} className="flex items-center gap-2">
@@ -401,7 +399,7 @@ const SettingsPage = () => {
               onClick={() => createRecipientMutation.mutate()}
               disabled={!canSubmitRecipient || createRecipientMutation.isPending}
             >
-              {createRecipientMutation.isPending ? "Sender invitation..." : "Send invitation"}
+              {createRecipientMutation.isPending ? t("settings.sendingInvitation") : t("settings.sendInvitation")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -411,13 +409,11 @@ const SettingsPage = () => {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rediger virksomhedstilknytning</DialogTitle>
-            <DialogDescription>
-              Vælg hvilke virksomheder {editingUser?.name} skal have adgang til.
-            </DialogDescription>
+            <DialogTitle>{t("settings.editCompanyAssignment")}</DialogTitle>
+            <DialogDescription>{t("settings.editCompanyDesc", { name: editingUser?.name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label>Virksomheder</Label>
+            <Label>{t("settings.companies")}</Label>
             <div className="space-y-2 rounded-md border p-3">
               {tenants.map((t) => (
                 <div key={t.id} className="flex items-center gap-2">
@@ -438,7 +434,7 @@ const SettingsPage = () => {
               onClick={() => saveEditMutation.mutate()}
               disabled={editTenantIds.length === 0 || saveEditMutation.isPending}
             >
-              {saveEditMutation.isPending ? "Gemmer..." : "Gem"}
+              {saveEditMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

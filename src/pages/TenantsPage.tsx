@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
@@ -32,6 +33,7 @@ const formatDate = (dateStr: string) => {
 };
 
 const TenantsPage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -102,15 +104,15 @@ const TenantsPage = () => {
       const skipped = results.filter((r: any) => r.status === "skipped").length;
       const failed = results.filter((r: any) => r.status === "failed").length;
       
-      if (sent > 0) toast.success(`Velkomst e-mail sendt til ${sent} lejer(e)`);
-      if (skipped > 0) toast.info(`${skipped} lejer(e) sprunget over (mangler e-mail)`);
-      if (failed > 0) toast.error(`${failed} afsendelse(r) fejlede`);
+      if (sent > 0) toast.success(t("tenants.welcomeEmailSentCount", { count: sent }));
+      if (skipped > 0) toast.info(t("tenants.skippedCount", { count: skipped }));
+      if (failed > 0) toast.error(t("tenants.failedCount", { count: failed }));
       
       setSelectedTenantIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
     },
     onError: (err: Error) => {
-      toast.error("Kunne ikke sende velkomst e-mail: " + err.message);
+      toast.error(t("tenants.couldNotSendWelcome") + ": " + err.message);
     },
   });
 
@@ -128,28 +130,19 @@ const TenantsPage = () => {
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
-      toast.success("Lejer oprettet");
+      toast.success(t("tenants.tenantCreated"));
 
-      // Auto-invite: if email is provided, invite user (sends branded welcome email automatically)
       const email = contactEmail.trim();
       if (email && data?.id) {
         try {
           const { error: inviteError } = await supabase.functions.invoke(
             "create-tenant-user",
-            {
-              body: {
-                email,
-                first_name: contactFirstName.trim() || companyName.trim(),
-                last_name: contactLastName.trim() || "",
-                tenant_ids: [data.id],
-                mode: "invite",
-              },
-            }
+            { body: { email, first_name: contactFirstName.trim() || companyName.trim(), last_name: contactLastName.trim() || "", tenant_ids: [data.id], mode: "invite" } }
           );
           if (inviteError) throw inviteError;
-          toast.success("Velkomst e-mail sendt til " + email);
+          toast.success(t("tenants.welcomeEmailSent", { email }));
         } catch (err: any) {
-          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+          toast.error(t("tenants.couldNotCreateUser") + ": " + (err?.message || err));
         }
       }
 
@@ -161,7 +154,7 @@ const TenantsPage = () => {
       setTenantTypeId("");
     },
     onError: (err: Error) => {
-      toast.error("Kunne ikke oprette lejer: " + err.message);
+      toast.error(t("tenants.couldNotCreateTenant") + ": " + err.message);
     },
   });
 
@@ -207,26 +200,22 @@ const TenantsPage = () => {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Lejere</h2>
+        <h2 className="text-2xl font-bold">{t("tenants.title")}</h2>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))}
-            disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}
-          >
+          <Button variant="outline" onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))} disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}>
             <Mail className="h-4 w-4 mr-1" />
-            {sendWelcomeMutation.isPending ? "Sender..." : "Send velkomst e-mail"}
+            {sendWelcomeMutation.isPending ? t("common.sending") : t("tenants.sendWelcomeEmail")}
           </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            Opret ny lejer
+            {t("tenants.createNewTenant")}
           </Button>
         </div>
       </div>
 
       <div className="flex items-center gap-4 mb-4">
         <Input
-          placeholder="Søg på lejer navn..."
+          placeholder={t("tenants.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
@@ -238,7 +227,7 @@ const TenantsPage = () => {
             onCheckedChange={(checked) => setFilterUnpaid(!!checked)}
           />
           <Label htmlFor="filter-unpaid" className="text-sm font-normal cursor-pointer whitespace-nowrap">
-            Ubetalt faktura
+            {t("tenants.unpaidInvoice")}
           </Label>
         </div>
       </div>
@@ -256,24 +245,20 @@ const TenantsPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : (
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleAll}
-                    aria-label="Vælg alle"
-                  />
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("tenants.selectAll")} />
                 </TableHead>
-                <TableHead>Lejer navn</TableHead>
-                <TableHead>Lejertype</TableHead>
-                <TableHead>Velkomst e-mail</TableHead>
-                <TableHead>Ubetalt faktura</TableHead>
-                <TableHead className="text-right">Nye breve</TableHead>
+                <TableHead>{t("tenants.tenantName")}</TableHead>
+                <TableHead>{t("tenants.tenantType")}</TableHead>
+                <TableHead>{t("tenants.welcomeEmail")}</TableHead>
+                <TableHead>{t("tenants.unpaidInvoice")}</TableHead>
+                <TableHead className="text-right">{t("tenants.newLetters")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -320,7 +305,7 @@ const TenantsPage = () => {
                             .update({ has_unpaid_invoice: newVal } as any)
                             .eq("id", tenant.id);
                           if (updateErr) {
-                            toast.error("Kunne ikke opdatere status");
+                            toast.error(t("common.error"));
                             return;
                           }
                           // Send email notification
@@ -382,7 +367,7 @@ const TenantsPage = () => {
               {filteredTenants.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    {tenants.length === 0 ? "Ingen lejere fundet" : "Ingen lejere matcher søgningen"}
+                    {tenants.length === 0 ? t("tenants.noTenantsFound") : t("tenants.noTenantsMatch")}
                   </TableCell>
                 </TableRow>
               )}
@@ -394,46 +379,42 @@ const TenantsPage = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Opret ny lejer</DialogTitle>
+            <DialogTitle>{t("tenants.createNewTenant")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="company_name">Virksomhedsnavn *</Label>
-              <Input
-                id="company_name"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                placeholder="Indtast virksomhedsnavn"
+              <Label htmlFor="company_name">{t("tenants.companyName")} *</Label>
+              <Input id="company_name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t("tenants.enterCompanyName")}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="contact_first_name">Fornavn</Label>
+                <Label htmlFor="contact_first_name">{t("tenants.firstName")}</Label>
                 <Input
                   id="contact_first_name"
                   value={contactFirstName}
                   onChange={(e) => setContactFirstName(e.target.value)}
-                  placeholder="Fornavn"
+                  placeholder={t("tenants.firstName")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact_last_name">Efternavn</Label>
+                <Label htmlFor="contact_last_name">{t("tenants.lastName")}</Label>
                 <Input
                   id="contact_last_name"
                   value={contactLastName}
                   onChange={(e) => setContactLastName(e.target.value)}
-                  placeholder="Efternavn"
+                  placeholder={t("tenants.lastName")}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact_email">Kontakt email</Label>
+              <Label htmlFor="contact_email">{t("tenants.contactEmail")}</Label>
               <Input
                 id="contact_email"
                 type="email"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="email@eksempel.dk"
+                placeholder={t("tenants.emailPlaceholder")}
               />
             </div>
             <div className="space-y-2">
