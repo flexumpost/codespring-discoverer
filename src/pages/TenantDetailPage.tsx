@@ -46,6 +46,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
+  const { t } = useTranslation();
   const [sending, setSending] = useState(false);
   const handleResend = async () => {
     setSending(true);
@@ -55,11 +56,11 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
-      toast.success("Invitation gensendt");
+      toast.success(t("tenantDetail.invitationResent"));
     } catch (err: any) {
       const msg = err.message?.includes("401") || err.message?.includes("Unauthorized")
-        ? "Din session er udløbet – log ind igen"
-        : (err.message || "Kunne ikke gensende invitation");
+        ? t("tenantDetail.sessionExpired")
+        : (err.message || t("tenantDetail.couldNotResendInvitation"));
       toast.error(msg);
     } finally {
       setSending(false);
@@ -68,7 +69,7 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
   return (
     <Button variant="outline" size="sm" onClick={handleResend} disabled={sending}>
       <MailPlus className="mr-2 h-4 w-4" />
-      {sending ? "Sender..." : "Gensend invitation"}
+      {sending ? t("common.sending") : t("tenantDetail.resendInvitation")}
     </Button>
   );
 };
