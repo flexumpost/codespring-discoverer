@@ -260,9 +260,31 @@ const TenantDetailPage = () => {
         .eq("id", id!);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
       toast.success(t("tenantDetail.contactInfoSaved"));
+
+      // If email changed, create user + send invitation
+      const oldEmail = tenant?.contact_email ?? "";
+      const newEmail = contactEmail.trim();
+      if (newEmail && newEmail.toLowerCase() !== oldEmail.toLowerCase()) {
+        try {
+          const { error } = await supabase.functions.invoke("create-tenant-user", {
+            body: {
+              email: newEmail,
+              first_name: contactFirstName.trim() || tenant?.company_name || "",
+              last_name: contactLastName.trim() || "",
+              tenant_ids: [id],
+              mode: "invite",
+            },
+          });
+          if (error) throw error;
+          toast.success(t("tenants.welcomeEmailSent", { email: newEmail }));
+          queryClient.invalidateQueries({ queryKey: ["tenant-users", id] });
+        } catch (err: any) {
+          toast.error(t("tenants.couldNotCreateUser") + ": " + (err?.message || err));
+        }
+      }
     },
     onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
