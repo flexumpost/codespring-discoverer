@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
@@ -36,6 +37,7 @@ function fuzzyMatchTenant(
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const BulkUploadPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -91,17 +93,16 @@ const BulkUploadPage = () => {
       });
 
       if (error) {
-        const msg = (error as any)?.message || "Ukendt fejl";
-        // Check for rate limit via context (edge function returns 429 status)
+        const msg = (error as any)?.message || "Unknown error";
         if (msg.includes("429") || msg.includes("rate limit") || msg.includes("Rate limit")) {
           if (retries < 2) {
             await delay(3000);
             return runOcrForItem(file, retries + 1);
           }
-          return { error: "Rate limit – maks forsøg nået" };
+          return { error: t("bulkUpload.rateLimitReached") };
         }
         if (msg.includes("402") || msg.includes("kredit")) {
-          return { error: "AI-kredit opbrugt", fatal: true };
+          return { error: t("bulkUpload.aiCreditExhausted"), fatal: true };
         }
         return { error: msg };
       }
@@ -112,7 +113,7 @@ const BulkUploadPage = () => {
         senderName: data?.sender_name ?? "",
       };
     } catch (err: any) {
-      return { error: err.message || "OCR fejlede" };
+      return { error: err.message || "OCR failed" };
     }
   };
 
@@ -157,11 +158,10 @@ const BulkUploadPage = () => {
             return copy;
           });
           if (result.fatal) {
-            toast.error("AI-kredit opbrugt – stopper OCR for resten");
+            toast.error(t("bulkUpload.aiCreditExhausted"));
             break;
           }
         } else {
-          // Smart swap: if sender matches a tenant but recipient doesn't, swap them
           let { recipientName, senderName } = result;
           const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
           const senderMatch = fuzzyMatchTenant(senderName, tenants);
@@ -172,12 +172,11 @@ const BulkUploadPage = () => {
           }
           const match = recipientMatch || senderMatch;
 
-          // Validate stamp number against recent history
           let validatedStampNumber = result.stampNumber;
           if (validatedStampNumber) {
             const validation = validateStampNumber(validatedStampNumber, recentStampNumbers);
             if (!validation.valid) {
-              toast.warning(`Aflæst nr. "${validatedStampNumber}" virker usandsynligt – kontrollér venligst`, {
+              toast.warning(t("bulkUpload.stampUnlikely", { number: validatedStampNumber }), {
                 description: validation.reason,
               });
               validatedStampNumber = "";
@@ -250,11 +249,11 @@ const BulkUploadPage = () => {
         if (insertErr) throw insertErr;
       }
 
-      toast.success(`${validItems.length} forsendelse(r) gemt`);
+      toast.success(t("bulkUpload.shipmentsSaved", { count: validItems.length }));
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
       navigate("/mail");
     } catch (err: any) {
-      toast.error("Kunne ikke gemme: " + err.message);
+      toast.error(t("bulkUpload.couldNotSave") + ": " + err.message);
     } finally {
       setSaving(false);
     }
@@ -269,7 +268,7 @@ const BulkUploadPage = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate("/mail")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h2 className="text-2xl font-bold">Bulk upload</h2>
+          <h2 className="text-2xl font-bold">{t("bulkUpload.title")}</h2>
         </div>
 
         <BulkUploadDropzone onFilesSelected={handleFilesSelected} disabled={isProcessing || saving} />
@@ -277,7 +276,7 @@ const BulkUploadPage = () => {
         {ocrProgress && (
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">
-              OCR-behandling: {ocrProgress.current} / {ocrProgress.total}
+              {t("bulkUpload.ocrProcessing")}: {ocrProgress.current} / {ocrProgress.total}
             </p>
             <Progress value={(ocrProgress.current / ocrProgress.total) * 100} className="h-2" />
           </div>
@@ -293,7 +292,7 @@ const BulkUploadPage = () => {
         {items.length > 0 && (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {validItems.length} af {items.length} klar til at gemme
+              {t("bulkUpload.readyToSave", { valid: validItems.length, total: items.length })}
             </p>
             <Button
               onClick={handleSaveAll}
@@ -301,7 +300,7 @@ const BulkUploadPage = () => {
               className="gap-2"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Gem alle ({validItems.length})
+              {t("bulkUpload.saveAll", { count: validItems.length })}
             </Button>
           </div>
         )}

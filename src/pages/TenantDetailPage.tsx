@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
@@ -14,7 +15,7 @@ import { ArrowLeft, Save, User, Trash2, Eye, CalendarIcon, X, MailPlus } from "l
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { da } from "date-fns/locale";
+import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   AlertDialog,
@@ -45,6 +46,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
+  const { t } = useTranslation();
   const [sending, setSending] = useState(false);
   const handleResend = async () => {
     setSending(true);
@@ -54,11 +56,11 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
-      toast.success("Invitation gensendt");
+      toast.success(t("tenantDetail.invitationResent"));
     } catch (err: any) {
       const msg = err.message?.includes("401") || err.message?.includes("Unauthorized")
-        ? "Din session er udløbet – log ind igen"
-        : (err.message || "Kunne ikke gensende invitation");
+        ? t("tenantDetail.sessionExpired")
+        : (err.message || t("tenantDetail.couldNotResendInvitation"));
       toast.error(msg);
     } finally {
       setSending(false);
@@ -67,12 +69,14 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
   return (
     <Button variant="outline" size="sm" onClick={handleResend} disabled={sending}>
       <MailPlus className="mr-2 h-4 w-4" />
-      {sending ? "Sender..." : "Gensend invitation"}
+      {sending ? t("common.sending") : t("tenantDetail.resendInvitation")}
     </Button>
   );
 };
 
 const TenantDetailPage = () => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "da" ? da : enGB;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -205,12 +209,12 @@ const TenantDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
       const selectedType = tenantTypes.find((t) => t.id === selectedTypeId);
       if (selectedType?.name === "Retur til afsender") {
-        toast.success("Lejertype ændret til Retur til afsender — lejeren er nu deaktiveret");
+        toast.success(t("tenantDetail.typeChangedToRetur"));
       } else {
-        toast.success("Virksomhedsoplysninger opdateret");
+        toast.success(t("tenantDetail.companyInfoUpdated"));
       }
     },
-    onError: () => toast.error("Kunne ikke gemme lejertype"),
+    onError: () => toast.error(t("tenantDetail.couldNotSaveType")),
   });
 
   const scheduleChangeMutation = useMutation({
@@ -228,9 +232,9 @@ const TenantDetailPage = () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
       setSchedDate(undefined);
       setSchedTypeId("");
-      toast.success("Planlagt typeskift oprettet");
+      toast.success(t("tenantDetail.scheduledChangeCreated"));
     },
-    onError: (err: any) => toast.error(err.message || "Kunne ikke oprette planlagt skift"),
+    onError: (err: any) => toast.error(err.message || t("tenantDetail.couldNotSave")),
   });
 
   const cancelScheduledMutation = useMutation({
@@ -243,9 +247,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scheduled-type-changes", id] });
-      toast.success("Planlagt typeskift annulleret");
+      toast.success(t("tenantDetail.scheduledChangeCancelled"));
     },
-    onError: () => toast.error("Kunne ikke annullere"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const contactMutation = useMutation({
@@ -258,9 +262,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Kontaktoplysninger gemt");
+      toast.success(t("tenantDetail.contactInfoSaved"));
     },
-    onError: () => toast.error("Kunne ikke gemme"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const shippingMutation = useMutation({
@@ -280,9 +284,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-      toast.success("Forsendelsesadresse gemt");
+      toast.success(t("tenantDetail.shippingAddressSaved"));
     },
-    onError: () => toast.error("Kunne ikke gemme"),
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
   const deleteMutation = useMutation({
@@ -297,11 +301,11 @@ const TenantDetailPage = () => {
       if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
-      toast.success("Lejer slettet");
+      toast.success(t("tenantDetail.tenantDeleted"));
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
       navigate("/tenants");
     },
-    onError: (err: any) => toast.error(err.message || "Kunne ikke slette lejer"),
+    onError: (err: any) => toast.error(err.message || t("tenantDetail.couldNotDelete")),
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
@@ -329,7 +333,7 @@ const TenantDetailPage = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-2xl font-bold">
-          {isLoading ? "Indlæser..." : tenant?.company_name ?? "Lejer ikke fundet"}
+          {isLoading ? t("common.loading") : tenant?.company_name ?? t("tenantDetail.tenantNotFound")}
         </h2>
         {typeName && (
           <Badge variant="outline" className={TYPE_COLORS[typeName] ?? ""}>
@@ -340,30 +344,30 @@ const TenantDetailPage = () => {
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate(`/tenants/${id}/dashboard`)}>
               <Eye className="mr-2 h-4 w-4" />
-              Vis som lejer
+              {t("tenantDetail.viewAsTenant")}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Slet konto
+                  {t("tenantDetail.deleteAccount")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Slet {tenant.company_name}?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("tenantDetail.deleteConfirmTitle", { name: tenant.company_name })}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Er du sikker på at du vil slette <strong>{tenant.company_name}</strong>? Alle data inkl. posthistorik og brugerkonti tilknyttet denne lejer vil blive permanent slettet. Denne handling kan ikke fortrydes.
+                    <span dangerouslySetInnerHTML={{ __html: t("tenantDetail.deleteConfirmDesc", { name: tenant.company_name }) }} />
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Annuller</AlertDialogCancel>
+                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => deleteMutation.mutate()}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     disabled={deleteMutation.isPending}
                   >
-                    {deleteMutation.isPending ? "Sletter..." : "Ja, slet permanent"}
+                    {deleteMutation.isPending ? t("common.deleting") : t("tenantDetail.deletePermanently")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -373,33 +377,33 @@ const TenantDetailPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !tenant ? (
-        <p className="text-muted-foreground">Lejer ikke fundet.</p>
+        <p className="text-muted-foreground">{t("tenantDetail.tenantNotFound")}.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1: Company + Contact + Shipping + Postmodtagere */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Virksomhed</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.company")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Firmanavn</Label>
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Firmanavn" />
+                  <Label className="text-muted-foreground text-xs">{t("tenantDetail.companyName")}</Label>
+                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t("tenantDetail.companyName")} />
                 </div>
                 {tenant.address && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Adresse</Label>
+                    <Label className="text-muted-foreground text-xs">{t("tenantDetail.address")}</Label>
                     <p className="font-medium">{tenant.address}</p>
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Lejertype</Label>
+                  <Label className="text-muted-foreground text-xs">{t("tenantDetail.tenantType")}</Label>
                   <Select value={selectedTypeId} onValueChange={setSelectedTypeId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Vælg lejertype" />
+                      <SelectValue placeholder={t("tenantDetail.selectTenantType")} />
                     </SelectTrigger>
                     <SelectContent>
                       {tenantTypes.map((t) => (
@@ -412,17 +416,17 @@ const TenantDetailPage = () => {
                 </div>
                 <Button onClick={() => typeMutation.mutate()} disabled={!typeChanged || typeMutation.isPending} size="sm">
                   <Save className="mr-2 h-4 w-4" />
-                  {typeMutation.isPending ? "Gemmer..." : "Gem"}
+                  {typeMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
 
                 {/* Scheduled type changes */}
                 <div className="border-t pt-4 mt-4 space-y-3">
-                  <Label className="text-muted-foreground text-xs font-semibold">Planlagt typeskift</Label>
+                  <Label className="text-muted-foreground text-xs font-semibold">{t("tenantDetail.scheduledTypeChange")}</Label>
 
                   {scheduledChanges.length > 0 && (
                     <div className="space-y-2">
                       {scheduledChanges.map((sc: any) => {
-                        const typeName2 = tenantTypes.find((t) => t.id === sc.new_tenant_type_id)?.name ?? "Ukendt";
+                        const typeName2 = tenantTypes.find((tt) => tt.id === sc.new_tenant_type_id)?.name ?? t("tenantDetail.unknownType");
                         return (
                           <div key={sc.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                             <div>
@@ -430,7 +434,7 @@ const TenantDetailPage = () => {
                                 {typeName2}
                               </Badge>
                               <span className="ml-2 text-muted-foreground">
-                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: da })}
+                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: dateLocale })}
                               </span>
                             </div>
                             <Button
@@ -451,7 +455,7 @@ const TenantDetailPage = () => {
                   <div className="flex flex-col gap-2">
                     <Select value={schedTypeId} onValueChange={setSchedTypeId}>
                       <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Ny lejertype" />
+                        <SelectValue placeholder={t("tenantDetail.newTenantType")} />
                       </SelectTrigger>
                       <SelectContent>
                         {tenantTypes.filter((t) => t.id !== tenant.tenant_type_id).map((t) => (
@@ -465,7 +469,7 @@ const TenantDetailPage = () => {
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="justify-start text-left font-normal h-9">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: da }) : "Vælg dato"}
+                          {schedDate ? format(schedDate, "d. MMM yyyy", { locale: dateLocale }) : t("tenantDetail.selectDate")}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -484,7 +488,7 @@ const TenantDetailPage = () => {
                       disabled={!schedDate || !schedTypeId || scheduleChangeMutation.isPending}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {scheduleChangeMutation.isPending ? "Opretter..." : "Planlæg skift"}
+                      {scheduleChangeMutation.isPending ? t("common.creating") : t("tenantDetail.scheduleChange")}
                     </Button>
                   </div>
                 </div>
@@ -493,26 +497,26 @@ const TenantDetailPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kontaktoplysninger</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.contactInfo")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contact_first_name">Fornavn</Label>
-                    <Input id="contact_first_name" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder="Fornavn" />
+                    <Label htmlFor="contact_first_name">{t("tenants.firstName")}</Label>
+                    <Input id="contact_first_name" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder={t("tenants.firstName")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contact_last_name">Efternavn</Label>
-                    <Input id="contact_last_name" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder="Efternavn" />
+                    <Label htmlFor="contact_last_name">{t("tenants.lastName")}</Label>
+                    <Input id="contact_last_name" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder={t("tenants.lastName")} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contact_email">Kontakt-email</Label>
-                  <Input id="contact_email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="email@eksempel.dk" />
+                  <Label htmlFor="contact_email">{t("tenantDetail.contactEmail")}</Label>
+                  <Input id="contact_email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder={t("tenants.emailPlaceholder")} />
                 </div>
                 <Button onClick={() => contactMutation.mutate()} disabled={!contactChanged || contactMutation.isPending}>
                   <Save className="mr-2 h-4 w-4" />
-                  {contactMutation.isPending ? "Gemmer..." : "Gem"}
+                  {contactMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
                 {tenant.contact_email && tenant.user_id && (
                   <ResendInviteButton tenantId={tenant.id} />
@@ -522,50 +526,50 @@ const TenantDetailPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Forsendelsesadresse</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Modtager</Label>
-                  <Input value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" />
+                  <Label>{t("tenantDetail.recipient")}</Label>
+                  <Input value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder={t("tenantDetail.recipientName")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>c/o</Label>
-                  <Input value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" />
+                  <Label>{t("tenantDetail.coName")}</Label>
+                  <Input value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder={t("tenantDetail.coPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Adresse</Label>
-                  <Input value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" />
+                  <Label>{t("tenantDetail.address")}</Label>
+                  <Input value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("tenantDetail.streetAddress")} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Postnummer</Label>
-                    <Input value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." />
+                    <Label>{t("tenantDetail.zipCode")}</Label>
+                    <Input value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder={t("tenantDetail.zipPlaceholder")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>By</Label>
-                    <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" />
+                    <Label>{t("tenantDetail.city")}</Label>
+                    <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder={t("tenantDetail.city")} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Land</Label>
-                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" />
+                  <Label>{t("tenantDetail.country")}</Label>
+                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder={t("tenantDetail.countryPlaceholder")} />
                 </div>
                 <Button onClick={() => shippingMutation.mutate()} disabled={!shippingChanged || shippingMutation.isPending}>
                   <Save className="mr-2 h-4 w-4" />
-                  {shippingMutation.isPending ? "Gemmer..." : "Gem adresse"}
+                  {shippingMutation.isPending ? t("common.saving") : t("tenantDetail.saveAddress")}
                 </Button>
               </CardContent>
             </Card>
 
             {/* Postmodtagere */}
             {tuError && (
-              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+              <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
             {tenantUsers.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Postmodtagere</CardTitle>
+                  <CardTitle className="text-base">{t("tenantDetail.mailRecipients")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -579,9 +583,9 @@ const TenantDetailPage = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Uden navn"}</p>
+                              <p className="font-medium truncate">{[profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || t("tenantDetail.withoutName")}</p>
                               {isContactPerson && (
-                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Kontaktperson</span>
+                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{t("tenantDetail.contactPersonLabel")}</span>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>

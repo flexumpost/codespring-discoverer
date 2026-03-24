@@ -1,5 +1,6 @@
 import { useState, ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenants } from "@/hooks/useTenants";
 import {
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function ShippingAddressGuard({ children }: Props) {
+  const { t } = useTranslation();
   const { tenants, selectedTenant, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
@@ -48,7 +50,6 @@ export function ShippingAddressGuard({ children }: Props) {
   const [useSameAddress, setUseSameAddress] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  // Find reference tenant with complete address (different from current)
   const referenceTenant = tenants.find(
     (t) =>
       t.id !== tenant?.id &&
@@ -61,7 +62,6 @@ export function ShippingAddressGuard({ children }: Props) {
 
   const showCheckbox = tenants.length > 1 && !!referenceTenant;
 
-  // Initialize form fields from tenant data once
   if (tenant && needsGuard && !initialized) {
     setRecipient(tenant.shipping_recipient ?? "");
     setCo(tenant.shipping_co ?? "");
@@ -111,23 +111,22 @@ export function ShippingAddressGuard({ children }: Props) {
         .eq("id", tenant.id);
       if (error) throw error;
 
-      // Verify the update actually persisted (RLS may silently reject)
       const { data: verify } = await supabase
         .from("tenants")
         .select("shipping_confirmed")
         .eq("id", tenant.id)
         .single();
       if (!verify?.shipping_confirmed) {
-        throw new Error("Opdateringen blev ikke gemt. Kontakt venligst support.");
+        throw new Error(t("shippingGuard.updateNotSaved"));
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
-      toast.success("Forsendelsesadresse bekræftet");
+      toast.success(t("shippingGuard.addressConfirmed"));
     },
     onError: (err: any) => {
       console.error("ShippingAddressGuard save error:", err);
-      toast.error(err?.message || "Kunne ikke gemme forsendelsesadresse");
+      toast.error(err?.message || t("shippingGuard.couldNotSave"));
     },
   });
 
@@ -144,13 +143,12 @@ export function ShippingAddressGuard({ children }: Props) {
     return <>{children}</>;
   }
 
-  const isFirstTime = !confirmed;
   const title = hasAddress
-    ? "Bekræft din forsendelsesadresse"
-    : "Opret forsendelsesadresse";
-  const description = isFirstTime
-    ? "Inden du kan bruge platformen, skal du bekræfte eller opdatere din forsendelsesadresse."
-    : "Du mangler en forsendelsesadresse. Udfyld venligst felterne nedenfor.";
+    ? t("shippingGuard.confirmTitle")
+    : t("shippingGuard.createTitle");
+  const description = !confirmed
+    ? t("shippingGuard.confirmDesc")
+    : t("shippingGuard.createDesc");
 
   const fieldsDisabled = useSameAddress;
 
@@ -175,39 +173,39 @@ export function ShippingAddressGuard({ children }: Props) {
                 onCheckedChange={(checked) => handleSyncToggle(!!checked)}
               />
               <Label htmlFor="guard_same_address" className="cursor-pointer font-normal">
-                Samme forsendelsesadresse som {referenceTenant!.company_name}
+                {t("shippingGuard.sameAddressAs", { name: referenceTenant!.company_name })}
               </Label>
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="guard_recipient">Modtager navn *</Label>
-            <Input id="guard_recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Modtager navn" disabled={fieldsDisabled} />
+            <Label htmlFor="guard_recipient">{t("shipping.recipientName")}</Label>
+            <Input id="guard_recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder={t("shipping.recipientPlaceholder")} disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guard_co">c/o navn</Label>
-            <Input id="guard_co" value={co} onChange={(e) => setCo(e.target.value)} placeholder="c/o (valgfrit)" disabled={fieldsDisabled} />
+            <Label htmlFor="guard_co">{t("shipping.coName")}</Label>
+            <Input id="guard_co" value={co} onChange={(e) => setCo(e.target.value)} placeholder={t("shipping.coPlaceholder")} disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guard_address">Adresse *</Label>
-            <Input id="guard_address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Gadenavn og nummer" disabled={fieldsDisabled} />
+            <Label htmlFor="guard_address">{t("shipping.address")}</Label>
+            <Input id="guard_address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("shipping.addressPlaceholder")} disabled={fieldsDisabled} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="guard_zip">Postnummer *</Label>
-              <Input id="guard_zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder="Postnr." disabled={fieldsDisabled} />
+              <Label htmlFor="guard_zip">{t("shipping.zipCode")}</Label>
+              <Input id="guard_zip" value={zip} onChange={(e) => setZip(e.target.value)} placeholder={t("shipping.zipPlaceholder")} disabled={fieldsDisabled} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="guard_city">By *</Label>
-              <Input id="guard_city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="By" disabled={fieldsDisabled} />
+              <Label htmlFor="guard_city">{t("shipping.city")}</Label>
+              <Input id="guard_city" value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("shipping.cityPlaceholder")} disabled={fieldsDisabled} />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guard_state">Stat</Label>
-            <Input id="guard_state" value={state} onChange={(e) => setState(e.target.value)} placeholder="Stat (valgfrit)" disabled={fieldsDisabled} />
+            <Label htmlFor="guard_state">{t("shipping.state")}</Label>
+            <Input id="guard_state" value={state} onChange={(e) => setState(e.target.value)} placeholder={t("shipping.statePlaceholder")} disabled={fieldsDisabled} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guard_country">Land *</Label>
-            <Input id="guard_country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="F.eks. Danmark" disabled={fieldsDisabled} />
+            <Label htmlFor="guard_country">{t("shipping.country")}</Label>
+            <Input id="guard_country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder={t("shipping.countryPlaceholder")} disabled={fieldsDisabled} />
           </div>
 
           <Button
@@ -220,7 +218,7 @@ export function ShippingAddressGuard({ children }: Props) {
             ) : (
               <Save className="mr-2 h-4 w-4" />
             )}
-            {hasAddress ? "Bekræft adresse" : "Gem forsendelsesadresse"}
+            {hasAddress ? t("shippingGuard.confirmAddress") : t("shippingGuard.saveAddress")}
           </Button>
         </div>
       </DialogContent>

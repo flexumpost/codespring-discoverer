@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ export function OperatorMailItemDialog({
   onSaved,
   onReassignTenant,
 }: OperatorMailItemDialogProps) {
+  const { t } = useTranslation();
   const [stampNumber, setStampNumber] = useState(item.stamp_number?.toString() ?? "");
   const [senderName, setSenderName] = useState(item.sender_name ?? "");
   const [mailType, setMailType] = useState<Database["public"]["Enums"]["mail_type"]>(item.mail_type);
@@ -70,10 +72,10 @@ export function OperatorMailItemDialog({
       .eq("id", item.id);
     setReactivating(false);
     if (error) {
-      toast.error("Kunne ikke genaktivere forsendelsen");
+      toast.error(t("operatorMailItem.couldNotReactivate"));
       console.error(error);
     } else {
-      toast.success("Forsendelse genaktiveret");
+      toast.success(t("operatorMailItem.reactivated"));
       onSaved();
       onOpenChange(false);
     }
@@ -87,10 +89,10 @@ export function OperatorMailItemDialog({
       .eq("id", item.id);
     setConfirmingDestruction(false);
     if (error) {
-      toast.error("Kunne ikke bekræfte destruktion");
+      toast.error(t("operatorMailItem.couldNotConfirmDestruction"));
       console.error(error);
     } else {
-      toast.success("Forsendelse markeret som destrueret");
+      toast.success(t("operatorMailItem.destructionConfirmed"));
       onSaved();
       onOpenChange(false);
     }
@@ -105,7 +107,6 @@ export function OperatorMailItemDialog({
       mail_type: mailType,
       notes: notes || null,
     };
-    // If operator wrote/changed a note, mark as unread for tenant
     if (noteChanged && notes) {
       updateData.note_read = false;
     }
@@ -116,10 +117,10 @@ export function OperatorMailItemDialog({
 
     setSaving(false);
     if (error) {
-      toast.error("Kunne ikke gemme ændringer");
+      toast.error(t("operatorMailItem.couldNotSave"));
       console.error(error);
     } else {
-      toast.success("Ændringer gemt");
+      toast.success(t("operatorMailItem.changesSaved"));
       onSaved();
       onOpenChange(false);
     }
@@ -128,28 +129,20 @@ export function OperatorMailItemDialog({
   const handleDeleteScan = async () => {
     if (!item.scan_url) return;
     setDeletingScan(true);
-
-    // Delete file from storage
     const { error: storageError } = await supabase.storage
       .from("mail-scans")
       .remove([item.scan_url]);
-
-    if (storageError) {
-      console.error("Storage delete error:", storageError);
-    }
-
-    // Clear scan_url and scanned_at
+    if (storageError) console.error("Storage delete error:", storageError);
     const { error } = await supabase
       .from("mail_items")
       .update({ scan_url: null, scanned_at: null })
       .eq("id", item.id);
-
     setDeletingScan(false);
     if (error) {
-      toast.error("Kunne ikke slette scanningen");
+      toast.error(t("operatorMailItem.couldNotDeleteScan"));
       console.error(error);
     } else {
-      toast.success("Scanning slettet");
+      toast.success(t("operatorMailItem.scanDeleted"));
       onSaved();
       onOpenChange(false);
     }
@@ -157,30 +150,21 @@ export function OperatorMailItemDialog({
 
   const handleDeleteItem = async () => {
     setDeletingItem(true);
-    // Delete photo from storage if exists
     if (item.photo_url) {
       let photoPath = item.photo_url;
-      // Handle legacy full URLs
       const marker = "/mail-photos/";
       const idx = item.photo_url.indexOf(marker);
-      if (idx !== -1) {
-        photoPath = item.photo_url.substring(idx + marker.length);
-      }
-      if (photoPath) {
-        await supabase.storage.from("mail-photos").remove([photoPath]);
-      }
+      if (idx !== -1) photoPath = item.photo_url.substring(idx + marker.length);
+      if (photoPath) await supabase.storage.from("mail-photos").remove([photoPath]);
     }
-    // Delete scan from storage if exists
-    if (item.scan_url) {
-      await supabase.storage.from("mail-scans").remove([item.scan_url]);
-    }
+    if (item.scan_url) await supabase.storage.from("mail-scans").remove([item.scan_url]);
     const { error } = await supabase.from("mail_items").delete().eq("id", item.id);
     setDeletingItem(false);
     if (error) {
-      toast.error("Kunne ikke slette forsendelsen");
+      toast.error(t("operatorMailItem.couldNotDeleteShipment"));
       console.error(error);
     } else {
-      toast.success("Forsendelse slettet");
+      toast.success(t("operatorMailItem.shipmentDeleted"));
       onSaved();
       onOpenChange(false);
     }
@@ -200,10 +184,10 @@ export function OperatorMailItemDialog({
       .eq("id", item.id);
     setRejecting(false);
     if (error) {
-      toast.error("Kunne ikke afvise handlingen");
+      toast.error(t("operatorMailItem.couldNotReject"));
       console.error(error);
     } else {
-      toast.success("Handling afvist");
+      toast.success(t("operatorMailItem.actionRejected"));
       setShowRejectDialog(false);
       onSaved();
       onOpenChange(false);
@@ -228,16 +212,16 @@ export function OperatorMailItemDialog({
       .eq("id", item.id);
     setExecutingAction(false);
     if (error) {
-      toast.error("Kunne ikke udføre handlingen");
+      toast.error(t("operatorMailItem.couldNotExecute"));
       console.error(error);
     } else {
       const labels: Record<string, string> = {
-        afhentet: "Markeret som afhentet",
-        destruer: "Markeret som destrueret",
-        sendt: "Markeret som sendt",
-        sendt_retur: "Markeret som sendt retur",
+        afhentet: t("operatorMailItem.markedPickedUp"),
+        destruer: t("operatorMailItem.markedDestroyed"),
+        sendt: t("operatorMailItem.markedSent"),
+        sendt_retur: t("operatorMailItem.markedSentReturn"),
       };
-      toast.success(labels[operatorAction] || "Handling udført");
+      toast.success(labels[operatorAction] || t("operatorMailItem.actionExecuted"));
       setShowOperatorActionConfirm(false);
       setOperatorAction("");
       onSaved();
@@ -246,17 +230,17 @@ export function OperatorMailItemDialog({
   };
 
   const operatorActionLabels: Record<string, string> = {
-    afhentet: "Markér som afhentet",
-    destruer: "Markér som destrueret",
-    sendt: "Markér som sendt",
-    sendt_retur: "Markér som sendt retur",
+    afhentet: t("operatorMailItem.markAsPickedUp"),
+    destruer: t("operatorMailItem.markAsDestroyed"),
+    sendt: t("operatorMailItem.markAsSent"),
+    sendt_retur: t("operatorMailItem.markAsSentReturn"),
   };
 
   const operatorActionDescriptions: Record<string, string> = {
-    afhentet: "Forsendelsen markeres som fysisk afhentet af lejeren. Lejeren vil kun kunne arkivere.",
-    destruer: "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
-    sendt: "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
-    sendt_retur: "Forsendelsen markeres som sendt retur til afsender. Lejeren vil kun kunne arkivere.",
+    afhentet: t("operatorMailItem.pickedUpDesc"),
+    destruer: t("operatorMailItem.destroyDesc"),
+    sendt: t("operatorMailItem.sentDesc"),
+    sendt_retur: t("operatorMailItem.sentReturnDesc"),
   };
 
   return (
@@ -264,209 +248,158 @@ export function OperatorMailItemDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Rediger forsendelse</DialogTitle>
+          <DialogTitle>{t("operatorMailItem.title")}</DialogTitle>
           {isDestroyed && (
-            <Badge variant="destructive" className="mt-2">Forsendelse destrueret</Badge>
+            <Badge variant="destructive" className="mt-2">{t("operatorMailItem.destroyed")}</Badge>
           )}
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
-          {/* Photo + Scan preview row */}
           {(item.photo_url || item.scan_url) && (
             <div className="flex items-start gap-4">
               {item.photo_url && (
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Foto</Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">{t("common.photo")}</Label>
                   <PhotoHoverPreview photoUrl={item.photo_url} />
                 </div>
               )}
               {item.scan_url && (
                 <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Scan</Label>
+                  <Label className="text-xs text-muted-foreground mb-1 block">{t("common.scan")}</Label>
                   <ScanThumbnail scanUrl={item.scan_url} />
                 </div>
               )}
             </div>
           )}
 
-          {/* Tenant section */}
           <div className="flex items-center justify-between">
             <div>
-              <Label className="text-xs text-muted-foreground">Lejer</Label>
+              <Label className="text-xs text-muted-foreground">{t("operatorMailItem.tenant")}</Label>
               <p className="text-sm font-medium">
                 {item.tenants?.company_name ?? (
-                  <span className="text-destructive">Ikke tildelt</span>
+                  <span className="text-destructive">{t("common.notAssigned")}</span>
                 )}
               </p>
             </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                onReassignTenant();
-                onOpenChange(false);
-              }}
+              onClick={() => { onReassignTenant(); onOpenChange(false); }}
             >
-              Skift lejer
+              {t("operatorMailItem.changeTenant")}
             </Button>
           </div>
 
-          {/* Editable fields */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="stamp">Forsendelsesnr.</Label>
-              <Input
-                id="stamp"
-                value={stampNumber}
-                onChange={(e) => setStampNumber(e.target.value)}
-                placeholder="Nummer"
-              />
+              <Label htmlFor="stamp">{t("operatorMailItem.stampNumber")}</Label>
+              <Input id="stamp" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder={t("operatorMailItem.numberPlaceholder")} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="sender">Afsender</Label>
-              <Input
-                id="sender"
-                value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
-                placeholder="Afsender"
-              />
+              <Label htmlFor="sender">{t("operatorMailItem.sender")}</Label>
+              <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={t("operatorMailItem.senderPlaceholder")} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <Label>Type</Label>
+            <Label>{t("operatorMailItem.type")}</Label>
             <Select value={mailType} onValueChange={(v) => setMailType(v as Database["public"]["Enums"]["mail_type"])}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="brev">Brev</SelectItem>
-                <SelectItem value="pakke">Pakke</SelectItem>
+                <SelectItem value="brev">{t("common.letter")}</SelectItem>
+                <SelectItem value="pakke">{t("common.package")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="notes">Noter</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Skriv noter..."
-              rows={3}
-            />
+            <Label htmlFor="notes">{t("operatorMailItem.notes")}</Label>
+            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("operatorMailItem.notesPlaceholder")} rows={3} />
           </div>
 
-          {/* Reactivate archived item section */}
           {isArchivedByUser && (
             <div className="flex items-center justify-between rounded-md border border-blue-300 bg-blue-50 p-3">
               <div className="flex items-center gap-2">
                 <Archive className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">Arkiveret af bruger</span>
+                <span className="text-sm font-medium">{t("operatorMailItem.archivedByUser")}</span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                onClick={handleReactivate}
-                disabled={reactivating}
-              >
-                {reactivating ? "Genaktiverer..." : "Genaktivér"}
+              <Button variant="outline" size="sm" className="border-blue-300 text-blue-700 hover:bg-blue-100" onClick={handleReactivate} disabled={reactivating}>
+                {reactivating ? t("common.reactivating") : t("common.reactivate")}
               </Button>
             </div>
           )}
 
-          {/* Confirm destruction section */}
           {isPendingDestruction && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-medium">Lejer ønsker forsendelsen destrueret</span>
+                <span className="text-sm font-medium">{t("operatorMailItem.pendingDestruction")}</span>
               </div>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleConfirmDestruction}
-                disabled={confirmingDestruction}
-              >
-                {confirmingDestruction ? "Bekræfter..." : "Bekræft destruktion"}
+              <Button variant="destructive" size="sm" onClick={handleConfirmDestruction} disabled={confirmingDestruction}>
+                {confirmingDestruction ? t("operatorMailItem.confirming") : t("operatorMailItem.confirmDestruction")}
               </Button>
             </div>
           )}
 
-          {/* Reject action section */}
           {item.chosen_action && !isPendingDestruction && !isDestroyed && (
             <div className="flex items-center justify-between rounded-md border border-orange-300 bg-orange-50 p-3">
               <div className="flex items-center gap-2">
                 <ShieldX className="h-4 w-4 text-orange-600" />
-                <span className="text-sm">Ønsket handling: <strong>{item.chosen_action}</strong></span>
+                <span className="text-sm">{t("operatorMailItem.requestedAction")}: <strong>{item.chosen_action}</strong></span>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-orange-300 text-orange-700 hover:bg-orange-100"
-                onClick={() => setShowRejectDialog(true)}
-              >
-                Afvis handling
+              <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => setShowRejectDialog(true)}>
+                {t("operatorMailItem.rejectAction")}
               </Button>
             </div>
           )}
 
-          {/* Operator manual action section */}
           {!isFinalized && (
             <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
               <div className="flex items-center gap-2 mb-1">
                 <HandCoins className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">Operatør handling</span>
+                <span className="text-sm font-medium">{t("operatorMailItem.operatorAction")}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Select value={operatorAction} onValueChange={setOperatorAction}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Vælg handling..." />
+                    <SelectValue placeholder={t("operatorMailItem.selectAction")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="afhentet">Markér som afhentet</SelectItem>
-                    <SelectItem value="destruer">Markér som destrueret</SelectItem>
-                    <SelectItem value="sendt">Markér som sendt</SelectItem>
-                    <SelectItem value="sendt_retur">Markér som sendt retur</SelectItem>
+                    <SelectItem value="afhentet">{t("operatorMailItem.markAsPickedUp")}</SelectItem>
+                    <SelectItem value="destruer">{t("operatorMailItem.markAsDestroyed")}</SelectItem>
+                    <SelectItem value="sendt">{t("operatorMailItem.markAsSent")}</SelectItem>
+                    <SelectItem value="sendt_retur">{t("operatorMailItem.markAsSentReturn")}</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button
-                  size="sm"
-                  disabled={!operatorAction}
-                  onClick={() => setShowOperatorActionConfirm(true)}
-                >
-                  Udfør
+                <Button size="sm" disabled={!operatorAction} onClick={() => setShowOperatorActionConfirm(true)}>
+                  {t("common.execute")}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* Delete scan section */}
           {item.scan_url && (
             <div className="flex items-center justify-between rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <div className="flex items-center gap-2">
                 <ScanLine className="h-4 w-4 text-destructive" />
-                <span className="text-sm">Vedhæftet scanning</span>
+                <span className="text-sm">{t("operatorMailItem.attachedScan")}</span>
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" size="sm" disabled={deletingScan}>
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Slet scan
+                    {t("operatorMailItem.deleteScan")}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Slet scanning?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Det scannede dokument vil blive slettet permanent. Denne handling kan ikke fortrydes.
-                    </AlertDialogDescription>
+                    <AlertDialogTitle>{t("operatorMailItem.deleteScanConfirm")}</AlertDialogTitle>
+                    <AlertDialogDescription>{t("operatorMailItem.deleteScanDesc")}</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Annuller</AlertDialogCancel>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteScan} disabled={deletingScan}>
-                      Slet
+                      {t("common.delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -480,31 +413,29 @@ export function OperatorMailItemDialog({
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" disabled={deletingItem}>
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
-                Slet forsendelse
+                {t("operatorMailItem.deleteShipment")}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Slet forsendelse?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Forsendelsen og tilhørende filer vil blive slettet permanent. Denne handling kan ikke fortrydes.
-                </AlertDialogDescription>
+                <AlertDialogTitle>{t("operatorMailItem.deleteShipmentConfirm")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("operatorMailItem.deleteShipmentDesc")}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Annuller</AlertDialogCancel>
+                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDeleteItem} disabled={deletingItem}>
-                  {deletingItem ? "Sletter..." : "Slet"}
+                  {deletingItem ? t("common.deleting") : t("common.delete")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Annuller
+              {t("common.cancel")}
             </Button>
             {!isDestroyed && (
               <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Gemmer..." : "Gem ændringer"}
+                {saving ? t("common.saving") : t("operatorMailItem.saveChanges")}
               </Button>
             )}
           </div>
@@ -512,48 +443,34 @@ export function OperatorMailItemDialog({
       </DialogContent>
     </Dialog>
 
-    {/* Reject action dialog */}
     <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Afvis handling?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Angiv en begrundelse for afvisningen. Lejeren vil kunne se denne besked.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{t("operatorMailItem.rejectActionConfirm")}</AlertDialogTitle>
+          <AlertDialogDescription>{t("operatorMailItem.rejectActionDesc")}</AlertDialogDescription>
         </AlertDialogHeader>
         <div className="py-2">
-          <Textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Skriv begrundelse for afvisning..."
-            rows={3}
-          />
+          <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={t("operatorMailItem.rejectReasonPlaceholder")} rows={3} />
         </div>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuller</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleRejectAction}
-            disabled={rejecting || !rejectReason.trim()}
-          >
-            {rejecting ? "Afviser..." : "Afvis handling"}
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={handleRejectAction} disabled={rejecting || !rejectReason.trim()}>
+            {rejecting ? t("operatorMailItem.rejecting") : t("operatorMailItem.rejectAction")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
 
-    {/* Operator action confirmation dialog */}
     <AlertDialog open={showOperatorActionConfirm} onOpenChange={setShowOperatorActionConfirm}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{operatorActionLabels[operatorAction] ?? "Udfør handling"}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {operatorActionDescriptions[operatorAction] ?? "Er du sikker?"}
-          </AlertDialogDescription>
+          <AlertDialogTitle>{operatorActionLabels[operatorAction] ?? t("common.execute")}?</AlertDialogTitle>
+          <AlertDialogDescription>{operatorActionDescriptions[operatorAction] ?? t("operatorMailItem.areYouSure")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Annuller</AlertDialogCancel>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction onClick={handleOperatorAction} disabled={executingAction}>
-            {executingAction ? "Udfører..." : "Bekræft"}
+            {executingAction ? t("common.executing") : t("common.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
