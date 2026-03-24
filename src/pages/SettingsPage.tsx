@@ -189,7 +189,7 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Postmodtager slettet");
+      toast.success(t("settings.recipientDeleted"));
       queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
     },
     onError: (err: Error) => {
