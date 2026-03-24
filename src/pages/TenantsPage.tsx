@@ -379,7 +379,7 @@ const TenantsPage = () => {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Opret ny lejer</DialogTitle>
+            <DialogTitle>{t("tenants.createNewTenant")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
