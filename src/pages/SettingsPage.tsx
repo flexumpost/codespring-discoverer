@@ -135,7 +135,7 @@ const SettingsPage = () => {
       return data;
     },
     onSuccess: () => {
-      toast.success("Invitation sendt per email");
+      toast.success(t("settings.invitationSent"));
       setDialogOpen(false);
       setNewName("");
       setNewEmail("");
