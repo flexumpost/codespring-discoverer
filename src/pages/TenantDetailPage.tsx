@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
@@ -14,7 +15,7 @@ import { ArrowLeft, Save, User, Trash2, Eye, CalendarIcon, X, MailPlus } from "l
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { da } from "date-fns/locale";
+import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import {
   AlertDialog,
