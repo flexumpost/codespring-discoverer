@@ -564,7 +564,7 @@ const TenantDetailPage = () => {
 
             {/* Postmodtagere */}
             {tuError && (
-              <p className="text-sm text-destructive">Kunne ikke hente postmodtagere.</p>
+              <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
             {tenantUsers.length > 0 && (
               <Card>
