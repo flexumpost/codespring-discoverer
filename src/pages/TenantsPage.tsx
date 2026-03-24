@@ -252,17 +252,13 @@ const TenantsPage = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
-                  <Checkbox
-                    checked={allSelected}
-                    onCheckedChange={toggleAll}
-                    aria-label="Vælg alle"
-                  />
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label={t("tenants.selectAll")} />
                 </TableHead>
-                <TableHead>Lejer navn</TableHead>
-                <TableHead>Lejertype</TableHead>
-                <TableHead>Velkomst e-mail</TableHead>
-                <TableHead>Ubetalt faktura</TableHead>
-                <TableHead className="text-right">Nye breve</TableHead>
+                <TableHead>{t("tenants.tenantName")}</TableHead>
+                <TableHead>{t("tenants.tenantType")}</TableHead>
+                <TableHead>{t("tenants.welcomeEmail")}</TableHead>
+                <TableHead>{t("tenants.unpaidInvoice")}</TableHead>
+                <TableHead className="text-right">{t("tenants.newLetters")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
