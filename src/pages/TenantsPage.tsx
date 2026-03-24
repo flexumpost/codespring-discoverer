@@ -394,7 +394,7 @@ const TenantsPage = () => {
                   id="contact_first_name"
                   value={contactFirstName}
                   onChange={(e) => setContactFirstName(e.target.value)}
-                  placeholder="Fornavn"
+                  placeholder={t("tenants.firstName")}
                 />
               </div>
               <div className="space-y-2">
