@@ -488,7 +488,7 @@ const TenantDetailPage = () => {
                       disabled={!schedDate || !schedTypeId || scheduleChangeMutation.isPending}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {scheduleChangeMutation.isPending ? "Opretter..." : "Planlæg skift"}
+                      {scheduleChangeMutation.isPending ? t("common.creating") : t("tenantDetail.scheduleChange")}
                     </Button>
                   </div>
                 </div>
