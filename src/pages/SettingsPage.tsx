@@ -193,7 +193,7 @@ const SettingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-users", selectedTenantId] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Kunne ikke slette postmodtager");
+      toast.error(err.message || t("settings.couldNotDeleteRecipient"));
     },
   });
 
