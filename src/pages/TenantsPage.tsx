@@ -408,7 +408,7 @@ const TenantsPage = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contact_email">Kontakt email</Label>
+              <Label htmlFor="contact_email">{t("tenants.contactEmail")}</Label>
               <Input
                 id="contact_email"
                 type="email"
