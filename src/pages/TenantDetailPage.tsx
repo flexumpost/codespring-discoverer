@@ -75,6 +75,8 @@ const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
 };
 
 const TenantDetailPage = () => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "da" ? da : enGB;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
