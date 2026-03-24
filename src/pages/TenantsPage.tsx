@@ -245,7 +245,7 @@ const TenantsPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : (
         <div className="rounded-md border">
           <Table>
