@@ -377,9 +377,9 @@ const TenantDetailPage = () => {
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground">Indlæser...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       ) : !tenant ? (
-        <p className="text-muted-foreground">Lejer ikke fundet.</p>
+        <p className="text-muted-foreground">{t("tenantDetail.tenantNotFound")}.</p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1: Company + Contact + Shipping + Postmodtagere */}
