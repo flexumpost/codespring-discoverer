@@ -248,7 +248,7 @@ const SettingsPage = () => {
                 )}
                 {typeName && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Lejertype</Label>
+                    <Label className="text-muted-foreground text-xs">{t("settings.tenantType")}</Label>
                     <div className="mt-1">
                       <Badge
                         variant="outline"
