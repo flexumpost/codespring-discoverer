@@ -227,7 +227,7 @@ const TenantsPage = () => {
             onCheckedChange={(checked) => setFilterUnpaid(!!checked)}
           />
           <Label htmlFor="filter-unpaid" className="text-sm font-normal cursor-pointer whitespace-nowrap">
-            Ubetalt faktura
+            {t("tenants.unpaidInvoice")}
           </Label>
         </div>
       </div>
