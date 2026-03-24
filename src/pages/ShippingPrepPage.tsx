@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from "react";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
-import { da } from "date-fns/locale";
+import { da, enGB } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy, Printer } from "lucide-react";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
+import { useTranslation } from "react-i18next";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -155,7 +156,6 @@ function getShippingFee(item: MailItemWithTenant): string {
     return "50 kr. + porto";
   }
 
-  // Brev: tjek om handlingen er default
   if (item.chosen_action === defaultAction) {
     if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
       if (tier === "Lite") return "50 kr. + porto";
@@ -175,6 +175,8 @@ function getShippingFee(item: MailItemWithTenant): string {
 }
 
 export default function ShippingPrepPage() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language === "da" ? da : enGB;
   const [selectedDate, setSelectedDate] = useState<Date>(getDefaultShippingDate);
   const [tab, setTab] = useState<"brev" | "pakke">("brev");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -186,7 +188,7 @@ export default function ShippingPrepPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Kopieret", description: text });
+    toast({ title: t("common.copied"), description: text });
   };
   const queryClient = useQueryClient();
 
@@ -209,7 +211,7 @@ export default function ShippingPrepPage() {
         chosen_action: item.chosen_action,
         photo_url: item.photo_url ?? null,
         tenant_id: item.tenant_id,
-        company_name: item.tenants?.company_name ?? "Ukendt",
+        company_name: item.tenants?.company_name ?? t("common.unknown"),
         tenant_type_name: item.tenants?.tenant_types?.name ?? "Standard",
         has_unpaid_invoice: item.tenants?.has_unpaid_invoice ?? false,
         default_mail_action: item.tenants?.default_mail_action ?? null,
@@ -256,7 +258,6 @@ export default function ShippingPrepPage() {
         }
       }
 
-      // Send email notifications (fire-and-forget)
       for (const si of sentItems) {
         supabase.functions.invoke("send-new-mail-email", {
           body: {
@@ -274,10 +275,10 @@ export default function ShippingPrepPage() {
       setCheckedIds(new Set());
       setDoneGroups(new Set());
       setTrackingNumbers({});
-      toast({ title: tab === "brev" ? "Forsendelser sendt med DAO" : "Pakker sendt med PostNord" });
+      toast({ title: tab === "brev" ? t("shippingPrep.lettersSentWithDao") : t("shippingPrep.packagesSentWithPostNord") });
     },
     onError: () => {
-      toast({ title: "Fejl", description: "Kunne ikke opdatere forsendelserne", variant: "destructive" });
+      toast({ title: t("common.error"), description: t("shippingPrep.couldNotUpdate"), variant: "destructive" });
     },
   });
 
@@ -302,7 +303,7 @@ export default function ShippingPrepPage() {
   const handleSend = () => {
     const ids = Array.from(checkedIds);
     if (ids.length === 0) {
-      toast({ title: "Ingen forsendelser valgt", description: "Afkryds de forsendelser der skal sendes", variant: "destructive" });
+      toast({ title: t("shippingPrep.noShipmentsSelected"), description: t("shippingPrep.selectShipmentsToSend"), variant: "destructive" });
       return;
     }
     sendMutation.mutate(ids);
@@ -314,17 +315,14 @@ export default function ShippingPrepPage() {
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
 
-      // Beregn effektiv handling: eksplicit valg ?? lejer-default
       const effectiveAction = item.chosen_action
         ?? (item.mail_type === "pakke" ? item.default_package_action : item.default_mail_action);
       if (effectiveAction !== "send" && effectiveAction !== "standard_forsendelse") return false;
 
-      // "Standard forsendelse" for Lite uses monthly cadence
       if (item.chosen_action === "standard_forsendelse") {
         const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
         return shipDate.getTime() === selDay;
       }
-      // "Ekstra forsendelse" for Lite-breve: eksplicit chosen_action === "send"
       const isExtraShipment =
         item.chosen_action === "send" &&
         item.tenant_type_name.toLowerCase() === "lite" &&
@@ -386,7 +384,7 @@ export default function ShippingPrepPage() {
 
   const handlePrintEnvelopes = () => {
     if (printCheckedGroups.size === 0) {
-      toast({ title: "Ingen valgt", description: "Vælg mindst én forsendelse til print", variant: "destructive" });
+      toast({ title: t("shippingPrep.noneSelectedForPrint"), description: t("shippingPrep.selectForPrint"), variant: "destructive" });
       return;
     }
     setShowPrint(true);
@@ -407,14 +405,14 @@ export default function ShippingPrepPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-foreground">Send breve og pakker</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("shippingPrep.title")}</h1>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Forsendelsesdag:</span>
+            <span className="text-sm text-muted-foreground">{t("shippingPrep.shippingDay")}:</span>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={cn("w-[240px] justify-start text-left font-normal")}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(selectedDate, "EEEE d. MMMM yyyy", { locale: da })}
+                  {format(selectedDate, "EEEE d. MMMM yyyy", { locale: dateLocale })}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
@@ -434,11 +432,11 @@ export default function ShippingPrepPage() {
           <TabsList>
             <TabsTrigger value="brev" className="gap-2">
               <Mail className="h-4 w-4" />
-              Breve
+              {t("common.letters")}
             </TabsTrigger>
             <TabsTrigger value="pakke" className="gap-2">
               <Package className="h-4 w-4" />
-              Pakker
+              {t("common.packages")}
             </TabsTrigger>
           </TabsList>
 
@@ -450,30 +448,30 @@ export default function ShippingPrepPage() {
                     checked={allPrintChecked}
                     onCheckedChange={toggleAllPrintGroups}
                   />
-                  <span className="text-sm text-muted-foreground">Vælg alle</span>
+                  <span className="text-sm text-muted-foreground">{t("shippingPrep.selectAll")}</span>
                 </div>
                 <Button variant="outline" onClick={handlePrintEnvelopes} disabled={printCheckedGroups.size === 0}>
                   <Printer className="mr-2 h-4 w-4" />
-                  Print C4 kuvert {printCheckedGroups.size > 0 ? `(${printCheckedGroups.size})` : ""}
+                  {t("shippingPrep.printEnvelope")} {printCheckedGroups.size > 0 ? `(${printCheckedGroups.size})` : ""}
                 </Button>
                 <Button onClick={handleSend} disabled={checkedCount === 0 || sendMutation.isPending}>
                   <Send className="mr-2 h-4 w-4" />
-                  Send {checkedCount > 0 ? `(${checkedCount})` : ""}
+                  {t("shippingPrep.sendCount")} {checkedCount > 0 ? `(${checkedCount})` : ""}
                 </Button>
                 {checkedCount > 0 && (
                   <span className="text-sm text-muted-foreground">
-                    {checkedCount} forsendelse{checkedCount !== 1 ? "r" : ""} valgt
+                    {checkedCount} {t("shippingPrep.shipmentsSelected", { plural: checkedCount !== 1 ? "r" : "" })}
                   </span>
                 )}
               </div>
             )}
 
             {isLoading ? (
-              <p className="text-muted-foreground text-sm">Indlæser...</p>
+              <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
             ) : grouped.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Ingen {tab === "brev" ? "breve" : "pakker"} til forsendelse på den valgte dag.
+                  {t("shippingPrep.noItemsForDay", { type: tab === "brev" ? t("common.letters").toLowerCase() : t("common.packages").toLowerCase() })}
                 </CardContent>
               </Card>
             ) : (
@@ -503,7 +501,7 @@ export default function ShippingPrepPage() {
                                 </Badge>
                                 {c.hasUnpaidInvoice && (
                                   <Badge variant="destructive" className="text-[10px] px-1.5 py-0 leading-4">
-                                    Ubetalt faktura
+                                    {t("shippingPrep.unpaidInvoice")}
                                   </Badge>
                                 )}
                                 <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(c.name)} />
@@ -517,7 +515,7 @@ export default function ShippingPrepPage() {
                           onClick={() => toggleDoneGroup(group.addressKey)}
                         >
                           <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
-                          Færdig
+                          {t("common.done")}
                         </Button>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
@@ -581,11 +579,11 @@ export default function ShippingPrepPage() {
                             />
                             <PhotoHoverPreview photoUrl={item.photo_url} />
                             <span className="text-sm font-medium shrink-0">
-                              Nr. {item.stamp_number ?? "—"} — {item.company_name} — Gebyr: {getShippingFee(item)}
+                              Nr. {item.stamp_number ?? "—"} — {item.company_name} — {t("common.fee")}: {getShippingFee(item)}
                             </span>
                             {tab === "pakke" && (
                               <Input
-                                placeholder="Track & trace nr."
+                                placeholder={t("shippingPrep.trackAndTrace")}
                                 className="ml-auto max-w-[240px] h-8 text-xs"
                                 value={trackingNumbers[item.id] ?? ""}
                                 onClick={(e) => e.stopPropagation()}

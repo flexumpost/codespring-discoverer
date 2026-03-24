@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DialogDescription } from "@/components/ui/dialog";
 import type { Database } from "@/integrations/supabase/types";
 import { validateStampNumber } from "@/lib/validateStampNumber";
+import { useTranslation } from "react-i18next";
 
 type MailType = Database["public"]["Enums"]["mail_type"];
 
@@ -45,6 +46,7 @@ function fuzzyMatchTenant(
 }
 
 export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogProps) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [mailType, setMailType] = useState<MailType>("brev");
@@ -66,11 +68,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const [newTenantEmail, setNewTenantEmail] = useState("");
   const [newTenantTypeId, setNewTenantTypeId] = useState("");
   const [creatingTenant, setCreatingTenant] = useState(false);
-  // Track tenant created in this session for combined email flow
   const [pendingNewTenant, setPendingNewTenant] = useState<{ id: string; email: string; firstName: string; lastName: string } | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [showZoom, setShowZoom] = useState(false);
-  // Crop mode state
   const [cropTarget, setCropTarget] = useState<"tenant" | "stamp" | "sender" | null>(null);
   const [cropLoading, setCropLoading] = useState(false);
   const [cropRect, setCropRect] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
@@ -125,16 +125,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     enabled: open,
   });
 
-  const filteredTenants = tenants?.filter((t) => {
+  const filteredTenants = tenants?.filter((tn) => {
     const search = tenantSearch.toLowerCase();
-    const contactFull = [t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ").toLowerCase();
-    return t.company_name.toLowerCase().includes(search) ||
+    const contactFull = [tn.contact_first_name, tn.contact_last_name].filter(Boolean).join(" ").toLowerCase();
+    return tn.company_name.toLowerCase().includes(search) ||
       contactFull.includes(search);
   }) ?? [];
 
   const handleCreateTenant = async () => {
     if (!newTenantName.trim() || !newTenantTypeId) {
-      toast.error("Udfyld venligst firmanavn og lejertype");
+      toast.error(t("registerMail.fillCompanyAndType"));
       return;
     }
     setCreatingTenant(true);
@@ -150,7 +150,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
       const email = newTenantEmail.trim();
       if (email && data?.id) {
-        // Defer invitation — will be sent as combined email when mail is registered
         setPendingNewTenant({
           id: data.id,
           email,
@@ -164,9 +163,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       setTenantSearch("");
       setShowCreateTenant(false);
       queryClient.invalidateQueries({ queryKey: ["tenants-active"] });
-      toast.success(`Lejer "${data.company_name}" oprettet`);
+      toast.success(t("registerMail.tenantCreated", { name: data.company_name }));
     } catch (err: any) {
-      toast.error("Kunne ikke oprette lejer: " + err.message);
+      toast.error(t("registerMail.couldNotCreateTenant") + ": " + err.message);
     } finally {
       setCreatingTenant(false);
     }
@@ -182,13 +181,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       setSelectedTenantId(match.id);
       setSelectedTenantName(match.company_name);
       setTenantSearch("");
-      toast.success(`Lejer matchet automatisk: ${match.company_name}`);
+      toast.success(t("registerMail.tenantMatched") + `: ${match.company_name}`);
       setNoAutoMatch(false);
     } else {
       setNoAutoMatch(true);
-      toast.info(`Modtager "${recipientName}" matchede ingen lejer`);
+      toast.info(t("registerMail.noMatch", { name: recipientName }));
     }
-  }, [tenants]);
+  }, [tenants, t]);
 
   const runOcr = async (file: File) => {
     setOcrLoading(true);
@@ -210,17 +209,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         const validation = validateStampNumber(String(data.stamp_number), recentStampNumbers);
         if (validation.valid) {
           setStampNumber(data.stamp_number);
-          toast.success("Forsendelsesnr. fundet: " + data.stamp_number);
+          toast.success(t("registerMail.stampFound") + ": " + data.stamp_number);
         } else {
-          toast.warning(`Aflæst nr. "${data.stamp_number}" virker usandsynligt – kontrollér venligst`, {
+          toast.warning(t("registerMail.stampUnlikely", { number: data.stamp_number }), {
             description: validation.reason,
           });
         }
       } else if (!data?.stamp_number) {
-        toast.info("Kunne ikke aflæse forsendelsesnr. fra billedet");
+        toast.info(t("registerMail.couldNotReadStamp"));
       }
 
-      // Smart swap: if sender matches a tenant but recipient doesn't, swap them
       let recipientName = data?.recipient_name ?? "";
       let detectedSender = data?.sender_name ?? "";
       if (tenants && recipientName && detectedSender) {
@@ -233,19 +231,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         }
       }
 
-      // Handle sender name
       if (detectedSender && !senderName) {
         setSenderName(detectedSender);
-        toast.success("Afsender fundet: " + detectedSender);
+        toast.success(t("registerMail.senderFound") + ": " + detectedSender);
       }
 
-      // Handle is_registered
       if (data?.is_registered === true) {
         setIsRegistered(true);
-        toast.success("Rekommanderet forsendelse registreret");
+        toast.success(t("registerMail.registeredDetected"));
       }
 
-      // Handle recipient name
       if (recipientName) {
         setOcrRecipient(recipientName);
         tryAutoMatchTenant(recipientName);
@@ -255,7 +250,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       }
     } catch (err: any) {
       console.error("OCR error:", err);
-      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+      toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
       setOcrLoading(false);
     }
@@ -281,7 +276,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       const h = Math.abs(cropRect.endY - cropRect.startY) * scaleY;
 
       if (w < 10 || h < 10) {
-        toast.error("Markér et større område");
+        toast.error(t("registerMail.selectLargerArea"));
         setCropLoading(false);
         return;
       }
@@ -303,43 +298,42 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
       const ocrText = data?.ocr_text;
       if (ocrText) {
-        toast.success(`Aflæst tekst: "${ocrText}"`);
+        toast.success(t("registerMail.readText", { text: ocrText }));
         if (cropTarget === "stamp") {
           const digits = ocrText.replace(/\D/g, "");
           if (digits) {
             setStampNumber(digits);
-            toast.success("Forsendelsesnr. sat: " + digits);
+            toast.success(t("registerMail.numberSet") + ": " + digits);
           } else {
-            toast.info("Ingen cifre fundet i det markerede område");
+            toast.info(t("registerMail.noDigitsFound"));
           }
         } else if (cropTarget === "sender") {
           setSenderName(ocrText);
-          toast.success("Afsender sat: " + ocrText);
+          toast.success(t("registerMail.senderSet") + ": " + ocrText);
         } else {
-          // tenant matching (existing logic)
           if (tenants) {
             const match = fuzzyMatchTenant(ocrText, tenants);
             if (match) {
               setSelectedTenantId(match.id);
               setSelectedTenantName(match.company_name);
               setTenantSearch("");
-              toast.success(`Lejer matchet: ${match.company_name}`);
+              toast.success(t("registerMail.tenantMatchedCrop") + `: ${match.company_name}`);
             } else {
               setTenantSearch(ocrText);
               setShowTenantList(true);
-              toast.info("Ingen match – teksten er sat som søgning");
+              toast.info(t("registerMail.noMatchSearch"));
             }
           }
         }
       } else {
-        toast.info("Kunne ikke aflæse tekst i det markerede område");
+        toast.info(t("registerMail.couldNotReadArea"));
       }
 
       setCropTarget(null);
       setCropRect(null);
     } catch (err: any) {
       console.error("Crop OCR error:", err);
-      toast.error("OCR fejlede: " + (err.message || "Ukendt fejl"));
+      toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
       setCropLoading(false);
     }
@@ -364,12 +358,10 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const handleCropMouseUp = () => {
     setIsCropping(false);
-    // Auto-start OCR when a valid selection is made
     if (cropRect) {
       const w = Math.abs(cropRect.endX - cropRect.startX);
       const h = Math.abs(cropRect.endY - cropRect.startY);
       if (w > 10 && h > 10) {
-        // Use setTimeout to let state settle before calling OCR
         setTimeout(() => handleCropOcr(), 0);
       }
     }
@@ -407,7 +399,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         }
       }, 100);
     } catch (err) {
-      toast.error("Kunne ikke aktivere kamera. Tjek at du har givet tilladelse.");
+      toast.error(t("registerMail.couldNotActivateCamera"));
     }
   };
 
@@ -440,7 +432,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   useEffect(() => {
     if (!open) {
       stopCamera();
-      // If dialog closed without submitting and there's a pending new tenant, send standard invite
       if (pendingNewTenant) {
         supabase.functions.invoke("create-tenant-user", {
           body: {
@@ -480,11 +471,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const handleSubmit = async (closeAfter = true) => {
     if (!user) return;
     if (!selectedTenantId) {
-      toast.error("Vælg venligst en lejer");
+      toast.error(t("registerMail.selectTenant"));
       return;
     }
     if (!stampNumber) {
-      toast.error("Indtast venligst et forsendelsesnr.");
+      toast.error(t("registerMail.enterStampNumber"));
       return;
     }
     setSubmitting(true);
@@ -499,12 +490,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           .from("mail-photos")
           .upload(path, photo);
         if (uploadError) throw uploadError;
-
-        // Store just the path — bucket is private, signed URLs generated on read
         photoUrl = path;
       }
 
-      // If this is a newly created tenant with email, create user silently first
       const isNewTenantFlow = pendingNewTenant && selectedTenantId === pendingNewTenant.id;
       if (isNewTenantFlow) {
         try {
@@ -523,14 +511,14 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           if (inviteError) throw inviteError;
         } catch (err: any) {
           console.error("Silent invite failed:", err);
-          toast.error("Kunne ikke oprette bruger: " + (err?.message || err));
+          toast.error(t("registerMail.couldNotCreateUser") + ": " + (err?.message || err));
         }
       }
 
       const { error } = await supabase.from("mail_items").insert({
         operator_id: user.id,
         mail_type: mailType,
-        sender_name: senderName.trim() || "Ukendt afsender",
+        sender_name: senderName.trim() || t("registerMail.unknownSender"),
         stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
         tenant_id: selectedTenantId,
         notes: notes || null,
@@ -540,7 +528,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
       if (error) throw error;
 
-      // Fire-and-forget: send email notification to tenant
       if (selectedTenantId) {
         supabase.functions.invoke("send-new-mail-email", {
           body: {
@@ -552,10 +539,9 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         }).catch((err) => console.error("send-new-mail-email failed:", err));
       }
 
-      // Clear pending new tenant after successful submit
       setPendingNewTenant(null);
 
-      toast.success("Post registreret");
+      toast.success(t("registerMail.mailRegistered"));
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
       resetForm();
       if (closeAfter) {
@@ -564,7 +550,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         handleTakePhoto();
       }
     } catch (err: any) {
-      toast.error("Kunne ikke registrere post: " + err.message);
+      toast.error(t("registerMail.couldNotRegister") + ": " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -581,7 +567,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const photoSection = (
     <div className="space-y-2">
-      <Label>Foto (valgfrit)</Label>
+      <Label>{t("registerMail.photo")}</Label>
       {photoPreview ? (
         <div className="space-y-2">
           <div
@@ -601,24 +587,21 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               className="w-full h-auto object-contain select-none"
               draggable={false}
             />
-            {/* Crop selection overlay */}
             {cropMode && cropOverlayStyle && (
               <div
                 className="absolute border-2 border-primary bg-primary/20 pointer-events-none"
                 style={cropOverlayStyle}
               />
             )}
-            {/* Zoom hint when not in crop mode */}
             {!cropMode && (
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                 <ZoomIn className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
               </div>
             )}
-            {/* Crop mode hint */}
             {cropMode && !cropRect && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="bg-black/60 text-white px-3 py-1.5 rounded-md text-sm font-medium">
-                  {cropTarget === "stamp" ? "Tegn en boks omkring forsendelsesnr." : cropTarget === "sender" ? "Tegn en boks omkring afsenderen" : "Tegn en boks omkring navnet"}
+                  {cropTarget === "stamp" ? t("registerMail.drawBoxStamp") : cropTarget === "sender" ? t("registerMail.drawBoxSender") : t("registerMail.drawBoxName")}
                 </span>
               </div>
             )}
@@ -632,7 +615,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               <X className="h-3 w-3" />
             </Button>
           </div>
-          {/* Crop mode controls */}
           {photoPreview && (
             <div className="space-y-1">
               {!cropMode ? (
@@ -646,7 +628,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                       onClick={() => { setCropTarget("tenant"); setCropRect(null); }}
                     >
                       <Crop className="h-4 w-4 mr-2" />
-                      Markér navn
+                      {t("registerMail.markName")}
                     </Button>
                   )}
                   <Button
@@ -657,7 +639,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     onClick={() => { setCropTarget("sender"); setCropRect(null); }}
                   >
                     <Crop className="h-4 w-4 mr-2" />
-                    Markér afsender
+                    {t("registerMail.markSender")}
                   </Button>
                   <Button
                     type="button"
@@ -667,7 +649,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     onClick={() => { setCropTarget("stamp"); setCropRect(null); }}
                   >
                     <Crop className="h-4 w-4 mr-2" />
-                    Markér forsendelsesnr.
+                    {t("registerMail.markStamp")}
                   </Button>
                   <Button
                     type="button"
@@ -683,7 +665,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     }}
                   >
                     <Camera className="h-4 w-4 mr-2" />
-                    Tag nyt billede
+                    {t("registerMail.takeNewPhoto")}
                   </Button>
                 </div>
               ) : (
@@ -691,7 +673,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                   {cropLoading && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      Læser...
+                      {t("registerMail.reading")}
                     </div>
                   )}
                   <Button
@@ -700,7 +682,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     size="sm"
                     onClick={() => { setCropTarget(null); setCropRect(null); }}
                   >
-                    Annuller
+                    {t("common.cancel")}
                   </Button>
                 </div>
               )}
@@ -715,11 +697,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           <div className="flex gap-2">
             <Button type="button" className="flex-1" onClick={capturePhoto}>
               <Camera className="h-4 w-4 mr-2" />
-              Tag billede
+              {t("registerMail.capturePhoto")}
             </Button>
             <Button type="button" variant="outline" onClick={stopCamera}>
               <VideoOff className="h-4 w-4 mr-2" />
-              Annuller
+              {t("registerMail.cancelCamera")}
             </Button>
           </div>
         </div>
@@ -728,7 +710,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           <label className="flex-1 cursor-pointer">
             <div className="flex items-center justify-center gap-2 rounded-md border border-dashed border-input p-3 text-sm text-muted-foreground hover:bg-accent transition-colors">
               <Upload className="h-4 w-4" />
-              Upload foto
+              {t("registerMail.uploadPhoto")}
             </div>
             <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </label>
@@ -738,7 +720,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             onClick={handleTakePhoto}
           >
             <Camera className="h-4 w-4" />
-            Tag billede
+            {t("registerMail.takePhoto")}
           </button>
         </div>
       )}
@@ -748,24 +730,22 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   const formFields = (
     <div className="space-y-4">
-      {/* Posttype */}
       <div className="space-y-2">
-        <Label>Posttype</Label>
+        <Label>{t("registerMail.mailType")}</Label>
         <RadioGroup value={mailType} onValueChange={(v) => setMailType(v as MailType)} className="flex gap-4">
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="brev" id="brev" />
-            <Label htmlFor="brev" className="cursor-pointer">Brev</Label>
+            <Label htmlFor="brev" className="cursor-pointer">{t("common.letter")}</Label>
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="pakke" id="pakke" />
-            <Label htmlFor="pakke" className="cursor-pointer">Pakke</Label>
+            <Label htmlFor="pakke" className="cursor-pointer">{t("common.package")}</Label>
           </div>
         </RadioGroup>
       </div>
 
-      {/* Lejer (obligatorisk) */}
       <div className="space-y-2 relative">
-        <Label>Lejer</Label>
+        <Label>{t("registerMail.tenant")}</Label>
         {ocrRecipient && !selectedTenantId && (
           <button
             type="button"
@@ -775,7 +755,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               setShowTenantList(true);
             }}
           >
-            OCR fandt: "{ocrRecipient}"
+            {t("registerMail.ocrFound", { text: ocrRecipient })}
             <ArrowDownToLine className="h-3 w-3" />
           </button>
         )}
@@ -792,26 +772,26 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             onChange={(e) => { setTenantSearch(e.target.value); setShowTenantList(true); }}
             onFocus={() => setShowTenantList(true)}
             onBlur={() => setTimeout(() => setShowTenantList(false), 200)}
-            placeholder="Søg lejer..."
+            placeholder={t("registerMail.searchTenant")}
           />
         )}
         {showTenantList && !selectedTenantId && (
           <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-40 overflow-auto rounded-md border border-border bg-popover shadow-md">
-            {filteredTenants.map((t) => (
+            {filteredTenants.map((tn) => (
               <button
-                key={t.id}
+                key={tn.id}
                 type="button"
                 className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
                 onMouseDown={() => {
-                  setSelectedTenantId(t.id);
-                  setSelectedTenantName(t.company_name);
+                  setSelectedTenantId(tn.id);
+                  setSelectedTenantName(tn.company_name);
                   setTenantSearch("");
                   setShowTenantList(false);
                 }}
               >
-                <span>{t.company_name}</span>
-                {(t.contact_first_name || t.contact_last_name) && (
-                  <span className="text-muted-foreground ml-1">({[t.contact_first_name, t.contact_last_name].filter(Boolean).join(" ")})</span>
+                <span>{tn.company_name}</span>
+                {(tn.contact_first_name || tn.contact_last_name) && (
+                  <span className="text-muted-foreground ml-1">({[tn.contact_first_name, tn.contact_last_name].filter(Boolean).join(" ")})</span>
                 )}
               </button>
             ))}
@@ -830,14 +810,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                 }}
               >
                 <UserPlus className="h-4 w-4" />
-                Opret "{tenantSearch.trim()}" som ny lejer
+                {t("registerMail.createAsTenant", { name: tenantSearch.trim() })}
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Lejertype info-boks */}
       {(() => {
         const tenantTypeColorMap: Record<string, string> = {
           "Lite": "bg-blue-100 text-blue-800 border-blue-200",
@@ -847,7 +826,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           "Nabo": "bg-cyan-100 text-cyan-800 border-cyan-200",
           "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
         };
-        const selectedTenant = tenants?.find((t) => t.id === selectedTenantId);
+        const selectedTenant = tenants?.find((tn) => tn.id === selectedTenantId);
         const tenantType = selectedTenant
           ? tenantTypes?.find((tt) => tt.id === selectedTenant.tenant_type_id)
           : null;
@@ -860,32 +839,29 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               typeName ? colorClasses : "bg-white border-border text-muted-foreground"
             }`}
           >
-            {typeName ?? "Ingen lejer valgt"}
+            {typeName ?? t("registerMail.noTenantSelected")}
           </div>
         );
       })()}
 
-      {/* Forsendelsesnr (obligatorisk) */}
       <div className="space-y-2">
-        <Label htmlFor="stamp">Forsendelsesnr.</Label>
+        <Label htmlFor="stamp">{t("registerMail.stampNumber")}</Label>
         <div className="relative">
-          <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder="F.eks. 12345" disabled={ocrLoading} />
+          <Input id="stamp" type="number" value={stampNumber} onChange={(e) => setStampNumber(e.target.value)} placeholder={t("registerMail.stampPlaceholder")} disabled={ocrLoading} />
           {ocrLoading && (
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Læser nr...
+              {t("registerMail.readingNumber")}
             </div>
           )}
         </div>
       </div>
 
-      {/* Afsender (valgfrit) */}
       <div className="space-y-2">
-        <Label htmlFor="sender">Afsender (valgfrit)</Label>
-        <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Afsenderens navn" />
+        <Label htmlFor="sender">{t("registerMail.sender")}</Label>
+        <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={t("registerMail.senderPlaceholder")} />
       </div>
 
-      {/* Rekommanderet */}
       <div className="flex items-center space-x-2">
         <Checkbox
           id="is_registered"
@@ -893,14 +869,13 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           onCheckedChange={(checked) => setIsRegistered(checked === true)}
         />
         <Label htmlFor="is_registered" className="cursor-pointer text-sm font-normal">
-          Rekommanderet
+          {t("registerMail.registered")}
         </Label>
       </div>
 
-      {/* Noter */}
       <div className="space-y-2">
-        <Label htmlFor="notes">Noter (valgfrit)</Label>
-        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Eventuelle noter..." rows={2} />
+        <Label htmlFor="notes">{t("registerMail.notes")}</Label>
+        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("registerMail.notesPlaceholder")} rows={2} />
       </div>
     </div>
   );
@@ -910,7 +885,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className={photo ? "max-w-[1300px]" : "sm:max-w-md"}>
           <DialogHeader>
-            <DialogTitle>Registrer ny post</DialogTitle>
+            <DialogTitle>{t("registerMail.title")}</DialogTitle>
           </DialogHeader>
 
           {photo ? (
@@ -925,14 +900,14 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Annuller</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
             {photo && (
               <>
                 <Button variant="secondary" onClick={() => handleSubmit(false)} disabled={submitting}>
-                  {submitting ? "Gemmer..." : "Registrer og næste"}
+                  {submitting ? t("common.saving") : t("registerMail.registerAndNew")}
                 </Button>
                 <Button onClick={() => handleSubmit(true)} disabled={submitting}>
-                  {submitting ? "Gemmer..." : "Registrer"}
+                  {submitting ? t("common.saving") : t("registerMail.registerAndClose")}
                 </Button>
               </>
             )}
@@ -940,7 +915,6 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         </DialogContent>
       </Dialog>
 
-      {/* Zoom overlay */}
       <Dialog open={showZoom} onOpenChange={setShowZoom}>
         <DialogContent className="sm:max-w-[90vw] max-h-[95vh] p-2">
           {photoPreview && (
@@ -953,23 +927,22 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         </DialogContent>
       </Dialog>
 
-      {/* Opret ny lejer dialog */}
       <Dialog open={showCreateTenant} onOpenChange={setShowCreateTenant}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Opret ny lejer</DialogTitle>
-            <DialogDescription>Udfyld oplysningerne for den nye lejer</DialogDescription>
+            <DialogTitle>{t("registerMail.createNewTenant")}</DialogTitle>
+            <DialogDescription>{t("registerMail.fillCompanyAndType")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="new-tenant-name">Firmanavn *</Label>
-              <Input id="new-tenant-name" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} placeholder="Firmanavn" />
+              <Label htmlFor="new-tenant-name">{t("registerMail.companyName")}</Label>
+              <Input id="new-tenant-name" value={newTenantName} onChange={(e) => setNewTenantName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-tenant-type">Lejertype *</Label>
+              <Label htmlFor="new-tenant-type">{t("registerMail.tenantTypeLabel")}</Label>
               <Select value={newTenantTypeId} onValueChange={setNewTenantTypeId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Vælg lejertype" />
+                  <SelectValue placeholder={t("registerMail.selectType")} />
                 </SelectTrigger>
                 <SelectContent>
                   {tenantTypes?.map((tt) => (
@@ -980,26 +953,23 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="new-tenant-first-name">Fornavn</Label>
-                <Input id="new-tenant-first-name" value={newTenantContactFirstName} onChange={(e) => setNewTenantContactFirstName(e.target.value)} placeholder="Valgfrit" />
+                <Label htmlFor="new-tenant-first-name">{t("registerMail.contactFirstName")}</Label>
+                <Input id="new-tenant-first-name" value={newTenantContactFirstName} onChange={(e) => setNewTenantContactFirstName(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="new-tenant-last-name">Efternavn</Label>
-                <Input id="new-tenant-last-name" value={newTenantContactLastName} onChange={(e) => setNewTenantContactLastName(e.target.value)} placeholder="Valgfrit" />
+                <Label htmlFor="new-tenant-last-name">{t("registerMail.contactLastName")}</Label>
+                <Input id="new-tenant-last-name" value={newTenantContactLastName} onChange={(e) => setNewTenantContactLastName(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-tenant-email">Kontakt-email</Label>
-              <Input id="new-tenant-email" type="email" value={newTenantEmail} onChange={(e) => setNewTenantEmail(e.target.value)} placeholder="Valgfrit" />
-              {newTenantEmail.trim() && (
-                <p className="text-xs text-muted-foreground">En invitation sendes automatisk til {newTenantEmail.trim()}</p>
-              )}
+              <Label htmlFor="new-tenant-email">{t("registerMail.contactEmail")}</Label>
+              <Input id="new-tenant-email" type="email" value={newTenantEmail} onChange={(e) => setNewTenantEmail(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateTenant(false)}>Annuller</Button>
+            <Button variant="outline" onClick={() => setShowCreateTenant(false)}>{t("common.cancel")}</Button>
             <Button onClick={handleCreateTenant} disabled={creatingTenant}>
-              {creatingTenant ? "Opretter..." : "Opret lejer"}
+              {creatingTenant ? t("common.creating") : t("registerMail.createTenant")}
             </Button>
           </DialogFooter>
         </DialogContent>

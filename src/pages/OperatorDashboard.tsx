@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, ScanLine, Send, UserCheck, Trash2, Building2, Plus, Upload, ImageIcon, Search, MessageSquare, ExternalLink } from "lucide-react";
@@ -23,38 +24,6 @@ import { Label } from "@/components/ui/label";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; has_unpaid_invoice?: boolean; tenant_types?: { name: string } | null } | null };
 
-const ACTION_LABELS: Record<string, string> = {
-  scan: "Scan nu",
-  send: "Forsendelse",
-  afhentning: "Afhentning",
-  destruer: "Destruer",
-  daglig: "Læg på kontoret",
-  standard_forsendelse: "Standard forsendelse",
-  standard_scan: "Standard scanning",
-  gratis_afhentning: "Gratis afhentning",
-};
-
-const DANISH_DAYS = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
-const DANISH_MONTHS = [
-  "januar", "februar", "marts", "april", "maj", "juni",
-  "juli", "august", "september", "oktober", "november", "december",
-];
-
-function formatDanishDate(date: Date): string {
-  const day = DANISH_DAYS[date.getDay()];
-  const d = date.getDate();
-  const month = DANISH_MONTHS[date.getMonth()];
-  return `${day} den ${d}. ${month}`;
-}
-
-function formatDanishDateTime(date: Date): string {
-  const d = date.getDate();
-  const month = DANISH_MONTHS[date.getMonth()];
-  const h = date.getHours().toString().padStart(2, "0");
-  const m = date.getMinutes().toString().padStart(2, "0");
-  return `${d}. ${month} kl. ${h}:${m}`;
-}
-
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -77,7 +46,6 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
     return getNextThursday();
   }
 
-  // Lite breve → første torsdag i måneden
   const firstThurs = getFirstThursdayOfMonth(now);
   if (firstThurs >= today) return firstThurs;
 
@@ -96,153 +64,6 @@ function itemNeedsScan(item: MailItem): boolean {
   return false;
 }
 
-function formatPickupDisplay(item: MailItem): string | null {
-  const isoStr = (item as any).pickup_date;
-  if (!isoStr) return null;
-  const date = new Date(isoStr);
-  if (isNaN(date.getTime())) return null;
-  const dayName = DANISH_DAYS[date.getDay()];
-  const d = date.getDate();
-  const month = DANISH_MONTHS[date.getMonth()];
-  const hour = date.getHours();
-  if (hour === 0) {
-    return `${dayName} den ${d}. ${month}`;
-  }
-  return `${dayName} den ${d}. ${month} kl. ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
-}
-
-function getOperatorStatusDisplay(item: MailItem): string {
-  // Picked up by tenant
-  if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
-    const d = new Date(item.updated_at);
-    const day = d.getDate();
-    const month = DANISH_MONTHS[d.getMonth()];
-    const hours = d.getHours().toString().padStart(2, "0");
-    const mins = d.getMinutes().toString().padStart(2, "0");
-    return `Afhentet ${day}. ${month} kl. ${hours}:${mins}`;
-  }
-  // Archived by tenant (not destruction)
-  if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
-    return "Arkiveret af bruger";
-  }
-  if (item.status === "sendt_med_dao") {
-    const d = new Date(item.updated_at);
-    const day = d.getDate();
-    const month = DANISH_MONTHS[d.getMonth()];
-    return `Sendt med DAO ${day}. ${month}`;
-  }
-  if (item.status === "sendt_med_postnord") {
-    const d = new Date(item.updated_at);
-    const day = d.getDate();
-    const month = DANISH_MONTHS[d.getMonth()];
-    return `Sendt med PostNord ${day}. ${month}`;
-  }
-  if (item.status === "sendt_retur") {
-    const d = new Date(item.updated_at);
-    const day = d.getDate();
-    const month = DANISH_MONTHS[d.getMonth()];
-    return `Sendt retur ${day}. ${month}`;
-  }
-  const action = item.chosen_action;
-  if (action === "standard_scan") {
-    const tenantType = item.tenants?.tenant_types?.name;
-    const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
-    return `Scanning bestilt ${formatDanishDate(scanDate)}`;
-  }
-  if (action === "standard_forsendelse") {
-    const tenantType = item.tenants?.tenant_types?.name;
-    if (item.mail_type === "pakke") {
-      const shipDate = getNextThursday();
-      return `Skal sendes senest ${formatDanishDate(shipDate)}`;
-    }
-    const shipDate = getShippingDate(tenantType ?? "Lite", "brev");
-    return `Skal sendes ${formatDanishDate(shipDate)}`;
-  }
-  if (action === "send" || action === "under_forsendelse") {
-    // Eksplicit valgt handling → altid ugentlig kadence (næste torsdag)
-    const shipDate = getNextThursday();
-    return `Skal sendes ${formatDanishDate(shipDate)}`;
-  }
-  if (action === "afhentning") {
-    const pickupText = formatPickupDisplay(item);
-    return pickupText ? `Afhentning bestilt ${pickupText}` : "Afhentning bestilt";
-  }
-  if (action === "gratis_afhentning") {
-    const nextDate = getShippingDate("Lite", "brev");
-    return `Gratis afhentning ${formatDanishDate(nextDate)}`;
-  }
-  if (action === "scan") {
-    if (item.scan_url) {
-      const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
-      return `Scannet — ${readLabel}`;
-    }
-    const updated = new Date(item.updated_at);
-    return `Scanning bestilt ${formatDanishDateTime(updated)}`;
-  }
-  if (action === "destruer") {
-    if (item.status === "arkiveret") {
-      return "Forsendelse destrueret";
-    }
-    const updated = new Date(item.updated_at);
-    return `Skal destrueres - bestilt ${formatDanishDateTime(updated)}`;
-  }
-  if (action === "daglig") {
-    const updated = new Date(item.updated_at);
-    return `Læg på kontoret - ${formatDanishDateTime(updated)}`;
-  }
-  if (!action) {
-    const defaultAction = item.mail_type === "pakke"
-      ? item.tenants?.default_package_action
-      : item.tenants?.default_mail_action;
-    if (defaultAction === "send" || defaultAction === "under_forsendelse") {
-      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-      return `Skal sendes ${formatDanishDate(shipDate)}`;
-    }
-    if (defaultAction === "scan") {
-      if (item.scan_url) {
-        const readLabel = item.status === "laest" ? "Læst" : "Ulæst";
-        return `Scannet — ${readLabel}`;
-      }
-      const tenantType = item.tenants?.tenant_types?.name;
-      if (tenantType === "Standard") {
-        const scanDate = getShippingDate("Standard", "brev");
-        return `Standard scanning ${formatDanishDate(scanDate)}`;
-      }
-      const received = new Date(item.received_at);
-      return `Scanning bestilt - modtaget ${formatDanishDateTime(received)}`;
-    }
-    if (defaultAction === "afhentning") {
-      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-      return `Afhentning (standard) ${formatDanishDate(shipDate)}`;
-    }
-    if (defaultAction === "destruer") return "Destrueres (standard)";
-    if (defaultAction === "daglig") return "Læg på kontoret (standard)";
-    if (defaultAction && ACTION_LABELS[defaultAction]) {
-      return `${ACTION_LABELS[defaultAction]} (standard)`;
-    }
-  }
-  return STATUS_LABELS[item.status] ?? item.status;
-}
-
-const STATUS_LABELS: Record<Database["public"]["Enums"]["mail_status"], string> = {
-  ny: "Ny",
-  afventer_handling: "Afventer handling",
-  ulaest: "Ulæst",
-  laest: "Læst",
-  arkiveret: "Arkiveret",
-  sendt_med_dao: "Sendt med DAO",
-  sendt_med_postnord: "Sendt med PostNord",
-  sendt_retur: "Sendt retur",
-};
-
-type CardFilter = {
-  title: string;
-  icon: typeof Mail;
-  color: string;
-  filter: (item: MailItem) => boolean;
-  countFilter?: (item: MailItem) => boolean;
-};
-
 function isTodayDate(date: Date): boolean {
   const now = new Date();
   return date.getFullYear() === now.getFullYear()
@@ -258,65 +79,148 @@ function isTodayOrPastDate(date: Date): boolean {
   return d <= now;
 }
 
-const CARD_FILTERS: CardFilter[] = [
-  {
-    title: "Ikke tildelt",
-    icon: UserCheck,
-    color: "text-destructive",
-    filter: (item) => !item.tenant_id,
-  },
-  {
-    title: "Åben og scan",
-    icon: ScanLine,
-    color: "text-primary",
-    filter: (item) => itemNeedsScan(item),
-    countFilter: (item) => {
-      if (item.scan_url) return false;
-      if (!itemNeedsScan(item)) return false;
-      if (item.chosen_action === "scan") return true;
-      // Standard scan (explicit or default) — only count on scheduled date
-      const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-      return isTodayOrPastDate(scanDate);
-    },
-  },
-  {
-    title: "Send",
-    icon: Send,
-    color: "text-primary",
-    filter: (item) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao" || item.status === "sendt_med_postnord",
-    countFilter: (item) => {
-      if (item.chosen_action !== "send") return false;
+function formatI18nDate(date: Date, t: (key: string, opts?: any) => string): string {
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const theWord = t("dates.the");
+  const day = days[date.getDay()];
+  const d = date.getDate();
+  const month = months[date.getMonth()];
+  return theWord ? `${day} ${theWord} ${d}. ${month}` : `${day} ${d}. ${month}`;
+}
+
+function formatI18nDateTime(date: Date, t: (key: string, opts?: any) => string): string {
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const atWord = t("dates.at");
+  const d = date.getDate();
+  const month = months[date.getMonth()];
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${d}. ${month} ${atWord} ${h}:${m}`;
+}
+
+function formatPickupDisplay(item: MailItem, t: (key: string, opts?: any) => string): string | null {
+  const isoStr = (item as any).pickup_date;
+  if (!isoStr) return null;
+  const date = new Date(isoStr);
+  if (isNaN(date.getTime())) return null;
+  const days = t("dates.days", { returnObjects: true }) as unknown as string[];
+  const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+  const theWord = t("dates.the");
+  const atWord = t("dates.at");
+  const dayName = days[date.getDay()];
+  const d = date.getDate();
+  const month = months[date.getMonth()];
+  const hour = date.getHours();
+  if (hour === 0) {
+    return theWord ? `${dayName} ${theWord} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+  }
+  const prefix = theWord ? `${dayName} ${theWord} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+  return `${prefix} ${atWord} ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
+}
+
+function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) => string): string {
+  if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
+    const d = new Date(item.updated_at);
+    return `${t("statusDisplay.pickedUp")} ${formatI18nDateTime(d, t)}`;
+  }
+  if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
+    return t("statusDisplay.archivedByUser");
+  }
+  if (item.status === "sendt_med_dao") {
+    const d = new Date(item.updated_at);
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+    return `${t("statusDisplay.sentWithDao")} ${d.getDate()}. ${months[d.getMonth()]}`;
+  }
+  if (item.status === "sendt_med_postnord") {
+    const d = new Date(item.updated_at);
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+    return `${t("statusDisplay.sentWithPostNord")} ${d.getDate()}. ${months[d.getMonth()]}`;
+  }
+  if (item.status === "sendt_retur") {
+    const d = new Date(item.updated_at);
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
+    return `${t("statusDisplay.sentReturn")} ${d.getDate()}. ${months[d.getMonth()]}`;
+  }
+  const action = item.chosen_action;
+  if (action === "standard_scan") {
+    const tenantType = item.tenants?.tenant_types?.name;
+    const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
+    return `${t("statusDisplay.scanOrdered")} ${formatI18nDate(scanDate, t)}`;
+  }
+  if (action === "standard_forsendelse") {
+    const tenantType = item.tenants?.tenant_types?.name;
+    if (item.mail_type === "pakke") {
+      const shipDate = getNextThursday();
+      return `${t("statusDisplay.shouldSendLatest")} ${formatI18nDate(shipDate, t)}`;
+    }
+    const shipDate = getShippingDate(tenantType ?? "Lite", "brev");
+    return `${t("statusDisplay.shouldSend")} ${formatI18nDate(shipDate, t)}`;
+  }
+  if (action === "send" || action === "under_forsendelse") {
+    const shipDate = getNextThursday();
+    return `${t("statusDisplay.shouldSend")} ${formatI18nDate(shipDate, t)}`;
+  }
+  if (action === "afhentning") {
+    const pickupText = formatPickupDisplay(item, t);
+    return pickupText ? `${t("statusDisplay.pickupOrdered")} ${pickupText}` : t("statusDisplay.pickupOrdered");
+  }
+  if (action === "gratis_afhentning") {
+    const nextDate = getShippingDate("Lite", "brev");
+    return `${t("statusDisplay.freePickup")} ${formatI18nDate(nextDate, t)}`;
+  }
+  if (action === "scan") {
+    if (item.scan_url) {
+      const readLabel = item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.unread");
+      return t("statusDisplay.scannedRead", { status: readLabel });
+    }
+    const updated = new Date(item.updated_at);
+    return `${t("statusDisplay.scanOrdered")} ${formatI18nDateTime(updated, t)}`;
+  }
+  if (action === "destruer") {
+    if (item.status === "arkiveret") {
+      return t("statusDisplay.shipmentDestroyed");
+    }
+    const updated = new Date(item.updated_at);
+    return `${t("statusDisplay.shouldDestroy")} ${formatI18nDateTime(updated, t)}`;
+  }
+  if (action === "daglig") {
+    const updated = new Date(item.updated_at);
+    return `${t("statusDisplay.officeDeliveryAt")} ${formatI18nDateTime(updated, t)}`;
+  }
+  if (!action) {
+    const defaultAction = item.mail_type === "pakke"
+      ? item.tenants?.default_package_action
+      : item.tenants?.default_mail_action;
+    if (defaultAction === "send" || defaultAction === "under_forsendelse") {
       const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
-      return isTodayDate(shipDate);
-    },
-  },
-  {
-    title: "Afhentes",
-    icon: Mail,
-    color: "text-primary",
-    filter: (item) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
-    countFilter: (item) => {
-      if (item.chosen_action === "gratis_afhentning") {
-        return isTodayDate(getShippingDate("Lite", "brev"));
+      return `${t("statusDisplay.shouldSend")} ${formatI18nDate(shipDate, t)}`;
+    }
+    if (defaultAction === "scan") {
+      if (item.scan_url) {
+        const readLabel = item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.unread");
+        return t("statusDisplay.scannedRead", { status: readLabel });
       }
-      if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
-      return isTodayDate(new Date(item.pickup_date));
-    },
-  },
-  {
-    title: "Destrueres",
-    icon: Trash2,
-    color: "text-destructive",
-    filter: (item) => item.chosen_action === "destruer",
-    countFilter: (item) => item.chosen_action === "destruer" && item.status !== "arkiveret",
-  },
-  {
-    title: "Læg på kontoret",
-    icon: Building2,
-    color: "text-primary",
-    filter: (item) => item.chosen_action === "daglig",
-  },
-];
+      const tenantType = item.tenants?.tenant_types?.name;
+      if (tenantType === "Standard") {
+        const scanDate = getShippingDate("Standard", "brev");
+        return `${t("statusDisplay.standardScan")} ${formatI18nDate(scanDate, t)}`;
+      }
+      const received = new Date(item.received_at);
+      return `${t("statusDisplay.scanOrdered")} - ${formatI18nDateTime(received, t)}`;
+    }
+    if (defaultAction === "afhentning") {
+      const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+      return `${t("statusDisplay.standardPickup")} ${formatI18nDate(shipDate, t)}`;
+    }
+    if (defaultAction === "destruer") return t("statusDisplay.destroyStandard");
+    if (defaultAction === "daglig") return t("statusDisplay.officeStandard");
+    if (defaultAction) {
+      return `${t(`actions.${defaultAction}`, { defaultValue: defaultAction })} (standard)`;
+    }
+  }
+  return t(`status.${item.status}`, { defaultValue: item.status });
+}
 
 const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
   Lite: { ekstraForsendelse: "50 kr.", ekstraScanning: "50 kr.", ekstraAfhentning: "50 kr." },
@@ -360,7 +264,6 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
       if (defAction === "destruer") return "0 kr.";
       return "—";
     }
-    // Brev default — always included in subscription
     return "0 kr.";
   }
   if (item.chosen_action === "standard_forsendelse") {
@@ -385,17 +288,14 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
       if (tier2 === "Standard") return "30 kr.";
       return "50 kr.";
     }
-    // forsendelse
     if (tier2 === "Plus") return "10 kr. + porto";
     if (tier2 === "Standard") return "30 kr. + porto";
     return "50 kr. + porto";
   }
 
-  // Brev: only charge if action differs from default
   const defaultAction = item.tenants?.default_mail_action;
   if (item.chosen_action === defaultAction) {
-    // Special case: afhentning on a non-free day still costs extra
-  if (item.chosen_action === "afhentning" && tier !== "Plus") {
+    if (item.chosen_action === "afhentning" && tier !== "Plus") {
       const pd = (item as any).pickup_date ? new Date((item as any).pickup_date) : null;
       if (pd && !isNaN(pd.getTime())) {
         const isLite = tier === "Lite";
@@ -419,7 +319,6 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     return "0 kr.";
   }
 
-  // Free-day check for afhentning even when it's not the default action
   if (item.chosen_action === "afhentning" && tier !== "Plus") {
     const pd = (item as any).pickup_date ? new Date((item as any).pickup_date) : null;
     if (pd && !isNaN(pd.getTime())) {
@@ -435,7 +334,6 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     }
   }
 
-  // send/forsendelse for non-default brev actions
   if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
     if (tier === "Lite") return "50 kr. + porto";
     if (tier === "Standard") return "0 kr. + porto";
@@ -448,11 +346,11 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   const mailPricing = pricing.brev?.[tier] ?? MAIL_PRICING_DEFAULTS[tier];
   const fee = mailPricing?.[feeKey];
   if (!fee) return "—";
-  // Extract just the price part (before "—")
   return fee.split("—")[0].trim();
 }
 
 const OperatorDashboard = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [mailItems, setMailItems] = useState<MailItem[]>([]);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
@@ -464,6 +362,65 @@ const OperatorDashboard = () => {
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<MailItem | null>(null);
+
+  const CARD_FILTERS = [
+    {
+      title: t("operatorDashboard.notAssigned"),
+      icon: UserCheck,
+      color: "text-destructive",
+      filter: (item: MailItem) => !item.tenant_id,
+    },
+    {
+      title: t("operatorDashboard.openAndScan"),
+      icon: ScanLine,
+      color: "text-primary",
+      filter: (item: MailItem) => itemNeedsScan(item),
+      countFilter: (item: MailItem) => {
+        if (item.scan_url) return false;
+        if (!itemNeedsScan(item)) return false;
+        if (item.chosen_action === "scan") return true;
+        const scanDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+        return isTodayOrPastDate(scanDate);
+      },
+    },
+    {
+      title: t("operatorDashboard.sendCard"),
+      icon: Send,
+      color: "text-primary",
+      filter: (item: MailItem) => item.chosen_action === "send" || item.chosen_action === "under_forsendelse" || item.status === "sendt_med_dao" || item.status === "sendt_med_postnord",
+      countFilter: (item: MailItem) => {
+        if (item.chosen_action !== "send") return false;
+        const shipDate = getShippingDate(item.tenants?.tenant_types?.name, item.mail_type);
+        return isTodayDate(shipDate);
+      },
+    },
+    {
+      title: t("operatorDashboard.pickup"),
+      icon: Mail,
+      color: "text-primary",
+      filter: (item: MailItem) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
+      countFilter: (item: MailItem) => {
+        if (item.chosen_action === "gratis_afhentning") {
+          return isTodayDate(getShippingDate("Lite", "brev"));
+        }
+        if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
+        return isTodayDate(new Date(item.pickup_date));
+      },
+    },
+    {
+      title: t("operatorDashboard.destroy"),
+      icon: Trash2,
+      color: "text-destructive",
+      filter: (item: MailItem) => item.chosen_action === "destruer",
+      countFilter: (item: MailItem) => item.chosen_action === "destruer" && item.status !== "arkiveret",
+    },
+    {
+      title: t("operatorDashboard.officeDelivery"),
+      icon: Building2,
+      color: "text-primary",
+      filter: (item: MailItem) => item.chosen_action === "daglig",
+    },
+  ];
 
   const refreshMail = async () => {
     const { data } = await supabase
@@ -557,16 +514,18 @@ const OperatorDashboard = () => {
     setSelectedCard((prev) => (prev === title ? null : title));
   };
 
+  const dateLocaleStr = i18n.language === "da" ? "da-DK" : "en-GB";
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-        <h2 className="text-xl md:text-2xl font-bold">Operatør-dashboard</h2>
+        <h2 className="text-xl md:text-2xl font-bold">{t("operatorDashboard.title")}</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/bulk-upload")} className="gap-2">
-            <Upload className="h-4 w-4" /> Bulk upload
+            <Upload className="h-4 w-4" /> {t("operatorDashboard.bulkUpload")}
           </Button>
           <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> Registrer post
+            <Plus className="h-4 w-4" /> {t("operatorDashboard.registerMail")}
           </Button>
         </div>
       </div>
@@ -592,11 +551,11 @@ const OperatorDashboard = () => {
 
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3 gap-4">
-          <h3 className="text-lg font-semibold">{selectedCard ?? "Alle forsendelser"}</h3>
+          <h3 className="text-lg font-semibold">{selectedCard ?? t("operatorDashboard.allShipments")}</h3>
           <div className="relative w-64">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Søg lejer eller nr..."
+              placeholder={t("operatorDashboard.searchTenantOrNumber")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9"
@@ -610,31 +569,31 @@ const OperatorDashboard = () => {
         >
           <div className="flex items-center gap-1.5">
             <RadioGroupItem value="all" id="op-filter-all" />
-            <Label htmlFor="op-filter-all" className="cursor-pointer">Alle</Label>
+            <Label htmlFor="op-filter-all" className="cursor-pointer">{t("common.all")}</Label>
           </div>
           <div className="flex items-center gap-1.5">
             <RadioGroupItem value="brev" id="op-filter-brev" />
-            <Label htmlFor="op-filter-brev" className="cursor-pointer">Breve</Label>
+            <Label htmlFor="op-filter-brev" className="cursor-pointer">{t("common.letters")}</Label>
           </div>
           <div className="flex items-center gap-1.5">
             <RadioGroupItem value="pakke" id="op-filter-pakke" />
-            <Label htmlFor="op-filter-pakke" className="cursor-pointer">Pakker</Label>
+            <Label htmlFor="op-filter-pakke" className="cursor-pointer">{t("common.packages")}</Label>
           </div>
         </RadioGroup>
         {filteredByType.length === 0 ? (
-          <p className="text-muted-foreground">Ingen elementer.</p>
+          <p className="text-muted-foreground">{t("operatorDashboard.noItems")}</p>
         ) : (
           <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60px]">Foto</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Lejer</TableHead>
-                <TableHead>Forsendelsesnr.</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Gebyr</TableHead>
-                <TableHead>Modtaget</TableHead>
-                <TableHead>Scan</TableHead>
+                <TableHead className="w-[60px]">{t("common.photo")}</TableHead>
+                <TableHead>{t("common.type")}</TableHead>
+                <TableHead>{t("operatorDashboard.tenant")}</TableHead>
+                <TableHead>{t("operatorDashboard.stampNumber")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead>{t("common.fee")}</TableHead>
+                <TableHead>{t("common.received")}</TableHead>
+                <TableHead>{t("common.scan")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -648,19 +607,19 @@ const OperatorDashboard = () => {
                   if (!file) return;
                   const ext = file.name.split(".").pop()?.toLowerCase();
                   if (!ext || !["pdf", "png", "jpg", "jpeg"].includes(ext)) {
-                    toast.error("Kun PDF, PNG og JPG filer er tilladt");
+                    toast.error(t("scanUpload.onlyAllowed"));
                     return;
                   }
                   try {
                      await uploadScanFile(file, item.id, item.tenant_id!);
-                     toast.success("Scanning uploadet");
+                     toast.success(t("scanUpload.uploaded"));
                      refreshMail();
                      supabase.functions.invoke("send-new-mail-email", {
                        body: { tenant_id: item.tenant_id, mail_type: "scan", stamp_number: item.stamp_number, template_slug: "new_scan" },
                      }).catch((err: any) => console.error("send scan email failed:", err));
                   } catch (err: any) {
                     console.error("Inline scan drop error:", err);
-                    toast.error("Kunne ikke uploade scanning");
+                    toast.error(t("scanUpload.couldNotUpload"));
                   }
                 };
                 return (
@@ -678,7 +637,7 @@ const OperatorDashboard = () => {
                   <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
-                        {item.mail_type === "pakke" ? "Pakke" : "Brev"}
+                        {item.mail_type === "pakke" ? t("common.package") : t("common.letter")}
                       </Badge>
                       {(item as any).is_registered && (
                         <span className="inline-flex items-center justify-center w-5 h-5 border border-current font-bold text-xs rounded-sm">R</span>
@@ -693,11 +652,11 @@ const OperatorDashboard = () => {
                       <span className="text-primary hover:underline">
                         {item.tenants.company_name}
                         {item.tenants?.has_unpaid_invoice && (
-                          <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">Ubetalt</Badge>
+                          <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{t("operatorDashboard.unpaid")}</Badge>
                         )}
                       </span>
                     ) : (
-                      <span className="text-destructive font-medium hover:underline">Ikke tildelt</span>
+                      <span className="text-destructive font-medium hover:underline">{t("common.notAssigned")}</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -709,7 +668,7 @@ const OperatorDashboard = () => {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{getOperatorStatusDisplay(item)}</Badge>
+                    <Badge variant="outline">{getOperatorStatusDisplay(item, t)}</Badge>
                     {item.status === "sendt_med_postnord" && item.tracking_number && (
                       <Button
                         size="sm"
@@ -721,7 +680,7 @@ const OperatorDashboard = () => {
                         }}
                       >
                         <ExternalLink className="h-3 w-3" />
-                        Spor pakken
+                        {t("operatorDashboard.trackPackage")}
                       </Button>
                     )}
                   </TableCell>
@@ -732,7 +691,7 @@ const OperatorDashboard = () => {
                       className="text-primary hover:underline cursor-pointer bg-transparent border-none p-0 text-sm"
                       onClick={(e) => { e.stopPropagation(); setLogMailItemId(item.id); }}
                     >
-                      {new Date(item.received_at).toLocaleDateString("da-DK")}
+                      {new Date(item.received_at).toLocaleDateString(dateLocaleStr)}
                     </button>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
@@ -745,7 +704,7 @@ const OperatorDashboard = () => {
                     )}
                     {(item as any).scan_url && (
                       <Badge className="bg-primary/10 text-primary border-primary/20">
-                        <ScanLine className="h-3 w-3 mr-1" /> Scannet
+                        <ScanLine className="h-3 w-3 mr-1" /> {t("operatorDashboard.scanned")}
                       </Badge>
                     )}
                   </TableCell>
