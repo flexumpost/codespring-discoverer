@@ -104,9 +104,9 @@ const TenantsPage = () => {
       const skipped = results.filter((r: any) => r.status === "skipped").length;
       const failed = results.filter((r: any) => r.status === "failed").length;
       
-      if (sent > 0) toast.success(`Velkomst e-mail sendt til ${sent} lejer(e)`);
-      if (skipped > 0) toast.info(`${skipped} lejer(e) sprunget over (mangler e-mail)`);
-      if (failed > 0) toast.error(`${failed} afsendelse(r) fejlede`);
+      if (sent > 0) toast.success(t("tenants.welcomeEmailSentCount", { count: sent }));
+      if (skipped > 0) toast.info(t("tenants.skippedCount", { count: skipped }));
+      if (failed > 0) toast.error(t("tenants.failedCount", { count: failed }));
       
       setSelectedTenantIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
