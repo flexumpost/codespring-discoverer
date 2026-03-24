@@ -132,7 +132,7 @@ const ShippingAddressPage = () => {
         <div className="grid gap-6 max-w-lg">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Forsendelsesadresse</CardTitle>
+              <CardTitle className="text-base">{t("shipping.shippingAddress")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {showCheckbox && (
