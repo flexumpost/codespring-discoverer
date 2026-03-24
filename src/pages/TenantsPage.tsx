@@ -215,7 +215,7 @@ const TenantsPage = () => {
 
       <div className="flex items-center gap-4 mb-4">
         <Input
-          placeholder="Søg på lejer navn..."
+          placeholder={t("tenants.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
