@@ -200,19 +200,15 @@ const TenantsPage = () => {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Lejere</h2>
+        <h2 className="text-2xl font-bold">{t("tenants.title")}</h2>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))}
-            disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}
-          >
+          <Button variant="outline" onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))} disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}>
             <Mail className="h-4 w-4 mr-1" />
-            {sendWelcomeMutation.isPending ? "Sender..." : "Send velkomst e-mail"}
+            {sendWelcomeMutation.isPending ? t("common.sending") : t("tenants.sendWelcomeEmail")}
           </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            Opret ny lejer
+            {t("tenants.createNewTenant")}
           </Button>
         </div>
       </div>
