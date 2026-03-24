@@ -101,7 +101,7 @@ const SettingsPage = () => {
       }
     },
     onSuccess: () => {
-      toast.success("Virksomhedstilknytning opdateret");
+      toast.success(t("settings.companyAssignmentUpdated"));
       setEditDialogOpen(false);
       setEditingUser(null);
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
