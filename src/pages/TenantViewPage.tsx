@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import TenantDashboard from "./TenantDashboard";
 
 const TenantViewPage = () => {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -14,11 +16,7 @@ const TenantViewPage = () => {
     queryKey: ["tenant-view-name", id],
     enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("company_name")
-        .eq("id", id!)
-        .single();
+      const { data, error } = await supabase.from("tenants").select("company_name").eq("id", id!).single();
       if (error) throw error;
       return data;
     },
@@ -31,7 +29,7 @@ const TenantViewPage = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-lg font-semibold text-muted-foreground">
-          Lejervisning: {tenant?.company_name ?? "..."}
+          {t("tenantView.tenantView")}: {tenant?.company_name ?? "..."}
         </h2>
       </div>
       {id && <TenantDashboard overrideTenantId={id} />}
