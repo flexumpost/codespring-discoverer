@@ -409,10 +409,8 @@ const SettingsPage = () => {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rediger virksomhedstilknytning</DialogTitle>
-            <DialogDescription>
-              Vælg hvilke virksomheder {editingUser?.name} skal have adgang til.
-            </DialogDescription>
+            <DialogTitle>{t("settings.editCompanyAssignment")}</DialogTitle>
+            <DialogDescription>{t("settings.editCompanyDesc", { name: editingUser?.name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label>Virksomheder</Label>
