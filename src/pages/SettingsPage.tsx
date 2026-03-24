@@ -399,7 +399,7 @@ const SettingsPage = () => {
               onClick={() => createRecipientMutation.mutate()}
               disabled={!canSubmitRecipient || createRecipientMutation.isPending}
             >
-              {createRecipientMutation.isPending ? "Sender invitation..." : "Send invitation"}
+              {createRecipientMutation.isPending ? t("settings.sendingInvitation") : t("settings.sendInvitation")}
             </Button>
           </DialogFooter>
         </DialogContent>
