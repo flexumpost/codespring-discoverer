@@ -403,7 +403,7 @@ const TenantsPage = () => {
                   id="contact_last_name"
                   value={contactLastName}
                   onChange={(e) => setContactLastName(e.target.value)}
-                  placeholder="Efternavn"
+                  placeholder={t("tenants.lastName")}
                 />
               </div>
             </div>
