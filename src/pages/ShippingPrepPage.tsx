@@ -162,6 +162,11 @@ function getShippingFee(item: MailItemWithTenant): string {
       if (tier === "Standard") return "0 kr. + porto";
       return "0 kr.";
     }
+    if (item.chosen_action === "scan") {
+      if (tier === "Plus") return "0 kr.";
+      if (tier === "Standard") return "30 kr.";
+      return "50 kr.";
+    }
     return "0 kr.";
   }
 
@@ -169,6 +174,18 @@ function getShippingFee(item: MailItemWithTenant): string {
     if (tier === "Lite") return "50 kr. + porto";
     if (tier === "Standard") return "0 kr. + porto";
     return "0 kr.";
+  }
+
+  if (item.chosen_action === "scan") {
+    if (tier === "Plus") return "0 kr.";
+    if (tier === "Standard") return "30 kr.";
+    return "50 kr.";
+  }
+
+  if (item.chosen_action === "afhentning") {
+    if (tier === "Plus") return "0 kr.";
+    if (tier === "Standard") return "30 kr.";
+    return "50 kr.";
   }
 
   return "0 kr.";
