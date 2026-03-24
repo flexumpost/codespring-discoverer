@@ -301,11 +301,11 @@ const TenantDetailPage = () => {
       if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
-      toast.success("Lejer slettet");
+      toast.success(t("tenantDetail.tenantDeleted"));
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
       navigate("/tenants");
     },
-    onError: (err: any) => toast.error(err.message || "Kunne ikke slette lejer"),
+    onError: (err: any) => toast.error(err.message || t("tenantDetail.couldNotDelete")),
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
