@@ -305,7 +305,7 @@ const TenantsPage = () => {
                             .update({ has_unpaid_invoice: newVal } as any)
                             .eq("id", tenant.id);
                           if (updateErr) {
-                            toast.error("Kunne ikke opdatere status");
+                            toast.error(t("common.error"));
                             return;
                           }
                           // Send email notification
