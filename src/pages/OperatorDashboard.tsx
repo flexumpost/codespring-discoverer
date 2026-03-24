@@ -129,17 +129,17 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
   }
   if (item.status === "sendt_med_dao") {
     const d = new Date(item.updated_at);
-    const months = t("dates.months", { returnObjects: true }) as string[];
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
     return `${t("statusDisplay.sentWithDao")} ${d.getDate()}. ${months[d.getMonth()]}`;
   }
   if (item.status === "sendt_med_postnord") {
     const d = new Date(item.updated_at);
-    const months = t("dates.months", { returnObjects: true }) as string[];
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
     return `${t("statusDisplay.sentWithPostNord")} ${d.getDate()}. ${months[d.getMonth()]}`;
   }
   if (item.status === "sendt_retur") {
     const d = new Date(item.updated_at);
-    const months = t("dates.months", { returnObjects: true }) as string[];
+    const months = t("dates.months", { returnObjects: true }) as unknown as string[];
     return `${t("statusDisplay.sentReturn")} ${d.getDate()}. ${months[d.getMonth()]}`;
   }
   const action = item.chosen_action;
