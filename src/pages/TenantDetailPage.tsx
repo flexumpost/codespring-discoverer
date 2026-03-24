@@ -526,38 +526,38 @@ const TenantDetailPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Forsendelsesadresse</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Modtager</Label>
-                  <Input value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" />
+                  <Label>{t("tenantDetail.recipient")}</Label>
+                  <Input value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder={t("tenantDetail.recipientName")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>c/o</Label>
-                  <Input value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" />
+                  <Label>{t("tenantDetail.coName")}</Label>
+                  <Input value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder={t("tenantDetail.coPlaceholder")} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Adresse</Label>
-                  <Input value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" />
+                  <Label>{t("tenantDetail.address")}</Label>
+                  <Input value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("tenantDetail.streetAddress")} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Postnummer</Label>
-                    <Input value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." />
+                    <Label>{t("tenantDetail.zipCode")}</Label>
+                    <Input value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder={t("tenantDetail.zipPlaceholder")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>By</Label>
-                    <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" />
+                    <Label>{t("tenantDetail.city")}</Label>
+                    <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder={t("tenantDetail.city")} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Land</Label>
-                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder="F.eks. Danmark" />
+                  <Label>{t("tenantDetail.country")}</Label>
+                  <Input value={shippingCountry} onChange={(e) => setShippingCountry(e.target.value)} placeholder={t("tenantDetail.countryPlaceholder")} />
                 </div>
                 <Button onClick={() => shippingMutation.mutate()} disabled={!shippingChanged || shippingMutation.isPending}>
                   <Save className="mr-2 h-4 w-4" />
-                  {shippingMutation.isPending ? "Gemmer..." : "Gem adresse"}
+                  {shippingMutation.isPending ? t("common.saving") : t("tenantDetail.saveAddress")}
                 </Button>
               </CardContent>
             </Card>
