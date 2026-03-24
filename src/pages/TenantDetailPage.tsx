@@ -395,7 +395,7 @@ const TenantDetailPage = () => {
                 </div>
                 {tenant.address && (
                   <div>
-                    <Label className="text-muted-foreground text-xs">Adresse</Label>
+                    <Label className="text-muted-foreground text-xs">{t("tenantDetail.address")}</Label>
                     <p className="font-medium">{tenant.address}</p>
                   </div>
                 )}
