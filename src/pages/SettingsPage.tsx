@@ -370,7 +370,7 @@ const SettingsPage = () => {
                 type="email"
                 value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
-                placeholder="email@eksempel.dk"
+                placeholder={t("tenants.emailPlaceholder")}
               />
             </div>
             {/* Multi-tenant selection */}
