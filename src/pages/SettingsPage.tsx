@@ -143,7 +143,7 @@ const SettingsPage = () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-users"] });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "Kunne ikke oprette postmodtager");
+      toast.error(err.message || t("settings.couldNotCreateRecipient"));
     },
   });
 
