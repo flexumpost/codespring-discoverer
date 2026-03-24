@@ -426,7 +426,7 @@ const TenantDetailPage = () => {
                   {scheduledChanges.length > 0 && (
                     <div className="space-y-2">
                       {scheduledChanges.map((sc: any) => {
-                        const typeName2 = tenantTypes.find((t) => t.id === sc.new_tenant_type_id)?.name ?? "Ukendt";
+                        const typeName2 = tenantTypes.find((tt) => tt.id === sc.new_tenant_type_id)?.name ?? t("tenantDetail.unknownType");
                         return (
                           <div key={sc.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
                             <div>
