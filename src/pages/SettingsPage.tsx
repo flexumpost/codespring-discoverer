@@ -272,7 +272,7 @@ const SettingsPage = () => {
                   <p className="font-medium">{[selectedTenant.contact_first_name, selectedTenant.contact_last_name].filter(Boolean).join(" ") || "—"}</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Kontakt-email</Label>
+                  <Label className="text-muted-foreground text-xs">{t("settings.contactEmail")}</Label>
                   <p className="font-medium">{selectedTenant.contact_email || "—"}</p>
                 </div>
               </CardContent>
