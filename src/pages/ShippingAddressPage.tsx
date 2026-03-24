@@ -161,12 +161,12 @@ const ShippingAddressPage = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_zip">Postnummer *</Label>
-                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder="Postnr." disabled={fieldsDisabled} />
+                  <Label htmlFor="shipping_zip">{t("shipping.zipCode")}</Label>
+                  <Input id="shipping_zip" value={shippingZip} onChange={(e) => setShippingZip(e.target.value)} placeholder={t("shipping.zipPlaceholder")} disabled={fieldsDisabled} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shipping_city">By *</Label>
-                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder="By" disabled={fieldsDisabled} />
+                  <Label htmlFor="shipping_city">{t("shipping.city")}</Label>
+                  <Input id="shipping_city" value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder={t("shipping.cityPlaceholder")} disabled={fieldsDisabled} />
                 </div>
               </div>
               <div className="space-y-2">
