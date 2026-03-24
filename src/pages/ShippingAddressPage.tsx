@@ -86,7 +86,7 @@ const ShippingAddressPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
-      toast.success("Forsendelsesadresse gemt");
+      toast.success(t("shipping.addressSaved"));
     },
     onError: (err: any) => {
       console.error("ShippingAddress save error:", err);
