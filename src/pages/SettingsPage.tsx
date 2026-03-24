@@ -334,7 +334,7 @@ const SettingsPage = () => {
               onClick={openDialog}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Opret ny postmodtager
+              {t("settings.createMailRecipient")}
             </Button>
           </div>
 
