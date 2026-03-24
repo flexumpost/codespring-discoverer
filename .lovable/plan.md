@@ -1,47 +1,61 @@
 
 
-## Fee Calculation Consistency Audit
+## Problem
 
-### Expected Pricing Rules (Mail/Brev)
+When an operator changes a tenant's `contact_email` on the detail page (`/tenants/:id`), the `contactMutation` only updates the `tenants` table. It does NOT:
+1. Create a new auth user for the new email address
+2. Link the new user to the tenant via `tenant_users`
+3. Send an invitation/welcome email to the new address
 
-| Action | Lite | Standard | Plus |
-|---|---|---|---|
-| **scan** (scan nu, 24h) | 50 kr. | 30 kr. | 0 kr. |
-| **standard_scan** (scheduled free) | 0 kr. | 0 kr. | 0 kr. |
-| **send** (explicit) | 50 kr. + porto | 0 kr. + porto | 0 kr. |
-| **standard_forsendelse** (scheduled free) | 0 kr. + porto | 0 kr. + porto | 0 kr. + porto |
-| **afhentning** (on free day) | 0 kr. | 0 kr. | 0 kr. |
-| **afhentning** (not free day) | 50 kr. | 30 kr. | 0 kr. |
-| **gratis_afhentning** | 0 kr. | 0 kr. | 0 kr. |
-| **destruer** | 0 kr. | 0 kr. | 0 kr. |
+This is unlike tenant creation on `TenantsPage`, which calls `create-tenant-user` with `mode: "invite"` after inserting the tenant.
 
-Package pricing is consistent across all three files (10/30/50 kr. + porto for send, without porto for pickup). No changes needed there.
+## Fix
 
----
+**File: `src/pages/TenantDetailPage.tsx`** — Extend `contactMutation.onSuccess`
 
-### Bugs Found
+After saving the contact info, check if the email actually changed (compare new value to `tenant.contact_email`). If it did and the new email is non-empty:
 
-**1. ShippingPrepPage — missing scan pricing (line 159-165)**
-When `chosen_action = "scan"` and it equals `defaultAction`, returns `"0 kr."` for all tiers. Should return 50/30/0 kr.
+1. Call `create-tenant-user` edge function with the new email, tenant ID, and `mode: "invite"` — this will:
+   - Create a new auth user (or find existing)
+   - Link them via `tenant_users`
+   - Send the branded invitation email
+   - Set `user_id` on the tenant if it was null
+2. Show a success toast confirming the invitation was sent
+3. Invalidate the `tenant-users` query to refresh the Postmodtagere list
+4. If the call fails, show an error toast but keep the contact info save (which already succeeded)
 
-**2. ShippingPrepPage — missing afhentning + scan pricing (line 174)**
-Catch-all `return "0 kr."` when chosen !== default and action is not send. Missing scan (50/30/0) and afhentning (pickup-date-based) pricing.
+The old tenant_user link is intentionally kept — the previous user may still need access (e.g., if this is a secondary contact change). The operator can manually remove old users if needed.
 
-**3. TenantDashboard — Standard scan undercharged (line 187-188)**
-The exception condition only covers `Lite` + scan, not `Standard` + scan. So Standard tenant with `default=scan` who chooses "scan" gets `"0 kr."` instead of `"30 kr."`.
+### Code Change (contactMutation onSuccess)
 
-**4. TenantDashboard — Plus send shows porto (line 196)**
-When `chosen=send` matches `default=send`, Plus falls into the generic `"0 kr. + porto"` instead of `"0 kr."` (Plus gets free porto on mail).
+```typescript
+onSuccess: async () => {
+  queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
+  toast.success(t("tenantDetail.contactInfoSaved"));
 
-### Fix Plan
+  // If email changed, create user + send invitation
+  const oldEmail = tenant?.contact_email ?? "";
+  const newEmail = contactEmail.trim();
+  if (newEmail && newEmail.toLowerCase() !== oldEmail.toLowerCase()) {
+    try {
+      const { error } = await supabase.functions.invoke("create-tenant-user", {
+        body: {
+          email: newEmail,
+          first_name: contactFirstName.trim() || tenant?.company_name || "",
+          last_name: contactLastName.trim() || "",
+          tenant_ids: [id],
+          mode: "invite",
+        },
+      });
+      if (error) throw error;
+      toast.success(t("tenants.welcomeEmailSent", { email: newEmail }));
+      queryClient.invalidateQueries({ queryKey: ["tenant-users", id] });
+    } catch (err: any) {
+      toast.error(t("tenants.couldNotCreateUser") + ": " + (err?.message || err));
+    }
+  }
+},
+```
 
-**File: `src/pages/ShippingPrepPage.tsx`**
-- Add scan pricing in the `chosen === default` block (after send check, before `return "0 kr."`)
-- Add scan and afhentning pricing in the non-default block (before catch-all `return "0 kr."`)
-
-**File: `src/pages/TenantDashboard.tsx`**
-- Extend the exception on line 188 to also cover Standard+scan: `!(chosenAction === "scan" && defaultAction === "scan" && (tenantTypeName === "Lite" || tenantTypeName === "Standard"))`
-- Add Plus check before `return "0 kr. + porto"` on line 196 to return `"0 kr."` for Plus send
-
-**No changes needed for OperatorDashboard** — the recent scan fix made it correct.
+This reuses the exact same invitation flow as tenant creation, ensuring the new email gets a proper auth user, tenant link, and welcome email.
 
