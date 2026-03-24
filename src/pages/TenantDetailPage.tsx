@@ -434,7 +434,7 @@ const TenantDetailPage = () => {
                                 {typeName2}
                               </Badge>
                               <span className="ml-2 text-muted-foreground">
-                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: da })}
+                                pr. {format(new Date(sc.effective_date + "T00:00:00"), "d. MMM yyyy", { locale: dateLocale })}
                               </span>
                             </div>
                             <Button
