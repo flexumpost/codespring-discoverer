@@ -376,7 +376,7 @@ const SettingsPage = () => {
             {/* Multi-tenant selection */}
             {tenants.length > 1 && (
               <div className="space-y-2">
-                <Label>Tilknyt til virksomheder</Label>
+                <Label>{t("settings.assignToCompanies")}</Label>
                 <div className="space-y-2 rounded-md border p-3">
                   {tenants.map((t) => (
                     <div key={t.id} className="flex items-center gap-2">
