@@ -185,7 +185,7 @@ function getItemFee(
   }
 
   if (!chosenAction || (chosenAction === defaultAction &&
-    !(chosenAction === "scan" && defaultAction === "scan" && tenantTypeName === "Lite") &&
+    !(chosenAction === "scan" && defaultAction === "scan" && (tenantTypeName === "Lite" || tenantTypeName === "Standard")) &&
     !(chosenAction === "send" && defaultAction === "send" && tenantTypeName === "Lite"))) {
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
       const pd = parsePickupDate(pickupDateStr, notes);
@@ -193,7 +193,10 @@ function getItemFee(
         return tenantTypeName === "Standard" ? "30 kr." : "50 kr.";
       }
     }
-    if ((chosenAction || defaultAction) === "send") return "0 kr. + porto";
+    if ((chosenAction || defaultAction) === "send") {
+      if (tenantTypeName === "Plus") return "0 kr.";
+      return "0 kr. + porto";
+    }
     return "0 kr.";
   }
   if (tenantTypeName === "Plus") {
