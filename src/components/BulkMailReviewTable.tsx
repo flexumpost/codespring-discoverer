@@ -1,7 +1,7 @@
+import { useTranslation } from "react-i18next";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Loader2, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
@@ -36,6 +36,7 @@ const statusIcon = {
 };
 
 export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem }: BulkMailReviewTableProps) {
+  const { t } = useTranslation();
   if (items.length === 0) return null;
 
   return (
@@ -43,13 +44,13 @@ export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px]">Foto</TableHead>
-            <TableHead>Forsendelsesnr.</TableHead>
-            <TableHead>Modtager</TableHead>
-            <TableHead>Afsender</TableHead>
-            <TableHead>Lejer</TableHead>
-            <TableHead className="w-[110px]">Type</TableHead>
-            <TableHead className="w-[50px]">Status</TableHead>
+            <TableHead className="w-[60px]">{t("bulkReview.photo")}</TableHead>
+            <TableHead>{t("bulkReview.stampNumber")}</TableHead>
+            <TableHead>{t("bulkReview.recipient")}</TableHead>
+            <TableHead>{t("bulkReview.sender")}</TableHead>
+            <TableHead>{t("bulkReview.tenant")}</TableHead>
+            <TableHead className="w-[110px]">{t("bulkReview.type")}</TableHead>
+            <TableHead className="w-[50px]">{t("bulkReview.status")}</TableHead>
             <TableHead className="w-[40px]" />
           </TableRow>
         </TableHeader>
@@ -57,86 +58,48 @@ export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem
           {items.map((item, idx) => (
             <TableRow key={idx}>
               <TableCell>
-                <img
-                  src={item.preview}
-                  alt="Thumbnail"
-                  className="h-10 w-10 rounded object-cover"
-                />
+                <img src={item.preview} alt="Thumbnail" className="h-10 w-10 rounded object-cover" />
               </TableCell>
               <TableCell>
-                <Input
-                  value={item.stampNumber}
-                  onChange={(e) => onUpdateItem(idx, { stampNumber: e.target.value })}
-                  placeholder="Nr."
-                  className="h-8 w-28"
-                />
+                <Input value={item.stampNumber} onChange={(e) => onUpdateItem(idx, { stampNumber: e.target.value })} placeholder="Nr." className="h-8 w-28" />
               </TableCell>
               <TableCell>
-                <Input
-                  value={item.recipientName}
-                  onChange={(e) => onUpdateItem(idx, { recipientName: e.target.value })}
-                  placeholder="Modtager"
-                  className="h-8 w-36"
-                />
+                <Input value={item.recipientName} onChange={(e) => onUpdateItem(idx, { recipientName: e.target.value })} placeholder={t("bulkReview.recipient")} className="h-8 w-36" />
               </TableCell>
               <TableCell>
-                <Input
-                  value={item.senderName}
-                  onChange={(e) => onUpdateItem(idx, { senderName: e.target.value })}
-                  placeholder="Afsender"
-                  className="h-8 w-36"
-                />
+                <Input value={item.senderName} onChange={(e) => onUpdateItem(idx, { senderName: e.target.value })} placeholder={t("bulkReview.sender")} className="h-8 w-36" />
               </TableCell>
               <TableCell>
                 <Select
                   value={item.tenantId ?? "none"}
                   onValueChange={(val) => {
                     const tenant = tenants.find((t) => t.id === val);
-                    onUpdateItem(idx, {
-                      tenantId: val === "none" ? null : val,
-                      tenantName: tenant?.company_name ?? "",
-                    });
+                    onUpdateItem(idx, { tenantId: val === "none" ? null : val, tenantName: tenant?.company_name ?? "" });
                   }}
                 >
-                  <SelectTrigger className="h-8 w-40">
-                    <SelectValue placeholder="Vælg lejer" />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-8 w-40"><SelectValue placeholder={t("bulkReview.selectTenant")} /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">— Ikke tildelt —</SelectItem>
+                    <SelectItem value="none">{t("bulkReview.notAssigned")}</SelectItem>
                     {tenants.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.company_name}
-                      </SelectItem>
+                      <SelectItem key={t.id} value={t.id}>{t.company_name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </TableCell>
               <TableCell>
-                <Select
-                  value={item.mailType}
-                  onValueChange={(val) => onUpdateItem(idx, { mailType: val as MailType })}
-                >
-                  <SelectTrigger className="h-8 w-24">
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={item.mailType} onValueChange={(val) => onUpdateItem(idx, { mailType: val as MailType })}>
+                  <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="brev">Brev</SelectItem>
-                    <SelectItem value="pakke">Pakke</SelectItem>
+                    <SelectItem value="brev">{t("common.letter")}</SelectItem>
+                    <SelectItem value="pakke">{t("common.package")}</SelectItem>
                   </SelectContent>
                 </Select>
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-1" title={item.errorMsg}>
-                  {statusIcon[item.status]}
-                </div>
+                <div className="flex items-center gap-1" title={item.errorMsg}>{statusIcon[item.status]}</div>
               </TableCell>
               <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onRemoveItem(idx)}
-                >
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onRemoveItem(idx)}>
                   <X className="h-4 w-4" />
                 </Button>
               </TableCell>
