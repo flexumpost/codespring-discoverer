@@ -143,7 +143,7 @@ const ShippingAddressPage = () => {
                     onCheckedChange={(checked) => handleSyncToggle(!!checked)}
                   />
                   <Label htmlFor="same_address" className="cursor-pointer font-normal">
-                    Samme forsendelsesadresse som {referenceTenant!.company_name}
+                    {t("shipping.sameAddressAs", { name: referenceTenant!.company_name })}
                   </Label>
                 </div>
               )}
