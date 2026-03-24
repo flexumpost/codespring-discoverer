@@ -148,16 +148,16 @@ const ShippingAddressPage = () => {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="shipping_recipient">Modtager navn *</Label>
-                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder="Modtager navn" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_recipient">{t("shipping.recipientName")}</Label>
+                <Input id="shipping_recipient" value={shippingRecipient} onChange={(e) => setShippingRecipient(e.target.value)} placeholder={t("shipping.recipientPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_co">c/o navn</Label>
-                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder="c/o (valgfrit)" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_co">{t("shipping.coName")}</Label>
+                <Input id="shipping_co" value={shippingCo} onChange={(e) => setShippingCo(e.target.value)} placeholder={t("shipping.coPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="shipping_address">Adresse *</Label>
-                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder="Gadenavn og nummer" disabled={fieldsDisabled} />
+                <Label htmlFor="shipping_address">{t("shipping.address")}</Label>
+                <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("shipping.addressPlaceholder")} disabled={fieldsDisabled} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
