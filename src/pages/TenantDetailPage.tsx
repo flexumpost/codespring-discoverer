@@ -497,26 +497,26 @@ const TenantDetailPage = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kontaktoplysninger</CardTitle>
+                <CardTitle className="text-base">{t("tenantDetail.contactInfo")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contact_first_name">Fornavn</Label>
-                    <Input id="contact_first_name" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder="Fornavn" />
+                    <Label htmlFor="contact_first_name">{t("tenants.firstName")}</Label>
+                    <Input id="contact_first_name" value={contactFirstName} onChange={(e) => setContactFirstName(e.target.value)} placeholder={t("tenants.firstName")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contact_last_name">Efternavn</Label>
-                    <Input id="contact_last_name" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder="Efternavn" />
+                    <Label htmlFor="contact_last_name">{t("tenants.lastName")}</Label>
+                    <Input id="contact_last_name" value={contactLastName} onChange={(e) => setContactLastName(e.target.value)} placeholder={t("tenants.lastName")} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="contact_email">Kontakt-email</Label>
-                  <Input id="contact_email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="email@eksempel.dk" />
+                  <Label htmlFor="contact_email">{t("tenantDetail.contactEmail")}</Label>
+                  <Input id="contact_email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder={t("tenants.emailPlaceholder")} />
                 </div>
                 <Button onClick={() => contactMutation.mutate()} disabled={!contactChanged || contactMutation.isPending}>
                   <Save className="mr-2 h-4 w-4" />
-                  {contactMutation.isPending ? "Gemmer..." : "Gem"}
+                  {contactMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
                 {tenant.contact_email && tenant.user_id && (
                   <ResendInviteButton tenantId={tenant.id} />
