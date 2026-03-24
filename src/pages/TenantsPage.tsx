@@ -367,7 +367,7 @@ const TenantsPage = () => {
               {filteredTenants.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    {tenants.length === 0 ? "Ingen lejere fundet" : "Ingen lejere matcher søgningen"}
+                    {tenants.length === 0 ? t("tenants.noTenantsFound") : t("tenants.noTenantsMatch")}
                   </TableCell>
                 </TableRow>
               )}
