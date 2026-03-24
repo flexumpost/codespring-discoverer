@@ -344,30 +344,30 @@ const TenantDetailPage = () => {
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate(`/tenants/${id}/dashboard`)}>
               <Eye className="mr-2 h-4 w-4" />
-              Vis som lejer
+              {t("tenantDetail.viewAsTenant")}
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" size="sm">
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Slet konto
+                  {t("tenantDetail.deleteAccount")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Slet {tenant.company_name}?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("tenantDetail.deleteConfirmTitle", { name: tenant.company_name })}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Er du sikker på at du vil slette <strong>{tenant.company_name}</strong>? Alle data inkl. posthistorik og brugerkonti tilknyttet denne lejer vil blive permanent slettet. Denne handling kan ikke fortrydes.
+                    <span dangerouslySetInnerHTML={{ __html: t("tenantDetail.deleteConfirmDesc", { name: tenant.company_name }) }} />
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Annuller</AlertDialogCancel>
+                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => deleteMutation.mutate()}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     disabled={deleteMutation.isPending}
                   >
-                    {deleteMutation.isPending ? "Sletter..." : "Ja, slet permanent"}
+                    {deleteMutation.isPending ? t("common.deleting") : t("tenantDetail.deletePermanently")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
