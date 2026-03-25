@@ -15,6 +15,10 @@ function calculateFee(
 ): { amountKr: number; amountText: string } {
   const tier = tierName ?? "";
 
+  // Normalize operator action names to fee-equivalent names
+  if (chosenAction === "under_forsendelse") chosenAction = "send";
+  if (chosenAction === "afhentet") chosenAction = "afhentning";
+
   // No chosen action → use default action
   if (!chosenAction) {
     if (!defaultAction) return { amountKr: 0, amountText: "0 kr." };
