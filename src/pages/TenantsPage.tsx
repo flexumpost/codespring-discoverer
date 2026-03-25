@@ -481,6 +481,9 @@ const TenantsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {showPrint && (
+        <EnvelopePrint groups={printGroups} onAfterPrint={() => setShowPrint(false)} />
+      )}
     </AppLayout>
   );
 };
