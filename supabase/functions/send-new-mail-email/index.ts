@@ -94,6 +94,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch extra recipient emails from tenant_users → profiles
+    const { data: tenantUsers } = await supabaseAdmin
+      .from("tenant_users")
+      .select("user_id")
+      .eq("tenant_id", tenant_id);
+
+    const extraEmails: string[] = [];
+    if (tenantUsers?.length) {
+      const userIds = tenantUsers.map((tu: { user_id: string }) => tu.user_id);
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("email")
+        .in("id", userIds);
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.email && p.email !== tenant.contact_email) {
+            extraEmails.push(p.email);
+          }
+        }
+      }
+    }
+
     // Determine slug: welcome_shipment for new tenants, otherwise provided or default
     const slug = is_new_tenant ? "welcome_shipment" : (template_slug || "new_shipment");
 
