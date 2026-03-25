@@ -2,36 +2,27 @@
 
 ## Problem
 
-`getMailRowColor()` only considers `item.chosen_action` when determining row color. Items that rely on the tenant's **default action** (e.g., `default_mail_action = "scan"`) have `chosen_action = null`, so they fall through to the yellow "Ny/afventer" catch-all — even though they should show as "Bestilt scanning" (blue).
+Når et login-/invitationslink er udløbet, viser `SetPasswordPage` blot en generisk fejlbesked ("Linket er ugyldigt eller udløbet. Prøv igen.") som en toast-notifikation. Brugeren sidder fast på en loading-tilstand uden klar vejledning om, hvad de skal gøre.
 
-This affects items 2908, 2892, etc. that display "Standard scanning..." but appear yellow instead of blue.
+## Løsning
 
-## Fix
+Vis en tydelig fejlside med en forklaring og vejledning, når `setSession` fejler (udløbet token), i stedet for blot en toast.
 
-**File: `src/lib/mailRowColor.ts`** — Add an optional `effectiveAction` parameter that callers can pass (computed from `chosen_action ?? default action`). When `chosen_action` is null, the function will use `effectiveAction` for color determination.
+### Ændringer
 
-Update the function signature:
-```typescript
-export function getMailRowColor(item: {
-  status: MailStatus;
-  chosen_action: string | null;
-  scan_url: string | null;
-  tenant_id: string | null;
-  effectiveAction?: string | null;  // NEW: chosen_action ?? default action
-}): string
-```
+**1. `src/pages/SetPasswordPage.tsx`**
+- Tilføj en `linkExpired` state (boolean).
+- Når `setSession` fejler (linje 33-34), sæt `linkExpired = true` i stedet for kun at vise en toast.
+- Når `linkExpired` er true, vis en dedikeret besked i card-indholdet:
+  - Overskrift: "Linket er udløbet"
+  - Tekst: "Dit login-link er udløbet. Kontakt venligst Flexum Coworking for at få tilsendt et nyt link."
+  - Ingen formular vises – kun beskeden.
 
-Replace all `item.chosen_action` references in the scan/send/pickup checks with `item.effectiveAction ?? item.chosen_action` so that default actions are considered.
+**2. `src/i18n/locales/da.json`** — Tilføj nye oversættelser:
+- `setPassword.linkExpired`: "Linket er udløbet"
+- `setPassword.linkExpiredMessage`: "Dit login-link er udløbet. Kontakt venligst Flexum Coworking for at få tilsendt et nyt link."
 
-**File: `src/pages/OperatorDashboard.tsx`** — Compute `effectiveAction` before passing item to `getMailRowColor`:
-```typescript
-const effectiveAction = item.chosen_action 
-  ?? (item.mail_type === "pakke" ? item.tenants?.default_package_action : item.tenants?.default_mail_action) 
-  ?? null;
-getMailRowColor({ ...item, effectiveAction })
-```
-
-**File: `src/pages/TenantDashboard.tsx`** — Same change: compute and pass `effectiveAction`.
-
-This ensures items using default actions get the correct row color (blue for scan, peach for send, pink for pickup, etc.) without breaking items that have an explicit `chosen_action`.
+**3. `src/i18n/locales/en.json`** — Tilføj tilsvarende engelske oversættelser:
+- `setPassword.linkExpired`: "Link expired"
+- `setPassword.linkExpiredMessage`: "Your login link has expired. Please contact Flexum Coworking to request a new link."
 
