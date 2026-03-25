@@ -13,8 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { Plus, Mail } from "lucide-react";
+import { Plus, Mail, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -45,6 +46,7 @@ const TenantsPage = () => {
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnpaid, setFilterUnpaid] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
@@ -57,6 +59,30 @@ const TenantsPage = () => {
       return data;
     },
   });
+
+  const printGroups: EnvelopeGroup[] = useMemo(() => {
+    return tenants
+      .filter((t) => selectedTenantIds.has(t.id))
+      .map((t) => ({
+        addressKey: t.id,
+        companies: [{ name: t.company_name, typeName: (t.tenant_types as any)?.name ?? "Standard" }],
+        shippingRecipient: t.shipping_recipient ?? null,
+        shippingCo: t.shipping_co ?? null,
+        shippingAddress: t.shipping_address ?? null,
+        shippingZip: t.shipping_zip ?? null,
+        shippingCity: t.shipping_city ?? null,
+        shippingState: t.shipping_state ?? null,
+        shippingCountry: t.shipping_country ?? null,
+      }));
+  }, [tenants, selectedTenantIds]);
+
+  const handlePrintEnvelopes = () => {
+    if (selectedTenantIds.size === 0) {
+      toast.error(t("shippingPrep.noneSelectedForPrint"));
+      return;
+    }
+    setShowPrint(true);
+  };
 
   const { data: tenantTypes = [] } = useQuery({
     queryKey: ["tenant-types"],
@@ -205,6 +231,10 @@ const TenantsPage = () => {
           <Button variant="outline" onClick={() => sendWelcomeMutation.mutate(Array.from(selectedTenantIds))} disabled={selectedTenantIds.size === 0 || sendWelcomeMutation.isPending}>
             <Mail className="h-4 w-4 mr-1" />
             {sendWelcomeMutation.isPending ? t("common.sending") : t("tenants.sendWelcomeEmail")}
+          </Button>
+          <Button variant="outline" onClick={handlePrintEnvelopes} disabled={selectedTenantIds.size === 0}>
+            <Printer className="h-4 w-4 mr-1" />
+            {t("shippingPrep.printEnvelope")} {selectedTenantIds.size > 0 ? `(${selectedTenantIds.size})` : ""}
           </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
@@ -451,6 +481,9 @@ const TenantsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {showPrint && (
+        <EnvelopePrint groups={printGroups} onAfterPrint={() => setShowPrint(false)} />
+      )}
     </AppLayout>
   );
 };
