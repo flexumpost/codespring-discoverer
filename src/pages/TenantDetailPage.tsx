@@ -638,6 +638,32 @@ const TenantDetailPage = () => {
                             </div>
                             <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                           </div>
+                          {!isContactPerson && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>{t("settings.deleteRecipientTitle", "Slet postmodtager")}</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {t("settings.deleteRecipientConfirm", "Er du sikker på, at du vil slette denne postmodtager? Handlingen kan ikke fortrydes.")}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteTenantUserMutation.mutate(tu.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    {t("common.delete", "Slet")}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       );
                     })}
