@@ -24,6 +24,18 @@ import { Label } from "@/components/ui/label";
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; has_unpaid_invoice?: boolean; tenant_types?: { name: string } | null } | null };
 
+function getTenantTypeBadgeClass(name: string): string {
+  switch (name.toLowerCase()) {
+    case "lite": return "bg-blue-100 text-blue-800 border-blue-200";
+    case "standard": return "bg-green-100 text-green-800 border-green-200";
+    case "plus": return "bg-[#00aaeb]/15 text-[#006d9e] border-[#00aaeb]/30";
+    case "fastlejer": return "bg-amber-100 text-amber-800 border-amber-200";
+    case "nabo": return "bg-cyan-100 text-cyan-800 border-cyan-200";
+    case "retur til afsender": return "bg-red-100 text-red-800 border-red-200";
+    default: return "bg-muted text-muted-foreground border-border";
+  }
+}
+
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -656,6 +668,11 @@ const OperatorDashboard = () => {
                     {item.tenants?.company_name ? (
                       <span className="text-primary hover:underline">
                         {item.tenants.company_name}
+                        {item.tenants?.tenant_types?.name && (
+                          <Badge className={cn("ml-1.5 text-[10px] px-1.5 py-0 font-medium", getTenantTypeBadgeClass(item.tenants.tenant_types.name))}>
+                            {item.tenants.tenant_types.name}
+                          </Badge>
+                        )}
                         {item.tenants?.has_unpaid_invoice && (
                           <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{t("operatorDashboard.unpaid")}</Badge>
                         )}
