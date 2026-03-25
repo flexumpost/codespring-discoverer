@@ -46,6 +46,31 @@ const TenantsPage = () => {
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnpaid, setFilterUnpaid] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
+
+  const printGroups: EnvelopeGroup[] = useMemo(() => {
+    return tenants
+      .filter((t) => selectedTenantIds.has(t.id))
+      .map((t) => ({
+        addressKey: t.id,
+        companies: [{ name: t.company_name, typeName: (t.tenant_types as any)?.name ?? "Standard" }],
+        shippingRecipient: t.shipping_recipient ?? null,
+        shippingCo: t.shipping_co ?? null,
+        shippingAddress: t.shipping_address ?? null,
+        shippingZip: t.shipping_zip ?? null,
+        shippingCity: t.shipping_city ?? null,
+        shippingState: t.shipping_state ?? null,
+        shippingCountry: t.shipping_country ?? null,
+      }));
+  }, [tenants, selectedTenantIds]);
+
+  const handlePrintEnvelopes = () => {
+    if (selectedTenantIds.size === 0) {
+      toast.error(t("shippingPrep.noneSelectedForPrint"));
+      return;
+    }
+    setShowPrint(true);
+  };
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
