@@ -94,6 +94,28 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch extra recipient emails from tenant_users → profiles
+    const { data: tenantUsers } = await supabaseAdmin
+      .from("tenant_users")
+      .select("user_id")
+      .eq("tenant_id", tenant_id);
+
+    const extraEmails: string[] = [];
+    if (tenantUsers?.length) {
+      const userIds = tenantUsers.map((tu: { user_id: string }) => tu.user_id);
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("email")
+        .in("id", userIds);
+      if (profiles) {
+        for (const p of profiles) {
+          if (p.email && p.email !== tenant.contact_email) {
+            extraEmails.push(p.email);
+          }
+        }
+      }
+    }
+
     // Determine slug: welcome_shipment for new tenants, otherwise provided or default
     const slug = is_new_tenant ? "welcome_shipment" : (template_slug || "new_shipment");
 
@@ -216,7 +238,50 @@ Deno.serve(async (req) => {
       metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: !!is_new_tenant },
     });
 
-    return new Response(JSON.stringify({ ok: true, sent: true }), {
+    // Send to extra tenant_users (standard template, no welcome/magic-link)
+    for (const extraEmail of extraEmails) {
+      try {
+        const extraHtml = await renderAsync(
+          slug === "shipment_dispatched"
+            ? ShipmentDispatchedEmail({ name, subject, bodyHtml, loginUrl, trackingNumber: trackingLabel || undefined, stampNumber: stampLabel || undefined, mailTypeLabel })
+            : NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
+        );
+
+        const extraRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "Flexum <kontakt@flexum.dk>",
+            to: [extraEmail],
+            subject,
+            html: extraHtml,
+            text: plainText,
+          }),
+        });
+
+        const extraBody = await extraRes.json();
+
+        await supabaseAdmin.from("email_send_log").insert({
+          message_id: extraBody.id || crypto.randomUUID(),
+          template_name: slug,
+          recipient_email: extraEmail,
+          status: extraRes.ok ? "sent" : "failed",
+          error_message: extraRes.ok ? null : JSON.stringify(extraBody),
+          metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", extra_recipient: true },
+        });
+
+        if (!extraRes.ok) {
+          console.warn(`Failed to send to extra recipient ${extraEmail}:`, extraBody);
+        }
+      } catch (extraErr) {
+        console.warn(`Error sending to extra recipient ${extraEmail}:`, extraErr);
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, sent: true, extra_recipients: extraEmails.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
