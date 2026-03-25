@@ -329,6 +329,65 @@ export type Database = {
           },
         ]
       }
+      officernd_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          org_slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          org_slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          org_slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      officernd_sync_log: {
+        Row: {
+          amount_text: string | null
+          charge_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          mail_item_id: string
+          status: string
+        }
+        Insert: {
+          amount_text?: string | null
+          charge_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mail_item_id: string
+          status?: string
+        }
+        Update: {
+          amount_text?: string | null
+          charge_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mail_item_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "officernd_sync_log_mail_item_id_fkey"
+            columns: ["mail_item_id"]
+            isOneToOne: false
+            referencedRelation: "mail_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_settings: {
         Row: {
           category: string
