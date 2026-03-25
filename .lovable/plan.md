@@ -1,67 +1,34 @@
 
 
-## Problem
+## Tilføj lejertype-badge i "Lejer"-kolonnen på operatør-dashboardet
 
-E-mailnotifikationer (ny post, scanning klar, forsendelse afsendt osv.) sendes kun til `tenant.contact_email`. Sekundære postmodtagere i `tenant_users`-tabellen modtager in-app notifikationer, men ingen e-mails.
+### Hvad ændres
 
-## Løsning
+I operatør-dashboardet vises lejerens firmanavn allerede i "Lejer"-kolonnen. Vi tilføjer en lille farvekodet badge med lejertypen (Lite, Standard, Plus, Fastlejer, Nabo, Retur) lige efter firmanavnet, så operatøren hurtigt kan se typen uden at klikke.
 
-Udvid `send-new-mail-email` Edge Function til at sende til alle tilknyttede brugere (via `tenant_users` → `profiles`) ud over kontaktpersonen. Undlad welcome-flow for ekstra modtagere (kun kontaktpersonen får magic-link).
+### Tekniske detaljer
 
-### Ændringer
+**File: `src/pages/OperatorDashboard.tsx`** (linje 656-662)
 
-**1. `supabase/functions/send-new-mail-email/index.ts`**
+Efter `{item.tenants.company_name}` og før "Ubetalt"-badgen, indsættes en ny Badge med lejertypen:
 
-Efter at have hentet tenant-data (linje 84-88), hent alle tilknyttede brugere:
-
-```typescript
-// Hent alle tenant_users' emails via profiles
-const { data: tenantUsers } = await supabaseAdmin
-  .from("tenant_users")
-  .select("user_id")
-  .eq("tenant_id", tenant_id);
-
-const extraEmails: string[] = [];
-if (tenantUsers?.length) {
-  const userIds = tenantUsers.map(tu => tu.user_id);
-  const { data: profiles } = await supabaseAdmin
-    .from("profiles")
-    .select("email")
-    .in("id", userIds);
-  if (profiles) {
-    for (const p of profiles) {
-      if (p.email && p.email !== tenant.contact_email) {
-        extraEmails.push(p.email);
-      }
-    }
-  }
-}
+```tsx
+{item.tenants.company_name}
+{item.tenants?.tenant_types?.name && (
+  <Badge className={cn("ml-1.5 text-[10px] px-1.5 py-0", getTenantTypeBadgeClass(item.tenants.tenant_types.name))}>
+    {item.tenants.tenant_types.name}
+  </Badge>
+)}
+{item.tenants?.has_unpaid_invoice && ( ... )}
 ```
 
-Derefter, efter at have sendt til kontaktpersonen (linje 190-217), send **samme e-mail** (med `NewShipmentEmail`-template, ikke welcome-template) til hver ekstra modtager:
+Tilføj en hjælpefunktion `getTenantTypeBadgeClass` der returnerer de korrekte farver baseret på domænereglerne:
+- **Lite**: blå baggrund
+- **Standard**: grøn baggrund
+- **Plus**: #00aaeb baggrund med mørk blå tekst
+- **Fastlejer**: ravgul baggrund
+- **Nabo**: cyan baggrund
+- **Retur til afsender**: rød baggrund
 
-```typescript
-// Send til ekstra postmodtagere (ikke welcome-flow)
-for (const email of extraEmails) {
-  const extraHtml = await renderAsync(
-    slug === "shipment_dispatched"
-      ? ShipmentDispatchedEmail({ name, subject, bodyHtml, loginUrl, ... })
-      : NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
-  );
-  
-  const extraRes = await fetch("https://api.resend.com/emails", { ... to: [email] ... });
-  // Log each send
-  await supabaseAdmin.from("email_send_log").insert({ ... recipient_email: email ... });
-}
-```
-
-Vigtige detaljer:
-- Welcome/magic-link flow (`is_new_tenant`) sendes **kun** til kontaktpersonen — ekstra modtagere får standard `NewShipmentEmail`.
-- Duplikater filtreres fra (kontaktpersonens email springes over i `extraEmails`).
-- Hver afsendelse logges separat i `email_send_log`.
-- Fejl i en ekstra afsendelse logger en advarsel men stopper ikke de øvrige.
-
-### Ingen database-ændringer påkrævet
-
-`tenant_users` og `profiles` tabellerne eksisterer allerede med de nødvendige data. Service-role klienten bruges, så RLS er ikke en begrænsning.
+Ingen database- eller oversættelsesændringer nødvendige — `tenant_types.name` hentes allerede i den eksisterende query.
 
