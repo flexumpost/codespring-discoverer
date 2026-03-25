@@ -148,6 +148,7 @@ const TenantDetailPage = () => {
   const [shippingAddress, setShippingAddress] = useState("");
   const [shippingZip, setShippingZip] = useState("");
   const [shippingCity, setShippingCity] = useState("");
+  const [shippingState, setShippingState] = useState("");
   const [shippingCountry, setShippingCountry] = useState("");
 
   useEffect(() => {
@@ -162,6 +163,7 @@ const TenantDetailPage = () => {
       setShippingAddress(tenant.shipping_address ?? "");
       setShippingZip(tenant.shipping_zip ?? "");
       setShippingCity(tenant.shipping_city ?? "");
+      setShippingState(tenant.shipping_state ?? "");
       setShippingCountry(tenant.shipping_country ?? "");
     }
   }, [tenant]);
@@ -299,6 +301,7 @@ const TenantDetailPage = () => {
           shipping_address: shippingAddress,
           shipping_zip: shippingZip,
           shipping_city: shippingCity,
+          shipping_state: shippingState || null,
           shipping_country: shippingCountry,
         } as any)
         .eq("id", id!);
@@ -346,6 +349,7 @@ const TenantDetailPage = () => {
       shippingAddress !== (tenant.shipping_address ?? "") ||
       shippingZip !== (tenant.shipping_zip ?? "") ||
       shippingCity !== (tenant.shipping_city ?? "") ||
+      shippingState !== (tenant.shipping_state ?? "") ||
       shippingCountry !== (tenant.shipping_country ?? ""));
 
   return (
@@ -572,6 +576,10 @@ const TenantDetailPage = () => {
                     <Label>{t("tenantDetail.city")}</Label>
                     <Input value={shippingCity} onChange={(e) => setShippingCity(e.target.value)} placeholder={t("tenantDetail.city")} />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("shipping.state")}</Label>
+                  <Input value={shippingState} onChange={(e) => setShippingState(e.target.value)} placeholder={t("shipping.statePlaceholder")} />
                 </div>
                 <div className="space-y-2">
                   <Label>{t("tenantDetail.country")}</Label>
