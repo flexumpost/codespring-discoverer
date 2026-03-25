@@ -1,62 +1,61 @@
 
 
-## OfficeRnD-integration: Automatisk overførsel af gebyrer ved arkivering
+## Diagnose: OfficeRnD-sync kører ikke
 
-### Oversigt
-Når en forsendelse arkiveres, beregner systemet automatisk gebyret og opretter en charge i OfficeRnD via deres API. Lejeren mappes til OfficeRnD-medlemmer via e-mail-adresse.
+### Årsag
+Trigger-funktionen `notify_officernd_on_archive()` har **to fejl**:
 
-### Forudsætninger fra brugeren
-1. **OfficeRnD API-credentials** — opret en applikation i OfficeRnD (Settings → Integrations → Applications) for at få `client_id` og `client_secret`
-2. **Organisation-slug** — findes under Settings → My Account i OfficeRnD
-3. Lejernes `contact_email` i denne app skal matche medlemmernes e-mail i OfficeRnD
+1. **Manglende PostgreSQL-konfiguration**: Funktionen bruger `current_setting('app.settings.supabase_url', true)` og `current_setting('app.settings.service_role_key', true)`, men disse config-variabler er **aldrig sat** i databasen — de returnerer begge `NULL`. Derfor kan triggeren ikke konstruere URL'en til edge-funktionen.
 
-### Teknisk plan
+2. **Forkert funktion-navn**: Funktionen kalder `extensions.http_post(...)`, men pg_net's HTTP-funktion hedder `net.http_post(...)` og har et andet parameter-format.
 
-**1. Secrets (3 stk.)**
-- `OFFICERND_CLIENT_ID`
-- `OFFICERND_CLIENT_SECRET`
-- `OFFICERND_ORG_SLUG`
+Resultatet er at triggeren fejler lydløst — den gør intet, og ingen sync-log oprettes.
 
-**2. Ny tabel: `officernd_sync_log`**
-Logger hvert synkroniseringsforsøg for fejlsøgning og idempotens (undgår dobbeltopkrævninger).
+### Løsning
+Opdater trigger-funktionen til at bruge den korrekte `net.http_post`-signatur med hardcoded Supabase-URL (fra projektet) og hente service_role_key fra vault/secrets.
 
-| Kolonne | Type | Beskrivelse |
-|---------|------|-------------|
-| id | uuid | PK |
-| mail_item_id | uuid | FK til mail_items |
-| charge_id | text | OfficeRnD charge-ID |
-| amount_text | text | Gebyrstreng ("30 kr. + porto") |
-| status | text | pending/success/failed |
-| error_message | text | Fejlbesked ved fejl |
-| created_at | timestamptz | Tidsstempel |
+**Ny migration** der erstatter trigger-funktionen:
 
-**3. Ny Edge Function: `sync-officernd-charge`**
-- Modtager `mail_item_id` via POST
-- Henter mail_item med tenant, tenant_type og beregner gebyr (genbruger samme logik som dashboardet)
-- Slår OfficeRnD-medlem op via `GET /members?email={contact_email}`
-- Opretter charge via `POST /charges` med beløb og beskrivelse
-- Logger resultatet i `officernd_sync_log`
-- OAuth2 client credentials flow: henter token fra `https://identity.officernd.com/auth/token`
+```sql
+CREATE OR REPLACE FUNCTION public.notify_officernd_on_archive()
+  RETURNS trigger
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO 'public'
+AS $function$
+DECLARE
+  _enabled boolean;
+  _supabase_url text := 'https://hokiuavxyoymcenqlvly.supabase.co';
+  _service_role_key text;
+BEGIN
+  IF NEW.status <> 'arkiveret' THEN RETURN NEW; END IF;
+  IF OLD.status = 'arkiveret' THEN RETURN NEW; END IF;
 
-**4. Database-trigger på `mail_items`**
-Når `status` ændres til `arkiveret`, kalder triggeren en `pg_net.http_post` til Edge Function med `mail_item_id`. Dette sikrer automatisk synkronisering uden ændringer i frontend-koden.
+  SELECT enabled INTO _enabled FROM public.officernd_settings WHERE id = 1;
+  IF NOT FOUND OR NOT _enabled THEN RETURN NEW; END IF;
 
-**5. Operatør-indstillinger (valgfrit)**
-Tilføj en sektion i Settings-siden hvor operatøren kan:
-- Indtaste OfficeRnD org-slug
-- Se sync-status/log
-- Slå integrationen til/fra
+  -- Get service role key from vault
+  SELECT decrypted_secret INTO _service_role_key
+  FROM vault.decrypted_secrets
+  WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
+  LIMIT 1;
 
-### Flow
-```text
-Mail arkiveres → DB trigger → Edge Function
-  → Beregn gebyr
-  → Find OfficeRnD medlem (via email)
-  → Opret charge i OfficeRnD
-  → Log resultat
+  -- Use correct net.http_post signature
+  PERFORM net.http_post(
+    url := _supabase_url || '/functions/v1/sync-officernd-charge',
+    body := jsonb_build_object('mail_item_id', NEW.id)::jsonb,
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || _service_role_key
+    )::jsonb
+  );
+
+  RETURN NEW;
+END;
+$function$;
 ```
 
-### Begrænsninger
-- Porto-beløbet kendes ikke i systemet (vises som "+ porto") — kun det faste gebyr kan overføres automatisk. Porto skal enten tilføjes manuelt eller som et fast estimat.
-- Lejere uden matchende e-mail i OfficeRnD vil fejle med en logget fejlbesked.
+### Ændringer
+- **1 ny migration**: Erstatter trigger-funktionen med korrekt `net.http_post`-kald og henter service_role_key fra vault i stedet for en ikke-eksisterende PostgreSQL config-variabel.
+- Ingen ændringer i frontend eller edge function kode.
 
