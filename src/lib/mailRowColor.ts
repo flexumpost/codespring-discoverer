@@ -29,7 +29,12 @@ export function getMailRowColor(item: {
     return "bg-orange-200 dark:bg-orange-900/40";
   }
 
-  // 1. Arkiveret (ikke destruer) → grå
+  // 1a. Afhentet + arkiveret → grøn (gennemført afhentning)
+  if (item.status === "arkiveret" && item.chosen_action === "afhentet") {
+    return "bg-green-200 dark:bg-green-900/40";
+  }
+
+  // 1b. Arkiveret (ikke destruer/afhentet) → grå
   if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
     return "bg-gray-200 dark:bg-gray-900/40";
   }
@@ -39,9 +44,14 @@ export function getMailRowColor(item: {
     return "bg-red-200 dark:bg-red-900/40";
   }
 
-  // 3. Færdig (scannet eller læst) → grøn (Scanning gennemført / læst)
-  if (item.scan_url || item.status === "laest") {
+  // 3a. Læst → standard grøn
+  if (item.status === "laest") {
     return "bg-green-200 dark:bg-green-900/40";
+  }
+
+  // 3b. Scannet men ulæst → lysgrøn
+  if (item.scan_url) {
+    return "bg-green-100 dark:bg-green-800/40";
   }
 
   // 3b. Under forsendelse → grøn (Forsendelse gennemført)
