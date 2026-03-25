@@ -16,6 +16,7 @@ const SetPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 

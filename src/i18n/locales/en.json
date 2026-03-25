@@ -105,7 +105,9 @@
     "youAreLoggedIn": "You are now signed in",
     "passwordsMismatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 6 characters",
-    "invalidLink": "The link is invalid or expired. Please try again."
+    "invalidLink": "The link is invalid or expired. Please try again.",
+    "linkExpired": "Link expired",
+    "linkExpiredMessage": "Your login link has expired. Please contact Flexum Coworking to request a new link."
   },
   "notFound": {
     "title": "404",
