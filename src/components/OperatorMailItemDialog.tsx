@@ -58,6 +58,10 @@ export function OperatorMailItemDialog({
   const [changingAction, setChangingAction] = useState(false);
   const [showChangeActionConfirm, setShowChangeActionConfirm] = useState(false);
 
+  const effectiveAction = item.chosen_action
+    ?? (item.mail_type === "pakke" ? item.tenants?.default_package_action : item.tenants?.default_mail_action)
+    ?? null;
+
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
   const isPickedUp = item.chosen_action === "afhentet" && item.status === "arkiveret";
@@ -375,7 +379,7 @@ export function OperatorMailItemDialog({
             </div>
           )}
 
-          {!isFinalized && item.chosen_action && (
+          {!isFinalized && (item.chosen_action || effectiveAction) && (
             <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-2">
               <div className="flex items-center gap-2 mb-1">
                 <HandCoins className="h-4 w-4 text-accent-foreground" />
