@@ -375,7 +375,7 @@ export function OperatorMailItemDialog({
             </div>
           )}
 
-          {!isFinalized && item.chosen_action && (
+          {!isFinalized && (item.chosen_action || effectiveAction) && (
             <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-2">
               <div className="flex items-center gap-2 mb-1">
                 <HandCoins className="h-4 w-4 text-accent-foreground" />
