@@ -54,6 +54,9 @@ export function OperatorMailItemDialog({
   const [operatorAction, setOperatorAction] = useState<string>("");
   const [executingAction, setExecutingAction] = useState(false);
   const [showOperatorActionConfirm, setShowOperatorActionConfirm] = useState(false);
+  const [changeAction, setChangeAction] = useState<string>("");
+  const [changingAction, setChangingAction] = useState(false);
+  const [showChangeActionConfirm, setShowChangeActionConfirm] = useState(false);
 
   const isDestroyed = item.chosen_action === "destruer" && item.status === "arkiveret";
   const isPendingDestruction = item.chosen_action === "destruer" && item.status !== "arkiveret";
@@ -229,6 +232,25 @@ export function OperatorMailItemDialog({
     }
   };
 
+  const handleChangeAction = async () => {
+    setChangingAction(true);
+    const { error } = await supabase
+      .from("mail_items")
+      .update({ chosen_action: changeAction, status: "afventer_handling" as any })
+      .eq("id", item.id);
+    setChangingAction(false);
+    if (error) {
+      toast.error(t("operatorMailItem.couldNotExecute"));
+      console.error(error);
+    } else {
+      toast.success(t("operatorMailItem.actionChanged"));
+      setShowChangeActionConfirm(false);
+      setChangeAction("");
+      onSaved();
+      onOpenChange(false);
+    }
+  };
+
   const operatorActionLabels: Record<string, string> = {
     afhentet: t("operatorMailItem.markAsPickedUp"),
     destruer: t("operatorMailItem.markAsDestroyed"),
@@ -350,6 +372,30 @@ export function OperatorMailItemDialog({
               <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-100" onClick={() => setShowRejectDialog(true)}>
                 {t("operatorMailItem.rejectAction")}
               </Button>
+            </div>
+          )}
+
+          {!isFinalized && item.chosen_action && (
+            <div className="rounded-md border border-accent/30 bg-accent/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <HandCoins className="h-4 w-4 text-accent-foreground" />
+                <span className="text-sm font-medium">{t("operatorMailItem.changeAction")}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{t("operatorMailItem.changeActionDesc")}</p>
+              <div className="flex items-center gap-2">
+                <Select value={changeAction} onValueChange={setChangeAction}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={t("operatorMailItem.selectAction")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scan">{t("operatorMailItem.changeToScan")}</SelectItem>
+                    <SelectItem value="afhentning">{t("operatorMailItem.changeToPickup")}</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" disabled={!changeAction} onClick={() => setShowChangeActionConfirm(true)}>
+                  {t("common.execute")}
+                </Button>
+              </div>
             </div>
           )}
 

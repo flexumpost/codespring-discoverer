@@ -511,7 +511,12 @@
     "destroyDesc": "Forsendelsen markeres som destrueret. Lejeren vil kun kunne arkivere.",
     "sentDesc": "Forsendelsen markeres som sendt. Lejeren vil kun kunne arkivere.",
     "sentReturnDesc": "Forsendelsen markeres som sendt retur til afsender. Lejeren vil kun kunne arkivere.",
-    "areYouSure": "Er du sikker?"
+    "areYouSure": "Er du sikker?",
+    "changeAction": "Ændr handling",
+    "changeActionDesc": "Ændr den valgte handling for denne forsendelse",
+    "changeToScan": "Ændr til scanning",
+    "changeToPickup": "Ændr til afhentning",
+    "actionChanged": "Handling ændret"
   },
   "shippingGuard": {
     "confirmTitle": "Bekræft din forsendelsesadresse",
