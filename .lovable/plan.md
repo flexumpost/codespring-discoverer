@@ -1,34 +1,39 @@
 
 
-## Tilføj lejertype-badge i "Lejer"-kolonnen på operatør-dashboardet
+## Analyse og plan
 
-### Hvad ændres
+### Problem 1: Afhentet forsendelse er grå, skal være grøn
+Når en forsendelse afhentes, sættes `chosen_action = "afhentet"` og `status = "arkiveret"`. I den nuværende logik fanges dette af regel 1 (linje 33): `arkiveret && chosen_action !== "destruer"` → **grå**. Ifølge det nye farveskema skal afhentede forsendelser være **grønne** (gennemført handling).
 
-I operatør-dashboardet vises lejerens firmanavn allerede i "Lejer"-kolonnen. Vi tilføjer en lille farvekodet badge med lejertypen (Lite, Standard, Plus, Fastlejer, Nabo, Retur) lige efter firmanavnet, så operatøren hurtigt kan se typen uden at klikke.
+### Problem 2: Scanning-farver er ens for ulæst og læst
+Aktuelt giver linje 43-44 **samme** grønne farve (`bg-green-200`) til både scannede-men-ulæste (`scan_url` sat) og læste (`status === "laest"`). Ifølge det nye skema skal:
+- **Ulæst scanning** (har `scan_url`, status IKKE `laest`) → **lysgrøn** (`bg-green-100`)
+- **Læst scanning** (`status === "laest"`) → **standard grøn** (`bg-green-200`)
 
-### Tekniske detaljer
+### Ændringer
 
-**File: `src/pages/OperatorDashboard.tsx`** (linje 656-662)
+**File: `src/lib/mailRowColor.ts`**
 
-Efter `{item.tenants.company_name}` og før "Ubetalt"-badgen, indsættes en ny Badge med lejertypen:
+1. **Tilføj ny regel før arkiveret-reglen** (før linje 33): Fang `chosen_action === "afhentet" && status === "arkiveret"` → `bg-green-200` (grøn).
 
-```tsx
-{item.tenants.company_name}
-{item.tenants?.tenant_types?.name && (
-  <Badge className={cn("ml-1.5 text-[10px] px-1.5 py-0", getTenantTypeBadgeClass(item.tenants.tenant_types.name))}>
-    {item.tenants.tenant_types.name}
-  </Badge>
-)}
-{item.tenants?.has_unpaid_invoice && ( ... )}
+2. **Opdel scanning-reglen** (linje 42-45) i to:
+   - `status === "laest"` → `bg-green-200` (standard grøn — læst)
+   - `scan_url && status !== "laest"` → `bg-green-100` (lysgrøn — scannet men ulæst)
+
+Prioritetsrækkefølge efter ændring:
+```text
+sendt_med_dao/postnord → grøn
+sendt_retur            → orange
+afhentet + arkiveret   → grøn       ← NY
+arkiveret (ikke destruer/afhentet) → grå
+destruer               → rød
+læst                   → grøn (standard)
+scannet (ulæst)        → lysgrøn    ← ÆNDRET
+under_forsendelse      → grøn
+bestilt scanning       → blå
+bestilt forsendelse    → peach
+bestilt afhentning     → pink
+ikke tildelt           → gul
+ny/afventer            → gul
 ```
-
-Tilføj en hjælpefunktion `getTenantTypeBadgeClass` der returnerer de korrekte farver baseret på domænereglerne:
-- **Lite**: blå baggrund
-- **Standard**: grøn baggrund
-- **Plus**: #00aaeb baggrund med mørk blå tekst
-- **Fastlejer**: ravgul baggrund
-- **Nabo**: cyan baggrund
-- **Retur til afsender**: rød baggrund
-
-Ingen database- eller oversættelsesændringer nødvendige — `tenant_types.name` hentes allerede i den eksisterende query.
 
