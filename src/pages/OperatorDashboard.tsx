@@ -276,6 +276,11 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
       if (defAction === "destruer") return "0 kr.";
       return "—";
     }
+    if (defAction === "send" || defAction === "forsendelse") {
+      if (tier === "Lite") return "50 kr. + porto";
+      if (tier === "Standard") return "0 kr. + porto";
+      return "0 kr.";
+    }
     return "0 kr.";
   }
   if (item.chosen_action === "standard_forsendelse") {
