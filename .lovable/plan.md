@@ -2,60 +2,36 @@
 
 ## Problem
 
-When an operator changes a tenant's `contact_email` on the detail page (`/tenants/:id`), the `contactMutation` only updates the `tenants` table. It does NOT:
-1. Create a new auth user for the new email address
-2. Link the new user to the tenant via `tenant_users`
-3. Send an invitation/welcome email to the new address
+`getMailRowColor()` only considers `item.chosen_action` when determining row color. Items that rely on the tenant's **default action** (e.g., `default_mail_action = "scan"`) have `chosen_action = null`, so they fall through to the yellow "Ny/afventer" catch-all — even though they should show as "Bestilt scanning" (blue).
 
-This is unlike tenant creation on `TenantsPage`, which calls `create-tenant-user` with `mode: "invite"` after inserting the tenant.
+This affects items 2908, 2892, etc. that display "Standard scanning..." but appear yellow instead of blue.
 
 ## Fix
 
-**File: `src/pages/TenantDetailPage.tsx`** — Extend `contactMutation.onSuccess`
+**File: `src/lib/mailRowColor.ts`** — Add an optional `effectiveAction` parameter that callers can pass (computed from `chosen_action ?? default action`). When `chosen_action` is null, the function will use `effectiveAction` for color determination.
 
-After saving the contact info, check if the email actually changed (compare new value to `tenant.contact_email`). If it did and the new email is non-empty:
-
-1. Call `create-tenant-user` edge function with the new email, tenant ID, and `mode: "invite"` — this will:
-   - Create a new auth user (or find existing)
-   - Link them via `tenant_users`
-   - Send the branded invitation email
-   - Set `user_id` on the tenant if it was null
-2. Show a success toast confirming the invitation was sent
-3. Invalidate the `tenant-users` query to refresh the Postmodtagere list
-4. If the call fails, show an error toast but keep the contact info save (which already succeeded)
-
-The old tenant_user link is intentionally kept — the previous user may still need access (e.g., if this is a secondary contact change). The operator can manually remove old users if needed.
-
-### Code Change (contactMutation onSuccess)
-
+Update the function signature:
 ```typescript
-onSuccess: async () => {
-  queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
-  toast.success(t("tenantDetail.contactInfoSaved"));
-
-  // If email changed, create user + send invitation
-  const oldEmail = tenant?.contact_email ?? "";
-  const newEmail = contactEmail.trim();
-  if (newEmail && newEmail.toLowerCase() !== oldEmail.toLowerCase()) {
-    try {
-      const { error } = await supabase.functions.invoke("create-tenant-user", {
-        body: {
-          email: newEmail,
-          first_name: contactFirstName.trim() || tenant?.company_name || "",
-          last_name: contactLastName.trim() || "",
-          tenant_ids: [id],
-          mode: "invite",
-        },
-      });
-      if (error) throw error;
-      toast.success(t("tenants.welcomeEmailSent", { email: newEmail }));
-      queryClient.invalidateQueries({ queryKey: ["tenant-users", id] });
-    } catch (err: any) {
-      toast.error(t("tenants.couldNotCreateUser") + ": " + (err?.message || err));
-    }
-  }
-},
+export function getMailRowColor(item: {
+  status: MailStatus;
+  chosen_action: string | null;
+  scan_url: string | null;
+  tenant_id: string | null;
+  effectiveAction?: string | null;  // NEW: chosen_action ?? default action
+}): string
 ```
 
-This reuses the exact same invitation flow as tenant creation, ensuring the new email gets a proper auth user, tenant link, and welcome email.
+Replace all `item.chosen_action` references in the scan/send/pickup checks with `item.effectiveAction ?? item.chosen_action` so that default actions are considered.
+
+**File: `src/pages/OperatorDashboard.tsx`** — Compute `effectiveAction` before passing item to `getMailRowColor`:
+```typescript
+const effectiveAction = item.chosen_action 
+  ?? (item.mail_type === "pakke" ? item.tenants?.default_package_action : item.tenants?.default_mail_action) 
+  ?? null;
+getMailRowColor({ ...item, effectiveAction })
+```
+
+**File: `src/pages/TenantDashboard.tsx`** — Same change: compute and pass `effectiveAction`.
+
+This ensures items using default actions get the correct row color (blue for scan, peach for send, pink for pickup, etc.) without breaking items that have an explicit `chosen_action`.
 
