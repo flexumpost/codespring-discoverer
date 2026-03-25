@@ -1,54 +1,31 @@
 
 
-## Udvid OfficeRnD-trigger til at dække alle gebyr-udløsende handlinger
+## Fix: Edge function genkender ikke operator-handlingsnavne
 
-### Problemet
-Triggeren fyrer kun på `status = 'arkiveret'`, men gebyrer opstår ved:
-- **Sendt**: status → `sendt_med_dao` / `sendt_med_postnord`
-- **Afhentet**: status → `arkiveret` med `chosen_action = 'afhentet'`
-- **Scannet**: `scan_url` sættes (status → `ulaest`)
+### Problem
+Når operatøren behandler post, sætter UI'et `chosen_action` til operatør-specifikke værdier:
+- **Sendt**: `chosen_action = "under_forsendelse"` (UI forventer `"send"`)
+- **Afhentet**: `chosen_action = "afhentet"` (UI forventer `"afhentning"`)
+
+Edge-funktionens `calculateFee` matcher kun lejer-valgte navne (`"send"`, `"forsendelse"`, `"afhentning"`), så operatør-navnene falder igennem til 0 kr.
 
 ### Løsning
-Én ny migration der erstatter trigger-funktionen med bredere betingelser. Edge-funktionen beregner allerede gebyret og skipper ved 0 kr., så triggeren behøver kun at fyre på de rigtige tidspunkter.
+Tilføj normalisering i edge-funktionens `calculateFee` funktion, så operatør-handlingsnavne mappes til deres gebyr-ækvivalente:
 
-**Trigger fyrer når:**
-
-| Hændelse | Betingelse |
-|----------|-----------|
-| Forsendelse | `NEW.status IN ('sendt_med_dao', 'sendt_med_postnord')` og gammel status var anderledes |
-| Afhentning | `NEW.status = 'arkiveret'` og `NEW.chosen_action = 'afhentet'` |
-| Scanning | `NEW.scan_url IS NOT NULL` og `OLD.scan_url IS NULL` (scan uploadet) |
-
-**Trigger fyrer IKKE ved:**
-- Destruktion (`chosen_action = 'destruer'`) — altid 0 kr.
-- Bruger-arkivering uden afhentning
-- `sendt_retur` — retur til afsender, intet gebyr
-
-### Teknisk detalje
-```sql
--- Pseudologik i trigger-funktionen:
-DECLARE _should_sync boolean := false;
-BEGIN
-  -- Sendt
-  IF NEW.status IN ('sendt_med_dao','sendt_med_postnord') 
-     AND OLD.status IS DISTINCT FROM NEW.status 
-  THEN _should_sync := true; END IF;
-
-  -- Afhentet
-  IF NEW.status = 'arkiveret' AND OLD.status <> 'arkiveret'
-     AND NEW.chosen_action = 'afhentet'
-  THEN _should_sync := true; END IF;
-
-  -- Scannet
-  IF NEW.scan_url IS NOT NULL AND OLD.scan_url IS NULL
-  THEN _should_sync := true; END IF;
-
-  IF NOT _should_sync THEN RETURN NEW; END IF;
-  -- ... check enabled, get key, call edge function
-END;
+```
+under_forsendelse → send
+afhentet → afhentning
 ```
 
-### Ændringer
-- **1 ny migration**: Erstatter `notify_officernd_on_archive()` med udvidet logik
-- Ingen ændringer i edge function (den håndterer allerede alle gebyrberegninger og 0 kr.-skip)
+### Ændring
+**1 fil**: `supabase/functions/sync-officernd-charge/index.ts`
+
+Tilføj normalisering af `chosenAction` i starten af `calculateFee`:
+```typescript
+// Normalize operator action names to fee-equivalent names
+if (chosenAction === "under_forsendelse") chosenAction = "send";
+if (chosenAction === "afhentet") chosenAction = "afhentning";
+```
+
+Ingen database-ændringer nødvendige — triggeren fungerer korrekt. Problemet er udelukkende i edge-funktionens gebyrberegning.
 
