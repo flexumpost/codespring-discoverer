@@ -521,6 +521,21 @@ export function OperatorMailItemDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <AlertDialog open={showChangeActionConfirm} onOpenChange={setShowChangeActionConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{changeAction === "scan" ? t("operatorMailItem.changeToScan") : t("operatorMailItem.changeToPickup")}?</AlertDialogTitle>
+          <AlertDialogDescription>{t("operatorMailItem.changeActionDesc")}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction onClick={handleChangeAction} disabled={changingAction}>
+            {changingAction ? t("common.executing") : t("common.confirm")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }
