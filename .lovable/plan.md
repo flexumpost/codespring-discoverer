@@ -1,61 +1,54 @@
 
 
-## Diagnose: OfficeRnD-sync kører ikke
+## Udvid OfficeRnD-trigger til at dække alle gebyr-udløsende handlinger
 
-### Årsag
-Trigger-funktionen `notify_officernd_on_archive()` har **to fejl**:
-
-1. **Manglende PostgreSQL-konfiguration**: Funktionen bruger `current_setting('app.settings.supabase_url', true)` og `current_setting('app.settings.service_role_key', true)`, men disse config-variabler er **aldrig sat** i databasen — de returnerer begge `NULL`. Derfor kan triggeren ikke konstruere URL'en til edge-funktionen.
-
-2. **Forkert funktion-navn**: Funktionen kalder `extensions.http_post(...)`, men pg_net's HTTP-funktion hedder `net.http_post(...)` og har et andet parameter-format.
-
-Resultatet er at triggeren fejler lydløst — den gør intet, og ingen sync-log oprettes.
+### Problemet
+Triggeren fyrer kun på `status = 'arkiveret'`, men gebyrer opstår ved:
+- **Sendt**: status → `sendt_med_dao` / `sendt_med_postnord`
+- **Afhentet**: status → `arkiveret` med `chosen_action = 'afhentet'`
+- **Scannet**: `scan_url` sættes (status → `ulaest`)
 
 ### Løsning
-Opdater trigger-funktionen til at bruge den korrekte `net.http_post`-signatur med hardcoded Supabase-URL (fra projektet) og hente service_role_key fra vault/secrets.
+Én ny migration der erstatter trigger-funktionen med bredere betingelser. Edge-funktionen beregner allerede gebyret og skipper ved 0 kr., så triggeren behøver kun at fyre på de rigtige tidspunkter.
 
-**Ny migration** der erstatter trigger-funktionen:
+**Trigger fyrer når:**
 
+| Hændelse | Betingelse |
+|----------|-----------|
+| Forsendelse | `NEW.status IN ('sendt_med_dao', 'sendt_med_postnord')` og gammel status var anderledes |
+| Afhentning | `NEW.status = 'arkiveret'` og `NEW.chosen_action = 'afhentet'` |
+| Scanning | `NEW.scan_url IS NOT NULL` og `OLD.scan_url IS NULL` (scan uploadet) |
+
+**Trigger fyrer IKKE ved:**
+- Destruktion (`chosen_action = 'destruer'`) — altid 0 kr.
+- Bruger-arkivering uden afhentning
+- `sendt_retur` — retur til afsender, intet gebyr
+
+### Teknisk detalje
 ```sql
-CREATE OR REPLACE FUNCTION public.notify_officernd_on_archive()
-  RETURNS trigger
-  LANGUAGE plpgsql
-  SECURITY DEFINER
-  SET search_path TO 'public'
-AS $function$
-DECLARE
-  _enabled boolean;
-  _supabase_url text := 'https://hokiuavxyoymcenqlvly.supabase.co';
-  _service_role_key text;
+-- Pseudologik i trigger-funktionen:
+DECLARE _should_sync boolean := false;
 BEGIN
-  IF NEW.status <> 'arkiveret' THEN RETURN NEW; END IF;
-  IF OLD.status = 'arkiveret' THEN RETURN NEW; END IF;
+  -- Sendt
+  IF NEW.status IN ('sendt_med_dao','sendt_med_postnord') 
+     AND OLD.status IS DISTINCT FROM NEW.status 
+  THEN _should_sync := true; END IF;
 
-  SELECT enabled INTO _enabled FROM public.officernd_settings WHERE id = 1;
-  IF NOT FOUND OR NOT _enabled THEN RETURN NEW; END IF;
+  -- Afhentet
+  IF NEW.status = 'arkiveret' AND OLD.status <> 'arkiveret'
+     AND NEW.chosen_action = 'afhentet'
+  THEN _should_sync := true; END IF;
 
-  -- Get service role key from vault
-  SELECT decrypted_secret INTO _service_role_key
-  FROM vault.decrypted_secrets
-  WHERE name = 'SUPABASE_SERVICE_ROLE_KEY'
-  LIMIT 1;
+  -- Scannet
+  IF NEW.scan_url IS NOT NULL AND OLD.scan_url IS NULL
+  THEN _should_sync := true; END IF;
 
-  -- Use correct net.http_post signature
-  PERFORM net.http_post(
-    url := _supabase_url || '/functions/v1/sync-officernd-charge',
-    body := jsonb_build_object('mail_item_id', NEW.id)::jsonb,
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || _service_role_key
-    )::jsonb
-  );
-
-  RETURN NEW;
+  IF NOT _should_sync THEN RETURN NEW; END IF;
+  -- ... check enabled, get key, call edge function
 END;
-$function$;
 ```
 
 ### Ændringer
-- **1 ny migration**: Erstatter trigger-funktionen med korrekt `net.http_post`-kald og henter service_role_key fra vault i stedet for en ikke-eksisterende PostgreSQL config-variabel.
-- Ingen ændringer i frontend eller edge function kode.
+- **1 ny migration**: Erstatter `notify_officernd_on_archive()` med udvidet logik
+- Ingen ændringer i edge function (den håndterer allerede alle gebyrberegninger og 0 kr.-skip)
 
