@@ -232,6 +232,10 @@ const TenantsPage = () => {
             <Mail className="h-4 w-4 mr-1" />
             {sendWelcomeMutation.isPending ? t("common.sending") : t("tenants.sendWelcomeEmail")}
           </Button>
+          <Button variant="outline" onClick={handlePrintEnvelopes} disabled={selectedTenantIds.size === 0}>
+            <Printer className="h-4 w-4 mr-1" />
+            {t("shippingPrep.printEnvelope")} {selectedTenantIds.size > 0 ? `(${selectedTenantIds.size})` : ""}
+          </Button>
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
             {t("tenants.createNewTenant")}
