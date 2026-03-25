@@ -129,6 +129,11 @@ function getShippingFee(item: MailItemWithTenant): string {
       if (defaultAction === "destruer") return "0 kr.";
       return "—";
     }
+    if (defaultAction === "send" || defaultAction === "forsendelse") {
+      if (tier === "Lite") return "50 kr. + porto";
+      if (tier === "Standard") return "0 kr. + porto";
+      return "0 kr.";
+    }
     return "0 kr.";
   }
 
