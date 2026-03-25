@@ -1,46 +1,32 @@
 
 
-## Problem
+## Rettelse: Lite-lejere betaler 0 kr. + porto ved standardforsendelse
 
-Når en Standard-lejer har `send` som standardhandling for breve, viser både operatør-dashboardet og forsendelsessiden gebyret som **"0 kr."** i stedet for **"0 kr. + porto"**. Fejlen skyldes at fallback-logikken for breve (når `chosen_action` er null) ikke differentierer baseret på standardhandlingen — den returnerer altid `"0 kr."`.
+### Problem
+Den nuværende fallback-logik for breve (når `chosen_action` er null og standardhandlingen er `send`) returnerer "50 kr. + porto" for Lite-lejere. Men dette er forkert — fallback-casen repræsenterer netop **standardforsendelsesdagen** (første torsdag i måneden for Lite), som er gratis. De 50 kr. gælder kun ved **ekstra forsendelse** (andre torsdage), som håndteres af den eksplicitte `chosen_action`-logik.
 
-## Ændringer
+### Ændringer
 
-**Begge filer har samme fejl og skal opdateres ens:**
+**Begge filer:**
 
-### 1. `src/pages/OperatorDashboard.tsx` (linje 279)
+**`src/pages/OperatorDashboard.tsx`** (linje 279-283) og **`src/pages/ShippingPrepPage.tsx`** (linje 132-136):
 
-Erstat den generelle `return "0 kr."` med logik der tjekker om standardhandlingen er `send`:
-
-```typescript
-// Nuværende (linje 279):
-return "0 kr.";
-
-// Nyt:
-if (defAction === "send" || defAction === "forsendelse") {
-  if (tier === "Lite") return "50 kr. + porto";
-  if (tier === "Standard") return "0 kr. + porto";
-  return "0 kr.";
-}
-return "0 kr.";
-```
-
-### 2. `src/pages/ShippingPrepPage.tsx` (linje 132)
-
-Samme ændring:
+Ændr Lite-linjen fra `"50 kr. + porto"` til `"0 kr. + porto"`:
 
 ```typescript
-// Nuværende (linje 132):
-return "0 kr.";
+// Fra:
+if (tier === "Lite") return "50 kr. + porto";
+if (tier === "Standard") return "0 kr. + porto";
 
-// Nyt:
-if (defaultAction === "send" || defaultAction === "forsendelse") {
-  if (tier === "Lite") return "50 kr. + porto";
-  if (tier === "Standard") return "0 kr. + porto";
-  return "0 kr.";
-}
-return "0 kr.";
+// Til:
+if (tier === "Lite") return "0 kr. + porto";
+if (tier === "Standard") return "0 kr. + porto";
 ```
 
-Dette sikrer at breve med `send` som standardhandling korrekt viser porto-tillægget, konsistent med den eksisterende logik for eksplicitte `chosen_action`-valg.
+Alternativt kan de to linjer slås sammen til én:
+```typescript
+if (tier === "Lite" || tier === "Standard") return "0 kr. + porto";
+```
+
+Logikken er korrekt fordi: når `chosen_action` er null og standardhandlingen er `send`, betyder det at brevet sendes på den inkluderede forsendelsesdag — altså gratis (+ porto) for både Lite og Standard.
 
