@@ -62,15 +62,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is the tenant owner
+    // Verify caller is the tenant owner OR an operator
     const { data: tenant } = await admin
       .from("tenants")
       .select("user_id")
       .eq("id", tuRow.tenant_id)
       .single();
 
-    if (!tenant || tenant.user_id !== callerId) {
-      return new Response(JSON.stringify({ error: "Kun kontoejer kan slette postmodtagere" }), {
+    const { data: callerIsOperator } = await admin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", callerId)
+      .eq("role", "operator")
+      .limit(1);
+
+    const isOwner = tenant && tenant.user_id === callerId;
+    const isOperator = callerIsOperator && callerIsOperator.length > 0;
+
+    if (!tenant || (!isOwner && !isOperator)) {
+      return new Response(JSON.stringify({ error: "Kun kontoejer eller operatør kan slette postmodtagere" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
