@@ -511,7 +511,12 @@
     "destroyDesc": "The shipment will be marked as destroyed. The tenant can only archive.",
     "sentDesc": "The shipment will be marked as sent. The tenant can only archive.",
     "sentReturnDesc": "The shipment will be marked as sent return to sender. The tenant can only archive.",
-    "areYouSure": "Are you sure?"
+    "areYouSure": "Are you sure?",
+    "changeAction": "Change action",
+    "changeActionDesc": "Change the chosen action for this shipment",
+    "changeToScan": "Change to scanning",
+    "changeToPickup": "Change to pickup",
+    "actionChanged": "Action changed"
   },
   "shippingGuard": {
     "confirmTitle": "Confirm your shipping address",
