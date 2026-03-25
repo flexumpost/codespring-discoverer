@@ -13,8 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { Plus, Mail } from "lucide-react";
+import { Plus, Mail, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
