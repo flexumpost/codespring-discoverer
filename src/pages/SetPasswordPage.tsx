@@ -16,6 +16,7 @@ const SetPasswordPage = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -32,7 +33,7 @@ const SetPasswordPage = () => {
       }).then(({ error }) => {
         if (error) {
           console.error("Failed to set session from hash:", error);
-          toast({ title: t("common.error"), description: t("setPassword.invalidLink"), variant: "destructive" });
+          setLinkExpired(true);
         } else {
           setIsReady(true);
           window.history.replaceState(null, "", window.location.pathname);
@@ -84,11 +85,15 @@ const SetPasswordPage = () => {
           </div>
           <CardTitle className="text-2xl">{t("setPassword.title")}</CardTitle>
           <CardDescription>
-            {isReady ? t("setPassword.subtitle") : t("setPassword.waitingForLink")}
+            {linkExpired ? t("setPassword.linkExpired") : isReady ? t("setPassword.subtitle") : t("setPassword.waitingForLink")}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isReady ? (
+          {linkExpired ? (
+            <div className="text-center space-y-2">
+              <p className="text-muted-foreground">{t("setPassword.linkExpiredMessage")}</p>
+            </div>
+          ) : isReady ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">{t("setPassword.newPassword")}</Label>

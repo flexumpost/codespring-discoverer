@@ -105,7 +105,9 @@
     "youAreLoggedIn": "Du er nu logget ind",
     "passwordsMismatch": "Adgangskoderne matcher ikke",
     "passwordTooShort": "Adgangskoden skal være mindst 6 tegn",
-    "invalidLink": "Linket er ugyldigt eller udløbet. Prøv igen."
+    "invalidLink": "Linket er ugyldigt eller udløbet. Prøv igen.",
+    "linkExpired": "Linket er udløbet",
+    "linkExpiredMessage": "Dit login-link er udløbet. Kontakt venligst Flexum Coworking for at få tilsendt et nyt link."
   },
   "notFound": {
     "title": "404",
