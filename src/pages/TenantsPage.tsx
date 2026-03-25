@@ -48,6 +48,18 @@ const TenantsPage = () => {
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
 
+  const { data: tenants = [], isLoading } = useQuery({
+    queryKey: ["all-tenants"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("*, tenant_types(name)")
+        .order("company_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const printGroups: EnvelopeGroup[] = useMemo(() => {
     return tenants
       .filter((t) => selectedTenantIds.has(t.id))
@@ -71,18 +83,6 @@ const TenantsPage = () => {
     }
     setShowPrint(true);
   };
-
-  const { data: tenants = [], isLoading } = useQuery({
-    queryKey: ["all-tenants"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("*, tenant_types(name)")
-        .order("company_name");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const { data: tenantTypes = [] } = useQuery({
     queryKey: ["tenant-types"],
