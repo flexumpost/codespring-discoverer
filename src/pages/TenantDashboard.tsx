@@ -910,7 +910,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 key={item.id}
                 className={cn(
                   "cursor-pointer hover:bg-muted/50",
-                  getMailRowColor(item),
+                  getMailRowColor({ ...item, effectiveAction: item.chosen_action ?? (item.mail_type === "pakke" ? (selectedTenant as any)?.default_package_action : (selectedTenant as any)?.default_mail_action) ?? null }),
                   hasUnpaidInvoice && "opacity-50 pointer-events-none"
                 )}
                 onClick={() => !hasUnpaidInvoice && handleRowClick(item)}

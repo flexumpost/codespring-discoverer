@@ -630,7 +630,7 @@ const OperatorDashboard = () => {
                 return (
                 <TableRow
                   key={item.id}
-                  className={cn("cursor-pointer", getMailRowColor(item), dragOverItemId === item.id && canDropScan && "ring-2 ring-primary ring-inset bg-primary/5")}
+                  className={cn("cursor-pointer", getMailRowColor({ ...item, effectiveAction: item.chosen_action ?? (item.mail_type === "pakke" ? item.tenants?.default_package_action : item.tenants?.default_mail_action) ?? null }), dragOverItemId === item.id && canDropScan && "ring-2 ring-primary ring-inset bg-primary/5")}
                   onClick={() => setEditItem(item)}
                   onDragOver={(e) => { if (canDropScan) { e.preventDefault(); setDragOverItemId(item.id); } }}
                   onDragLeave={() => setDragOverItemId(null)}

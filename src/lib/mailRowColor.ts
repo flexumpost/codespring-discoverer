@@ -11,7 +11,9 @@ export function getMailRowColor(item: {
   chosen_action: string | null;
   scan_url: string | null;
   tenant_id: string | null;
+  effectiveAction?: string | null;
 }): string {
+  const action = item.effectiveAction ?? item.chosen_action;
   // 0. Sendt med DAO → grøn (Forsendelse gennemført)
   if (item.status === "sendt_med_dao") {
     return "bg-green-200 dark:bg-green-900/40";
@@ -33,7 +35,7 @@ export function getMailRowColor(item: {
   }
 
   // 2. Destruer → rød
-  if (item.chosen_action === "destruer") {
+  if (action === "destruer") {
     return "bg-red-200 dark:bg-red-900/40";
   }
 
@@ -43,14 +45,14 @@ export function getMailRowColor(item: {
   }
 
   // 3b. Under forsendelse → grøn (Forsendelse gennemført)
-  if (item.chosen_action === "under_forsendelse") {
+  if (action === "under_forsendelse") {
     return "bg-green-200 dark:bg-green-900/40";
   }
 
   // 4. Bestilt scanning → blå
   if (
-    item.chosen_action &&
-    ["scan", "standard_scan"].includes(item.chosen_action) &&
+    action &&
+    ["scan", "standard_scan"].includes(action) &&
     !item.scan_url
   ) {
     return "bg-blue-200 dark:bg-blue-900/40";
@@ -58,16 +60,16 @@ export function getMailRowColor(item: {
 
   // 5. Bestilt forsendelse → fersken/peach
   if (
-    item.chosen_action &&
-    ["send", "standard_forsendelse", "daglig"].includes(item.chosen_action)
+    action &&
+    ["send", "standard_forsendelse", "daglig"].includes(action)
   ) {
     return "bg-orange-100 dark:bg-orange-800/40";
   }
 
   // 6. Bestilt afhentning → pink
   if (
-    item.chosen_action &&
-    ["afhentning", "anden_afhentningsdag", "gratis_afhentning"].includes(item.chosen_action)
+    action &&
+    ["afhentning", "anden_afhentningsdag", "gratis_afhentning"].includes(action)
   ) {
     return "bg-pink-200 dark:bg-pink-900/40";
   }
