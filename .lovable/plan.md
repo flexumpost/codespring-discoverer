@@ -1,31 +1,24 @@
 
 
-## Fix: Edge function genkender ikke operator-handlingsnavne
+## Fix: Lejer kan ikke tilgå /settings
 
 ### Problem
-Når operatøren behandler post, sætter UI'et `chosen_action` til operatør-specifikke værdier:
-- **Sendt**: `chosen_action = "under_forsendelse"` (UI forventer `"send"`)
-- **Afhentet**: `chosen_action = "afhentet"` (UI forventer `"afhentning"`)
-
-Edge-funktionens `calculateFee` matcher kun lejer-valgte navne (`"send"`, `"forsendelse"`, `"afhentning"`), så operatør-navnene falder igennem til 0 kr.
+Ruten `/settings` i `App.tsx` har `requiredRole="operator"`, så lejere bliver omdirigeret til `/` når de klikker på Indstillinger. SettingsPage-komponenten håndterer allerede begge roller internt (viser forskellige indhold baseret på `role`).
 
 ### Løsning
-Tilføj normalisering i edge-funktionens `calculateFee` funktion, så operatør-handlingsnavne mappes til deres gebyr-ækvivalente:
+**1 fil**: `src/App.tsx`
 
-```
-under_forsendelse → send
-afhentet → afhentning
-```
-
-### Ændring
-**1 fil**: `supabase/functions/sync-officernd-charge/index.ts`
-
-Tilføj normalisering af `chosenAction` i starten af `calculateFee`:
-```typescript
-// Normalize operator action names to fee-equivalent names
-if (chosenAction === "under_forsendelse") chosenAction = "send";
-if (chosenAction === "afhentet") chosenAction = "afhentning";
+Fjern `requiredRole="operator"` fra `/settings`-ruten, så den bliver:
+```tsx
+<Route
+  path="/settings"
+  element={
+    <ProtectedRoute>
+      <SettingsPage />
+    </ProtectedRoute>
+  }
+/>
 ```
 
-Ingen database-ændringer nødvendige — triggeren fungerer korrekt. Problemet er udelukkende i edge-funktionens gebyrberegning.
+Dette er den eneste ændring der kræves — SettingsPage viser allerede lejer-specifikt indhold når `role === "tenant"`.
 
