@@ -69,7 +69,7 @@ const AppRoutes = () => (
     <Route
       path="/settings"
       element={
-        <ProtectedRoute requiredRole="operator">
+        <ProtectedRoute>
           <SettingsPage />
         </ProtectedRoute>
       }
