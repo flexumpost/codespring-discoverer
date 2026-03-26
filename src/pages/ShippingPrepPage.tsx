@@ -30,8 +30,9 @@ import { useToast } from "@/hooks/use-toast";
 
 function getDefaultShippingDate(): Date {
   const now = new Date();
-  if (isThursday(now)) return startOfDay(now);
-  return startOfDay(nextThursday(now));
+  const dayOfWeek = now.getDay();
+  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+  return startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil));
 }
 
 function getFirstThursdayOfMonth(refDate: Date): Date {
@@ -46,12 +47,13 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
   const today = startOfDay(now);
 
   if (mailType === "pakke" || tenantTypeName.toLowerCase() !== "lite") {
-    if (isThursday(today)) return today;
-    return startOfDay(nextThursday(today));
+    const dayOfWeek = today.getDay();
+    const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+    return startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntil));
   }
 
   const firstThurs = getFirstThursdayOfMonth(now);
-  if (firstThurs >= today) return startOfDay(firstThurs);
+  if (firstThurs > today) return startOfDay(firstThurs);
 
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return startOfDay(getFirstThursdayOfMonth(nextMonth));
