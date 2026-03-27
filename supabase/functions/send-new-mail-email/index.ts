@@ -173,17 +173,22 @@ Deno.serve(async (req) => {
         options: { redirectTo: `${origin}/set-password` },
       });
 
+      let confirmationUrl = loginUrl;
       if (linkError || !linkData?.properties?.action_link) {
         console.error("Failed to generate recovery link:", linkError);
-        // Fall back to login URL if link generation fails
-        html = await renderAsync(
-          WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: loginUrl })
-        );
       } else {
-        html = await renderAsync(
-          WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: linkData.properties.action_link })
-        );
+        confirmationUrl = linkData.properties.action_link;
       }
+
+      console.log("confirmationUrl for welcome_shipment:", confirmationUrl);
+      if (!confirmationUrl || !confirmationUrl.startsWith("http")) {
+        console.error("Invalid confirmationUrl, using fallback:", confirmationUrl);
+        confirmationUrl = loginUrl;
+      }
+
+      html = await renderAsync(
+        WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl })
+      );
     } else if (slug === "shipment_dispatched") {
       html = await renderAsync(
         ShipmentDispatchedEmail({
