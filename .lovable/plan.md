@@ -1,50 +1,58 @@
 
 
-## Fix: ShippingPrepPage viser forsendelser på dagens dato i stedet for næste torsdag
+## Undersøgelse: Manglende link på velkomst-email knappen
 
-### Problem
-Når i dag er torsdag, beregner de to sider forsendelsesdatoen forskelligt:
+### Hvad jeg har fundet
 
-- **OperatorDashboard** (`getNextThursday`): Hvis i dag er torsdag → returnerer **næste** torsdag (7 dage frem)
-- **ShippingPrepPage** (`getNextShippingDateForItem`): Hvis i dag er torsdag → returnerer **i dag**
+Emailen til `matt@sonderandclay.com` blev sendt succesfuldt (bekræftet i email_send_log med status `sent`, template `welcome_shipment`, `is_new_tenant: true`).
 
-Nyregistrerede breve bør ikke sendes samme dag — de skal med næste forsendelsesdag. Operatør-dashboardet har den korrekte logik.
+Flowet var:
+1. Ny lejer oprettet via RegisterMailDialog med `invite_silent` mode (bruger oprettes uden email)
+2. `send-new-mail-email` kaldt med `is_new_tenant: true`
+3. Funktionen finder `tenant.user_id` → forsøger `generateLink({ type: "magiclink" })` for at lave et password-sæt link
+4. Resultatet bruges som `confirmationUrl` i WelcomeShipmentEmail-template
+
+### Sandsynlig årsag
+
+`generateLink` med `type: "magiclink"` returnerer et `action_link` i formatet:
+```
+https://hokiuavxyoymcenqlvly.supabase.co/auth/v1/verify?token=...&type=magiclink&redirect_to=...
+```
+
+Problemet er at denne URL indeholder `&`-tegn og potentielt andre specialtegn. Når den indsættes direkte i HTML via template literal inden i `dangerouslySetInnerHTML`, kan `&` i URL'en forvirre visse email-klienter, da `&` i HTML-attributter teknisk set bør være `&amp;`. Derudover kan et `"` eller `\n` i URL'en bryde `href="..."` attributten.
+
+Et sekundært problem: der er INGEN console.log af den faktiske `confirmationUrl`, hvilket gør debugging umulig.
 
 ### Løsning
-**1 fil**: `src/pages/ShippingPrepPage.tsx`
 
-Opdater `getNextShippingDateForItem` (linje 44-58) så den matcher OperatorDashboard-logikken — hvis i dag er torsdag, returner næste torsdag i stedet for i dag:
+**1 fil**: `supabase/functions/send-new-mail-email/index.ts`
 
+1. **HTML-escape URL'en** før den indsættes i template: Konverter `&` til `&amp;` i href-attributterne
+2. **Tilføj logging** af den genererede `confirmationUrl` for fremtidig debugging
+3. **Tilføj validering** — hvis `action_link` er tom eller ikke starter med `http`, brug fallback
+
+**1 fil**: `supabase/functions/_shared/email-templates/welcome-shipment.tsx`
+
+4. **Escape confirmationUrl** i template-filen, så `&` i URL'en konverteres til `&amp;` i href-attributterne
+
+### Teknisk detalje
+
+I `welcome-shipment.tsx`, ændre URL-indsættelsen:
+```tsx
+// Escape & to &amp; for valid HTML href attributes
+const safeUrl = confirmationUrl.replace(/&/g, '&amp;')
+```
+
+Og bruge `safeUrl` i VML og `<a>` tag'ene.
+
+I `send-new-mail-email/index.ts`, tilføje logging:
 ```typescript
-function getNextShippingDateForItem(tenantTypeName: string, mailType: string): Date {
-  const now = new Date();
-  const today = startOfDay(now);
-
-  if (mailType === "pakke" || tenantTypeName.toLowerCase() !== "lite") {
-    // If today is Thursday, return NEXT Thursday (same as OperatorDashboard)
-    const dayOfWeek = today.getDay();
-    const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
-    return startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntil));
-  }
-
-  // Lite letters: first Thursday of month
-  const firstThurs = getFirstThursdayOfMonth(now);
-  if (firstThurs > today) return startOfDay(firstThurs);
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  return startOfDay(getFirstThursdayOfMonth(nextMonth));
+console.log("confirmationUrl:", confirmationUrl);
+if (!confirmationUrl || !confirmationUrl.startsWith("http")) {
+  console.error("Invalid confirmationUrl, using fallback:", confirmationUrl);
+  confirmationUrl = loginUrl;
 }
 ```
 
-Samme ændring i `getDefaultShippingDate` (linje 31-35) så standarddatoen i kalenderen også peger på næste torsdag:
-
-```typescript
-function getDefaultShippingDate(): Date {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
-  return startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil));
-}
-```
-
-Begge funktioner springer nu over "i dag" hvis det er torsdag, præcis som operatør-dashboardet gør.
+Derefter redeployere edge function.
 
