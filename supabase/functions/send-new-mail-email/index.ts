@@ -94,6 +94,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Fetch mail items for this tenant to include in the email
+    let itemsListHtml = "";
+    const { data: mailItems } = await supabaseAdmin
+      .from("mail_items")
+      .select("stamp_number, sender_name, mail_type")
+      .eq("tenant_id", tenant_id)
+      .eq("status", "ny")
+      .order("created_at", { ascending: false });
+
+    if (mailItems && mailItems.length > 0) {
+      const listItems = mailItems.map((item: { stamp_number: number | null; sender_name: string | null; mail_type: string }) => {
+        const stamp = item.stamp_number ? `#${item.stamp_number}` : "Uden nr.";
+        const sender = item.sender_name ? escapeHtml(item.sender_name) : "Ukendt afsender";
+        const typeLabel = item.mail_type === "pakke" ? "📦" : "✉️";
+        return `<li style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.8;margin:0">${typeLabel} ${stamp} — fra: ${sender}</li>`;
+      }).join("");
+      itemsListHtml = `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:16px 0 8px;font-weight:600">Du har modtaget følgende forsendelser:</p><ul style="margin:0 0 16px;padding-left:20px">${listItems}</ul>`;
+    }
+
     // Fetch extra recipient emails from tenant_users → profiles
     const { data: tenantUsers } = await supabaseAdmin
       .from("tenant_users")
@@ -153,12 +172,14 @@ Deno.serve(async (req) => {
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
       .replace(/\{\{tracking_number\}\}/g, trackingLabel);
 
+    const slug_is_list_eligible = slug === "new_shipment" || slug === "welcome_shipment";
+
     const bodyHtml = bodyRaw
       .replace(/\\n/g, '\n')
       .split(/\n+/)
       .filter((p: string) => p.trim())
       .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
-      .join("");
+      .join("") + (slug_is_list_eligible ? itemsListHtml : "");
 
     const loginUrl = "https://post.flexum.dk/login";
 
