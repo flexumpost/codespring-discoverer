@@ -172,12 +172,14 @@ Deno.serve(async (req) => {
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
       .replace(/\{\{tracking_number\}\}/g, trackingLabel);
 
+    const slug_is_list_eligible = slug === "new_shipment" || slug === "welcome_shipment";
+
     const bodyHtml = bodyRaw
       .replace(/\\n/g, '\n')
       .split(/\n+/)
       .filter((p: string) => p.trim())
       .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
-      .join("");
+      .join("") + (slug_is_list_eligible ? itemsListHtml : "");
 
     const loginUrl = "https://post.flexum.dk/login";
 
