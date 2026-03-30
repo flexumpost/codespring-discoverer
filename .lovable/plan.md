@@ -1,58 +1,49 @@
 
 
-## Undersøgelse: Manglende link på velkomst-email knappen
+## Tilføj liste over forsendelser i e-mails
 
-### Hvad jeg har fundet
-
-Emailen til `matt@sonderandclay.com` blev sendt succesfuldt (bekræftet i email_send_log med status `sent`, template `welcome_shipment`, `is_new_tenant: true`).
-
-Flowet var:
-1. Ny lejer oprettet via RegisterMailDialog med `invite_silent` mode (bruger oprettes uden email)
-2. `send-new-mail-email` kaldt med `is_new_tenant: true`
-3. Funktionen finder `tenant.user_id` → forsøger `generateLink({ type: "magiclink" })` for at lave et password-sæt link
-4. Resultatet bruges som `confirmationUrl` i WelcomeShipmentEmail-template
-
-### Sandsynlig årsag
-
-`generateLink` med `type: "magiclink"` returnerer et `action_link` i formatet:
-```
-https://hokiuavxyoymcenqlvly.supabase.co/auth/v1/verify?token=...&type=magiclink&redirect_to=...
-```
-
-Problemet er at denne URL indeholder `&`-tegn og potentielt andre specialtegn. Når den indsættes direkte i HTML via template literal inden i `dangerouslySetInnerHTML`, kan `&` i URL'en forvirre visse email-klienter, da `&` i HTML-attributter teknisk set bør være `&amp;`. Derudover kan et `"` eller `\n` i URL'en bryde `href="..."` attributten.
-
-Et sekundært problem: der er INGEN console.log af den faktiske `confirmationUrl`, hvilket gør debugging umulig.
+### Problem
+Når en e-mail sendes om ny forsendelse, indeholder den kun template-teksten med ét stempelnummer. Brugeren ønsker en konkret liste over hvilke breve der er modtaget, med forsendelsesnummer og afsender.
 
 ### Løsning
 
-**1 fil**: `supabase/functions/send-new-mail-email/index.ts`
+**Tilgang**: I edge-funktionen henter vi de seneste ubehandlede mail_items for lejeren og bygger en HTML-liste, som indsættes i e-mailen efter template-brødteksten.
 
-1. **HTML-escape URL'en** før den indsættes i template: Konverter `&` til `&amp;` i href-attributterne
-2. **Tilføj logging** af den genererede `confirmationUrl` for fremtidig debugging
-3. **Tilføj validering** — hvis `action_link` er tom eller ikke starter med `http`, brug fallback
+### Ændringer
 
-**1 fil**: `supabase/functions/_shared/email-templates/welcome-shipment.tsx`
+**1. `supabase/functions/send-new-mail-email/index.ts`**
 
-4. **Escape confirmationUrl** i template-filen, så `&` i URL'en konverteres til `&amp;` i href-attributterne
+Efter tenant-opslag (linje ~95), tilføj en query der henter nylige mail_items for denne tenant med status `received` (eller alle fra i dag):
+
+```sql
+SELECT stamp_number, sender_name, mail_type 
+FROM mail_items 
+WHERE tenant_id = $tenant_id AND status = 'received'
+ORDER BY created_at DESC
+```
+
+Byg en HTML-liste fra resultaterne:
+```html
+<p><strong>Du har modtaget følgende forsendelser:</strong></p>
+<ul>
+  <li>#1234 — fra: Firma A</li>
+  <li>#1235 — fra: Firma B</li>
+</ul>
+```
+
+Indsæt denne `itemsListHtml` i `bodyHtml` EFTER template-brødteksten, og send den som del af det eksisterende `bodyHtml`-prop til alle tre email-templates (NewShipmentEmail, WelcomeShipmentEmail).
+
+**2. Email-templates** (`new-shipment.tsx`, `welcome-shipment.tsx`)
+
+Ingen ændringer nødvendige — listen indlejres allerede i `bodyHtml` via `dangerouslySetInnerHTML`.
 
 ### Teknisk detalje
 
-I `welcome-shipment.tsx`, ændre URL-indsættelsen:
-```tsx
-// Escape & to &amp; for valid HTML href attributes
-const safeUrl = confirmationUrl.replace(/&/g, '&amp;')
-```
+- Listen vises kun for `new_shipment` og `welcome_shipment` slugs (ikke for `new_scan` eller `shipment_dispatched`)
+- Hvis der ingen items findes, vises ingen liste
+- Stempelnummer vises som `#1234`, og afsender vises som "fra: [afsender]". Hvis afsender mangler, vises "Ukendt afsender"
+- Listen styles med inline CSS for e-mail-kompatibilitet
 
-Og bruge `safeUrl` i VML og `<a>` tag'ene.
-
-I `send-new-mail-email/index.ts`, tilføje logging:
-```typescript
-console.log("confirmationUrl:", confirmationUrl);
-if (!confirmationUrl || !confirmationUrl.startsWith("http")) {
-  console.error("Invalid confirmationUrl, using fallback:", confirmationUrl);
-  confirmationUrl = loginUrl;
-}
-```
-
-Derefter redeployere edge function.
+### Deployment
+Edge-funktionen `send-new-mail-email` redeployes efter ændringen.
 
