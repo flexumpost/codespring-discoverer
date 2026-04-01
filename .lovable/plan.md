@@ -1,30 +1,56 @@
 
 
-## Fix: Tilføj Letland (LV) til landekode-opslagstabellen
+## Tilføj resterende lande til kuvert-landekoder
 
-### Problem
-`COUNTRY_CODES` i `EnvelopePrint.tsx` indeholder ikke Letland. Når kunden Innels ApS har "Letland" eller "Latvia" som forsendelsesland, returnerer `getCountryCode()` en tom streng, og landekoden "LV" vises ikke på kuverten.
+### Status
+USA (`"usa": "US"`, `"united states": "US"`) er allerede i listen. De fleste vest- og nordeuropæiske lande er dækket. Men flere europæiske lande mangler stadig.
 
-### Løsning
+### Manglende lande at tilføje
 
-**Fil**: `src/components/EnvelopePrint.tsx`, linje 38 (efter Tjekkiet)
-
-Tilføj Letland samt de øvrige baltiske lande og andre manglende EU-lande for at undgå lignende problemer fremover:
+**Fil**: `src/components/EnvelopePrint.tsx` — udvid `COUNTRY_CODES`
 
 ```typescript
-"letland": "LV", "latvia": "LV",
-"litauen": "LT", "lithuania": "LT",
-"estland": "EE", "estonia": "EE",
-"ungarn": "HU", "hungary": "HU",
-"rumænien": "RO", "romania": "RO",
-"bulgarien": "BG", "bulgaria": "BG",
-"kroatien": "HR", "croatia": "HR",
-"slovenien": "SI", "slovenia": "SI",
-"slovakiet": "SK", "slovakia": "SK",
-"luxembourg": "LU",
-"malta": "MT",
-"cypern": "CY", "cyprus": "CY",
+// Balkan / Sydøsteuropa
+"serbien": "RS", "serbia": "RS",
+"montenegro": "ME",
+"bosnien": "BA", "bosnia": "BA", "bosnien-hercegovina": "BA",
+"nordmakedonien": "MK", "north macedonia": "MK", "macedonia": "MK",
+"albanien": "AL", "albania": "AL",
+"kosovo": "XK",
+
+// Østeuropa
+"ukraine": "UA",
+"hviderusland": "BY", "belarus": "BY",
+"moldova": "MD",
+
+// Sydeuropa / småstater
+"tyrkiet": "TR", "turkey": "TR", "türkiye": "TR",
+"monaco": "MC",
+"liechtenstein": "LI",
+"andorra": "AD",
+"san marino": "SM",
+
+// Nordamerika
+"canada": "CA",
+"mexico": "MX",
+
+// Andre almindelige
+"australien": "AU", "australia": "AU",
+"japan": "JP",
+"kina": "CN", "china": "CN",
+"indien": "IN", "india": "IN",
+"brasilien": "BR", "brazil": "BR",
+"sydafrika": "ZA", "south africa": "ZA",
+"sydkorea": "KR", "south korea": "KR",
+"israel": "IL",
+"new zealand": "NZ",
+"singapore": "SG",
+"hong kong": "HK",
+"forenede arabiske emirater": "AE", "united arab emirates": "AE",
+"saudi-arabien": "SA", "saudi arabia": "SA",
+"thailand": "TH",
+"taiwan": "TW",
 ```
 
-Én fil, én ændring. Herefter vil "LV" korrekt vises på kuverter til Letland.
+Én fil, én ændring — tilføjer ~40 nye landekoder (dansk + engelsk) så kuverter til alle gængse destinationer får korrekt landekode.
 
