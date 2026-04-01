@@ -156,6 +156,10 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
   }
   const action = item.chosen_action;
   if (action === "standard_scan") {
+    if (item.scan_url) {
+      const readLabel = item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.unread");
+      return t("statusDisplay.scannedRead", { status: readLabel });
+    }
     const tenantType = item.tenants?.tenant_types?.name;
     const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
     return `${t("statusDisplay.scanOrdered")} ${formatI18nDate(scanDate, t)}`;
