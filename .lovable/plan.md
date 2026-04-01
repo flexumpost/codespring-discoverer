@@ -1,29 +1,30 @@
 
 
-## Fix: "Scanning bestilt" vises for allerede scannede breve
+## Fix: Tilføj Letland (LV) til landekode-opslagstabellen
 
 ### Problem
-Breve med `chosen_action = "standard_scan"` viser altid "Scanning bestilt", selv når de allerede er scannet (har `scan_url` sat). Logikken tjekker aldrig `scan_url` for denne handlingstype.
-
-Til sammenligning håndterer `chosen_action === "scan"` (linje 184-190) det korrekt — den tjekker `scan_url` først og viser "Scannet — Ulæst/Læst" hvis filen findes.
+`COUNTRY_CODES` i `EnvelopePrint.tsx` indeholder ikke Letland. Når kunden Innels ApS har "Letland" eller "Latvia" som forsendelsesland, returnerer `getCountryCode()` en tom streng, og landekoden "LV" vises ikke på kuverten.
 
 ### Løsning
 
-**Fil**: `src/pages/OperatorDashboard.tsx`, linje 158-162
+**Fil**: `src/components/EnvelopePrint.tsx`, linje 38 (efter Tjekkiet)
 
-Tilføj et `scan_url`-tjek til `standard_scan`-casen, præcis som det allerede gøres for `scan`:
+Tilføj Letland samt de øvrige baltiske lande og andre manglende EU-lande for at undgå lignende problemer fremover:
 
 ```typescript
-if (action === "standard_scan") {
-  if (item.scan_url) {
-    const readLabel = item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.unread");
-    return t("statusDisplay.scannedRead", { status: readLabel });
-  }
-  const tenantType = item.tenants?.tenant_types?.name;
-  const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
-  return `${t("statusDisplay.scanOrdered")} ${formatI18nDate(scanDate, t)}`;
-}
+"letland": "LV", "latvia": "LV",
+"litauen": "LT", "lithuania": "LT",
+"estland": "EE", "estonia": "EE",
+"ungarn": "HU", "hungary": "HU",
+"rumænien": "RO", "romania": "RO",
+"bulgarien": "BG", "bulgaria": "BG",
+"kroatien": "HR", "croatia": "HR",
+"slovenien": "SI", "slovenia": "SI",
+"slovakiet": "SK", "slovakia": "SK",
+"luxembourg": "LU",
+"malta": "MT",
+"cypern": "CY", "cyprus": "CY",
 ```
 
-Én ændring, én fil. Herefter vil breve 2858, 2853 og 2845 korrekt vise "Scannet — Ulæst".
+Én fil, én ændring. Herefter vil "LV" korrekt vises på kuverter til Letland.
 
