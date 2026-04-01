@@ -36,6 +36,18 @@ const COUNTRY_CODES: Record<string, string> = {
   "irland": "IE", "ireland": "IE",
   "grækenland": "GR", "greece": "GR",
   "tjekkiet": "CZ", "czech republic": "CZ", "czechia": "CZ",
+  "letland": "LV", "latvia": "LV",
+  "litauen": "LT", "lithuania": "LT",
+  "estland": "EE", "estonia": "EE",
+  "ungarn": "HU", "hungary": "HU",
+  "rumænien": "RO", "romania": "RO",
+  "bulgarien": "BG", "bulgaria": "BG",
+  "kroatien": "HR", "croatia": "HR",
+  "slovenien": "SI", "slovenia": "SI",
+  "slovakiet": "SK", "slovakia": "SK",
+  "luxembourg": "LU",
+  "malta": "MT",
+  "cypern": "CY", "cyprus": "CY",
 };
 
 function getCountryCode(country: string | null): string {
