@@ -89,15 +89,16 @@ function calculateFee(
 }
 
 async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug: string): Promise<string> {
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    scope: `${orgSlug}/charges.write ${orgSlug}/members.read`,
+    client_id: clientId,
+    client_secret: clientSecret,
+  });
   const res = await fetch("https://identity.officernd.com/oauth/token", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      scope: `${orgSlug}/charges.write ${orgSlug}/members.read`,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
   });
   if (!res.ok) {
     const txt = await res.text();
@@ -120,15 +121,19 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+  let mailItemId: string | null = null;
+  let pendingLogId: string | null = null;
+
   try {
-    const { mail_item_id } = await req.json();
-    if (!mail_item_id) throw new Error("mail_item_id required");
+    const body = await req.json();
+    mailItemId = body.mail_item_id;
+    if (!mailItemId) throw new Error("mail_item_id required");
 
     // Check idempotency
     const { data: existing } = await supabase
       .from("officernd_sync_log")
       .select("id")
-      .eq("mail_item_id", mail_item_id)
+      .eq("mail_item_id", mailItemId)
       .eq("status", "success")
       .maybeSingle();
     if (existing) {
@@ -159,7 +164,7 @@ Deno.serve(async (req) => {
     const { data: item, error: itemErr } = await supabase
       .from("mail_items")
       .select("id, mail_type, chosen_action, tenant_id, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
-      .eq("id", mail_item_id)
+      .eq("id", mailItemId)
       .single();
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
 
@@ -174,16 +179,17 @@ Deno.serve(async (req) => {
     // Insert pending log
     const { data: logRow } = await supabase
       .from("officernd_sync_log")
-      .insert({ mail_item_id, amount_text: amountText, status: "pending" })
+      .insert({ mail_item_id: mailItemId, amount_text: amountText, status: "pending" })
       .select("id")
       .single();
+    pendingLogId = logRow?.id ?? null;
 
     // Skip if fee is 0 and no porto
     if (amountKr === 0 && !amountText.includes("porto")) {
       await supabase
         .from("officernd_sync_log")
         .update({ status: "success", charge_id: "skipped_zero_fee" })
-        .eq("id", logRow!.id);
+        .eq("id", pendingLogId!);
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "zero fee" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -232,7 +238,7 @@ Deno.serve(async (req) => {
     await supabase
       .from("officernd_sync_log")
       .update({ status: "success", charge_id: charge._id || charge.id || "created" })
-      .eq("id", logRow!.id);
+      .eq("id", pendingLogId!);
 
     return new Response(JSON.stringify({ success: true, charge_id: charge._id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -240,21 +246,23 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("sync-officernd-charge error:", err);
 
-    // Try to log the error
+    const errorMessage = err instanceof Error ? err.message : String(err);
+
+    // Update existing pending log or insert new error log
     try {
-      const { mail_item_id } = await req.clone().json().catch(() => ({ mail_item_id: null }));
-      if (mail_item_id) {
+      if (pendingLogId) {
         await supabase
           .from("officernd_sync_log")
-          .insert({
-            mail_item_id,
-            status: "failed",
-            error_message: err instanceof Error ? err.message : String(err),
-          });
+          .update({ status: "failed", error_message: errorMessage })
+          .eq("id", pendingLogId);
+      } else if (mailItemId) {
+        await supabase
+          .from("officernd_sync_log")
+          .insert({ mail_item_id: mailItemId, status: "failed", error_message: errorMessage });
       }
     } catch { /* ignore logging errors */ }
 
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
