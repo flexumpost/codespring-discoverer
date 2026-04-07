@@ -1,56 +1,43 @@
 
 
-## Tilføj resterende lande til kuvert-landekoder
+## Fix: /set-password hænger ved udløbne links i stedet for at vise fejlbesked
 
-### Status
-USA (`"usa": "US"`, `"united states": "US"`) er allerede i listen. De fleste vest- og nordeuropæiske lande er dækket. Men flere europæiske lande mangler stadig.
+### Årsag
 
-### Manglende lande at tilføje
+1. **Ugyldiggjort token**: Der blev sendt to welcome_shipment-mails til mail@rasmusholm.io (kl. 08:24 og 12:04). Den anden magiclink-generering ugyldiggjorde den første. Brugeren klikkede sandsynligvis på det gamle link.
 
-**Fil**: `src/components/EnvelopePrint.tsx` — udvid `COUNTRY_CODES`
+2. **Manglende fejlhåndtering i SetPasswordPage**: Når Supabase /verify modtager et udløbet token, redirecter det til `/set-password#error=access_denied&error_description=...` — uden `access_token`. Koden tjekker kun for `access_token` i hash'en. Når den ikke finder det, falder den ned i else-branchen der venter på auth-events der aldrig kommer → evig "Indlæser...".
+
+### Løsning
+
+**Fil**: `src/pages/SetPasswordPage.tsx`
+
+I useEffect'en, tilføj et tjek for `error` parameteren i hash'en INDEN tjekket for `access_token`:
 
 ```typescript
-// Balkan / Sydøsteuropa
-"serbien": "RS", "serbia": "RS",
-"montenegro": "ME",
-"bosnien": "BA", "bosnia": "BA", "bosnien-hercegovina": "BA",
-"nordmakedonien": "MK", "north macedonia": "MK", "macedonia": "MK",
-"albanien": "AL", "albania": "AL",
-"kosovo": "XK",
+useEffect(() => {
+  const hash = window.location.hash.substring(1);
+  const params = new URLSearchParams(hash);
+  
+  // Check for error from expired/invalid links FIRST
+  const error = params.get("error") || params.get("error_code");
+  if (error) {
+    setLinkExpired(true);
+    setLoading(false); // stop showing "Indlæser..."
+    window.history.replaceState(null, "", window.location.pathname);
+    return;
+  }
 
-// Østeuropa
-"ukraine": "UA",
-"hviderusland": "BY", "belarus": "BY",
-"moldova": "MD",
-
-// Sydeuropa / småstater
-"tyrkiet": "TR", "turkey": "TR", "türkiye": "TR",
-"monaco": "MC",
-"liechtenstein": "LI",
-"andorra": "AD",
-"san marino": "SM",
-
-// Nordamerika
-"canada": "CA",
-"mexico": "MX",
-
-// Andre almindelige
-"australien": "AU", "australia": "AU",
-"japan": "JP",
-"kina": "CN", "china": "CN",
-"indien": "IN", "india": "IN",
-"brasilien": "BR", "brazil": "BR",
-"sydafrika": "ZA", "south africa": "ZA",
-"sydkorea": "KR", "south korea": "KR",
-"israel": "IL",
-"new zealand": "NZ",
-"singapore": "SG",
-"hong kong": "HK",
-"forenede arabiske emirater": "AE", "united arab emirates": "AE",
-"saudi-arabien": "SA", "saudi arabia": "SA",
-"thailand": "TH",
-"taiwan": "TW",
+  const accessToken = params.get("access_token");
+  // ... rest of existing logic
 ```
 
-Én fil, én ændring — tilføjer ~40 nye landekoder (dansk + engelsk) så kuverter til alle gængse destinationer får korrekt landekode.
+### Løsning for brugeren NU
+
+Brugeren bør klikke på linket i den **seneste** e-mail (kl. 12:04). Hvis det link også er udløbet, skal der sendes en ny invitation.
+
+### Ændringer
+
+- Én fil: `src/pages/SetPasswordPage.tsx` — tilføj fejlparametercheck i useEffect
+- Ingen backend-ændringer
 
