@@ -1,0 +1,1 @@
+UPDATE officernd_sync_log SET status = 'superseded' WHERE mail_item_id = 'd8338128-3a2b-43e7-b660-f79781a8bf82' AND status IN ('confirmed', 'pending_confirmation');
