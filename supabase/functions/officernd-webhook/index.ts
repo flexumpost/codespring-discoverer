@@ -27,7 +27,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Validate webhook secret via X-Webhook-Secret header or query param
   const providedSecret =
     req.headers.get("x-webhook-secret") ||
     new URL(req.url).searchParams.get("secret");
@@ -48,10 +47,8 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log("Webhook payload received:", JSON.stringify(payload));
 
-    // OfficeRnD webhook: payload structure is { data: { object: { ... } } }
     const fee = payload.data?.object || payload.data || payload;
     const feeId = fee._id || fee.id;
-    const description = fee.description || fee.name || "";
 
     if (!feeId) {
       console.error("No fee ID in webhook payload");
@@ -61,68 +58,59 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract mail_item_id from description: [mail_item_id:UUID]
+    // Strategy 1: Match by charge_id (most reliable — set during sync)
+    const { data: logByCharge } = await supabase
+      .from("officernd_sync_log")
+      .select("id")
+      .eq("charge_id", feeId)
+      .eq("status", "pending_confirmation")
+      .maybeSingle();
+
+    if (logByCharge) {
+      await supabase
+        .from("officernd_sync_log")
+        .update({ status: "confirmed", charge_id: feeId })
+        .eq("id", logByCharge.id);
+
+      console.log(`Confirmed sync log ${logByCharge.id} via charge_id match`);
+      return new Response(JSON.stringify({ success: true, matched_by: "charge_id" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Strategy 2: Match by mail_item_id in description (fallback)
+    const description = fee.description || fee.name || "";
     const mailItemMatch = description.match(/\[mail_item_id:([a-f0-9-]+)\]/i);
 
-    if (!mailItemMatch) {
-      console.warn("No mail_item_id found in fee description, trying charge_id match");
-      // Fallback: try to match by existing pending charge_id
-      const { data: logByCharge, error: logErr } = await supabase
+    if (mailItemMatch) {
+      const mailItemId = mailItemMatch[1];
+      console.log(`Matched mail_item_id from description: ${mailItemId}, fee_id: ${feeId}`);
+
+      const { data: logEntry } = await supabase
         .from("officernd_sync_log")
         .select("id")
-        .eq("charge_id", feeId)
+        .eq("mail_item_id", mailItemId)
         .eq("status", "pending_confirmation")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (logByCharge) {
+      if (logEntry) {
         await supabase
           .from("officernd_sync_log")
           .update({ status: "confirmed", charge_id: feeId })
-          .eq("id", logByCharge.id);
+          .eq("id", logEntry.id);
 
-        console.log(`Confirmed sync log ${logByCharge.id} via charge_id match`);
-        return new Response(JSON.stringify({ success: true, matched_by: "charge_id" }), {
+        console.log(`Confirmed sync log ${logEntry.id} via mail_item_id match`);
+        return new Response(JSON.stringify({ success: true, matched_by: "mail_item_id" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      console.warn("Could not match webhook to any sync log entry");
-      return new Response(JSON.stringify({ warning: "No matching sync log found" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    const mailItemId = mailItemMatch[1];
-    console.log(`Matched mail_item_id: ${mailItemId}, fee_id: ${feeId}`);
-
-    // Find the most recent pending_confirmation entry for this mail_item
-    const { data: logEntry, error: logErr } = await supabase
-      .from("officernd_sync_log")
-      .select("id")
-      .eq("mail_item_id", mailItemId)
-      .eq("status", "pending_confirmation")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!logEntry) {
-      console.warn(`No pending_confirmation log for mail_item ${mailItemId}`);
-      return new Response(JSON.stringify({ warning: "No pending log found for mail_item" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Update to confirmed
-    await supabase
-      .from("officernd_sync_log")
-      .update({ status: "confirmed", charge_id: feeId })
-      .eq("id", logEntry.id);
-
-    console.log(`Confirmed sync log ${logEntry.id} for mail_item ${mailItemId}`);
-
-    return new Response(JSON.stringify({ success: true, confirmed_log_id: logEntry.id }), {
+    console.warn("Could not match webhook to any sync log entry");
+    return new Response(JSON.stringify({ warning: "No matching sync log found" }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

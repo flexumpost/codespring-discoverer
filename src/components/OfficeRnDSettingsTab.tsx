@@ -69,6 +69,9 @@ export function OfficeRnDSettingsTab() {
         status: string;
         error_message: string | null;
         created_at: string;
+        plan_name: string | null;
+        plan_type: string | null;
+        member_id: string | null;
       }>;
     },
   });
