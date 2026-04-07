@@ -282,12 +282,15 @@ Deno.serve(async (req) => {
     // Build charge body — attach the fee to the company profile when a team/company
     // exists, otherwise fall back to a personal fee on the member profile.
     const chargeBody: Record<string, unknown> = {
-      member: memberId,
       price: amountKr,
       date: new Date().toISOString(),
       quantity: 1,
       isPersonal,
     };
+
+    if (isPersonal) {
+      chargeBody.member = memberId;
+    }
 
     if (memberOffice) {
       chargeBody.office = memberOffice;
