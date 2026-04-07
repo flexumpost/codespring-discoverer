@@ -129,15 +129,15 @@ Deno.serve(async (req) => {
     mailItemId = body.mail_item_id;
     if (!mailItemId) throw new Error("mail_item_id required");
 
-    // Check idempotency
+    // Check idempotency — skip if already confirmed or pending confirmation
     const { data: existing } = await supabase
       .from("officernd_sync_log")
-      .select("id")
+      .select("id, status, charge_id")
       .eq("mail_item_id", mailItemId)
-      .eq("status", "success")
+      .in("status", ["confirmed", "pending_confirmation"])
       .maybeSingle();
     if (existing) {
-      return new Response(JSON.stringify({ skipped: true, reason: "already synced" }), {
+      return new Response(JSON.stringify({ skipped: true, reason: `already ${existing.status}`, charge_id: existing.charge_id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -226,8 +226,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         member: memberId,
         office: memberOffice,
-        name: `Postgebyr: ${amountText} (${item.mail_type})`,
-        description: `Postgebyr: ${amountText} (${item.mail_type})`,
+        name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
+        description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
         price: amountKr,
         date: new Date().toISOString(),
       }),
@@ -238,13 +238,17 @@ Deno.serve(async (req) => {
     }
     const charge = await chargeRes.json();
 
-    // Update log as success
+    // Update log as pending_confirmation (webhook will confirm)
+    const preliminaryChargeId = charge._id || charge.id || null;
     await supabase
       .from("officernd_sync_log")
-      .update({ status: "success", charge_id: charge._id || charge.id || "created" })
+      .update({
+        status: "pending_confirmation",
+        charge_id: preliminaryChargeId,
+      })
       .eq("id", pendingLogId!);
 
-    return new Response(JSON.stringify({ success: true, charge_id: charge._id }), {
+    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
