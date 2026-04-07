@@ -88,10 +88,38 @@ function calculateFee(
   return { amountKr: 0, amountText: "0 kr." };
 }
 
+// Determine the OfficeRnD plan name based on mail type, action, and tier
+function getPlanName(
+  mailType: string,
+  chosenAction: string | null,
+  defaultAction: string | null,
+  tierName: string | null
+): string | null {
+  const tier = tierName ?? "Lite";
+  // Determine effective action
+  let action = chosenAction;
+  if (action === "under_forsendelse" || action === "standard_forsendelse") action = "send";
+  if (action === "afhentet") action = "afhentning";
+  if (!action) action = defaultAction;
+  if (!action) return null;
+
+  if (mailType === "pakke") {
+    if (action === "afhentning") return `Brev/pakke afhentning (${tier})`;
+    if (action === "send" || action === "forsendelse") return `Pakke forsendelse (${tier})`;
+    return null;
+  }
+
+  // brev
+  if (action === "afhentning") return `Brev/pakke afhentning (${tier})`;
+  if (action === "scan") return `Scanning af brev (${tier})`;
+  if (action === "send" || action === "forsendelse") return `Brev forsendelse (${tier})`;
+  return null;
+}
+
 async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug: string): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    scope: "flex.billing.charges.create flex.community.members.read",
+    scope: "flex.billing.charges.create flex.community.members.read flex.billing.plans.read",
     client_id: clientId,
     client_secret: clientSecret,
   });
@@ -106,6 +134,25 @@ async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug
   }
   const data = await res.json();
   return data.access_token;
+}
+
+async function findPlanId(apiBase: string, token: string, planName: string): Promise<string | null> {
+  const res = await fetch(`${apiBase}/plans`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    console.error(`Failed to fetch fee plans: ${res.status}`);
+    return null;
+  }
+  const plans = await res.json();
+  console.log(`OfficeRnD fee plans (${plans.length}):`, JSON.stringify(plans.map((p: any) => ({ _id: p._id, name: p.name, price: p.price }))));
+  const match = plans.find((p: any) => p.name === planName);
+  if (match) {
+    console.log(`Matched plan: ${match.name} (${match._id})`);
+    return match._id;
+  }
+  console.warn(`No plan found matching name: "${planName}"`);
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -220,6 +267,33 @@ Deno.serve(async (req) => {
     const memberId = member._id;
     const memberOffice = member.office;
 
+    // Determine plan name and look up plan ID
+    const planName = getPlanName(item.mail_type, item.chosen_action, defaultAction, tierName);
+    console.log(`Determined plan name: "${planName}" (mailType=${item.mail_type}, action=${item.chosen_action}, default=${defaultAction}, tier=${tierName})`);
+
+    let planId: string | null = null;
+    if (planName) {
+      planId = await findPlanId(apiBase, token, planName);
+    }
+
+    // Build charge body
+    const chargeBody: Record<string, unknown> = {
+      member: memberId,
+      office: memberOffice,
+      name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
+      description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
+      price: amountKr,
+      date: new Date().toISOString(),
+    };
+
+    // If we found a matching plan, reference it so the fee shows under One-Off Fees
+    if (planId) {
+      chargeBody.plan = planId;
+      console.log(`Using plan reference: ${planId}`);
+    } else {
+      console.warn(`No plan ID found — fee will be created without plan reference`);
+    }
+
     // Create charge
     const chargeRes = await fetch(`${apiBase}/fees`, {
       method: "POST",
@@ -227,15 +301,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        member: memberId,
-        office: memberOffice,
-        name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
-        description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
-        price: amountKr,
-        planType: "OneOff",
-        date: new Date().toISOString(),
-      }),
+      body: JSON.stringify(chargeBody),
     });
     if (!chargeRes.ok) {
       const txt = await chargeRes.text();
@@ -254,7 +320,7 @@ Deno.serve(async (req) => {
       })
       .eq("id", pendingLogId!);
 
-    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId }), {
+    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
