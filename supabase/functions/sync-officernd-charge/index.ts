@@ -209,10 +209,14 @@ Deno.serve(async (req) => {
       throw new Error(`OfficeRnD member lookup failed [${memberRes.status}]: ${txt}`);
     }
     const members = await memberRes.json();
+    console.log(`OfficeRnD members for ${tenant.contact_email}:`, JSON.stringify(members.map((m: any) => ({ _id: m._id, name: m.name, team: m.team, office: m.office }))));
     if (!members.length) {
       throw new Error(`No OfficeRnD member found for email: ${tenant.contact_email}`);
     }
-    const member = members[0];
+    // Prioritize member with team (organization) over personal profile
+    const teamMember = members.find((m: any) => m.team);
+    const member = teamMember || members[0];
+    console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
     const memberId = member._id;
     const memberOffice = member.office;
 
