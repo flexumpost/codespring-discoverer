@@ -69,6 +69,9 @@ export function OfficeRnDSettingsTab() {
         status: string;
         error_message: string | null;
         created_at: string;
+        plan_name: string | null;
+        plan_type: string | null;
+        member_id: string | null;
       }>;
     },
   });
@@ -126,10 +129,12 @@ export function OfficeRnDSettingsTab() {
             <div className="overflow-auto max-h-96">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                 <TableRow>
                     <TableHead>Tidspunkt</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Beløb</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Charge ID</TableHead>
                     <TableHead>Fejl</TableHead>
                   </TableRow>
@@ -143,7 +148,7 @@ export function OfficeRnDSettingsTab() {
                       <TableCell>
                         <Badge
                           variant={
-                            log.status === "success"
+                            log.status === "success" || log.status === "confirmed"
                               ? "default"
                               : log.status === "failed"
                               ? "destructive"
@@ -154,6 +159,8 @@ export function OfficeRnDSettingsTab() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{log.amount_text ?? "—"}</TableCell>
+                      <TableCell className="text-xs max-w-36 truncate">{log.plan_name ?? "—"}</TableCell>
+                      <TableCell className="text-xs">{log.plan_type ?? "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-32 truncate">
                         {log.charge_id ?? "—"}
                       </TableCell>

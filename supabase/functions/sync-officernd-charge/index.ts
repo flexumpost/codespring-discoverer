@@ -276,22 +276,30 @@ Deno.serve(async (req) => {
       planId = await findPlanId(apiBase, token, planName);
     }
 
-    // Build charge body
+    // Build charge body — when a plan is matched, use plan name and let OfficeRnD
+    // display it properly under One-Off Fees. Keep mail_item_id in description only.
     const chargeBody: Record<string, unknown> = {
       member: memberId,
       office: memberOffice,
-      name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
-      description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
       price: amountKr,
       date: new Date().toISOString(),
     };
 
-    // If we found a matching plan, reference it so the fee shows under One-Off Fees
-    if (planId) {
+    let resolvedPlanType = "OneOff";
+
+    if (planId && planName) {
+      // Use the plan reference + plan name as display name
       chargeBody.plan = planId;
-      console.log(`Using plan reference: ${planId}`);
+      chargeBody.name = planName;
+      chargeBody.description = `[mail_item_id:${mailItemId}]`;
+      resolvedPlanType = "OneOff";
+      console.log(`Using plan reference: ${planId} (${planName})`);
     } else {
-      console.warn(`No plan ID found — fee will be created without plan reference`);
+      // Fallback: no matching plan, create as custom one-off fee
+      chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})`;
+      chargeBody.description = `[mail_item_id:${mailItemId}]`;
+      resolvedPlanType = "OneOff";
+      console.warn(`No plan ID found — creating custom one-off fee`);
     }
 
     // Create charge
@@ -310,17 +318,20 @@ Deno.serve(async (req) => {
     const charge = await chargeRes.json();
     console.log(`OfficeRnD charge response:`, JSON.stringify(charge));
 
-    // Update log as pending_confirmation (webhook will confirm)
+    // Update log as pending_confirmation with debug info
     const preliminaryChargeId = charge._id || charge.id || null;
     await supabase
       .from("officernd_sync_log")
       .update({
         status: "pending_confirmation",
         charge_id: preliminaryChargeId,
-      })
+        plan_name: planName,
+        plan_type: charge.planType || resolvedPlanType,
+        member_id: memberId,
+      } as any)
       .eq("id", pendingLogId!);
 
-    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName }), {
+    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName, planType: charge.planType }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
