@@ -1,45 +1,52 @@
 
-Problem
-- Dit screenshot bekræfter, at gebyret faktisk bliver oprettet og webhooken kvitterer succes.
-- Men payloaden viser stadig:
-  - `planType: "Plan"`
-  - `name: "Postgebyr: 50 kr. (brev) ..."`
-- Det passer med den nuværende kode i `sync-officernd-charge/index.ts`, som stadig altid sender et hardcoded `name` og `description`, selv når der findes en matchet plan.
-- Derfor er den tidligere løsning kun delvist rigtig: vi har fået plan-reference på, men vi sender stadig et “custom fee”-navn oveni. Det er sandsynligvis derfor visningen i OfficeRnD stadig ikke matcher det forventede.
 
-Plan
-1. Ret payloaden i `sync-officernd-charge`
-   - Når en plan er fundet, skal funktionen ikke længere sende det hardcodede navn `Postgebyr: ...` som visningsnavn.
-   - I stedet skal den enten:
-     - bruge planens navn som titel, eller
-     - undlade custom `name`, hvis OfficeRnD selv skal vise plan-navnet.
-   - `mail_item_id` skal bevares til sporing, men flyttes til et felt der ikke overtager det synlige navn.
+## Problem: Webhook kan ikke matche gebyret — to fejl
 
-2. Gør webhook-match robust
-   - `officernd-webhook` matcher i dag primært via `description`.
-   - Når vi ændrer navn/description-formatet, skal webhooken i stedet prioritere match på `charge_id` og kun bruge tekst-match som fallback.
-   - Det gør det sikkert at rydde op i display-felterne uden at ødelægge bekræftelsesflowet.
+### Fejl 1: charge_id gemmes aldrig
+OfficeRnD API returnerer et **array** `[{_id: "..."}]`, men koden læser `charge._id` (som om det var et objekt). Resultat: `charge_id = null` i sync_log. Webhook Strategy 1 fejler.
 
-3. Udvid logningen, så problemet kan ses direkte i appen
-   - Gem ekstra debug-data for hver sync, fx:
-     - resolved plan name
-     - OfficeRnD `plan`
-     - OfficeRnD `planType`
-     - valgt member-id
-   - Vis de felter i `OfficeRnDSettingsTab`, så man kan se præcis hvordan OfficeRnD klassificerede gebyret.
+### Fejl 2: description med mail_item_id fjernes af OfficeRnD
+Når en `plan`-reference bruges, overskriver OfficeRnD vores custom `description`. Webhook-payloaden indeholder dermed ikke `[mail_item_id:...]`. Strategy 2 fejler også.
 
-4. Kør samme brev igen efter rettelsen
-   - Markér den nuværende `confirmed` log for brev 2976 som `superseded`.
-   - Kør sync igen med den rettede payload.
-   - Verificér derefter, at den nye OfficeRnD-record ikke længere står med det gamle `Postgebyr...` navn som visningsnavn.
+### Også: planType er altid "Plan" med plan-reference
+OfficeRnD sætter `planType: "Plan"` automatisk når en plan er tilknyttet — dette er forventet opførsel og gebyret bør stadig vises under "One-Off Fees" i OfficeRnD.
 
-5. Ryd op i dubletter
-   - Behold historikken i sync-loggen.
-   - Slet gamle fejloprettede OfficeRnD-gebyrer manuelt efter den nye version er verificeret.
+---
 
-Tekniske detaljer
-- Den konkrete kodeårsag til teksten du ser i screenshotet er de hardcodede felter i `sync-officernd-charge/index.ts`:
-  - `name: Postgebyr: ...`
-  - `description: Postgebyr: ...`
-- Screenshotet viser samtidig, at webhook og oprettelse virker. Så problemet er nu ikke “om gebyret bliver sendt”, men “hvordan det bliver oprettet og vist”.
-- Der er ingen åbenlys auth- eller RLS-fejl i den eksisterende backend-konfiguration for denne del; fokus bør være payload-shape, webhook-match og bedre debug-synlighed.
+### Rettelser
+
+**1. Fix array-response i `sync-officernd-charge/index.ts`** (linje 318-322)
+
+Ændr fra:
+```typescript
+const charge = await chargeRes.json();
+const preliminaryChargeId = charge._id || charge.id || null;
+```
+Til:
+```typescript
+const chargeRaw = await chargeRes.json();
+const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
+const preliminaryChargeId = charge?._id || charge?.id || null;
+```
+
+Dette sikrer at `charge_id` korrekt udtrækkes og gemmes, så webhook Strategy 1 virker.
+
+**2. Tilføj Strategy 3 i `officernd-webhook/index.ts`** — match på member + mail_item_id
+
+Som ekstra fallback, brug `fee.member` fra webhook-payloaden til at matche mod `member_id` i sync_log, kombineret med `pending_confirmation` status og seneste entry. Dette dækker tilfælde hvor hverken charge_id eller description matcher.
+
+**3. Deploy og re-kør**
+
+- Markér den nuværende `pending_confirmation` entry som `superseded`
+- Deploy begge funktioner
+- Kør sync igen for brev 2976
+- Verificér at `charge_id` nu gemmes korrekt og webhook matcher
+
+### Tekniske detaljer
+
+| Problem | Årsag | Fix |
+|---------|-------|-----|
+| `charge_id = null` | API returnerer array, kode forventer objekt | `Array.isArray()` check |
+| Webhook match fejler | charge_id er null + description strippes af OfficeRnD | Fix charge_id + tilføj member-based fallback |
+| `planType: "Plan"` | OfficeRnD tvinger dette med plan-ref | Forventet — bør stadig vise under fees |
+
