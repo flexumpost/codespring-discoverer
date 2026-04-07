@@ -1,52 +1,30 @@
 
 
-## Problem: Webhook kan ikke matche gebyret — to fejl
+## Kør gebyr for brev 2976 igen
 
-### Fejl 1: charge_id gemmes aldrig
-OfficeRnD API returnerer et **array** `[{_id: "..."}]`, men koden læser `charge._id` (som om det var et objekt). Resultat: `charge_id = null` i sync_log. Webhook Strategy 1 fejler.
+### Problem
+Funktionen har en idempotency-check (linje 180-190) der automatisk springer over hvis der allerede findes en `confirmed` eller `pending_confirmation` entry for dette mail_item_id. Den nuværende entry er `confirmed`, så funktionen returnerer `skipped: true`.
 
-### Fejl 2: description med mail_item_id fjernes af OfficeRnD
-Når en `plan`-reference bruges, overskriver OfficeRnD vores custom `description`. Webhook-payloaden indeholder dermed ikke `[mail_item_id:...]`. Strategy 2 fejler også.
+### Plan
 
-### Også: planType er altid "Plan" med plan-reference
-OfficeRnD sætter `planType: "Plan"` automatisk når en plan er tilknyttet — dette er forventet opførsel og gebyret bør stadig vises under "One-Off Fees" i OfficeRnD.
+**Trin 1: Markér eksisterende confirmed-entry som superseded**
 
----
-
-### Rettelser
-
-**1. Fix array-response i `sync-officernd-charge/index.ts`** (linje 318-322)
-
-Ændr fra:
-```typescript
-const charge = await chargeRes.json();
-const preliminaryChargeId = charge._id || charge.id || null;
-```
-Til:
-```typescript
-const chargeRaw = await chargeRes.json();
-const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
-const preliminaryChargeId = charge?._id || charge?.id || null;
+Kør en SQL-migration der opdaterer den eksisterende confirmed log-entry:
+```sql
+UPDATE officernd_sync_log 
+SET status = 'superseded' 
+WHERE mail_item_id = 'd8338128-3a2b-43e7-b660-f79781a8bf82' 
+  AND status = 'confirmed';
 ```
 
-Dette sikrer at `charge_id` korrekt udtrækkes og gemmes, så webhook Strategy 1 virker.
+**Trin 2: Kald sync-officernd-charge igen**
 
-**2. Tilføj Strategy 3 i `officernd-webhook/index.ts`** — match på member + mail_item_id
+Kald Edge Function med `POST /sync-officernd-charge` og body `{"mail_item_id":"d8338128-3a2b-43e7-b660-f79781a8bf82"}`.
 
-Som ekstra fallback, brug `fee.member` fra webhook-payloaden til at matche mod `member_id` i sync_log, kombineret med `pending_confirmation` status og seneste entry. Dette dækker tilfælde hvor hverken charge_id eller description matcher.
+**Trin 3: Verificér resultatet**
 
-**3. Deploy og re-kør**
+Tjek sync_log for ny entry med `pending_confirmation` eller `confirmed` status, og verificér at `charge_id` er udfyldt.
 
-- Markér den nuværende `pending_confirmation` entry som `superseded`
-- Deploy begge funktioner
-- Kør sync igen for brev 2976
-- Verificér at `charge_id` nu gemmes korrekt og webhook matcher
-
-### Tekniske detaljer
-
-| Problem | Årsag | Fix |
-|---------|-------|-----|
-| `charge_id = null` | API returnerer array, kode forventer objekt | `Array.isArray()` check |
-| Webhook match fejler | charge_id er null + description strippes af OfficeRnD | Fix charge_id + tilføj member-based fallback |
-| `planType: "Plan"` | OfficeRnD tvinger dette med plan-ref | Forventet — bør stadig vise under fees |
+### Bemærkning
+Husk at slette de gamle dublet-gebyrer i OfficeRnD manuelt (`69d50b54...`, `69d51284...`, `69d51837...`, `69d51cc3...`) efter den nye er verificeret.
 
