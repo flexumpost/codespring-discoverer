@@ -91,7 +91,7 @@ function calculateFee(
 async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug: string): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    scope: `${orgSlug}/charges.write ${orgSlug}/members.read`,
+    scope: "flex.billing.charges.create flex.community.members.read",
     client_id: clientId,
     client_secret: clientSecret,
   });
