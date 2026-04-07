@@ -358,6 +358,9 @@ export type Database = {
           error_message: string | null
           id: string
           mail_item_id: string
+          member_id: string | null
+          plan_name: string | null
+          plan_type: string | null
           status: string
         }
         Insert: {
@@ -367,6 +370,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           mail_item_id: string
+          member_id?: string | null
+          plan_name?: string | null
+          plan_type?: string | null
           status?: string
         }
         Update: {
@@ -376,6 +382,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           mail_item_id?: string
+          member_id?: string | null
+          plan_name?: string | null
+          plan_type?: string | null
           status?: string
         }
         Relationships: [
