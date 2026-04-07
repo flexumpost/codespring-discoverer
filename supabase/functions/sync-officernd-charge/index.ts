@@ -288,9 +288,9 @@ Deno.serve(async (req) => {
     let resolvedPlanType = "OneOff";
 
     if (planId && planName) {
-      // Use the plan reference — OfficeRnD will use the plan's name for display
+      // Use the plan reference + plan name as display name
       chargeBody.plan = planId;
-      // description keeps mail_item_id for webhook matching
+      chargeBody.name = planName;
       chargeBody.description = `[mail_item_id:${mailItemId}]`;
       resolvedPlanType = "OneOff";
       console.log(`Using plan reference: ${planId} (${planName})`);
