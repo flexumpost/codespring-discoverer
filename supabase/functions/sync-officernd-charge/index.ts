@@ -297,7 +297,7 @@ Deno.serve(async (req) => {
     }
 
     if (companyId) {
-      chargeBody.company = companyId;
+      chargeBody.team = companyId;
     }
 
     let resolvedPlanType = "OneOff";
