@@ -212,7 +212,9 @@ Deno.serve(async (req) => {
     if (!members.length) {
       throw new Error(`No OfficeRnD member found for email: ${tenant.contact_email}`);
     }
-    const memberId = members[0]._id;
+    const member = members[0];
+    const memberId = member._id;
+    const memberOffice = member.office;
 
     // Create charge
     const chargeRes = await fetch(`${apiBase}/fees`, {
@@ -223,6 +225,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         member: memberId,
+        office: memberOffice,
+        name: `Postgebyr: ${amountText} (${item.mail_type})`,
         description: `Postgebyr: ${amountText} (${item.mail_type})`,
         price: amountKr,
         date: new Date().toISOString(),
