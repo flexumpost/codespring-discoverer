@@ -119,7 +119,7 @@ function getPlanName(
 async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug: string): Promise<string> {
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    scope: "flex.billing.charges.create flex.community.members.read",
+    scope: "flex.billing.charges.create flex.community.members.read flex.billing.plans.read",
     client_id: clientId,
     client_secret: clientSecret,
   });
@@ -137,7 +137,7 @@ async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug
 }
 
 async function findPlanId(apiBase: string, token: string, planName: string): Promise<string | null> {
-  const res = await fetch(`${apiBase}/fees/plans`, {
+  const res = await fetch(`${apiBase}/plans`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
