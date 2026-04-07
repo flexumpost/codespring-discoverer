@@ -48,9 +48,8 @@ Deno.serve(async (req) => {
     const payload = await req.json();
     console.log("Webhook payload received:", JSON.stringify(payload));
 
-    // OfficeRnD webhook payload: expect the fee object
-    // The fee description contains our mail_item_id reference like [mail_item_id:UUID]
-    const fee = payload.data || payload;
+    // OfficeRnD webhook: payload structure is { data: { object: { ... } } }
+    const fee = payload.data?.object || payload.data || payload;
     const feeId = fee._id || fee.id;
     const description = fee.description || fee.name || "";
 
