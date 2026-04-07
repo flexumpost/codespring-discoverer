@@ -1,60 +1,28 @@
 
 
-## Problemanalyse
+## Problem
 
-Der er to separate problemer:
-
-### Problem 1: Gebyr oprettes på forkert member
-Koden bruger `GET /members?email=...` og tager blindt `members[0]`. Hvis OfficeRnD returnerer den personlige profil først (i stedet for organisations-/team-medlemmet), oprettes gebyret under den forkerte konto. Det forklarer hvorfor gebyret ikke ses under "De Personlige Hjælpere ApS".
-
-### Problem 2: Gebyret er muligvis oprettet men ikke synligt
-Sync-loggen viser `charge_id: 69d50b54593604e7e8ec6057` med status `confirmed` — gebyret **er** oprettet i OfficeRnD, men sandsynligvis under det forkerte member (personlig profil i stedet for organisation).
-
----
+Brev 2976 har allerede en `confirmed` entry i `officernd_sync_log`. Edge-funktionen tjekker for `confirmed` eller `pending_confirmation` status og skipper automatisk — så et nyt kald vil bare returnere `{ skipped: true }`.
 
 ## Plan
 
-### 1. Opdater member-lookup til at prioritere organisation/team-member
+### 1. Markér eksisterende confirmed-entry som superseded
+Kør en database-migration der sætter den nuværende `confirmed` entry (id: `f08205ac-...`) til `superseded`, så idempotency-checket ikke blokerer.
 
-I `supabase/functions/sync-officernd-charge/index.ts`:
+### 2. Kald sync-officernd-charge manuelt
+Invoke edge-funktionen med `{ "mail_item_id": "<uuid for brev 2976>" }` via curl.
 
-- Efter at hente `members` fra OfficeRnD, sortér resultaterne så members med et `team`-felt prioriteres over dem uden
-- Hvis flere members har et team, vælg den første med team
-- Log det valgte member's navn og team i console for debugging
+### 3. Tjek edge function logs
+Verificér i loggene at:
+- Det korrekte team-member vælges (med `team`-felt)
+- Gebyret oprettes under organisationen, ikke den personlige profil
+- Status går til `pending_confirmation`
 
-```text
-members = GET /members?email=xxx
-  → filter: prioritér member med team/organization
-  → fallback: brug første member hvis ingen har team
-```
-
-### 2. Tilføj logging af OfficeRnD member-response og charge-response
-
-For at kunne debugge fremtidige problemer:
-- Log det fulde member-array (navn, team, office) til console
-- Log det fulde charge-response body til console
-- Gem member-navn i `officernd_sync_log` (via `amount_text` eller et nyt felt)
-
-### 3. Ryd op i duplikerede sync-log entries
-
-Mail item 2976 har to entries: én med `status: success` (gammel) og én med `status: confirmed` (ny). Den gamle entry med `charge_id: created` bør markeres som `superseded` for at undgå forvirring.
+### 4. Vent på webhook-bekræftelse
+Når OfficeRnD sender `fee.created` webhook, skal loggen opdateres til `confirmed`.
 
 ---
 
-### Teknisk ændring i member-lookup (sync-officernd-charge)
-
-**Nuværende kode** (linje 204-217):
-```typescript
-const members = await memberRes.json();
-const member = members[0]; // ← tager blindt første
-```
-
-**Ny kode**:
-```typescript
-const members = await memberRes.json();
-// Prioritér member med team (organisation) over personlig profil
-const teamMember = members.find(m => m.team);
-const member = teamMember || members[0];
-console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
-```
+### Teknisk detalje
+Det gamle gebyr (charge_id `69d50b54593604e7e8ec6057`) blev sandsynligvis oprettet under den forkerte member. Det nye gebyr vil oprette en **ekstra** charge i OfficeRnD — denne gang under det korrekte team-member. Det gamle gebyr bør slettes manuelt i OfficeRnD hvis det stadig eksisterer.
 
