@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         member: memberId,
         description: `Postgebyr: ${amountText} (${item.mail_type})`,
-        amount: amountKr,
+        price: amountKr,
         date: new Date().toISOString(),
       }),
     });
