@@ -1,44 +1,60 @@
 
 
-## Webhook-endpoint: OfficeRnD fee.created bekræftelse
+## Problemanalyse
 
-### Formål
-Når vi opretter et gebyr via `POST /fees` i OfficeRnD, logger vi det som "success" — men vi har set tilfælde hvor gebyret ikke faktisk blev oprettet. Et webhook-endpoint lader OfficeRnD bekræfte oprettelsen ved at sende en `fee.created`-event tilbage til os, så vi kan opdatere sync-loggen med det rigtige `charge_id`.
+Der er to separate problemer:
 
-### Flow
+### Problem 1: Gebyr oprettes på forkert member
+Koden bruger `GET /members?email=...` og tager blindt `members[0]`. Hvis OfficeRnD returnerer den personlige profil først (i stedet for organisations-/team-medlemmet), oprettes gebyret under den forkerte konto. Det forklarer hvorfor gebyret ikke ses under "De Personlige Hjælpere ApS".
+
+### Problem 2: Gebyret er muligvis oprettet men ikke synligt
+Sync-loggen viser `charge_id: 69d50b54593604e7e8ec6057` med status `confirmed` — gebyret **er** oprettet i OfficeRnD, men sandsynligvis under det forkerte member (personlig profil i stedet for organisation).
+
+---
+
+## Plan
+
+### 1. Opdater member-lookup til at prioritere organisation/team-member
+
+I `supabase/functions/sync-officernd-charge/index.ts`:
+
+- Efter at hente `members` fra OfficeRnD, sortér resultaterne så members med et `team`-felt prioriteres over dem uden
+- Hvis flere members har et team, vælg den første med team
+- Log det valgte member's navn og team i console for debugging
+
 ```text
-1. sync-officernd-charge → POST /fees → logger "pending" i sync_log
-2. OfficeRnD opretter gebyret → sender webhook POST til vores endpoint
-3. Vores endpoint matcher mail_item_id og opdaterer sync_log med charge_id + status "confirmed"
+members = GET /members?email=xxx
+  → filter: prioritér member med team/organization
+  → fallback: brug første member hvis ingen har team
 ```
 
-### Ændringer
+### 2. Tilføj logging af OfficeRnD member-response og charge-response
 
-**1. Ny Edge Function: `supabase/functions/officernd-webhook/index.ts`**
-- Modtager POST fra OfficeRnD med fee.created payload
-- Validerer en webhook-secret (shared token) for at sikre at kaldet er ægte
-- Udtrækker fee-id og description (som indeholder mail_item reference)
-- Finder den matchende `officernd_sync_log`-entry via description-parsing eller et metadata-felt
-- Opdaterer loggen: `status = "confirmed"`, `charge_id = <rigtigt OfficeRnD fee._id>`
+For at kunne debugge fremtidige problemer:
+- Log det fulde member-array (navn, team, office) til console
+- Log det fulde charge-response body til console
+- Gem member-navn i `officernd_sync_log` (via `amount_text` eller et nyt felt)
 
-**2. Ændring i `sync-officernd-charge/index.ts`**
-- Skift succes-status fra `"success"` til `"pending_confirmation"` efter POST /fees
-- Gem det returnerede fee-id (hvis tilgængeligt) som foreløbigt charge_id
-- Tilføj `mail_item_id` i charge-description/name, så webhook kan matche den tilbage
+### 3. Ryd op i duplikerede sync-log entries
 
-**3. Ny secret: `OFFICERND_WEBHOOK_SECRET`**
-- Et shared token som sættes i både OfficeRnD webhook-konfigurationen og vores edge function
-- Bruges til at verificere at webhook-kaldet er ægte
+Mail item 2976 har to entries: én med `status: success` (gammel) og én med `status: confirmed` (ny). Den gamle entry med `charge_id: created` bør markeres som `superseded` for at undgå forvirring.
 
-### OfficeRnD-opsætning (manuelt)
-Brugeren skal oprette en webhook i OfficeRnD-dashboardet:
-- **URL**: `https://hokiuavxyoymcenqlvly.supabase.co/functions/v1/officernd-webhook`
-- **Event**: `fee.created`
-- **Secret/Token**: Samme værdi som `OFFICERND_WEBHOOK_SECRET`
+---
 
-### Database
-Ingen skemaændringer nødvendige — `officernd_sync_log` har allerede `status` og `charge_id` felter. Vi tilføjer blot en ny status-værdi `"confirmed"`.
+### Teknisk ændring i member-lookup (sync-officernd-charge)
 
-### Teknisk detalje
-OfficeRnD webhook-payloads indeholder typisk det oprettede objekt. Vi matcher via description-feltet som allerede indeholder mail_item_id-referencen (f.eks. `"Postgebyr: 50 kr. (brev)"`). For mere robust matching tilføjer vi mail_item_id i description.
+**Nuværende kode** (linje 204-217):
+```typescript
+const members = await memberRes.json();
+const member = members[0]; // ← tager blindt første
+```
+
+**Ny kode**:
+```typescript
+const members = await memberRes.json();
+// Prioritér member med team (organisation) over personlig profil
+const teamMember = members.find(m => m.team);
+const member = teamMember || members[0];
+console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
+```
 
