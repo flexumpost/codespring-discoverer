@@ -315,11 +315,13 @@ Deno.serve(async (req) => {
       const txt = await chargeRes.text();
       throw new Error(`OfficeRnD charge creation failed [${chargeRes.status}]: ${txt}`);
     }
-    const charge = await chargeRes.json();
-    console.log(`OfficeRnD charge response:`, JSON.stringify(charge));
+    const chargeRaw = await chargeRes.json();
+    const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
+    console.log(`OfficeRnD charge response (raw):`, JSON.stringify(chargeRaw));
+    console.log(`OfficeRnD charge parsed:`, JSON.stringify(charge));
 
     // Update log as pending_confirmation with debug info
-    const preliminaryChargeId = charge._id || charge.id || null;
+    const preliminaryChargeId = charge?._id || charge?.id || null;
     await supabase
       .from("officernd_sync_log")
       .update({
