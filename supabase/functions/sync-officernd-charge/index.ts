@@ -263,9 +263,12 @@ Deno.serve(async (req) => {
     // Prioritize member with team (organization) over personal profile
     const teamMember = members.find((m: any) => m.team);
     const member = teamMember || members[0];
-    console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
     const memberId = member._id;
     const memberOffice = member.office;
+    const companyId = member.team || null;
+    const isPersonal = !companyId;
+    console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
+    console.log(`Resolved billing target: ${companyId ? `company ${companyId}` : `personal member ${memberId}`}`);
 
     // Determine plan name and look up plan ID
     const planName = getPlanName(item.mail_type, item.chosen_action, defaultAction, tierName);
@@ -276,31 +279,43 @@ Deno.serve(async (req) => {
       planId = await findPlanId(apiBase, token, planName);
     }
 
-    // Build charge body — when a plan is matched, use plan name and let OfficeRnD
-    // display it properly under One-Off Fees. Keep mail_item_id in description only.
+    // Build charge body — attach the fee to the company profile when a team/company
+    // exists, otherwise fall back to a personal fee on the member profile.
     const chargeBody: Record<string, unknown> = {
-      member: memberId,
-      office: memberOffice,
       price: amountKr,
       date: new Date().toISOString(),
+      quantity: 1,
+      isPersonal,
     };
+
+    if (isPersonal) {
+      chargeBody.member = memberId;
+    }
+
+    if (memberOffice) {
+      chargeBody.office = memberOffice;
+    }
+
+    if (companyId) {
+      chargeBody.team = companyId;
+    }
 
     let resolvedPlanType = "OneOff";
 
     if (planId && planName) {
-      // Use the plan reference + plan name as display name
       chargeBody.plan = planId;
       chargeBody.name = planName;
       chargeBody.description = `[mail_item_id:${mailItemId}]`;
       resolvedPlanType = "OneOff";
       console.log(`Using plan reference: ${planId} (${planName})`);
     } else {
-      // Fallback: no matching plan, create as custom one-off fee
       chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})`;
       chargeBody.description = `[mail_item_id:${mailItemId}]`;
       resolvedPlanType = "OneOff";
       console.warn(`No plan ID found — creating custom one-off fee`);
     }
+
+    console.log(`OfficeRnD charge body:`, JSON.stringify(chargeBody));
 
     // Create charge
     const chargeRes = await fetch(`${apiBase}/fees`, {
