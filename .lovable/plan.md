@@ -2,27 +2,34 @@
 
 ## Problem
 
-Brev 2976 har allerede en `confirmed` entry i `officernd_sync_log`. Edge-funktionen tjekker for `confirmed` eller `pending_confirmation` status og skipper automatisk — så et nyt kald vil bare returnere `{ skipped: true }`.
+Gebyret oprettes via OfficeRnD API (`POST /fees`) men returneres med `planType: "Plan"` — OfficeRnD behandler det som et plan-baseret gebyr. Da der ikke eksisterer en plan med navnet "Postgebyr..." i OfficeRnD, vises gebyret ikke under medlemmets "One-Off Fees".
 
-## Plan
+Screenshots bekræfter: "No one-off fees to show" under Peter Pinkowsky, og ingen plan matcher "postgebyr" under Billing → Plans.
 
-### 1. Markér eksisterende confirmed-entry som superseded
-Kør en database-migration der sætter den nuværende `confirmed` entry (id: `f08205ac-...`) til `superseded`, så idempotency-checket ikke blokerer.
+## Løsning
 
-### 2. Kald sync-officernd-charge manuelt
-Invoke edge-funktionen med `{ "mail_item_id": "<uuid for brev 2976>" }` via curl.
+Tilføj `planType: "OneOff"` til API-kaldet, så OfficeRnD registrerer gebyret som et enganggebyr i stedet for et plan-baseret gebyr.
 
-### 3. Tjek edge function logs
-Verificér i loggene at:
-- Det korrekte team-member vælges (med `team`-felt)
-- Gebyret oprettes under organisationen, ikke den personlige profil
-- Status går til `pending_confirmation`
+### Ændring i `supabase/functions/sync-officernd-charge/index.ts`
 
-### 4. Vent på webhook-bekræftelse
-Når OfficeRnD sender `fee.created` webhook, skal loggen opdateres til `confirmed`.
+I charge-oprettelsen (linje 230-237), tilføj `planType`:
 
----
+```typescript
+body: JSON.stringify({
+  member: memberId,
+  office: memberOffice,
+  name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
+  description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
+  price: amountKr,
+  planType: "OneOff",
+  date: new Date().toISOString(),
+}),
+```
 
-### Teknisk detalje
-Det gamle gebyr (charge_id `69d50b54593604e7e8ec6057`) blev sandsynligvis oprettet under den forkerte member. Det nye gebyr vil oprette en **ekstra** charge i OfficeRnD — denne gang under det korrekte team-member. Det gamle gebyr bør slettes manuelt i OfficeRnD hvis det stadig eksisterer.
+### Verifikation
+
+1. Deploy funktionen
+2. Markér eksisterende confirmed-entry for brev 2976 som `superseded`
+3. Kør sync manuelt og verificér at API-response nu viser `planType: "OneOff"`
+4. Tjek at gebyret vises under Peter Pinkowskys "One-Off Fees" i OfficeRnD
 
