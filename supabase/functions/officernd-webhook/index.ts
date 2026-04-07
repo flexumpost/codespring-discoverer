@@ -108,7 +108,33 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.warn("Could not match webhook to any sync log entry");
+    // Strategy 3: Match by member_id (fallback when charge_id is null and description stripped)
+    const feeMemberId = fee.member || fee.memberId || null;
+    if (feeMemberId) {
+      console.log(`Attempting member_id match: ${feeMemberId}`);
+      const { data: logByMember } = await supabase
+        .from("officernd_sync_log")
+        .select("id")
+        .eq("member_id", feeMemberId)
+        .eq("status", "pending_confirmation")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (logByMember) {
+        await supabase
+          .from("officernd_sync_log")
+          .update({ status: "confirmed", charge_id: feeId })
+          .eq("id", logByMember.id);
+
+        console.log(`Confirmed sync log ${logByMember.id} via member_id match`);
+        return new Response(JSON.stringify({ success: true, matched_by: "member_id" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    console.warn("Could not match webhook to any sync log entry", { feeId, feeMemberId });
     return new Response(JSON.stringify({ warning: "No matching sync log found" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
