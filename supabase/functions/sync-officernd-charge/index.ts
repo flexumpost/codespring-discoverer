@@ -233,6 +233,7 @@ Deno.serve(async (req) => {
         name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
         description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
         price: amountKr,
+        planType: "OneOff",
         date: new Date().toISOString(),
       }),
     });
