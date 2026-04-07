@@ -1,35 +1,60 @@
 
 
-## Problem
+## Analyse: Eksisterende planer vs. nødvendige gebyrscenarier
 
-Gebyret oprettes via OfficeRnD API (`POST /fees`) men returneres med `planType: "Plan"` — OfficeRnD behandler det som et plan-baseret gebyr. Da der ikke eksisterer en plan med navnet "Postgebyr..." i OfficeRnD, vises gebyret ikke under medlemmets "One-Off Fees".
+### Dine eksisterende planer (5 stk.)
+| Plan | Pris |
+|------|------|
+| Brev/pakke afhentning (Lite) | 50 kr |
+| Brev/pakke afhentning (Standard) | 30 kr |
+| Pakke afhentning (Plus) | 10 kr |
+| Scanning af brev (Lite) | 50 kr |
+| Scanning af brev (Standard) | 30 kr |
 
-Screenshots bekræfter: "No one-off fees to show" under Peter Pinkowsky, og ingen plan matcher "postgebyr" under Billing → Plans.
+### Alle gebyrscenarier med amountKr > 0
 
-## Løsning
+| Scenarie | Tier | Beløb | Dækket af plan? |
+|----------|------|-------|-----------------|
+| Pakke afhentning | Lite | 50 kr | ✅ Brev/pakke afhentning (Lite) |
+| Pakke afhentning | Standard | 30 kr | ✅ Brev/pakke afhentning (Standard) |
+| Pakke afhentning | Plus | 10 kr | ✅ Pakke afhentning (Plus) |
+| Pakke forsendelse | Lite | 50 kr | ❌ Mangler |
+| Pakke forsendelse | Standard | 30 kr | ❌ Mangler |
+| Pakke forsendelse | Plus | 10 kr | ❌ Mangler |
+| Brev scan | Lite | 50 kr | ✅ Scanning af brev (Lite) |
+| Brev scan | Standard | 30 kr | ✅ Scanning af brev (Standard) |
+| Brev afhentning | Lite | 50 kr | ✅ Brev/pakke afhentning (Lite) |
+| Brev afhentning | Standard | 30 kr | ✅ Brev/pakke afhentning (Standard) |
+| Brev forsendelse | Lite | 50 kr | ❌ Mangler |
 
-Tilføj `planType: "OneOff"` til API-kaldet, så OfficeRnD registrerer gebyret som et enganggebyr i stedet for et plan-baseret gebyr.
+### Manglende planer (4 stk. at oprette i OfficeRnD)
 
-### Ændring i `supabase/functions/sync-officernd-charge/index.ts`
+1. **Pakke forsendelse (Plus)** — 10 kr
+2. **Pakke forsendelse (Standard)** — 30 kr
+3. **Pakke forsendelse (Lite)** — 50 kr
+4. **Brev forsendelse (Lite)** — 50 kr
 
-I charge-oprettelsen (linje 230-237), tilføj `planType`:
+### Kodeændring: Map gebyrer til plan-navne
 
-```typescript
-body: JSON.stringify({
-  member: memberId,
-  office: memberOffice,
-  name: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
-  description: `Postgebyr: ${amountText} (${item.mail_type}) [mail_item_id:${mailItemId}]`,
-  price: amountKr,
-  planType: "OneOff",
-  date: new Date().toISOString(),
-}),
+Opdater `sync-officernd-charge` Edge Function til at:
+
+1. **Bestemme det korrekte plan-navn** baseret på kombination af mail_type, action og tier (f.eks. "Brev/pakke afhentning (Standard)")
+2. **Hente planer fra OfficeRnD API** via `GET /fees/plans` og finde plan-ID'et ud fra navnet
+3. **Bruge plan-referencen** i `POST /fees` kaldet, så gebyret korrekt tilknyttes en eksisterende plan og vises i OfficeRnD UI
+
+### Mapping-logik
+
+```text
+pakke + afhentning → "Brev/pakke afhentning ({tier})"    (Plus→special name)
+pakke + send       → "Pakke forsendelse ({tier})"
+brev + scan        → "Scanning af brev ({tier})"
+brev + afhentning  → "Brev/pakke afhentning ({tier})"
+brev + send        → "Brev forsendelse ({tier})"
 ```
 
 ### Verifikation
-
-1. Deploy funktionen
-2. Markér eksisterende confirmed-entry for brev 2976 som `superseded`
-3. Kør sync manuelt og verificér at API-response nu viser `planType: "OneOff"`
-4. Tjek at gebyret vises under Peter Pinkowskys "One-Off Fees" i OfficeRnD
+1. Du opretter de 4 manglende planer i OfficeRnD
+2. Vi deployer den opdaterede Edge Function
+3. Markerer eksisterende brev 2976 entry som `superseded`
+4. Kører sync manuelt og verificerer at gebyret nu vises under lejerens konto
 
