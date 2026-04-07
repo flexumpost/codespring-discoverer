@@ -23,6 +23,15 @@ const SetPasswordPage = () => {
   useEffect(() => {
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
+
+    // Check for error from expired/invalid links FIRST
+    const errorParam = params.get("error") || params.get("error_code");
+    if (errorParam) {
+      setLinkExpired(true);
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
     const accessToken = params.get("access_token");
     const refreshToken = params.get("refresh_token");
 
