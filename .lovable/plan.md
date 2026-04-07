@@ -1,43 +1,40 @@
 
 
-## Fix: /set-password hænger ved udløbne links i stedet for at vise fejlbesked
+## Fix: OfficeRnD OAuth-token-anmodning bruger forkert Content-Type
 
-### Årsag
+### Problem
+Gebyret for brev 2976 (50 kr. afhentning, Lite-lejer "DE PERSONLIGE HJÆLPERE") blev ikke overført til OfficeRnD. Synkroniseringsloggen viser status "pending" uden fejlbesked.
 
-1. **Ugyldiggjort token**: Der blev sendt to welcome_shipment-mails til mail@rasmusholm.io (kl. 08:24 og 12:04). Den anden magiclink-generering ugyldiggjorde den første. Brugeren klikkede sandsynligvis på det gamle link.
+**Årsag**: OfficeRnD's OAuth-endpoint (`identity.officernd.com/oauth/token`) kræver `application/x-www-form-urlencoded`, men funktionen sender `application/json`. OfficeRnD returnerer: `"Invalid request: content must be application/x-www-form-urlencoded"`.
 
-2. **Manglende fejlhåndtering i SetPasswordPage**: Når Supabase /verify modtager et udløbet token, redirecter det til `/set-password#error=access_denied&error_description=...` — uden `access_token`. Koden tjekker kun for `access_token` i hash'en. Når den ikke finder det, falder den ned i else-branchen der venter på auth-events der aldrig kommer → evig "Indlæser...".
+**Sekundært problem**: Fejlhåndteringen i catch-blokken forsøger at parse request-body'en igen via `req.clone().json()`, men req er allerede forbrugt. Det returnerer `null` for `mail_item_id`, så fejlen logges aldrig — den eksisterende "pending" log-entry opdateres heller ikke.
 
 ### Løsning
 
-**Fil**: `src/pages/SetPasswordPage.tsx`
+**Fil**: `supabase/functions/sync-officernd-charge/index.ts`
 
-I useEffect'en, tilføj et tjek for `error` parameteren i hash'en INDEN tjekket for `access_token`:
+**1. Ret `getOfficeRndToken` til at bruge URL-encoded format (linje 91-101):**
 
 ```typescript
-useEffect(() => {
-  const hash = window.location.hash.substring(1);
-  const params = new URLSearchParams(hash);
-  
-  // Check for error from expired/invalid links FIRST
-  const error = params.get("error") || params.get("error_code");
-  if (error) {
-    setLinkExpired(true);
-    setLoading(false); // stop showing "Indlæser..."
-    window.history.replaceState(null, "", window.location.pathname);
-    return;
-  }
-
-  const accessToken = params.get("access_token");
-  // ... rest of existing logic
+async function getOfficeRndToken(clientId: string, clientSecret: string, orgSlug: string): Promise<string> {
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    scope: `${orgSlug}/charges.write ${orgSlug}/members.read`,
+    client_id: clientId,
+    client_secret: clientSecret,
+  });
+  const res = await fetch("https://identity.officernd.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+  // ... rest unchanged
 ```
 
-### Løsning for brugeren NU
+**2. Ret fejlhåndteringen — gem `mail_item_id` tidligt og opdater pending-loggen i catch:**
 
-Brugeren bør klikke på linket i den **seneste** e-mail (kl. 12:04). Hvis det link også er udløbet, skal der sendes en ny invitation.
+Gem `mail_item_id` i en variabel uden for try-blokken, og i catch: opdater den eksisterende pending log-entry i stedet for at indsætte en ny.
 
-### Ændringer
-
-- Én fil: `src/pages/SetPasswordPage.tsx` — tilføj fejlparametercheck i useEffect
-- Ingen backend-ændringer
+### Verifikation
+Efter deploy kan vi kalde funktionen igen for brev 2976 for at bekræfte at gebyret overføres korrekt.
 
