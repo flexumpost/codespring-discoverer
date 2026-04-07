@@ -241,6 +241,7 @@ Deno.serve(async (req) => {
       throw new Error(`OfficeRnD charge creation failed [${chargeRes.status}]: ${txt}`);
     }
     const charge = await chargeRes.json();
+    console.log(`OfficeRnD charge response:`, JSON.stringify(charge));
 
     // Update log as pending_confirmation (webhook will confirm)
     const preliminaryChargeId = charge._id || charge.id || null;
