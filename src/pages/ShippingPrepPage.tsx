@@ -604,7 +604,10 @@ export default function ShippingPrepPage() {
                     <CardContent className="space-y-2">
                       {group.items
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
-                        .map((item) => (
+                        .map((item) => {
+                          const isDk = !item.shipping_country || item.shipping_country.toLowerCase().trim() === "danmark" || item.shipping_country.toLowerCase().trim() === "denmark" || item.shipping_country.toLowerCase().trim() === "dk";
+                          const showPorto = tab === "brev" && item.tenant_type_name !== "Plus";
+                          return (
                           <div
                             key={item.id}
                             className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-muted/50 transition-colors"
@@ -617,6 +620,31 @@ export default function ShippingPrepPage() {
                             <span className="text-sm font-medium shrink-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — {t("common.fee")}: {getShippingFee(item)}
                             </span>
+                            {showPorto && (
+                              <Select
+                                value={portoSelections[item.id] ?? ""}
+                                onValueChange={(val) =>
+                                  setPortoSelections((prev) => ({ ...prev, [item.id]: val }))
+                                }
+                              >
+                                <SelectTrigger className="w-[220px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <SelectValue placeholder="Vælg porto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {isDk ? (
+                                    <>
+                                      <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
+                                      <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
+                                      <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            )}
                             {tab === "pakke" && (
                               <Input
                                 placeholder={t("shippingPrep.trackAndTrace")}
@@ -629,7 +657,8 @@ export default function ShippingPrepPage() {
                               />
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                     </CardContent>
                   </Card>
                   </div>
