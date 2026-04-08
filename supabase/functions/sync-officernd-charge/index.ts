@@ -88,6 +88,14 @@ function calculateFee(
   return { amountKr: 0, amountText: "0 kr." };
 }
 
+// Porto fee mapping
+const PORTO_MAP: Record<string, { planName: string; amountKr: number }> = {
+  dk_0_100: { planName: 'DAO Porto Danmark (0 - 100 g.) kr. 18,4', amountKr: 18.40 },
+  dk_100_250: { planName: 'DAO Porto Danmark (100 - 250 g.) kr. 36,8', amountKr: 36.80 },
+  udland_0_100: { planName: 'DAO Porto Udland (0 - 100 g.) kr. 46', amountKr: 46.00 },
+  udland_100_250: { planName: 'DAO Porto Udland (100 - 250 g.) kr. 92', amountKr: 92.00 },
+};
+
 // Determine the OfficeRnD plan name based on mail type, action, and tier
 function getPlanName(
   mailType: string,
