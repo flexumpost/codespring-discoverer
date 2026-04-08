@@ -357,7 +357,79 @@ Deno.serve(async (req) => {
       } as any)
       .eq("id", pendingLogId!);
 
-    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName, planType: charge.planType }), {
+    // --- Porto charge (separate fee) ---
+    let portoChargeId: string | null = null;
+    const portoOption = (item as any).porto_option as string | null;
+    const portoInfo = portoOption ? PORTO_MAP[portoOption] : null;
+
+    if (portoInfo && tierName && tierName !== "Plus") {
+      console.log(`Creating porto charge: ${portoInfo.planName} (${portoInfo.amountKr} kr.)`);
+
+      const portoLogRes = await supabase
+        .from("officernd_sync_log")
+        .insert({ mail_item_id: mailItemId, amount_text: `${portoInfo.amountKr} kr.`, status: "pending", plan_name: portoInfo.planName })
+        .select("id")
+        .single();
+      const portoLogId = portoLogRes.data?.id ?? null;
+
+      try {
+        const portoPlanId = await findPlanId(apiBase, token, portoInfo.planName);
+
+        const portoBody: Record<string, unknown> = {
+          price: portoInfo.amountKr,
+          date: new Date().toISOString(),
+          quantity: 1,
+          isPersonal,
+          description: `[mail_item_id:${mailItemId}] porto`,
+        };
+
+        if (isPersonal) portoBody.member = memberId;
+        if (memberOffice) portoBody.office = memberOffice;
+        if (companyId) portoBody.team = companyId;
+
+        if (portoPlanId) {
+          portoBody.plan = portoPlanId;
+          portoBody.name = portoInfo.planName;
+        } else {
+          portoBody.name = `Porto: ${portoInfo.planName}`;
+        }
+
+        console.log(`Porto charge body:`, JSON.stringify(portoBody));
+
+        const portoRes = await fetch(`${apiBase}/fees`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(portoBody),
+        });
+
+        if (!portoRes.ok) {
+          const txt = await portoRes.text();
+          throw new Error(`Porto charge failed [${portoRes.status}]: ${txt}`);
+        }
+
+        const portoRaw = await portoRes.json();
+        const portoCharge = Array.isArray(portoRaw) ? portoRaw[0] : portoRaw;
+        portoChargeId = portoCharge?._id || portoCharge?.id || null;
+
+        if (portoLogId) {
+          await supabase
+            .from("officernd_sync_log")
+            .update({ status: "pending_confirmation", charge_id: portoChargeId, member_id: memberId, plan_type: "OneOff" } as any)
+            .eq("id", portoLogId);
+        }
+        console.log(`Porto charge created: ${portoChargeId}`);
+      } catch (portoErr) {
+        console.error("Porto charge error:", portoErr);
+        if (portoLogId) {
+          await supabase
+            .from("officernd_sync_log")
+            .update({ status: "failed", error_message: portoErr instanceof Error ? portoErr.message : String(portoErr) })
+            .eq("id", portoLogId);
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName, planType: charge.planType, porto_charge_id: portoChargeId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
