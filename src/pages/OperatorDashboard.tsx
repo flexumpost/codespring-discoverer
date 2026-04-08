@@ -544,6 +544,7 @@ const OperatorDashboard = () => {
     return b.stamp_number - a.stamp_number;
   });
   const filteredByType = mailTypeFilter === "all" ? sortedItems : sortedItems.filter(i => i.mail_type === mailTypeFilter);
+  const displayItems = unprocessedOnly ? filteredByType.filter(isUnprocessed) : filteredByType;
 
   const handleCardClick = (title: string) => {
     setSelectedCard((prev) => (prev === title ? null : title));
