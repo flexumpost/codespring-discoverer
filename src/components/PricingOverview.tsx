@@ -135,9 +135,6 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
   const pkg = pricing?.pkg?.[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-tenants"] }); toast.success(t("pricing.packageActionSaved")); },
-    onError: () => toast.error(t("pricing.couldNotSave")),
-  });
 
   return (
     <Card>
@@ -146,15 +143,7 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
         {tenant && (
           <div className="space-y-3 border-b pb-4 mb-2">
             <Label>{t("pricing.defaultPackageAction")}</Label>
-            <div className="flex items-center gap-2">
-              <Select value={packageAction} onValueChange={setPackageAction}>
-                <SelectTrigger className="w-[200px]"><SelectValue placeholder={t("pricing.selectAction")} /></SelectTrigger>
-                <SelectContent>{PACKAGE_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button size="sm" onClick={() => pkgMutation.mutate()} disabled={!pkgChanged || !packageAction || pkgMutation.isPending}>
-                <Save className="mr-1 h-4 w-4" /> {pkgMutation.isPending ? t("common.saving") : t("common.save")}
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground">{t("actions.shipment")}</p>
           </div>
         )}
         <Table>
