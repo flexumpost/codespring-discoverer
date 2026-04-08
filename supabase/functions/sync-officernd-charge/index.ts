@@ -222,7 +222,6 @@ Deno.serve(async (req) => {
       .eq("id", mailItemId)
       .single();
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
-    if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
 
     const tenant = (item as any).tenants;
     if (!tenant?.contact_email) throw new Error("Tenant has no contact_email");
