@@ -6,6 +6,7 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -207,6 +208,7 @@ export default function ShippingPrepPage() {
   const [printCheckedGroups, setPrintCheckedGroups] = useState<Set<string>>(new Set());
   const [showPrint, setShowPrint] = useState(false);
   const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
+  const [portoSelections, setPortoSelections] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
