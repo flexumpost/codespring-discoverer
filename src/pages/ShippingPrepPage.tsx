@@ -257,6 +257,16 @@ export default function ShippingPrepPage() {
       const sentItems: { id: string; tenant_id: string; mail_type: string; stamp_number: number | null; tracking_number: string | null }[] = [];
 
       if (tab === "brev") {
+        // Save porto_option for each item that has one selected
+        for (const id of ids) {
+          const porto = portoSelections[id];
+          if (porto) {
+            await supabase
+              .from("mail_items")
+              .update({ porto_option: porto } as any)
+              .eq("id", id);
+          }
+        }
         const { error } = await supabase
           .from("mail_items")
           .update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" as const })
@@ -300,6 +310,7 @@ export default function ShippingPrepPage() {
       setCheckedIds(new Set());
       setDoneGroups(new Set());
       setTrackingNumbers({});
+      setPortoSelections({});
       toast({ title: tab === "brev" ? t("shippingPrep.lettersSentWithDao") : t("shippingPrep.packagesSentWithPostNord") });
     },
     onError: () => {
