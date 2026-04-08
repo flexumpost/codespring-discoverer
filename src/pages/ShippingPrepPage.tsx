@@ -648,7 +648,6 @@ export default function ShippingPrepPage() {
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => {
                           const isDk = !item.shipping_country || item.shipping_country.toLowerCase().trim() === "danmark" || item.shipping_country.toLowerCase().trim() === "denmark" || item.shipping_country.toLowerCase().trim() === "dk";
-                          const showPorto = (tab === "brev" && item.tenant_type_name !== "Plus") || tab === "pakke";
                           return (
                           <div
                             key={item.id}
@@ -662,7 +661,7 @@ export default function ShippingPrepPage() {
                             <span className="text-sm font-medium shrink-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — {t("common.fee")}: {getShippingFee(item)}
                             </span>
-                            {showPorto && (
+                            {tab === "pakke" && (
                               <Select
                                 value={portoSelections[item.id] ?? ""}
                                 onValueChange={(val) =>
@@ -673,31 +672,17 @@ export default function ShippingPrepPage() {
                                   <SelectValue placeholder="Vælg porto" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {tab === "pakke" ? (
-                                    isDk ? (
-                                      <>
-                                        <SelectItem value="dk_pakke_0_1">DK 0-1 kg (48,00 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_1_2">DK 1-2 kg (57,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_2_5">DK 2-5 kg (77,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_5_10">DK 5-10 kg (101,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
-                                      </>
-                                    ) : (
-                                      <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
-                                    )
+                                  {isDk ? (
+                                    <>
+                                      <SelectItem value="dk_pakke_0_1">DK 0-1 kg (48,00 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_1_2">DK 1-2 kg (57,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_2_5">DK 2-5 kg (77,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_5_10">DK 5-10 kg (101,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
+                                    </>
                                   ) : (
-                                    isDk ? (
-                                      <>
-                                        <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
-                                        <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
-                                        <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
-                                      </>
-                                    )
+                                    <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
