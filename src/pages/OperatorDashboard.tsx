@@ -21,6 +21,15 @@ import { getMailRowColor } from "@/lib/mailRowColor";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+
+function isUnprocessed(item: MailItem): boolean {
+  const doneStatuses = ["sendt_med_dao", "sendt_med_postnord", "sendt_retur", "arkiveret"];
+  if (doneStatuses.includes(item.status)) return false;
+  if (item.chosen_action === "afhentet") return false;
+  if ((item.chosen_action === "scan" || item.chosen_action === "standard_scan") && item.scan_url) return false;
+  return true;
+}
 
 type MailItem = Tables<"mail_items"> & { tenants?: { company_name: string; default_mail_action: string | null; default_package_action: string | null; has_unpaid_invoice?: boolean; tenant_types?: { name: string } | null } | null };
 
@@ -387,6 +396,7 @@ const OperatorDashboard = () => {
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [editItem, setEditItem] = useState<MailItem | null>(null);
+  const [unprocessedOnly, setUnprocessedOnly] = useState(false);
 
   const CARD_FILTERS = [
     {
@@ -605,7 +615,15 @@ const OperatorDashboard = () => {
             <Label htmlFor="op-filter-pakke" className="cursor-pointer">{t("common.packages")}</Label>
           </div>
         </RadioGroup>
-        {filteredByType.length === 0 ? (
+        <div className="flex items-center gap-1.5 ml-4">
+          <Checkbox
+            id="op-filter-unprocessed"
+            checked={unprocessedOnly}
+            onCheckedChange={(v) => setUnprocessedOnly(!!v)}
+          />
+          <Label htmlFor="op-filter-unprocessed" className="cursor-pointer">{t("common.unprocessed")}</Label>
+        </div>
+        {displayItems.length === 0 ? (
           <p className="text-muted-foreground">{t("operatorDashboard.noItems")}</p>
         ) : (
           <Table className="min-w-[700px]">
@@ -622,7 +640,7 @@ const OperatorDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredByType.map((item) => {
+              {displayItems.map((item) => {
                 const canDropScan = itemNeedsScan(item) && !(item as any).scan_url && !!item.tenant_id;
                 const handleRowDrop = async (e: React.DragEvent) => {
                   e.preventDefault();
