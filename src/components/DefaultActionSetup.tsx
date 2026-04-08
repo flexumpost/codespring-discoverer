@@ -17,17 +17,11 @@ export function DefaultActionSetup({ tenantId, tenantTypeName }: DefaultActionSe
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [mailAction, setMailAction] = useState("");
-  const [packageAction, setPackageAction] = useState("");
+  const packageAction = "send";
 
   const MAIL_ACTIONS = [
     { value: "send", label: t("defaultAction.shipment", "Forsendelse") },
-    { value: "afhentning", label: t("defaultAction.pickup", "Afhentning") },
     { value: "scan", label: t("defaultAction.scanning", "Scanning") },
-  ];
-
-  const PACKAGE_ACTIONS = [
-    { value: "send", label: t("defaultAction.shipment", "Forsendelse") },
-    { value: "afhentning", label: t("defaultAction.pickup", "Afhentning") },
   ];
 
   const mutation = useMutation({
@@ -39,7 +33,7 @@ export function DefaultActionSetup({ tenantId, tenantTypeName }: DefaultActionSe
     onError: () => { toast.error(t("defaultAction.couldNotSave", "Kunne ikke gemme standardhandling")); },
   });
 
-  const isValid = mailAction !== "" && packageAction !== "";
+  const isValid = mailAction !== "";
 
   return (
     <Dialog open={true}>
@@ -58,10 +52,7 @@ export function DefaultActionSetup({ tenantId, tenantTypeName }: DefaultActionSe
           </div>
           <div className="space-y-2">
             <Label>{t("defaultAction.defaultPackageAction", "Standard handling for pakker")}</Label>
-            <Select value={packageAction} onValueChange={setPackageAction}>
-              <SelectTrigger><SelectValue placeholder={t("defaultAction.selectAction", "Vælg handling...")} /></SelectTrigger>
-              <SelectContent>{PACKAGE_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
-            </Select>
+            <p className="text-sm text-muted-foreground">{t("defaultAction.shipment", "Forsendelse")}</p>
           </div>
           <Button className="w-full" onClick={() => mutation.mutate()} disabled={!isValid || mutation.isPending}>
             {mutation.isPending ? t("common.saving") : t("defaultAction.saveAndContinue", "Gem og fortsæt")}
