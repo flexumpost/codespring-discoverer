@@ -555,14 +555,46 @@ export default function ShippingPrepPage() {
                             ))}
                           </div>
                         </CardTitle>
-                        <Button
-                          variant={isDone ? "secondary" : "outline"}
-                          size="sm"
-                          onClick={() => toggleDoneGroup(group.addressKey)}
-                        >
-                          <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
-                          {t("common.done")}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {tab === "brev" && (() => {
+                            const hasNonPlus = group.companies.some((c) => c.typeName !== "Plus");
+                            if (!hasNonPlus) return null;
+                            const isDk = !group.shippingCountry || group.shippingCountry.toLowerCase().trim() === "danmark" || group.shippingCountry.toLowerCase().trim() === "denmark" || group.shippingCountry.toLowerCase().trim() === "dk";
+                            return (
+                              <Select
+                                value={portoSelections[group.addressKey] ?? ""}
+                                onValueChange={(val) =>
+                                  setPortoSelections((prev) => ({ ...prev, [group.addressKey]: val }))
+                                }
+                              >
+                                <SelectTrigger className="w-[220px] h-8 text-xs">
+                                  <SelectValue placeholder="Vælg porto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {isDk ? (
+                                    <>
+                                      <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
+                                      <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
+                                      <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            );
+                          })()}
+                          <Button
+                            variant={isDone ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => toggleDoneGroup(group.addressKey)}
+                          >
+                            <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
+                            {t("common.done")}
+                          </Button>
+                        </div>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
                         {group.shippingRecipient && (
