@@ -257,9 +257,12 @@ export default function ShippingPrepPage() {
       const sentItems: { id: string; tenant_id: string; mail_type: string; stamp_number: number | null; tracking_number: string | null }[] = [];
 
       if (tab === "brev") {
-        // Save porto_option for each item that has one selected
+        // For letters, porto is per group — find the group porto for each item
         for (const id of ids) {
-          const porto = portoSelections[id];
+          const item = items.find((i) => i.id === id);
+          if (!item) continue;
+          const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
+          const porto = portoSelections[addrKey];
           if (porto) {
             await supabase
               .from("mail_items")
@@ -294,6 +297,11 @@ export default function ShippingPrepPage() {
           if (item) sentItems.push({ id, tenant_id: item.tenant_id, mail_type: item.mail_type, stamp_number: item.stamp_number, tracking_number: tn });
         }
       }
+
+      // Call batch OfficeRnD sync (consolidated per tenant)
+      supabase.functions.invoke("sync-officernd-charge-batch", {
+        body: { mail_item_ids: ids },
+      }).catch((err) => console.error("Batch OfficeRnD sync error:", err));
 
       for (const si of sentItems) {
         supabase.functions.invoke("send-new-mail-email", {
