@@ -257,9 +257,12 @@ export default function ShippingPrepPage() {
       const sentItems: { id: string; tenant_id: string; mail_type: string; stamp_number: number | null; tracking_number: string | null }[] = [];
 
       if (tab === "brev") {
-        // Save porto_option for each item that has one selected
+        // For letters, porto is per group — find the group porto for each item
         for (const id of ids) {
-          const porto = portoSelections[id];
+          const item = items.find((i) => i.id === id);
+          if (!item) continue;
+          const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
+          const porto = portoSelections[addrKey];
           if (porto) {
             await supabase
               .from("mail_items")
@@ -294,6 +297,11 @@ export default function ShippingPrepPage() {
           if (item) sentItems.push({ id, tenant_id: item.tenant_id, mail_type: item.mail_type, stamp_number: item.stamp_number, tracking_number: tn });
         }
       }
+
+      // Call batch OfficeRnD sync (consolidated per tenant)
+      supabase.functions.invoke("sync-officernd-charge-batch", {
+        body: { mail_item_ids: ids },
+      }).catch((err) => console.error("Batch OfficeRnD sync error:", err));
 
       for (const si of sentItems) {
         supabase.functions.invoke("send-new-mail-email", {
@@ -547,14 +555,46 @@ export default function ShippingPrepPage() {
                             ))}
                           </div>
                         </CardTitle>
-                        <Button
-                          variant={isDone ? "secondary" : "outline"}
-                          size="sm"
-                          onClick={() => toggleDoneGroup(group.addressKey)}
-                        >
-                          <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
-                          {t("common.done")}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          {tab === "brev" && (() => {
+                            const hasNonPlus = group.companies.some((c) => c.typeName !== "Plus");
+                            if (!hasNonPlus) return null;
+                            const isDk = !group.shippingCountry || group.shippingCountry.toLowerCase().trim() === "danmark" || group.shippingCountry.toLowerCase().trim() === "denmark" || group.shippingCountry.toLowerCase().trim() === "dk";
+                            return (
+                              <Select
+                                value={portoSelections[group.addressKey] ?? ""}
+                                onValueChange={(val) =>
+                                  setPortoSelections((prev) => ({ ...prev, [group.addressKey]: val }))
+                                }
+                              >
+                                <SelectTrigger className="w-[220px] h-8 text-xs">
+                                  <SelectValue placeholder="Vælg porto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {isDk ? (
+                                    <>
+                                      <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
+                                      <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
+                                      <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
+                                    </>
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            );
+                          })()}
+                          <Button
+                            variant={isDone ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => toggleDoneGroup(group.addressKey)}
+                          >
+                            <CheckCircle className={cn("mr-1 h-4 w-4", isDone && "text-primary")} />
+                            {t("common.done")}
+                          </Button>
+                        </div>
                       </div>
                       <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
                         {group.shippingRecipient && (
@@ -608,7 +648,6 @@ export default function ShippingPrepPage() {
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => {
                           const isDk = !item.shipping_country || item.shipping_country.toLowerCase().trim() === "danmark" || item.shipping_country.toLowerCase().trim() === "denmark" || item.shipping_country.toLowerCase().trim() === "dk";
-                          const showPorto = (tab === "brev" && item.tenant_type_name !== "Plus") || tab === "pakke";
                           return (
                           <div
                             key={item.id}
@@ -622,7 +661,7 @@ export default function ShippingPrepPage() {
                             <span className="text-sm font-medium shrink-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — {t("common.fee")}: {getShippingFee(item)}
                             </span>
-                            {showPorto && (
+                            {tab === "pakke" && (
                               <Select
                                 value={portoSelections[item.id] ?? ""}
                                 onValueChange={(val) =>
@@ -633,31 +672,17 @@ export default function ShippingPrepPage() {
                                   <SelectValue placeholder="Vælg porto" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {tab === "pakke" ? (
-                                    isDk ? (
-                                      <>
-                                        <SelectItem value="dk_pakke_0_1">DK 0-1 kg (48,00 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_1_2">DK 1-2 kg (57,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_2_5">DK 2-5 kg (77,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_5_10">DK 5-10 kg (101,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
-                                        <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
-                                      </>
-                                    ) : (
-                                      <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
-                                    )
+                                  {isDk ? (
+                                    <>
+                                      <SelectItem value="dk_pakke_0_1">DK 0-1 kg (48,00 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_1_2">DK 1-2 kg (57,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_2_5">DK 2-5 kg (77,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_5_10">DK 5-10 kg (101,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
+                                      <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
+                                    </>
                                   ) : (
-                                    isDk ? (
-                                      <>
-                                        <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
-                                        <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
-                                        <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
-                                      </>
-                                    )
+                                    <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
