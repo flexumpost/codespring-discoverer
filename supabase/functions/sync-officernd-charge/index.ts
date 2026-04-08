@@ -240,20 +240,23 @@ Deno.serve(async (req) => {
       .single();
     pendingLogId = logRow?.id ?? null;
 
-    // Skip if fee is 0 and no porto
-    if (amountKr === 0 && !amountText.includes("porto")) {
+    let preliminaryChargeId: string | null = null;
+    let planName: string | null = null;
+    let resolvedPlanType = "OneOff";
+    let skippedMainFee = false;
+
+    // Skip main charge if fee is 0
+    if (amountKr === 0) {
       await supabase
         .from("officernd_sync_log")
-        .update({ status: "success", charge_id: "skipped_zero_fee" })
+        .update({ status: "skipped_zero_fee", charge_id: "skipped_zero_fee" })
         .eq("id", pendingLogId!);
-      return new Response(JSON.stringify({ success: true, skipped: true, reason: "zero fee" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      skippedMainFee = true;
+      console.log(`Main fee is 0 kr — skipping OfficeRnD charge creation, proceeding to porto check.`);
     }
 
-    // Get OfficeRnD token
+    // We need OfficeRnD token & member for both main charge and porto
     const token = await getOfficeRndToken(clientId, clientSecret, orgSlug);
-
     const apiBase = `https://app.officernd.com/api/v1/organizations/${orgSlug}`;
 
     // Find member by email
@@ -269,93 +272,77 @@ Deno.serve(async (req) => {
     if (!members.length) {
       throw new Error(`No OfficeRnD member found for email: ${tenant.contact_email}`);
     }
-    // Prioritize member with team (organization) over personal profile
-    const teamMember = members.find((m: any) => m.team);
-    const member = teamMember || members[0];
+
+    const member = members.find((m: any) => m.team) || members[0];
     const memberId = member._id;
-    const memberOffice = member.office;
     const companyId = member.team || null;
+    const memberOffice = member.office || null;
     const isPersonal = !companyId;
-    console.log(`Selected member: ${member.name} (team: ${member.team || 'none'}, id: ${member._id})`);
-    console.log(`Resolved billing target: ${companyId ? `company ${companyId}` : `personal member ${memberId}`}`);
 
-    // Determine plan name and look up plan ID
-    const planName = getPlanName(item.mail_type, item.chosen_action, defaultAction, tierName);
-    console.log(`Determined plan name: "${planName}" (mailType=${item.mail_type}, action=${item.chosen_action}, default=${defaultAction}, tier=${tierName})`);
+    if (!skippedMainFee) {
+      // Find matching plan
+      planName = getPlanName(item.mail_type, item.chosen_action, tierName);
+      let planId: string | null = null;
+      if (planName) {
+        planId = await findPlanId(apiBase, token, planName);
+      }
 
-    let planId: string | null = null;
-    if (planName) {
-      planId = await findPlanId(apiBase, token, planName);
+      // Build charge body
+      const chargeBody: Record<string, unknown> = {
+        price: amountKr,
+        date: new Date().toISOString(),
+        quantity: 1,
+        isPersonal,
+      };
+
+      if (isPersonal) chargeBody.member = memberId;
+      if (memberOffice) chargeBody.office = memberOffice;
+      if (companyId) chargeBody.team = companyId;
+
+      if (planId && planName) {
+        chargeBody.plan = planId;
+        chargeBody.name = planName;
+        chargeBody.description = `[mail_item_id:${mailItemId}]`;
+        console.log(`Using plan reference: ${planId} (${planName})`);
+      } else {
+        chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})`;
+        chargeBody.description = `[mail_item_id:${mailItemId}]`;
+        console.warn(`No plan ID found — creating custom one-off fee`);
+      }
+
+      console.log(`OfficeRnD charge body:`, JSON.stringify(chargeBody));
+
+      // Create charge
+      const chargeRes = await fetch(`${apiBase}/fees`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(chargeBody),
+      });
+      if (!chargeRes.ok) {
+        const txt = await chargeRes.text();
+        throw new Error(`OfficeRnD charge creation failed [${chargeRes.status}]: ${txt}`);
+      }
+      const chargeRaw = await chargeRes.json();
+      const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
+      console.log(`OfficeRnD charge response (raw):`, JSON.stringify(chargeRaw));
+      console.log(`OfficeRnD charge parsed:`, JSON.stringify(charge));
+
+      preliminaryChargeId = charge?._id || charge?.id || null;
+      resolvedPlanType = charge.planType || "OneOff";
+      await supabase
+        .from("officernd_sync_log")
+        .update({
+          status: "pending_confirmation",
+          charge_id: preliminaryChargeId,
+          plan_name: planName,
+          plan_type: resolvedPlanType,
+          member_id: memberId,
+        } as any)
+        .eq("id", pendingLogId!);
     }
-
-    // Build charge body — attach the fee to the company profile when a team/company
-    // exists, otherwise fall back to a personal fee on the member profile.
-    const chargeBody: Record<string, unknown> = {
-      price: amountKr,
-      date: new Date().toISOString(),
-      quantity: 1,
-      isPersonal,
-    };
-
-    if (isPersonal) {
-      chargeBody.member = memberId;
-    }
-
-    if (memberOffice) {
-      chargeBody.office = memberOffice;
-    }
-
-    if (companyId) {
-      chargeBody.team = companyId;
-    }
-
-    let resolvedPlanType = "OneOff";
-
-    if (planId && planName) {
-      chargeBody.plan = planId;
-      chargeBody.name = planName;
-      chargeBody.description = `[mail_item_id:${mailItemId}]`;
-      resolvedPlanType = "OneOff";
-      console.log(`Using plan reference: ${planId} (${planName})`);
-    } else {
-      chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})`;
-      chargeBody.description = `[mail_item_id:${mailItemId}]`;
-      resolvedPlanType = "OneOff";
-      console.warn(`No plan ID found — creating custom one-off fee`);
-    }
-
-    console.log(`OfficeRnD charge body:`, JSON.stringify(chargeBody));
-
-    // Create charge
-    const chargeRes = await fetch(`${apiBase}/fees`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(chargeBody),
-    });
-    if (!chargeRes.ok) {
-      const txt = await chargeRes.text();
-      throw new Error(`OfficeRnD charge creation failed [${chargeRes.status}]: ${txt}`);
-    }
-    const chargeRaw = await chargeRes.json();
-    const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
-    console.log(`OfficeRnD charge response (raw):`, JSON.stringify(chargeRaw));
-    console.log(`OfficeRnD charge parsed:`, JSON.stringify(charge));
-
-    // Update log as pending_confirmation with debug info
-    const preliminaryChargeId = charge?._id || charge?.id || null;
-    await supabase
-      .from("officernd_sync_log")
-      .update({
-        status: "pending_confirmation",
-        charge_id: preliminaryChargeId,
-        plan_name: planName,
-        plan_type: charge.planType || resolvedPlanType,
-        member_id: memberId,
-      } as any)
-      .eq("id", pendingLogId!);
 
     // --- Porto charge (separate fee) ---
     let portoChargeId: string | null = null;
@@ -429,7 +416,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, status: "pending_confirmation", charge_id: preliminaryChargeId, plan: planName, planType: charge.planType, porto_charge_id: portoChargeId }), {
+    return new Response(JSON.stringify({ success: true, skipped_main: skippedMainFee, status: skippedMainFee ? "skipped_zero_fee" : "pending_confirmation", charge_id: preliminaryChargeId, plan: planName, porto_charge_id: portoChargeId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
