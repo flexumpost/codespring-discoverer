@@ -1,45 +1,27 @@
 
 
-## Porto-dropdown på ShippingPrepPage + OfficeRnD-synkronisering
+## Problem: Hovedgebyr på 0 kr. oprettes i OfficeRnD
 
-### Oversigt
-Tilføj en porto-dropdown til hvert brev på forsendelsessiden, så operatøren kan angive vægtkategori. Porto-valget gemmes i databasen og overføres som separat gebyr til OfficeRnD ved afsendelse.
+### Analyse
+For brev-forsendelse med Standard-tier er hovedgebyret **0 kr.** (linje 74: `amountKr: 0, amountText: "0 kr. + porto"`). 
 
-### Trin 1: Database — ny kolonne på mail_items
-Tilføj `porto_option text` (nullable) til `mail_items`-tabellen via migration. Mulige værdier: `dk_0_100`, `dk_100_250`, `udland_0_100`, `udland_100_250`.
+Skip-logikken på linje 244 tjekker:
+```
+if (amountKr === 0 && !amountText.includes("porto"))
+```
 
-### Trin 2: Frontend — Porto-dropdown i ShippingPrepPage
-- Tilføj state `portoSelections: Record<string, string>` for porto-valg per mail item.
-- For hvert brev-item i forsendelseslisten (brev-tab, kun Lite/Standard lejere):
-  - Vis en `<Select>` dropdown efter gebyr-teksten.
-  - Valgmuligheder baseret på `shipping_country`:
-    - Danmark: "DK 0-100g (18,40 kr.)" / "DK 100-250g (36,80 kr.)"
-    - Udland: "Udland 0-100g (46,00 kr.)" / "Udland 100-250g (92,00 kr.)"
-  - Plus-lejere: ingen dropdown (gratis porto).
-- Ved klik "Send": gem `porto_option` på hvert brev-item inden status-opdatering.
+Fordi `amountText` indeholder "porto", springer den **ikke** over — og opretter et meningsløst 0 kr.-gebyr ("Postgebyr: 0 kr. + porto (brev)") i OfficeRnD. Porto-gebyret oprettes korrekt separat længere nede.
 
-### Trin 3: Backend — Separat porto-gebyr i sync-officernd-charge
-- Udvid `sync-officernd-charge/index.ts`:
-  - Hent `porto_option` fra mail_item.
-  - Hvis `porto_option` er sat og tier er Lite/Standard:
-    - Map til OfficeRnD plan-navn (matcher de eksisterende planer i OfficeRnD):
-      - `dk_0_100` → "DAO Porto Danmark (0 - 100 g.) kr. 18,4"
-      - `dk_100_250` → "DAO Porto Danmark (100 - 250 g.) kr. 36,8"
-      - `udland_0_100` → "DAO Porto Udland (0 - 100 g.) kr. 46"
-      - `udland_100_250` → "DAO Porto Udland (100 - 250 g.) kr. 92"
-    - Map til beløb: 18.40, 36.80, 46.00, 92.00
-    - Opret et separat gebyr i OfficeRnD med den matchede plan.
-    - Log porto-gebyret separat i `officernd_sync_log`.
+### Fix
 
-### Trin 4: Trigger-tilpasning
-Den eksisterende trigger fyrer ved status-skift til `sendt_med_dao`. Porto-gebyret oprettes i samme kald som hovedgebyret, så ingen trigger-ændringer er nødvendige.
+Ændr skip-logikken så den springer over hovedgebyret når `amountKr === 0`, uanset om teksten nævner porto. Porto håndteres allerede separat i koden (linje 360-430). Men porto-delen skal stadig køre, så vi skal omstrukturere flowet:
 
-### Tekniske detaljer
+1. **Linje 244-252**: Når `amountKr === 0`, spring kun over **oprettelse af hovedgebyret** i OfficeRnD, men lad porto-koden køre bagefter.
+2. Opdatér den eksisterende log-entry til `skipped_zero_fee` for hovedgebyret.
+3. Porto-logikken fortsætter uændret og opretter sit eget gebyr.
 
-| Komponent | Ændring |
-|-----------|---------|
-| Migration | `ALTER TABLE mail_items ADD COLUMN porto_option text` |
-| ShippingPrepPage.tsx | Porto `<Select>` dropdown per brev-item, gem ved send |
-| sync-officernd-charge | Porto plan-mapping + separat gebyr-oprettelse |
-| officernd_sync_log | Porto-entries med dedikeret plan_name |
+### Berørt fil
+| Fil | Ændring |
+|-----|---------|
+| `sync-officernd-charge/index.ts` | Ændr linje 244-252: skip hovedgebyr ved 0 kr men kør porto. Fjern den tidlige `return` og lad koden falde igennem til porto-sektionen. |
 
