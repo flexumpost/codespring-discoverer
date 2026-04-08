@@ -72,7 +72,6 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
   const MAIL_ACTIONS = [
     { value: "send", label: t("actions.shipment") },
-    { value: "afhentning", label: t("actions.pickup") },
     { value: "scan", label: t("actions.scanning") },
   ];
 
@@ -121,29 +120,21 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [packageAction, setPackageAction] = useState(tenant?.default_package_action ?? "");
+  const packageAction = "send";
   const { data: pricing } = usePricingData();
 
-  useEffect(() => { setPackageAction(tenant?.default_package_action ?? ""); }, [tenant?.id, tenant?.default_package_action]);
+  useEffect(() => {
+    // Auto-fix if tenant currently has "afhentning" as default package action
+    if (tenant?.default_package_action === "afhentning") {
+      supabase.from("tenants").update({ default_package_action: "send" } as any).eq("id", tenant.id).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
+      });
+    }
+  }, [tenant?.id, tenant?.default_package_action]);
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
 
   const pkg = pricing?.pkg?.[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
-  const pkgChanged = tenant && packageAction !== (tenant.default_package_action ?? "");
-
-  const PACKAGE_ACTIONS = [
-    { value: "send", label: t("actions.shipment") },
-    { value: "afhentning", label: t("actions.pickup") },
-  ];
-
-  const pkgMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("tenants").update({ default_package_action: packageAction } as any).eq("id", tenant!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-tenants"] }); toast.success(t("pricing.packageActionSaved")); },
-    onError: () => toast.error(t("pricing.couldNotSave")),
-  });
 
   return (
     <Card>
@@ -152,15 +143,7 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
         {tenant && (
           <div className="space-y-3 border-b pb-4 mb-2">
             <Label>{t("pricing.defaultPackageAction")}</Label>
-            <div className="flex items-center gap-2">
-              <Select value={packageAction} onValueChange={setPackageAction}>
-                <SelectTrigger className="w-[200px]"><SelectValue placeholder={t("pricing.selectAction")} /></SelectTrigger>
-                <SelectContent>{PACKAGE_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button size="sm" onClick={() => pkgMutation.mutate()} disabled={!pkgChanged || !packageAction || pkgMutation.isPending}>
-                <Save className="mr-1 h-4 w-4" /> {pkgMutation.isPending ? t("common.saving") : t("common.save")}
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground">{t("actions.shipment")}</p>
           </div>
         )}
         <Table>
