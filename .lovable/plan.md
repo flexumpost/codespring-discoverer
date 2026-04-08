@@ -1,27 +1,46 @@
 
 
-## Problem: Hovedgebyr på 0 kr. oprettes i OfficeRnD
+## Pakke-porto dropdown + OfficeRnD-synkronisering
 
-### Analyse
-For brev-forsendelse med Standard-tier er hovedgebyret **0 kr.** (linje 74: `amountKr: 0, amountText: "0 kr. + porto"`). 
+### Oversigt
+Tilføj porto-dropdown for pakker på forsendelsessiden. Gælder **alle** lejere (Lite, Standard, Plus). Kun Danmark-priser i denne iteration. Porto overføres som separat gebyr til OfficeRnD.
 
-Skip-logikken på linje 244 tjekker:
+### Trin 1: Frontend — Porto-dropdown for pakker (ShippingPrepPage.tsx)
+
+**Linje 608-609**: Udvid `showPorto`-logikken så den også viser dropdown for pakker (alle tiers):
 ```
-if (amountKr === 0 && !amountText.includes("porto"))
+const showPorto = (tab === "brev" && item.tenant_type_name !== "Plus") || tab === "pakke";
 ```
 
-Fordi `amountText` indeholder "porto", springer den **ikke** over — og opretter et meningsløst 0 kr.-gebyr ("Postgebyr: 0 kr. + porto (brev)") i OfficeRnD. Porto-gebyret oprettes korrekt separat længere nede.
+**Linje 633-645**: Tilføj pakke-porto-valgmuligheder når `tab === "pakke"`:
+- DK 0-1 kg (48,00 kr.)
+- DK 1-2 kg (57,60 kr.)
+- DK 2-5 kg (77,60 kr.)
+- DK 5-10 kg (101,60 kr.)
+- DK 10-15 kg (133,60 kr.)
+- DK 15-20 kg (141,60 kr.)
 
-### Fix
+**Linje 279-293**: Gem `porto_option` for pakker i send-blokken (ligesom breve allerede gør).
 
-Ændr skip-logikken så den springer over hovedgebyret når `amountKr === 0`, uanset om teksten nævner porto. Porto håndteres allerede separat i koden (linje 360-430). Men porto-delen skal stadig køre, så vi skal omstrukturere flowet:
+### Trin 2: Backend — Udvid PORTO_MAP (sync-officernd-charge/index.ts)
 
-1. **Linje 244-252**: Når `amountKr === 0`, spring kun over **oprettelse af hovedgebyret** i OfficeRnD, men lad porto-koden køre bagefter.
-2. Opdatér den eksisterende log-entry til `skipped_zero_fee` for hovedgebyret.
-3. Porto-logikken fortsætter uændret og opretter sit eget gebyr.
+Tilføj 6 nye entries med plan-navne matchende OfficeRnD-screenshot:
+| Nøgle | Plan-navn | Beløb |
+|-------|-----------|-------|
+| `dk_pakke_0_1` | Pakke porto (0 - 1 kg.) á kr. 48,00 | 48.00 |
+| `dk_pakke_1_2` | Pakke porto (1- 2 kg.) á kr. 57,60 | 57.60 |
+| `dk_pakke_2_5` | Pakke porto (2 - 5 kg.) á kr. 77,60 | 77.60 |
+| `dk_pakke_5_10` | Pakke porto (5 - 10 kg.) á kr. 101,60 | 101.60 |
+| `dk_pakke_10_15` | Pakke porto (10 - 15 kg.) á kr. 133,60 | 133.60 |
+| `dk_pakke_15_20` | Pakke porto (15 - 20 kg.) á kr. 141,60 | 141.60 |
 
-### Berørt fil
+**Linje 351**: Fjern `tierName !== "Plus"`-betingelsen for pakke-porto, så alle tiers synkroniseres.
+
+### Berørte filer
 | Fil | Ændring |
 |-----|---------|
-| `sync-officernd-charge/index.ts` | Ændr linje 244-252: skip hovedgebyr ved 0 kr men kør porto. Fjern den tidlige `return` og lad koden falde igennem til porto-sektionen. |
+| `src/pages/ShippingPrepPage.tsx` | Porto-dropdown for pakker (alle tiers), gem porto_option ved send |
+| `supabase/functions/sync-officernd-charge/index.ts` | 6 nye PORTO_MAP-entries, tillad Plus-tier for pakke-porto |
+
+Ingen database-migration nødvendig — `porto_option`-kolonnen eksisterer allerede.
 
