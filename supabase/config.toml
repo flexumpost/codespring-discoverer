@@ -37,3 +37,5 @@ project_id = "hokiuavxyoymcenqlvly"
     verify_jwt = false
   [functions.officernd-webhook]
     verify_jwt = false
+  [functions.sync-officernd-charge-batch]
+    verify_jwt = false
