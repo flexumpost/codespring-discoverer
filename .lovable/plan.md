@@ -1,32 +1,48 @@
 
 
-## Fjern "Afhentning" som standardhandling + auto-sæt pakker til "Forsendelse"
+## Tilføj "Ubehandlet" checkbox til operatør-dashboardet
 
 ### Oversigt
-Fjern muligheden for at vælge "Afhentning" som standardhandling for både breve og pakker. Pakkers standardhandling sættes automatisk til "Forsendelse". For breve kan der vælges mellem "Forsendelse" og "Scanning".
+Tilføj en checkbox ved siden af radio-knapperne (Alle/Breve/Pakker) der hedder "Ubehandlet". Når den er markeret, filtreres listen til kun at vise forsendelser der stadig kræver behandling — dvs. ikke er afsluttet (sendt, afhentet, destrueret, arkiveret, scannet).
 
-### Berørte filer og ændringer
+### Definition af "ubehandlet"
+En forsendelse er **ubehandlet** hvis den IKKE er i en afsluttet tilstand:
+- Status er IKKE `sendt_med_dao`, `sendt_med_postnord`, `sendt_retur`, `arkiveret`
+- `chosen_action` er IKKE `afhentet`
+- Hvis `chosen_action` er `scan` eller `standard_scan`: kun ubehandlet hvis `scan_url` er tom (ikke scannet endnu)
+
+### Ændringer
 
 | Fil | Ændring |
 |-----|---------|
-| `src/components/DefaultActionSetup.tsx` | Fjern "afhentning" fra MAIL_ACTIONS og PACKAGE_ACTIONS. Sæt `packageAction` til `"send"` som default og fjern pakke-dropdown (auto-gem `"send"`). |
-| `src/components/PricingOverview.tsx` | **MailPricingCard** (linje 73-77): Fjern `afhentning` fra MAIL_ACTIONS-listen. **PackagePricingCard** (linje 134-137): Fjern `afhentning` fra PACKAGE_ACTIONS, og fjern dropdown — vis i stedet en read-only tekst "Forsendelse" da det er den eneste mulighed. Auto-sæt `default_package_action` til `"send"` hvis den aktuelt er `"afhentning"`. |
+| `src/pages/OperatorDashboard.tsx` | Tilføj `unprocessedOnly` state + checkbox UI + filter-logik |
+| `src/i18n/locales/da.json` | Tilføj `"unprocessed": "Ubehandlet"` |
+| `src/i18n/locales/en.json` | Tilføj `"unprocessed": "Unprocessed"` |
 
-### Detaljer
+### Tekniske detaljer
 
-**DefaultActionSetup.tsx:**
-- `MAIL_ACTIONS`: Kun `send` og `scan`
-- `PACKAGE_ACTIONS`: Fjernes helt — `packageAction` hardcodes til `"send"`
-- Pakke-dropdown skjules, kun brev-valg vises
-- Ved gem sendes `default_package_action: "send"` automatisk
+**State (linje ~384):**
+```typescript
+const [unprocessedOnly, setUnprocessedOnly] = useState(false);
+```
 
-**PricingOverview.tsx — MailPricingCard:**
-- `MAIL_ACTIONS` (linje 73-76): Fjern `afhentning`-entry, behold `send` og `scan`
+**Filter-funktion:**
+```typescript
+function isUnprocessed(item: MailItem): boolean {
+  const doneStatuses = ["sendt_med_dao", "sendt_med_postnord", "sendt_retur", "arkiveret"];
+  if (doneStatuses.includes(item.status)) return false;
+  if (item.chosen_action === "afhentet") return false;
+  if ((item.chosen_action === "scan" || item.chosen_action === "standard_scan") && item.scan_url) return false;
+  return true;
+}
+```
 
-**PricingOverview.tsx — PackagePricingCard:**
-- Fjern dropdown-valg, da "Forsendelse" er den eneste mulighed
-- Vis blot en tekst der indikerer at standardhandlingen er "Forsendelse"
-- Mutation opdaterer automatisk til `"send"` hvis nuværende værdi er `"afhentning"`
+**Filtrering (linje ~536):**
+Tilføj `unprocessedOnly`-filter efter `mailTypeFilter`:
+```typescript
+const afterUnprocessed = unprocessedOnly ? filteredByType.filter(isUnprocessed) : filteredByType;
+```
 
-Afhentning forbliver tilgængelig som ekstra handling i TenantDashboard — ingen ændringer der.
+**UI (linje ~607, efter pakke-radio):**
+Tilføj en Checkbox med label "Ubehandlet" på samme linje som radio-knapperne.
 
