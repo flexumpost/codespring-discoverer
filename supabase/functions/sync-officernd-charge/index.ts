@@ -94,6 +94,12 @@ const PORTO_MAP: Record<string, { planName: string; amountKr: number }> = {
   dk_100_250: { planName: 'DAO Porto Danmark (100 - 250 g.) kr. 36,8', amountKr: 36.80 },
   udland_0_100: { planName: 'DAO Porto Udland (0 - 100 g.) kr. 46', amountKr: 46.00 },
   udland_100_250: { planName: 'DAO Porto Udland (100 - 250 g.) kr. 92', amountKr: 92.00 },
+  dk_pakke_0_1: { planName: 'Pakke porto (0 - 1 kg.) á kr. 48,00', amountKr: 48.00 },
+  dk_pakke_1_2: { planName: 'Pakke porto (1- 2 kg.) á kr. 57,60', amountKr: 57.60 },
+  dk_pakke_2_5: { planName: 'Pakke porto (2 - 5 kg.) á kr. 77,60', amountKr: 77.60 },
+  dk_pakke_5_10: { planName: 'Pakke porto (5 - 10 kg.) á kr. 101,60', amountKr: 101.60 },
+  dk_pakke_10_15: { planName: 'Pakke porto (10 - 15 kg.) á kr. 133,60', amountKr: 133.60 },
+  dk_pakke_15_20: { planName: 'Pakke porto (15 - 20 kg.) á kr. 141,60', amountKr: 141.60 },
 };
 
 // Determine the OfficeRnD plan name based on mail type, action, and tier
@@ -348,7 +354,8 @@ Deno.serve(async (req) => {
     const portoOption = (item as any).porto_option as string | null;
     const portoInfo = portoOption ? PORTO_MAP[portoOption] : null;
 
-    if (portoInfo && tierName && tierName !== "Plus") {
+    const isPackagePorto = portoOption ? portoOption.startsWith("dk_pakke_") : false;
+    if (portoInfo && tierName && (isPackagePorto || tierName !== "Plus")) {
       console.log(`Creating porto charge: ${portoInfo.planName} (${portoInfo.amountKr} kr.)`);
 
       const portoLogRes = await supabase

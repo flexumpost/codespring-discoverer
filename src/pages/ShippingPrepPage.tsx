@@ -279,12 +279,14 @@ export default function ShippingPrepPage() {
       } else {
         for (const id of ids) {
           const tn = trackingNumbers[id] || null;
+          const porto = portoSelections[id] || null;
           const { error } = await supabase
             .from("mail_items")
             .update({
               chosen_action: "under_forsendelse",
               status: "sendt_med_postnord" as const,
               tracking_number: tn,
+              ...(porto ? { porto_option: porto } : {}),
             } as any)
             .eq("id", id);
           if (error) throw error;
@@ -606,7 +608,7 @@ export default function ShippingPrepPage() {
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => {
                           const isDk = !item.shipping_country || item.shipping_country.toLowerCase().trim() === "danmark" || item.shipping_country.toLowerCase().trim() === "denmark" || item.shipping_country.toLowerCase().trim() === "dk";
-                          const showPorto = tab === "brev" && item.tenant_type_name !== "Plus";
+                          const showPorto = (tab === "brev" && item.tenant_type_name !== "Plus") || tab === "pakke";
                           return (
                           <div
                             key={item.id}
@@ -627,20 +629,35 @@ export default function ShippingPrepPage() {
                                   setPortoSelections((prev) => ({ ...prev, [item.id]: val }))
                                 }
                               >
-                                <SelectTrigger className="w-[220px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
+                                <SelectTrigger className="w-[260px] h-8 text-xs" onClick={(e) => e.stopPropagation()}>
                                   <SelectValue placeholder="Vælg porto" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {isDk ? (
-                                    <>
-                                      <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
-                                      <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
-                                    </>
+                                  {tab === "pakke" ? (
+                                    isDk ? (
+                                      <>
+                                        <SelectItem value="dk_pakke_0_1">DK 0-1 kg (48,00 kr.)</SelectItem>
+                                        <SelectItem value="dk_pakke_1_2">DK 1-2 kg (57,60 kr.)</SelectItem>
+                                        <SelectItem value="dk_pakke_2_5">DK 2-5 kg (77,60 kr.)</SelectItem>
+                                        <SelectItem value="dk_pakke_5_10">DK 5-10 kg (101,60 kr.)</SelectItem>
+                                        <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
+                                        <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
+                                      </>
+                                    ) : (
+                                      <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
+                                    )
                                   ) : (
-                                    <>
-                                      <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
-                                      <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
-                                    </>
+                                    isDk ? (
+                                      <>
+                                        <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
+                                        <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
+                                        <SelectItem value="udland_100_250">Udland 100-250g (92,00 kr.)</SelectItem>
+                                      </>
+                                    )
                                   )}
                                 </SelectContent>
                               </Select>
