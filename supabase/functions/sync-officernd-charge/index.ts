@@ -218,9 +218,10 @@ Deno.serve(async (req) => {
     // Fetch mail item with tenant info
     const { data: item, error: itemErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .eq("id", mailItemId)
       .single();
+    if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
 
     const tenant = (item as any).tenants;
