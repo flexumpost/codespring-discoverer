@@ -280,7 +280,7 @@ Deno.serve(async (req) => {
 
     if (!skippedMainFee) {
       // Find matching plan
-      planName = getPlanName(item.mail_type, item.chosen_action, tierName);
+      planName = getPlanName(item.mail_type, item.chosen_action, defaultAction, tierName);
       let planId: string | null = null;
       if (planName) {
         planId = await findPlanId(apiBase, token, planName);
