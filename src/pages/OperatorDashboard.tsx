@@ -27,7 +27,7 @@ function isUnprocessed(item: MailItem): boolean {
   const doneStatuses = ["sendt_med_dao", "sendt_med_postnord", "sendt_retur", "arkiveret"];
   if (doneStatuses.includes(item.status)) return false;
   if (item.chosen_action === "afhentet") return false;
-  if ((item.chosen_action === "scan" || item.chosen_action === "standard_scan") && item.scan_url) return false;
+  if (item.scan_url) return false;
   return true;
 }
 
