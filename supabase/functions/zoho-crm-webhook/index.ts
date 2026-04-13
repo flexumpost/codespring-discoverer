@@ -22,7 +22,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Accept secret via query param (?secret=...) or header (x-webhook-secret)
     const url = new URL(req.url);
     const secretParam = url.searchParams.get("secret");
     const secretHeader = req.headers.get("x-webhook-secret");
@@ -40,8 +39,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     console.log("Zoho webhook payload:", JSON.stringify(body));
 
-    // Zoho sends data in various formats depending on webhook config.
-    // We support both flat fields and nested structures.
     const companyName =
       body.account_name ||
       body.Account_Name ||
@@ -71,6 +68,20 @@ Deno.serve(async (req) => {
       body.Last_Name ||
       "";
 
+    // Shipping address fields
+    const shippingRecipient = body.shipping_recipient || null;
+    const shippingCo = body.shipping_co || null;
+    const shippingAddress = body.shipping_address || null;
+    const shippingAddress2 = body.shipping_address_2 || null;
+    const shippingZip = body.shipping_zip || null;
+    const shippingCity = body.shipping_city || null;
+    const shippingState = body.shipping_state || null;
+    const shippingCountry = body.shipping_country || null;
+
+    // Package solution fields
+    const packageSolution = body.package_solution || null;
+    const solutionShort = body.solution_short || null;
+
     if (!companyName) {
       console.error("Missing company/account name in payload");
       return new Response(
@@ -87,22 +98,42 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Look up the default tenant type ("Lite")
-    const { data: tenantType, error: typeError } = await adminClient
-      .from("tenant_types")
-      .select("id")
-      .eq("name", "Lite")
-      .maybeSingle();
+    // Look up tenant type by package solution name, fallback to "Lite"
+    let tenantTypeId: string | null = null;
 
-    if (typeError || !tenantType) {
-      console.error("Could not find default tenant type 'Lite':", typeError);
-      return new Response(
-        JSON.stringify({ error: "Default tenant type not found" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (packageSolution) {
+      const { data: matchedType } = await adminClient
+        .from("tenant_types")
+        .select("id")
+        .eq("name", packageSolution)
+        .maybeSingle();
+
+      if (matchedType) {
+        tenantTypeId = matchedType.id;
+        console.log(`Matched tenant type '${packageSolution}':`, tenantTypeId);
+      } else {
+        console.log(`No tenant type matching '${packageSolution}', falling back to Lite`);
+      }
+    }
+
+    if (!tenantTypeId) {
+      const { data: liteType, error: typeError } = await adminClient
+        .from("tenant_types")
+        .select("id")
+        .eq("name", "Lite")
+        .maybeSingle();
+
+      if (typeError || !liteType) {
+        console.error("Could not find default tenant type 'Lite':", typeError);
+        return new Response(
+          JSON.stringify({ error: "Default tenant type not found" }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      tenantTypeId = liteType.id;
     }
 
     // Check for duplicate (same company name + contact email)
@@ -130,6 +161,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Determine if we have a complete shipping address
+    const hasShippingAddress =
+      shippingRecipient?.trim() &&
+      shippingAddress?.trim() &&
+      shippingZip?.trim() &&
+      shippingCity?.trim() &&
+      shippingCountry?.trim();
+
     const { data: tenant, error: insertError } = await adminClient
       .from("tenants")
       .insert({
@@ -137,8 +176,17 @@ Deno.serve(async (req) => {
         contact_email: contactEmail || null,
         contact_first_name: contactFirstName || null,
         contact_last_name: contactLastName || null,
-        tenant_type_id: tenantType.id,
+        tenant_type_id: tenantTypeId,
         is_active: true,
+        shipping_recipient: shippingRecipient,
+        shipping_co: shippingCo,
+        shipping_address: shippingAddress,
+        shipping_address_2: shippingAddress2,
+        shipping_zip: shippingZip,
+        shipping_city: shippingCity,
+        shipping_state: shippingState,
+        shipping_country: shippingCountry,
+        shipping_confirmed: !!hasShippingAddress,
       })
       .select("id")
       .single();
@@ -154,7 +202,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log("Tenant created successfully:", tenant.id);
+    console.log("Tenant created successfully:", tenant.id, {
+      package_solution: packageSolution,
+      solution_short: solutionShort,
+      tenant_type_id: tenantTypeId,
+      shipping_confirmed: !!hasShippingAddress,
+    });
 
     return new Response(
       JSON.stringify({

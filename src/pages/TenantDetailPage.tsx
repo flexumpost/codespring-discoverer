@@ -146,6 +146,7 @@ const TenantDetailPage = () => {
   const [shippingRecipient, setShippingRecipient] = useState("");
   const [shippingCo, setShippingCo] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingAddress2, setShippingAddress2] = useState("");
   const [shippingZip, setShippingZip] = useState("");
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
@@ -161,6 +162,7 @@ const TenantDetailPage = () => {
       setShippingRecipient(tenant.shipping_recipient ?? "");
       setShippingCo(tenant.shipping_co ?? "");
       setShippingAddress(tenant.shipping_address ?? "");
+      setShippingAddress2((tenant as any).shipping_address_2 ?? "");
       setShippingZip(tenant.shipping_zip ?? "");
       setShippingCity(tenant.shipping_city ?? "");
       setShippingState(tenant.shipping_state ?? "");
@@ -299,6 +301,7 @@ const TenantDetailPage = () => {
           shipping_recipient: shippingRecipient,
           shipping_co: shippingCo || null,
           shipping_address: shippingAddress,
+          shipping_address_2: shippingAddress2 || null,
           shipping_zip: shippingZip,
           shipping_city: shippingCity,
           shipping_state: shippingState || null,
@@ -365,6 +368,7 @@ const TenantDetailPage = () => {
     (shippingRecipient !== (tenant.shipping_recipient ?? "") ||
       shippingCo !== (tenant.shipping_co ?? "") ||
       shippingAddress !== (tenant.shipping_address ?? "") ||
+      shippingAddress2 !== ((tenant as any).shipping_address_2 ?? "") ||
       shippingZip !== (tenant.shipping_zip ?? "") ||
       shippingCity !== (tenant.shipping_city ?? "") ||
       shippingState !== (tenant.shipping_state ?? "") ||
@@ -584,6 +588,10 @@ const TenantDetailPage = () => {
                 <div className="space-y-2">
                   <Label>{t("tenantDetail.address")}</Label>
                   <Input value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("tenantDetail.streetAddress")} />
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("shipping.address2")}</Label>
+                  <Input value={shippingAddress2} onChange={(e) => setShippingAddress2(e.target.value)} placeholder={t("shipping.address2Placeholder")} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
