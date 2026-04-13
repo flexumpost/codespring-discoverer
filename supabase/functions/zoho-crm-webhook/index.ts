@@ -1,10 +1,122 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderAsync } from "npm:@react-email/components@0.0.22";
+import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function sendWelcomeEmail(
+  adminClient: ReturnType<typeof createClient>,
+  tenantId: string,
+  contactEmail: string,
+  contactName: string,
+  companyName: string,
+) {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND_API_KEY) {
+    console.error("RESEND_API_KEY not configured, skipping welcome email");
+    return;
+  }
+
+  try {
+    // Get welcome template
+    const { data: template } = await adminClient
+      .from("email_templates")
+      .select("subject, body")
+      .eq("slug", "welcome")
+      .maybeSingle();
+
+    if (!template) {
+      console.error("Welcome email template not found (slug: welcome)");
+      return;
+    }
+
+    const name = escapeHtml(contactName || companyName);
+    const companyNameEscaped = escapeHtml(companyName);
+    const subject = template.subject
+      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
+      .replace(/\{\{name\}\}/g, name);
+    const bodyRaw = template.body
+      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
+      .replace(/\{\{name\}\}/g, name);
+
+    const bodyHtml = bodyRaw
+      .replace(/\\n/g, '\n')
+      .split(/\n+/)
+      .filter((p: string) => p.trim())
+      .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
+      .join("");
+
+    const loginUrl = "https://codespring-discoverer.lovable.app/login";
+
+    const html = await renderAsync(
+      WelcomeEmail({
+        name,
+        subject,
+        bodyHtml,
+        loginUrl,
+        recoveryLink: null,
+      })
+    );
+
+    const plainText = bodyRaw.replace(/<[^>]*>/g, "");
+
+    const resendRes = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Flexum <kontakt@flexum.dk>",
+        to: [contactEmail],
+        subject,
+        html,
+        text: plainText,
+      }),
+    });
+
+    const resendBody = await resendRes.json();
+
+    if (!resendRes.ok) {
+      throw new Error(`Resend API error ${resendRes.status}: ${JSON.stringify(resendBody)}`);
+    }
+
+    // Log successful send
+    await adminClient.from("email_send_log").insert({
+      message_id: resendBody.id || crypto.randomUUID(),
+      template_name: "welcome",
+      recipient_email: contactEmail,
+      status: "sent",
+      metadata: { tenant_id: tenantId, provider: "resend", source: "zoho-webhook" },
+    });
+
+    // Update welcome_email_sent_at
+    await adminClient
+      .from("tenants")
+      .update({ welcome_email_sent_at: new Date().toISOString() })
+      .eq("id", tenantId);
+
+    console.log("Welcome email sent to", contactEmail);
+  } catch (e) {
+    console.error("Failed to send welcome email:", e);
+
+    await adminClient.from("email_send_log").insert({
+      template_name: "welcome",
+      recipient_email: contactEmail,
+      status: "failed",
+      error_message: String(e),
+      metadata: { tenant_id: tenantId, provider: "resend", source: "zoho-webhook" },
+    });
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -178,6 +290,7 @@ Deno.serve(async (req) => {
         contact_last_name: contactLastName || null,
         tenant_type_id: tenantTypeId,
         is_active: true,
+        default_mail_action: "send",
         shipping_recipient: shippingRecipient,
         shipping_co: shippingCo,
         shipping_address: shippingAddress,
@@ -207,7 +320,14 @@ Deno.serve(async (req) => {
       solution_short: solutionShort,
       tenant_type_id: tenantTypeId,
       shipping_confirmed: !!hasShippingAddress,
+      default_mail_action: "send",
     });
+
+    // Send welcome email if contact email is provided
+    if (contactEmail) {
+      const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
+      await sendWelcomeEmail(adminClient, tenant.id, contactEmail, contactName, companyName);
+    }
 
     return new Response(
       JSON.stringify({
