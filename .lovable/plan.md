@@ -1,53 +1,66 @@
-## Konsolidér gebyr per lejer + flyt porto-dropdown
 
-### Problem
 
-Når en lejer får tilsendt 3 breve på én gang, oprettes der i dag 3 separate gebyrer i OfficeRnD (ét per mail_item via DB-triggeren `notify_officernd_on_archive`). Der skal kun oprettes **ét samlet gebyr per lejer per forsendelse**.
+## Zoho CRM Integration: Automatisk oprettelse af lejer ved vundet deal
 
-### Forslag til løsning
+### Oversigt
+Når en deal i Zoho CRM skifter til "Closed - Won", sender Zoho automatisk data til Flexum via en webhook. En edge function modtager data og opretter lejeren i systemet med kontaktoplysninger fra den tilhørende Zoho-account.
 
-**Tilgang: Batch-synkronisering fra frontend — spring trigger over for forsendelser**
-
-1. **Ny edge function `sync-officernd-charge-batch**` som modtager et array af `mail_item_ids` og:
-  - Grupperer items per tenant
-  - For hver tenant: beregner ét samlet gebyr (summen af alle items' gebyrer) og opretter **ét** OfficeRnD-gebyr med `quantity` = antal items, eller samlet pris
-  - Porto håndteres separat (én porto per item, da vægten kan variere)
-2. **Marker items så triggeren springer dem over**: Tilføj et flag `skip_officernd_sync` (boolean) på `mail_items`, som sættes til `true` når items sendes via forsendelsessiden. Triggeren checker dette flag og springer over hvis `true`. Alternativt: fjern trigger-betingelsen for `sendt_med_dao`/`sendt_med_postnord` og lad forsendelsessiden altid kalde batch-funktionen eksplicit.
-3. **Frontend (ShippingPrepPage)**: Ved klik på "Send" — kald `sync-officernd-charge-batch` med alle valgte item-IDs i stedet for at lade triggeren håndtere det.
-
-### Porto-dropdown flyttes
-
-**Nuværende placering**: På hver forsendelseslinje (per item).
-
-**Ny placering**: Op i gruppe-headeren ved siden af "Færdig"-knappen. Da alle items i en gruppe deler samme adresse/lejer, giver det mening at vælge porto én gang per gruppe (for breve). For pakker beholdes porto per item, da pakkevægt varierer.
+### Arkitektur
 
 ```text
-┌──────────────────────────────────────────────────┐
-│ Firma A [Lite]                                   │
-│ Adresse...                                       │
-│                    [Porto-dropdown ▾]  [✓ Færdig] │
-│ ─────────────────────────────────────────────── │
-│ ☐ Nr. 101 — Firma A — 0 kr. + porto             │
-│ ☐ Nr. 102 — Firma A — 0 kr. + porto             │
-│ ☐ Nr. 103 — Firma A — 0 kr. + porto             │
-└──────────────────────────────────────────────────┘
+Zoho CRM (Deal → Closed Won)
+       │
+       ▼  webhook POST
+Edge Function: zoho-crm-webhook
+       │
+       ▼  opretter
+Tenants-tabel i Flexum
 ```
 
-### Berørte filer
+### Trin-for-trin guide
 
+**Trin 1: Opsætning i Lovable (vi bygger)**
+- Ny edge function `zoho-crm-webhook` der modtager webhook-kald fra Zoho
+- Funktionen validerer en hemmelig nøgle (webhook secret) for sikkerhed
+- Opretter en lejer med data fra Zoho (firmanavn, kontaktperson, e-mail)
+- Tildeler en standard lejer-type (du vælger hvilken)
 
-| Fil                                                       | Ændring                                                                                                                                |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase/functions/sync-officernd-charge-batch/index.ts` | Ny edge function: modtager array af item-IDs, grupperer per tenant, opretter ét gebyr per tenant                                       |
-| `supabase/functions/sync-officernd-charge/index.ts`       | Ingen ændring — bruges stadig af trigger for scan/afhentning                                                                           |
-| DB migration                                              | Enten tilføj `skip_officernd_sync` kolonne, eller opdater triggeren til at ekskludere `sendt_med_dao`/`sendt_med_postnord`             |
-| `src/pages/ShippingPrepPage.tsx`                          | 1) Kald batch-funktionen ved send. 2) Flyt porto-dropdown fra item-linje til gruppe-header (for breve). Pakker beholder porto per item |
+**Trin 2: Tilføj webhook-hemmelighed**
+- Vi genererer en sikker nøgle som du gemmer som secret i projektet (`ZOHO_WEBHOOK_SECRET`)
 
+**Trin 3: Opsætning i Zoho CRM (du skal gøre)**
+Vi guider dig trin-for-trin:
+1. Gå til **Zoho CRM → Setup → Automation → Workflow Rules**
+2. Opret en ny regel for modulet **Deals**
+3. Sæt betingelse: **Stage = Closed - Won**
+4. Tilføj handling: **Webhook**
+5. Indsæt webhook-URL (vi giver dig den præcise URL)
+6. Vælg POST-metode og JSON-format
+7. Tilføj de felter vi har brug for (firmanavn, kontakt-email, kontaktnavn)
 
-### Åbne spørgsmål
+### Tekniske detaljer
 
-**Gebyr-konsolidering**: Skal gebyret vises som f.eks. "Brev forsendelse (Lite) x3" med `quantity: 3`? Eller som én samlet sum? Det afhænger af hvad der ser bedst ud i OfficeRnD.  
-- Ja, tak, er det også muligt at tilføje forsendelsesnummer?
+**Ny edge function: `supabase/functions/zoho-crm-webhook/index.ts`**
+- Validerer `x-webhook-secret` header eller `?secret=` query-parameter
+- Modtager JSON med deal- og account-data fra Zoho
+- Opretter tenant i `tenants`-tabellen med: `company_name`, `contact_email`, `contact_first_name`, `contact_last_name`, `tenant_type_id` (standard-type)
+- Logger resultatet for fejlsøgning
+- Returnerer 200 OK til Zoho
 
-**Porto per gruppe vs. per item**: For breve vejer de typisk det samme, så én porto-dropdown per gruppe giver mening. For pakker varierer vægten, så porto bør forblive per item. Er det korrekt?  
-- Ja, det er korrekt.
+**Ny secret:** `ZOHO_WEBHOOK_SECRET` — tilfældig nøgle til at sikre at kun Zoho kan kalde webhook'en
+
+**Config:** Tilføj `zoho-crm-webhook` til `supabase/config.toml` med `verify_jwt = false` (webhook fra ekstern tjeneste)
+
+### Datafelter fra Zoho → Flexum
+
+| Zoho-felt | Flexum-felt |
+|-----------|-------------|
+| Account Name | company_name |
+| Contact Email / Deal Contact | contact_email |
+| Contact First Name | contact_first_name |
+| Contact Last Name | contact_last_name |
+
+### Åbent spørgsmål
+- Hvilken lejer-type skal nye lejere fra Zoho tildeles som standard? (f.eks. Lite, Standard, osv.)
+- Er der andre felter fra Zoho du gerne vil have med (adresse, telefon, osv.)?
+
