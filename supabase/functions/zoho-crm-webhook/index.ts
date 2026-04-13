@@ -75,7 +75,7 @@ async function sendWelcomeEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Flexum <kontakt@flexum.dk>",
+        from: "Flexum Coworking <kontakt@flexum.dk>",
         to: [contactEmail],
         subject,
         html,

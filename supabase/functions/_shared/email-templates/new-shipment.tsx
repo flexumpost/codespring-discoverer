@@ -53,7 +53,7 @@ export const NewShipmentEmail = ({ name, subject, bodyHtml, loginUrl }: NewShipm
           ` }} />
         </Section>
         <Text style={footer}>
-          Denne e-mail er sendt fra Flexum. Kontakt os hvis du har spørgsmål.
+          Denne e-mail er sendt fra Flexum Coworking. Kontakt os hvis du har spørgsmål.
         </Text>
       </Container>
     </Body>

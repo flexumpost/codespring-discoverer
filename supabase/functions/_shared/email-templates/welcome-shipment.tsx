@@ -50,7 +50,7 @@ export const WelcomeShipmentEmail = ({
           ` }} />
           <Text style={hint}>Linket er aktivt i 24 timer.</Text>
           <Text style={footer}>
-            Denne e-mail er sendt fra Flexum. Kontakt os hvis du har spørgsmål.
+            Denne e-mail er sendt fra Flexum Coworking. Kontakt os hvis du har spørgsmål.
           </Text>
         </Container>
       </Body>

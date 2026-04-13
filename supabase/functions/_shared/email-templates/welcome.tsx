@@ -31,7 +31,7 @@ export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl, recoveryLink }
       <Container style={container}>
         <Img
           src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png"
-          alt="Flexum"
+          alt="Flexum Coworking"
           width="120"
           height="auto"
           style={{ marginBottom: '24px' }}
@@ -39,6 +39,14 @@ export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl, recoveryLink }
         <Heading style={h1}>Velkommen, {name}!</Heading>
         <Section>
           <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+        </Section>
+        <Section style={infoBox}>
+          <Text style={infoText}>
+            <strong>Din digitale postkasse</strong> er klar — her kan du se og håndtere al post, der modtages på dit kontor hos Flexum Coworking.
+          </Text>
+          <Text style={infoText}>
+            Du vil også modtage en separat velkomst-e-mail til OfficeRnD, hvor du kan se og betale dine fakturaer.
+          </Text>
         </Section>
         {recoveryLink ? (
           <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
@@ -63,7 +71,7 @@ export const WelcomeEmail = ({ name, subject, bodyHtml, loginUrl, recoveryLink }
           </Section>
         )}
         <Text style={footer}>
-          Denne e-mail er sendt fra Flexum. Kontakt os hvis du har spørgsmål.
+          Denne e-mail er sendt fra Flexum Coworking. Kontakt os hvis du har spørgsmål.
         </Text>
       </Container>
     </Body>
@@ -79,6 +87,18 @@ const h1 = {
   fontWeight: 'bold' as const,
   color: 'hsl(222.2, 47.4%, 11.2%)',
   margin: '0 0 20px',
+}
+const infoBox = {
+  backgroundColor: '#f4f8fb',
+  borderRadius: '8px',
+  padding: '16px 20px',
+  margin: '20px 0',
+}
+const infoText = {
+  fontSize: '14px',
+  color: 'hsl(215.4, 16.3%, 46.9%)',
+  lineHeight: '1.6' as const,
+  margin: '0 0 10px',
 }
 const button = {
   backgroundColor: '#00aaeb',

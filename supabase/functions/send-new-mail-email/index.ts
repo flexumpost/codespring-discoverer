@@ -242,7 +242,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Flexum <kontakt@flexum.dk>",
+        from: "Flexum Coworking <kontakt@flexum.dk>",
         to: [tenant.contact_email],
         subject,
         html,
@@ -280,7 +280,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Flexum <kontakt@flexum.dk>",
+            from: "Flexum Coworking <kontakt@flexum.dk>",
             to: [extraEmail],
             subject,
             html: extraHtml,
