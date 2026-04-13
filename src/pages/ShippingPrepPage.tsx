@@ -104,6 +104,7 @@ type MailItemWithTenant = {
   shipping_recipient: string | null;
   shipping_co: string | null;
   shipping_address: string | null;
+  shipping_address_2: string | null;
   shipping_zip: string | null;
   shipping_city: string | null;
   shipping_state: string | null;
@@ -222,7 +223,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, has_unpaid_invoice, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_zip, shipping_city, shipping_state, shipping_country)")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, has_unpaid_invoice, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_address_2, shipping_zip, shipping_city, shipping_state, shipping_country)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -244,6 +245,7 @@ export default function ShippingPrepPage() {
         shipping_recipient: item.tenants?.shipping_recipient ?? null,
         shipping_co: item.tenants?.shipping_co ?? null,
         shipping_address: item.tenants?.shipping_address ?? null,
+        shipping_address_2: item.tenants?.shipping_address_2 ?? null,
         shipping_zip: item.tenants?.shipping_zip ?? null,
         shipping_city: item.tenants?.shipping_city ?? null,
         shipping_state: item.tenants?.shipping_state ?? null,
@@ -381,7 +383,7 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingAddress2: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
@@ -391,6 +393,7 @@ export default function ShippingPrepPage() {
           shippingRecipient: item.shipping_recipient,
           shippingCo: item.shipping_co,
           shippingAddress: item.shipping_address,
+          shippingAddress2: item.shipping_address_2,
           shippingZip: item.shipping_zip,
           shippingCity: item.shipping_city,
           shippingState: item.shipping_state,
