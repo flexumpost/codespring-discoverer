@@ -43,6 +43,7 @@ export function ShippingAddressGuard({ children }: Props) {
   const [recipient, setRecipient] = useState("");
   const [co, setCo] = useState("");
   const [address, setAddress] = useState("");
+  const [address2, setAddress2] = useState("");
   const [zip, setZip] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
@@ -66,6 +67,7 @@ export function ShippingAddressGuard({ children }: Props) {
     setRecipient(tenant.shipping_recipient ?? "");
     setCo(tenant.shipping_co ?? "");
     setAddress(tenant.shipping_address ?? "");
+    setAddress2(tenant.shipping_address_2 ?? "");
     setZip(tenant.shipping_zip ?? "");
     setCity(tenant.shipping_city ?? "");
     setState(tenant.shipping_state ?? "");
@@ -80,6 +82,7 @@ export function ShippingAddressGuard({ children }: Props) {
       setRecipient(ref.shipping_recipient ?? "");
       setCo(ref.shipping_co ?? "");
       setAddress(ref.shipping_address ?? "");
+      setAddress2(ref.shipping_address_2 ?? "");
       setZip(ref.shipping_zip ?? "");
       setCity(ref.shipping_city ?? "");
       setState(ref.shipping_state ?? "");
@@ -102,6 +105,7 @@ export function ShippingAddressGuard({ children }: Props) {
           shipping_recipient: recipient,
           shipping_co: co || null,
           shipping_address: address,
+          shipping_address_2: address2 || null,
           shipping_zip: zip,
           shipping_city: city,
           shipping_state: state || null,
@@ -188,6 +192,10 @@ export function ShippingAddressGuard({ children }: Props) {
           <div className="space-y-2">
             <Label htmlFor="guard_address">{t("shipping.address")}</Label>
             <Input id="guard_address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("shipping.addressPlaceholder")} disabled={fieldsDisabled} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="guard_address2">{t("shipping.address2")}</Label>
+            <Input id="guard_address2" value={address2} onChange={(e) => setAddress2(e.target.value)} placeholder={t("shipping.address2Placeholder")} disabled={fieldsDisabled} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -306,6 +306,8 @@
     "coPlaceholder": "c/o (valgfrit)",
     "address": "Adresse *",
     "addressPlaceholder": "Gadenavn og nummer",
+    "address2": "Adresselinje 2",
+    "address2Placeholder": "Lejlighed, suite mv. (valgfrit)",
     "zipCode": "Postnummer *",
     "zipPlaceholder": "Postnr.",
     "city": "By *",

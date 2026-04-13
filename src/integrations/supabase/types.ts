@@ -590,6 +590,7 @@ export type Database = {
           id: string
           is_active: boolean
           shipping_address: string | null
+          shipping_address_2: string | null
           shipping_city: string | null
           shipping_co: string | null
           shipping_confirmed: boolean
@@ -615,6 +616,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           shipping_address?: string | null
+          shipping_address_2?: string | null
           shipping_city?: string | null
           shipping_co?: string | null
           shipping_confirmed?: boolean
@@ -640,6 +642,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           shipping_address?: string | null
+          shipping_address_2?: string | null
           shipping_city?: string | null
           shipping_co?: string | null
           shipping_confirmed?: boolean

@@ -306,6 +306,8 @@
     "coPlaceholder": "c/o (optional)",
     "address": "Address *",
     "addressPlaceholder": "Street and number",
+    "address2": "Address line 2",
+    "address2Placeholder": "Apartment, suite, etc. (optional)",
     "zipCode": "Zip code *",
     "zipPlaceholder": "Zip",
     "city": "City *",

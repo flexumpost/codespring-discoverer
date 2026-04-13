@@ -21,6 +21,7 @@ const ShippingAddressPage = () => {
   const [shippingRecipient, setShippingRecipient] = useState("");
   const [shippingCo, setShippingCo] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingAddress2, setShippingAddress2] = useState("");
   const [shippingZip, setShippingZip] = useState("");
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
@@ -46,6 +47,7 @@ const ShippingAddressPage = () => {
       setShippingRecipient((selectedTenant as any).shipping_recipient ?? "");
       setShippingCo((selectedTenant as any).shipping_co ?? "");
       setShippingAddress((selectedTenant as any).shipping_address ?? "");
+      setShippingAddress2((selectedTenant as any).shipping_address_2 ?? "");
       setShippingZip((selectedTenant as any).shipping_zip ?? "");
       setShippingCity((selectedTenant as any).shipping_city ?? "");
       setShippingState((selectedTenant as any).shipping_state ?? "");
@@ -60,6 +62,7 @@ const ShippingAddressPage = () => {
       setShippingRecipient(ref.shipping_recipient ?? "");
       setShippingCo(ref.shipping_co ?? "");
       setShippingAddress(ref.shipping_address ?? "");
+      setShippingAddress2(ref.shipping_address_2 ?? "");
       setShippingZip(ref.shipping_zip ?? "");
       setShippingCity(ref.shipping_city ?? "");
       setShippingState(ref.shipping_state ?? "");
@@ -75,6 +78,7 @@ const ShippingAddressPage = () => {
           shipping_recipient: shippingRecipient,
           shipping_co: shippingCo || null,
           shipping_address: shippingAddress,
+          shipping_address_2: shippingAddress2 || null,
           shipping_zip: shippingZip,
           shipping_city: shippingCity,
           shipping_state: shippingState || null,
@@ -99,6 +103,7 @@ const ShippingAddressPage = () => {
     (shippingRecipient !== ((selectedTenant as any).shipping_recipient ?? "") ||
       shippingCo !== ((selectedTenant as any).shipping_co ?? "") ||
       shippingAddress !== ((selectedTenant as any).shipping_address ?? "") ||
+      shippingAddress2 !== ((selectedTenant as any).shipping_address_2 ?? "") ||
       shippingZip !== ((selectedTenant as any).shipping_zip ?? "") ||
       shippingCity !== ((selectedTenant as any).shipping_city ?? "") ||
       shippingState !== ((selectedTenant as any).shipping_state ?? "") ||
@@ -158,6 +163,10 @@ const ShippingAddressPage = () => {
               <div className="space-y-2">
                 <Label htmlFor="shipping_address">{t("shipping.address")}</Label>
                 <Input id="shipping_address" value={shippingAddress} onChange={(e) => setShippingAddress(e.target.value)} placeholder={t("shipping.addressPlaceholder")} disabled={fieldsDisabled} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shipping_address_2">{t("shipping.address2")}</Label>
+                <Input id="shipping_address_2" value={shippingAddress2} onChange={(e) => setShippingAddress2(e.target.value)} placeholder={t("shipping.address2Placeholder")} disabled={fieldsDisabled} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
