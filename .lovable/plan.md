@@ -1,66 +1,66 @@
 
 
-## Zoho CRM Integration: Automatisk oprettelse af lejer ved vundet deal
+## Opdatering af Zoho webhook med forsendelsesadresse og pakkeløsning
 
 ### Oversigt
-Når en deal i Zoho CRM skifter til "Closed - Won", sender Zoho automatisk data til Flexum via en webhook. En edge function modtager data og opretter lejeren i systemet med kontaktoplysninger fra den tilhørende Zoho-account.
+Webhook'en udvides til at modtage forsendelsesadresse og pakkeløsning fra Zoho Account-modulet og gemme det på lejeren ved oprettelse.
 
-### Arkitektur
+### Feltmapping: Zoho → Flexum
 
-```text
-Zoho CRM (Deal → Closed Won)
-       │
-       ▼  webhook POST
-Edge Function: zoho-crm-webhook
-       │
-       ▼  opretter
-Tenants-tabel i Flexum
+| Zoho-felt (fra din body) | Flexum-felt (tenants-tabel) |
+|---|---|
+| Forsendelse navn | shipping_recipient |
+| Forsendelse c/o navn | shipping_co |
+| Forsendelse adresse | shipping_address |
+| Forsendelse postnummer | shipping_zip |
+| Forsendelse by | shipping_city |
+| Forsendelse stat | shipping_state |
+| Forsendelse land | shipping_country |
+| Navn for pakke løsning | Bruges til at slå tenant_type op (i stedet for altid "Lite") |
+| Løsning kort | Logges, men bruges ikke direkte |
+
+**"Forsendelse adresse 2"** — tenants-tabellen har ikke et dedikeret felt til adresselinje 2. Jeg foreslår at tilføje en ny kolonne `shipping_address_2` til tabellen, så adressen kan vises korrekt på forsendelsessiden.
+
+### Ændringer
+
+**1. Database-migration**
+- Tilføj kolonne `shipping_address_2` (text, nullable) til `tenants`-tabellen
+
+**2. Edge function: `zoho-crm-webhook/index.ts`**
+- Parse de nye felter fra body (forsendelse-adresse, pakkeløsning)
+- Slå tenant_type op baseret på "Navn for pakke løsning" i stedet for altid at bruge "Lite" — falder tilbage til "Lite" hvis typen ikke findes
+- Gem forsendelsesadresse-felterne ved oprettelse af lejer
+- Sæt `shipping_confirmed: true` da adressen kommer fra Zoho
+
+**3. UI-opdateringer**
+- Opdater ShippingPrepPage, TenantDetailPage, ShippingAddressGuard og ShippingAddressPage til at vise/håndtere `shipping_address_2` (vises mellem adresselinje 1 og postnummer)
+
+**4. Opdateret Zoho JSON body**
+Du skal bruge denne body i din Zoho webhook:
+
+```json
+{
+  "account_name": "${Accounts.Account Name}",
+  "contact_email": "${Accounts.Kontaktperson E-mail}",
+  "contact_first_name": "${Accounts.Kontaktperson fornavn}",
+  "contact_last_name": "${Accounts.Kontaktperson efternavn}",
+  "shipping_recipient": "${Accounts.Forsendelse navn}",
+  "shipping_co": "${Accounts.Forsendelse c/o navn}",
+  "shipping_address": "${Accounts.Forsendelse adresse}",
+  "shipping_address_2": "${Accounts.Forsendelses adresse 2}",
+  "shipping_zip": "${Accounts.Forsendelse postnummer}",
+  "shipping_city": "${Accounts.Forsendelse by}",
+  "shipping_state": "${Accounts.Forsendelse stat}",
+  "shipping_country": "${Accounts.Forsendelse land}",
+  "package_solution": "${Accounts.Navn for pakke løsning}",
+  "solution_short": "${Accounts.Løsning kort}",
+  "deal_name": "${Deals.Deal Name}"
+}
 ```
-
-### Trin-for-trin guide
-
-**Trin 1: Opsætning i Lovable (vi bygger)**
-- Ny edge function `zoho-crm-webhook` der modtager webhook-kald fra Zoho
-- Funktionen validerer en hemmelig nøgle (webhook secret) for sikkerhed
-- Opretter en lejer med data fra Zoho (firmanavn, kontaktperson, e-mail)
-- Tildeler en standard lejer-type (du vælger hvilken)
-
-**Trin 2: Tilføj webhook-hemmelighed**
-- Vi genererer en sikker nøgle som du gemmer som secret i projektet (`ZOHO_WEBHOOK_SECRET`)
-
-**Trin 3: Opsætning i Zoho CRM (du skal gøre)**
-Vi guider dig trin-for-trin:
-1. Gå til **Zoho CRM → Setup → Automation → Workflow Rules**
-2. Opret en ny regel for modulet **Deals**
-3. Sæt betingelse: **Stage = Closed - Won**
-4. Tilføj handling: **Webhook**
-5. Indsæt webhook-URL (vi giver dig den præcise URL)
-6. Vælg POST-metode og JSON-format
-7. Tilføj de felter vi har brug for (firmanavn, kontakt-email, kontaktnavn)
 
 ### Tekniske detaljer
 
-**Ny edge function: `supabase/functions/zoho-crm-webhook/index.ts`**
-- Validerer `x-webhook-secret` header eller `?secret=` query-parameter
-- Modtager JSON med deal- og account-data fra Zoho
-- Opretter tenant i `tenants`-tabellen med: `company_name`, `contact_email`, `contact_first_name`, `contact_last_name`, `tenant_type_id` (standard-type)
-- Logger resultatet for fejlsøgning
-- Returnerer 200 OK til Zoho
-
-**Ny secret:** `ZOHO_WEBHOOK_SECRET` — tilfældig nøgle til at sikre at kun Zoho kan kalde webhook'en
-
-**Config:** Tilføj `zoho-crm-webhook` til `supabase/config.toml` med `verify_jwt = false` (webhook fra ekstern tjeneste)
-
-### Datafelter fra Zoho → Flexum
-
-| Zoho-felt | Flexum-felt |
-|-----------|-------------|
-| Account Name | company_name |
-| Contact Email / Deal Contact | contact_email |
-| Contact First Name | contact_first_name |
-| Contact Last Name | contact_last_name |
-
-### Åbent spørgsmål
-- Hvilken lejer-type skal nye lejere fra Zoho tildeles som standard? (f.eks. Lite, Standard, osv.)
-- Er der andre felter fra Zoho du gerne vil have med (adresse, telefon, osv.)?
+- Pakkeløsningen bruges til at finde den rigtige `tenant_type` via `tenant_types.name`. Hvis navnet ikke matcher nogen type, bruges "Lite" som fallback.
+- Forsendelsesadressen gemmes direkte, og `shipping_confirmed` sættes til `true` så lejeren ikke bliver bedt om at udfylde adressen igen.
+- `shipping_address_2` vises i UI som en ekstra linje under adressen (før postnummer/by).
 
