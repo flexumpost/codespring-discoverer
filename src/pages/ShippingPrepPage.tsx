@@ -621,6 +621,12 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress!)} />
                           </p>
                         )}
+                        {group.shippingAddress2 && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingAddress2}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress2!)} />
+                          </p>
+                        )}
                         {(group.shippingZip || group.shippingCity) && (() => {
                           const cc = getCountryCode(group.shippingCountry);
                           const parts = [cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ");
