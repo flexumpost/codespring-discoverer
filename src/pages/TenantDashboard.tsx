@@ -479,9 +479,65 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const queryClient = useQueryClient();
   const tenantsHook = useTenants();
 
-  const { data: overrideTenant } = useQuery({
-    queryKey: ["override-tenant", overrideTenantId],
+  // When in override mode, fetch the target tenant's user_id, then load ALL tenants for that user
+  const { data: overridePrimaryTenant } = useQuery({
+    queryKey: ["override-tenant-user", overrideTenantId],
     enabled: !!overrideTenantId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("user_id")
+        .eq("id", overrideTenantId!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const overrideUserId = overridePrimaryTenant?.user_id ?? null;
+
+  const { data: overrideTenants = [] } = useQuery({
+    queryKey: ["override-tenants-all", overrideUserId, overrideTenantId],
+    enabled: !!overrideTenantId && overrideUserId !== null,
+    queryFn: async () => {
+      // Fetch tenants owned by this user
+      const { data: owned, error: e1 } = await supabase
+        .from("tenants")
+        .select("*, tenant_types(name, allowed_actions)")
+        .eq("user_id", overrideUserId!);
+      if (e1) throw e1;
+
+      // Fetch tenants linked via tenant_users
+      const { data: linked, error: e2 } = await supabase
+        .from("tenant_users")
+        .select("tenant_id")
+        .eq("user_id", overrideUserId!);
+      if (e2) throw e2;
+
+      const ownedIds = (owned || []).map((t: any) => t.id);
+      const linkedIds = (linked || [])
+        .map((r: any) => r.tenant_id as string)
+        .filter((id) => !ownedIds.includes(id));
+
+      let linkedTenants: any[] = [];
+      if (linkedIds.length > 0) {
+        const { data: lt, error: e3 } = await supabase
+          .from("tenants")
+          .select("*, tenant_types(name, allowed_actions)")
+          .in("id", linkedIds);
+        if (e3) throw e3;
+        linkedTenants = lt || [];
+      }
+
+      const all = [...(owned || []), ...linkedTenants];
+      return all.sort((a, b) => a.company_name.localeCompare(b.company_name, "da"));
+    },
+  });
+
+  // Also fetch single override tenant for cases where user_id is null (no owner)
+  const { data: overrideSingleTenant } = useQuery({
+    queryKey: ["override-tenant-single", overrideTenantId],
+    enabled: !!overrideTenantId && overrideUserId === null && overridePrimaryTenant !== undefined,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tenants")
@@ -493,10 +549,24 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
-  const tenants = overrideTenantId ? (overrideTenant ? [overrideTenant] : []) : tenantsHook.tenants;
-  const selectedTenant = overrideTenantId ? (overrideTenant ?? null) : tenantsHook.selectedTenant;
-  const selectedTenantId = overrideTenantId ?? tenantsHook.selectedTenantId;
-  const setSelectedTenantId = tenantsHook.setSelectedTenantId;
+  const [overrideSelectedId, setOverrideSelectedId] = useState<string | null>(null);
+
+  const effectiveOverrideTenants = overrideTenantId
+    ? (overrideTenants.length > 0 ? overrideTenants : (overrideSingleTenant ? [overrideSingleTenant] : []))
+    : [];
+
+  const effectiveOverrideId = overrideTenantId
+    ? (overrideSelectedId ?? overrideTenantId)
+    : null;
+
+  const tenants = overrideTenantId ? effectiveOverrideTenants : tenantsHook.tenants;
+  const selectedTenant = overrideTenantId
+    ? (effectiveOverrideTenants.find((t) => t.id === effectiveOverrideId) ?? effectiveOverrideTenants[0] ?? null)
+    : tenantsHook.selectedTenant;
+  const selectedTenantId = overrideTenantId
+    ? (selectedTenant?.id ?? overrideTenantId)
+    : tenantsHook.selectedTenantId;
+  const setSelectedTenantId = overrideTenantId ? setOverrideSelectedId : tenantsHook.setSelectedTenantId;
   const [activeFilter, setActiveFilter] = useState<FilterStatus>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [confirmDestroy, setConfirmDestroy] = useState<string | null>(null);
@@ -806,7 +876,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           tenantTypeName={tenantTypeName!}
         />
       )}
-      {!overrideTenantId && tenants.length > 0 && (
+      {tenants.length > 1 && (
         <div className="mb-6">
           <TenantSelector
             tenants={tenants}
