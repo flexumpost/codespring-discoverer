@@ -759,5 +759,16 @@
   "languageToggle": {
     "da": "DA",
     "en": "EN"
+  },
+  "postage": {
+    "category": "Porto-type",
+    "price": "Stk. pris",
+    "totalCount": "Antal Total",
+    "totalAmount": "Beløb Total",
+    "total": "Total",
+    "from": "Fra",
+    "to": "Til",
+    "letters": "Breve",
+    "packages": "Pakker"
   }
 }
