@@ -1,25 +1,37 @@
 
 
-## Vis alle virksomheder i Lejervisning
+## Porto-oversigt i operatørindstillinger
 
-### Problem
-Når en operatør bruger "Lejervisning" for Bonlulu, vises kun Bonlulu — selvom den samme bruger (kontakt@erhvervsgaver.dk) også ejer Erhvervsgaver. Det skyldes at `TenantDashboard` med `overrideTenantId` kun henter den ene lejer og skjuler virksomhedsvælgeren.
-
-### Løsning
-Udvid Lejervisningen så den finder alle virksomheder der tilhører den valgte lejers bruger, og viser virksomhedsvælgeren — præcis som brugeren selv ville opleve det ved login.
+### Formål
+Ny "Porto" fane under operatørindstillinger, der viser portoforbrug fordelt på lejertype og porto-kategori — så det kan sammenlignes med DAO-fakturaer.
 
 ### Ændringer
 
-**1. `src/pages/TenantDashboard.tsx`**
-- Når `overrideTenantId` er sat: hent den valgte lejers `user_id`, og derefter alle lejere med samme `user_id` + alle via `tenant_users`
-- Vis `TenantSelector` også i override-mode (med alle fundne lejere)
-- Lad operatøren skifte mellem virksomhederne i lejervisningen
+**1. Ny komponent: `src/components/PostageOverviewTab.tsx`**
 
-**2. `src/pages/TenantViewPage.tsx`**
-- Opdater overskriften dynamisk når operatøren skifter virksomhed i vælgeren
+- Henter alle `mail_items` med `porto_option IS NOT NULL`, joinet med `tenants` → `tenant_types` for at få tier-navn
+- Viser data i en tabel med:
+  - Rækker grupperet efter porto-kategori (dk_0_100, dk_100_250, udland_0_100, udland_100_250, dk_pakke_0_1, osv.)
+  - Kolonner: Porto-type, Antal (Lite), Antal (Standard), Antal (Plus), Antal Total, Beløb Total
+  - Porto-priser mappe hardcoded (samme som ShippingPrepPage): dk_0_100 = 18,40 kr., dk_100_250 = 36,80 kr., osv.
+  - Sumrække nederst med totaler
+- Opdelt i to sektioner: **Breve** og **Pakker** (matcher DAO-fakturaens opdeling)
+- Datofilter (fra/til) så man kan filtrere på en specifik faktureringsperiode
+- Viser både antal og beløb, så det direkte kan sammenlignes med DAO-fakturaen
+
+**2. Opdater `src/components/OperatorSettingsTabs.tsx`**
+
+- Tilføj ny `TabsTrigger` "Porto" og tilhørende `TabsContent` med `PostageOverviewTab`
+
+**3. Tilføj oversættelser i `da.json` og `en.json`**
+
+- Nøgler for fane-label, kolonneoverskrifter, datofilter, og porto-kategorinavne
 
 ### Tekniske detaljer
-- En ekstra query henter først `user_id` fra den overridede lejer, derefter alle lejere tilknyttet den bruger (via `tenants.user_id` og `tenant_users`)
-- `TenantSelector`-betingelsen ændres fra `!overrideTenantId` til `tenants.length > 1` (eller altid vis den)
-- Navigationen i headeren opdateres via en callback eller state-sync
+
+Porto-priser mapping (fra ShippingPrepPage):
+- Breve: dk_0_100 (18,40), dk_100_250 (36,80), udland_0_100 (46,00), udland_100_250 (92,00)
+- Pakker: dk_pakke_0_1 (48,00), dk_pakke_1_2 (57,60), dk_pakke_2_5 (77,60), dk_pakke_5_10 (101,60), dk_pakke_10_15 (133,60), dk_pakke_15_20 (141,60)
+
+Query henter data via Supabase client med RLS (operatør har adgang til alle mail_items). Datofilteret filtrerer på `received_at` eller den dato forsendelsen blev sendt.
 
