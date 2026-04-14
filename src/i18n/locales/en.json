@@ -759,5 +759,16 @@
   "languageToggle": {
     "da": "DA",
     "en": "EN"
+  },
+  "postage": {
+    "category": "Postage type",
+    "price": "Unit price",
+    "totalCount": "Count Total",
+    "totalAmount": "Amount Total",
+    "total": "Total",
+    "from": "From",
+    "to": "To",
+    "letters": "Letters",
+    "packages": "Packages"
   }
 }

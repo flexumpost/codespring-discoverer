@@ -7,6 +7,7 @@ import { EmailTemplatesEditor } from "@/components/EmailTemplatesEditor";
 import { EmailLogTab } from "@/components/EmailLogTab";
 import { LoginLogTab } from "@/components/LoginLogTab";
 import { OfficeRnDSettingsTab } from "@/components/OfficeRnDSettingsTab";
+import { PostageOverviewTab } from "@/components/PostageOverviewTab";
 
 export function OperatorSettingsTabs() {
   const { t } = useTranslation();
@@ -20,6 +21,7 @@ export function OperatorSettingsTabs() {
         <TabsTrigger value="email-log">{t("operatorSettings.emailLog", "Email Log")}</TabsTrigger>
         <TabsTrigger value="login-log">{t("operatorSettings.loginLog", "Login Log")}</TabsTrigger>
         <TabsTrigger value="officernd">OfficeRnD</TabsTrigger>
+        <TabsTrigger value="postage">{t("operatorSettings.postage", "Porto")}</TabsTrigger>
       </TabsList>
       <TabsContent value="operators"><OperatorsList /></TabsContent>
       <TabsContent value="pricing"><PricingSettingsEditor /></TabsContent>
@@ -28,6 +30,7 @@ export function OperatorSettingsTabs() {
       <TabsContent value="email-log"><EmailLogTab /></TabsContent>
       <TabsContent value="login-log"><LoginLogTab /></TabsContent>
       <TabsContent value="officernd"><OfficeRnDSettingsTab /></TabsContent>
+      <TabsContent value="postage"><PostageOverviewTab /></TabsContent>
     </Tabs>
   );
 }
