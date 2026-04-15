@@ -243,6 +243,14 @@ Deno.serve(async (req) => {
       const firstItem = tenantItems[0];
       if (!firstItem.contact_email) {
         console.error(`Tenant ${tenantId} has no contact_email, skipping`);
+        for (const it of tenantItems) {
+          await supabase.from("officernd_sync_log").insert({
+            mail_item_id: it.id,
+            status: "failed",
+            error_message: `Tenant has no contact_email`,
+            amount_text: null,
+          });
+        }
         continue;
       }
 
@@ -251,14 +259,32 @@ Deno.serve(async (req) => {
         `${apiBase}/members?email=${encodeURIComponent(firstItem.contact_email)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      let members: any[] = [];
       if (!memberRes.ok) {
         const txt = await memberRes.text();
         console.error(`Member lookup failed for ${firstItem.contact_email}: ${txt}`);
+        for (const it of tenantItems) {
+          await supabase.from("officernd_sync_log").insert({
+            mail_item_id: it.id,
+            status: "failed",
+            error_message: `Member lookup failed for ${firstItem.contact_email}: ${txt}`,
+            amount_text: null,
+          });
+        }
         continue;
+      } else {
+        members = await memberRes.json();
       }
-      const members = await memberRes.json();
       if (!members.length) {
         console.error(`No OfficeRnD member for ${firstItem.contact_email}`);
+        for (const it of tenantItems) {
+          await supabase.from("officernd_sync_log").insert({
+            mail_item_id: it.id,
+            status: "failed",
+            error_message: `No OfficeRnD member found for ${firstItem.contact_email}`,
+            amount_text: null,
+          });
+        }
         continue;
       }
 
