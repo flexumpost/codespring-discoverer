@@ -1,37 +1,39 @@
 
 
-## Porto-oversigt i operatørindstillinger
+## Problem: Scan-anmodning uden notifikation ved standardhandling
 
-### Formål
-Ny "Porto" fane under operatørindstillinger, der viser portoforbrug fordelt på lejertype og porto-kategori — så det kan sammenlignes med DAO-fakturaer.
+### Årsag
+Lejeren TRUST BOX A/S har `default_mail_action: scan`. Når ny post oprettes, vises "Scan nu" automatisk som standardhandling — men `chosen_action` forbliver `null` i databasen. 
+
+Notifikationssystemet reagerer kun på eksplicitte ændringer:
+- DB-triggeren `notify_operator_on_scan_request` checker `NEW.chosen_action = 'scan'` — aldrig opfyldt
+- Edge function `notify-scan-request` kaldes kun i `chooseAction.onSuccess` — aldrig kaldt
+- Log-triggeren `log_mail_item_changes` logger kun ændringer i `chosen_action` — ingen ændring sker
+
+Kort sagt: systemet behandler standardhandlingen som implicit, men notifikations- og log-systemet forventer en eksplicit handling.
+
+### Løsning
+Når en lejer har `default_mail_action: scan` (eller `default_package_action: scan` for pakker), og post oprettes med den pågældende lejer tildelt, skal systemet automatisk sætte `chosen_action = 'scan'` og `status = 'afventer_handling'` — så det eksisterende trigger- og notifikationssystem håndterer resten.
 
 ### Ændringer
 
-**1. Ny komponent: `src/components/PostageOverviewTab.tsx`**
+**1. DB-trigger: Ny trigger `apply_default_action_on_insert`**
+- Fires BEFORE INSERT on `mail_items`
+- Når `tenant_id` er sat og `chosen_action` er null: slå lejerens `default_mail_action` / `default_package_action` op
+- Hvis standardhandlingen er `scan` eller `send`: sæt `chosen_action` og `status = 'afventer_handling'` automatisk
+- Dette sikrer at de eksisterende triggers (`notify_operator_on_scan_request`, `log_mail_item_changes`) automatisk reagerer
 
-- Henter alle `mail_items` med `porto_option IS NOT NULL`, joinet med `tenants` → `tenant_types` for at få tier-navn
-- Viser data i en tabel med:
-  - Rækker grupperet efter porto-kategori (dk_0_100, dk_100_250, udland_0_100, udland_100_250, dk_pakke_0_1, osv.)
-  - Kolonner: Porto-type, Antal (Lite), Antal (Standard), Antal (Plus), Antal Total, Beløb Total
-  - Porto-priser mappe hardcoded (samme som ShippingPrepPage): dk_0_100 = 18,40 kr., dk_100_250 = 36,80 kr., osv.
-  - Sumrække nederst med totaler
-- Opdelt i to sektioner: **Breve** og **Pakker** (matcher DAO-fakturaens opdeling)
-- Datofilter (fra/til) så man kan filtrere på en specifik faktureringsperiode
-- Viser både antal og beløb, så det direkte kan sammenlignes med DAO-fakturaen
+**2. DB-trigger: Ny trigger `apply_default_action_on_tenant_assign`**
+- Fires BEFORE UPDATE on `mail_items`  
+- Når `tenant_id` ændres (fra null til en lejer) og `chosen_action` stadig er null: anvend samme logik som ovenfor
+- Dækker scenariet hvor post oprettes uden lejer og derefter tildeles
 
-**2. Opdater `src/components/OperatorSettingsTabs.tsx`**
-
-- Tilføj ny `TabsTrigger` "Porto" og tilhørende `TabsContent` med `PostageOverviewTab`
-
-**3. Tilføj oversættelser i `da.json` og `en.json`**
-
-- Nøgler for fane-label, kolonneoverskrifter, datofilter, og porto-kategorinavne
+**3. Ingen kodeændringer i frontend**
+- De eksisterende triggers håndterer notifikationer og logning, så ingen ændring er nødvendig i TenantDashboard
 
 ### Tekniske detaljer
-
-Porto-priser mapping (fra ShippingPrepPage):
-- Breve: dk_0_100 (18,40), dk_100_250 (36,80), udland_0_100 (46,00), udland_100_250 (92,00)
-- Pakker: dk_pakke_0_1 (48,00), dk_pakke_1_2 (57,60), dk_pakke_2_5 (77,60), dk_pakke_5_10 (101,60), dk_pakke_10_15 (133,60), dk_pakke_15_20 (141,60)
-
-Query henter data via Supabase client med RLS (operatør har adgang til alle mail_items). Datofilteret filtrerer på `received_at` eller den dato forsendelsen blev sendt.
+En enkelt PL/pgSQL-funktion `apply_tenant_default_action()` bruges af begge triggers. Funktionen:
+- Henter `default_mail_action` eller `default_package_action` fra `tenants` baseret på `mail_type`
+- Sætter `NEW.chosen_action` og `NEW.status` hvis en relevant standardhandling findes
+- Kører som SECURITY DEFINER for at kunne læse tenants-tabellen
 
