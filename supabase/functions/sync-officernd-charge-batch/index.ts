@@ -408,77 +408,119 @@ Deno.serve(async (req) => {
         results.push({ tenant_id: tenantId, skipped: true, reason: "zero_fee" });
       }
 
-      // Porto charges — always per item (weight varies for packages)
+      // Porto charges — grouped by porto_option for letters, per-item for packages
+      const letterPortoGroups = new Map<string, ItemData[]>();
+      const packagePortoItems: ItemData[] = [];
+
       for (const it of tenantItems) {
         const portoOption = it.porto_option;
-        const portoInfo = portoOption ? PORTO_MAP[portoOption] : null;
-        const isPackagePorto = portoOption ? portoOption.startsWith("dk_pakke_") : false;
+        if (!portoOption) continue;
+        const portoInfo = PORTO_MAP[portoOption];
+        if (!portoInfo) continue;
+        const isPackagePorto = portoOption.startsWith("dk_pakke_");
+        if (!it.tier_name || (!isPackagePorto && it.tier_name === "Plus")) continue;
 
-        if (portoInfo && it.tier_name && (isPackagePorto || it.tier_name !== "Plus")) {
-          const portoLogRes = await supabase
-            .from("officernd_sync_log")
-            .insert({
-              mail_item_id: it.id,
-              amount_text: `${portoInfo.amountKr} kr.`,
-              status: "pending",
-              plan_name: portoInfo.planName,
-            })
-            .select("id")
-            .single();
-          const portoLogId = portoLogRes.data?.id ?? null;
-
-          try {
-            const portoPlanId = await findPlanId(apiBase, token, portoInfo.planName);
-
-            const portoBody: Record<string, unknown> = {
-              price: portoInfo.amountKr,
-              date: new Date().toISOString(),
-              quantity: 1,
-              isPersonal,
-              description: `[mail_item_id:${it.id}] porto (nr. ${it.stamp_number ?? "?"})`,
-            };
-
-            if (isPersonal) portoBody.member = memberId;
-            if (memberOffice) portoBody.office = memberOffice;
-            if (companyId) portoBody.team = companyId;
-
-            if (portoPlanId) {
-              portoBody.plan = portoPlanId;
-              portoBody.name = portoInfo.planName;
-            } else {
-              portoBody.name = `Porto: ${portoInfo.planName}`;
-            }
-
-            const portoRes = await fetch(`${apiBase}/fees`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-              body: JSON.stringify(portoBody),
-            });
-
-            if (!portoRes.ok) {
-              const txt = await portoRes.text();
-              throw new Error(`Porto charge failed: ${txt}`);
-            }
-
-            const portoRaw = await portoRes.json();
-            const portoCharge = Array.isArray(portoRaw) ? portoRaw[0] : portoRaw;
-            const portoChargeId = portoCharge?._id || portoCharge?.id || null;
-
-            if (portoLogId) {
-              await supabase.from("officernd_sync_log")
-                .update({ status: "pending_confirmation", charge_id: portoChargeId, member_id: memberId, plan_type: "OneOff" } as any)
-                .eq("id", portoLogId);
-            }
-          } catch (portoErr) {
-            console.error("Porto charge error:", portoErr);
-            if (portoLogId) {
-              await supabase.from("officernd_sync_log")
-                .update({ status: "failed", error_message: portoErr instanceof Error ? portoErr.message : String(portoErr) })
-                .eq("id", portoLogId);
-            }
-          }
+        if (isPackagePorto) {
+          packagePortoItems.push(it);
+        } else {
+          // Group letters by porto_option (same address = same porto)
+          if (!letterPortoGroups.has(portoOption)) letterPortoGroups.set(portoOption, []);
+          letterPortoGroups.get(portoOption)!.push(it);
         }
       }
+
+      // Helper to create a single porto charge
+      const createPortoCharge = async (portoKey: string, chargeItems: ItemData[]) => {
+        const portoInfo = PORTO_MAP[portoKey]!;
+        const primaryItem = chargeItems[0];
+        const stampNums = chargeItems.map(i => i.stamp_number).filter((n): n is number => n !== null).sort((a, b) => a - b);
+        const stampLabel = stampNums.length > 0 ? `(nr. ${stampNums.join(", ")})` : `(?)`;
+
+        const portoLogRes = await supabase
+          .from("officernd_sync_log")
+          .insert({
+            mail_item_id: primaryItem.id,
+            amount_text: `${portoInfo.amountKr} kr.`,
+            status: "pending",
+            plan_name: portoInfo.planName,
+          })
+          .select("id")
+          .single();
+        const portoLogId = portoLogRes.data?.id ?? null;
+
+        // Log remaining items in group as included
+        for (let i = 1; i < chargeItems.length; i++) {
+          await supabase.from("officernd_sync_log").insert({
+            mail_item_id: chargeItems[i].id,
+            amount_text: "0 kr.",
+            status: "porto_included_in_group",
+            plan_name: portoInfo.planName,
+            error_message: `Porto charged on item ${primaryItem.id}`,
+          });
+        }
+
+        try {
+          const portoPlanId = await findPlanId(apiBase, token, portoInfo.planName);
+
+          const portoBody: Record<string, unknown> = {
+            price: portoInfo.amountKr,
+            date: new Date().toISOString(),
+            quantity: 1,
+            isPersonal,
+            description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
+          };
+
+          if (isPersonal) portoBody.member = memberId;
+          if (memberOffice) portoBody.office = memberOffice;
+          if (companyId) portoBody.team = companyId;
+
+          if (portoPlanId) {
+            portoBody.plan = portoPlanId;
+            portoBody.name = portoInfo.planName;
+          } else {
+            portoBody.name = `Porto: ${portoInfo.planName}`;
+          }
+
+          const portoRes = await fetch(`${apiBase}/fees`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify(portoBody),
+          });
+
+          if (!portoRes.ok) {
+            const txt = await portoRes.text();
+            throw new Error(`Porto charge failed: ${txt}`);
+          }
+
+          const portoRaw = await portoRes.json();
+          const portoCharge = Array.isArray(portoRaw) ? portoRaw[0] : portoRaw;
+          const portoChargeId = portoCharge?._id || portoCharge?.id || null;
+
+          if (portoLogId) {
+            await supabase.from("officernd_sync_log")
+              .update({ status: "pending_confirmation", charge_id: portoChargeId, member_id: memberId, plan_type: "OneOff" } as any)
+              .eq("id", portoLogId);
+          }
+        } catch (portoErr) {
+          console.error("Porto charge error:", portoErr);
+          if (portoLogId) {
+            await supabase.from("officernd_sync_log")
+              .update({ status: "failed", error_message: portoErr instanceof Error ? portoErr.message : String(portoErr) })
+              .eq("id", portoLogId);
+          }
+        }
+      };
+
+      // Process letter porto groups (1 charge per unique porto_option)
+      for (const [portoKey, groupItems] of letterPortoGroups) {
+        await createPortoCharge(portoKey, groupItems);
+      }
+
+      // Process package porto (1 charge per package)
+      for (const pkgItem of packagePortoItems) {
+        await createPortoCharge(pkgItem.porto_option!, [pkgItem]);
+      }
+    }
     }
 
     return new Response(JSON.stringify({ success: true, results }), {
