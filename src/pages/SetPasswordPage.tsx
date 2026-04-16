@@ -21,6 +21,23 @@ const SetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 1. Check for PKCE code in query params
+    const searchParams = new URLSearchParams(window.location.search);
+    const code = searchParams.get("code");
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (error) {
+          console.error("Failed to exchange code for session:", error);
+          setLinkExpired(true);
+        } else {
+          setIsReady(true);
+        }
+        window.history.replaceState(null, "", window.location.pathname);
+      });
+      return;
+    }
+
+    // 2. Check for hash-based tokens (implicit flow)
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
 
