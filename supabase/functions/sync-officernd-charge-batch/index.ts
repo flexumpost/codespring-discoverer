@@ -521,7 +521,6 @@ Deno.serve(async (req) => {
         await createPortoCharge(pkgItem.porto_option!, [pkgItem]);
       }
     }
-    }
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
