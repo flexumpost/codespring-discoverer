@@ -1,50 +1,49 @@
 
 
-## Fix: Porto opkræves per adressegruppe i stedet for per brev
+## Fix: Operatør-notifikation ved destruktions-anmodning
 
 ### Problem
-Breve grupperes fysisk efter adresse og sendes i én kuvert, men `sync-officernd-charge-batch` opkræver porto per brev. Resultat: Double Clicks fik opkrævet 2×18,40 kr. i stedet for 1×18,40 kr., og Total Services fik 2×46 kr. i stedet for 1×46 kr.
+Der findes ingen trigger der notificerer operatører når en lejer vælger "destruer" som handling. Kun scan-anmodninger har denne notifikation (via `notify_operator_on_scan_request` og `notify_operator_on_scan_request_insert`).
 
 ### Løsning
-Ændr porto-logikken i batch-funktionen, så porto kun opkræves **én gang per unik adresse-kombination** per lejer (for breve). Pakker fortsætter med per-item porto.
+Tilføj to nye triggers — en for UPDATE og en for INSERT — der sender notifikation til alle operatører når `chosen_action` sættes til `destruer`.
 
-### Ændringer
+### Ændring
 
-**1. `supabase/functions/sync-officernd-charge-batch/index.ts`**
+**Database migration** med to funktioner og triggers:
 
-I porto-sektionen (linje 411-481), erstat per-item iteration med adresse-gruppering for breve:
-- For **breve**: Gruppér `tenantItems` efter `porto_option`. Opret kun 1 porto-opkrævning per unik `porto_option` per lejer (da alle breve til samme adresse allerede har fået tildelt samme porto_option via ShippingPrepPage's adresse-gruppering)
-- For **pakker**: Behold per-item porto (hver pakke har unik vægt)
-- Log porto-opkrævningen på det første brev i gruppen, og marker de resterende breve som `porto_included_in_group`
+1. **`notify_operator_on_destruction_request()`** — BEFORE UPDATE trigger
+   - Checker om `NEW.chosen_action = 'destruer'` og `OLD.chosen_action != 'destruer'`
+   - Indsætter notifikation til alle operatører med titel "Destruktions-anmodning"
+   - SECURITY DEFINER for at læse `user_roles`
 
-**2. Manuel korrektion**
-De forkerte porto-opkrævninger for Double Clicks (18,40 kr.) og Total Services (46 kr.) skal slettes manuelt i OfficeRnD.
+2. **`notify_operator_on_destruction_request_insert()`** — AFTER INSERT trigger
+   - Checker om `NEW.chosen_action = 'destruer'` (for tilfælde hvor standardhandling er destruktion)
+   - Samme notifikationslogik
+
+Begge følger præcis samme mønster som de eksisterende scan-notifikationstriggers.
 
 ### Tekniske detaljer
 
-Nuværende flow (linje 411):
-```
-for (const it of tenantItems) → 1 porto per item
+```sql
+-- UPDATE trigger (tenant ændrer handling til destruer)
+CREATE OR REPLACE FUNCTION public.notify_operator_on_destruction_request()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$ ... $$;
+
+CREATE TRIGGER trg_notify_operator_on_destruction_request
+  BEFORE UPDATE ON public.mail_items
+  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_destruction_request();
+
+-- INSERT trigger (standardhandling = destruer)
+CREATE OR REPLACE FUNCTION public.notify_operator_on_destruction_request_insert()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$ ... $$;
+
+CREATE TRIGGER trg_notify_operator_on_destruction_request_insert
+  AFTER INSERT ON public.mail_items
+  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_destruction_request_insert();
 ```
 
-Nyt flow:
-```
-// Group by porto_option for letters
-const portoGroups = new Map<string, ItemData[]>();
-for (const it of tenantItems) {
-  if (it.mail_type !== 'pakke' && it.porto_option) {
-    const key = it.porto_option;
-    if (!portoGroups.has(key)) portoGroups.set(key, []);
-    portoGroups.get(key)!.push(it);
-  } else if (it.mail_type === 'pakke') {
-    // Packages: individual porto as before
-  }
-}
-// Create 1 porto charge per group
-for (const [portoKey, groupItems] of portoGroups) {
-  // Create charge for groupItems[0], mark rest as included
-}
-```
-
-Porto-opkrævningens `description` inkluderer alle forsendelsesnumre i gruppen.
+Ingen frontend-ændringer nødvendige.
 
