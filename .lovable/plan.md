@@ -1,49 +1,50 @@
 
 
-## Fix: Operatør-notifikation ved destruktions-anmodning
+## Fix: Magiclink virker ikke for nye lejere
 
 ### Problem
-Der findes ingen trigger der notificerer operatører når en lejer vælger "destruer" som handling. Kun scan-anmodninger har denne notifikation (via `notify_operator_on_scan_request` og `notify_operator_on_scan_request_insert`).
+Nye lejere (f.eks. Nora Transport) modtager en welcome-email med "Sæt din adgangskode →"-link, men linket virker ikke. Operatøren skal manuelt gensende, og først da kan lejeren logge ind.
 
-### Løsning
-Tilføj to nye triggers — en for UPDATE og en for INSERT — der sender notifikation til alle operatører når `chosen_action` sættes til `destruer`.
+### Årsag
+Supabase's `/auth/v1/verify` endpoint kan redirecte med `?code=` (PKCE flow) i stedet for `#access_token=`. SetPasswordPage håndterer kun hash-baserede tokens — ikke PKCE-koder. Derudover kan der opstå en race condition mellem Supabase-klientens auto-detektion og sidens `useEffect`.
 
-### Ændring
+### Ændringer
 
-**Database migration** med to funktioner og triggers:
+**1. `supabase/functions/send-new-mail-email/index.ts`**
+- Skift `generateLink` type fra `"magiclink"` til `"recovery"` — recovery-links er designet til adgangskode-opsætning og håndteres bedre af Supabase's verify endpoint
+- Recovery-typen sikrer at `PASSWORD_RECOVERY`-eventet udløses (som SetPasswordPage allerede lytter efter)
 
-1. **`notify_operator_on_destruction_request()`** — BEFORE UPDATE trigger
-   - Checker om `NEW.chosen_action = 'destruer'` og `OLD.chosen_action != 'destruer'`
-   - Indsætter notifikation til alle operatører med titel "Destruktions-anmodning"
-   - SECURITY DEFINER for at læse `user_roles`
-
-2. **`notify_operator_on_destruction_request_insert()`** — AFTER INSERT trigger
-   - Checker om `NEW.chosen_action = 'destruer'` (for tilfælde hvor standardhandling er destruktion)
-   - Samme notifikationslogik
-
-Begge følger præcis samme mønster som de eksisterende scan-notifikationstriggers.
+**2. `src/pages/SetPasswordPage.tsx`**
+- Tilføj håndtering af PKCE `code`-parameter fra query string (som fallback)
+- Brug `supabase.auth.exchangeCodeForSession(code)` hvis `code` findes i URL'en
+- Gør den eksisterende `onAuthStateChange`-listener mere robust ved at reagere på flere event-typer
 
 ### Tekniske detaljer
 
-```sql
--- UPDATE trigger (tenant ændrer handling til destruer)
-CREATE OR REPLACE FUNCTION public.notify_operator_on_destruction_request()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
-AS $$ ... $$;
-
-CREATE TRIGGER trg_notify_operator_on_destruction_request
-  BEFORE UPDATE ON public.mail_items
-  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_destruction_request();
-
--- INSERT trigger (standardhandling = destruer)
-CREATE OR REPLACE FUNCTION public.notify_operator_on_destruction_request_insert()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
-AS $$ ... $$;
-
-CREATE TRIGGER trg_notify_operator_on_destruction_request_insert
-  AFTER INSERT ON public.mail_items
-  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_destruction_request_insert();
+Nuværende `generateLink` kald:
+```typescript
+generateLink({ type: "magiclink", email, options: { redirectTo } })
 ```
 
-Ingen frontend-ændringer nødvendige.
+Nyt kald:
+```typescript
+generateLink({ type: "recovery", email, options: { redirectTo } })
+```
+
+SetPasswordPage — ny PKCE-håndtering:
+```typescript
+// Tjek for PKCE code i query params
+const searchParams = new URLSearchParams(window.location.search);
+const code = searchParams.get("code");
+if (code) {
+  supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+    if (error) setLinkExpired(true);
+    else setIsReady(true);
+    window.history.replaceState(null, "", window.location.pathname);
+  });
+  return;
+}
+```
+
+Ingen database-ændringer nødvendige.
 
