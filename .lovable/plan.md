@@ -1,56 +1,44 @@
 
 
-## Porto-omkostninger mangler for Rawa og Shinepro i OfficeRnD
+## Fix: Scan-notifikation ved oprettelse af post
 
-### Årsag
-
-I `sync-officernd-charge-batch` funktionen itereres der over lejere. Hvis OfficeRnD-memberlookup fejler eller ikke finder en member (ingen bruger med `kontakt@rawa.dk` / `liga.shinepro@gmail.com`), kører koden `continue` og springer hele lejeren over — **inklusiv porto-gebyrerne**. Der logges heller intet i `officernd_sync_log`, så fejlen er usynlig.
-
-Begge lejere er Standard-tier med `chosen_action: under_forsendelse` → hovedgebyr = 0 kr. Men porto burde stadig overføres (Rawa: dk_0_100 = 18,40 kr., Shinepro: udland_0_100 = 46 kr.).
+### Problem
+`notify_operator_on_scan_request` er kun en UPDATE-trigger. Når `apply_tenant_default_action` sætter `chosen_action = 'scan'` på INSERT, sendes ingen notifikation til operatøren.
 
 ### Løsning
+Tilføj en ny AFTER INSERT trigger der sender scan-notifikation når `chosen_action = 'scan'` allerede er sat ved oprettelse.
 
-Opdater `sync-officernd-charge-batch/index.ts` med to ændringer:
+### Ændring
 
-**1. Log fejl i sync-loggen** når member-lookup fejler — i stedet for at `continue` stille og roligt:
-- Indsæt en `officernd_sync_log` entry med `status: 'failed'` og en beskrivende `error_message` (fx "No OfficeRnD member found for kontakt@rawa.dk")
-- Så operatøren kan se problemet i sync-loggen under indstillinger
+**1. Database migration**
 
-**2. Undgå at skippe hele lejeren** — alternativt: forsøg at finde member via company name i OfficeRnD (søg på teams/companies) som fallback, eller log specifikt at porto blev sprunget over.
+Ny funktion `notify_operator_on_scan_request_insert()`:
+- Fires AFTER INSERT on `mail_items`
+- Checker om `NEW.chosen_action = 'scan'`
+- Hvis ja: indsætter notifikation til alle operatører (samme logik som den eksisterende UPDATE-trigger)
+- SECURITY DEFINER for at kunne læse `user_roles`
 
-### Tekniske detaljer
+```sql
+CREATE OR REPLACE FUNCTION public.notify_operator_on_scan_request_insert()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+DECLARE _op record; _stamp text;
+BEGIN
+  IF NEW.chosen_action IS DISTINCT FROM 'scan' THEN RETURN NEW; END IF;
+  _stamp := CASE WHEN NEW.stamp_number IS NOT NULL 
+    THEN ' (nr. ' || NEW.stamp_number || ')' ELSE '' END;
+  FOR _op IN SELECT user_id FROM user_roles WHERE role = 'operator' LOOP
+    INSERT INTO notifications (user_id, mail_item_id, title, message)
+    VALUES (_op.user_id, NEW.id, 'Scan-anmodning',
+      'En lejer har anmodet om scanning af forsendelse' || _stamp || '.');
+  END LOOP;
+  RETURN NEW;
+END; $$;
 
-I `sync-officernd-charge-batch/index.ts`, ændres linje ~244-263:
-
-```typescript
-// Nuværende: stille continue
-if (!firstItem.contact_email) {
-  console.error(`Tenant ${tenantId} has no contact_email, skipping`);
-  continue;  // <-- springer porto over!
-}
-// ... member lookup ...
-if (!members.length) {
-  console.error(`No OfficeRnD member for ${firstItem.contact_email}`);
-  continue;  // <-- springer porto over!
-}
+CREATE TRIGGER trg_notify_operator_on_scan_request_insert
+  AFTER INSERT ON public.mail_items
+  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_scan_request_insert();
 ```
 
-Ændres til at logge fejl i sync_log:
-
-```typescript
-if (!firstItem.contact_email) {
-  for (const it of tenantItems) {
-    await supabase.from("officernd_sync_log").insert({
-      mail_item_id: it.id,
-      status: "failed",
-      error_message: "Tenant has no contact_email",
-      amount_text: null,
-    });
-  }
-  continue;
-}
-// ... og tilsvarende for member lookup failure
-```
-
-Derudover: de to lejere skal manuelt synces efter rettelsen, eller portoen skal tilføjes manuelt i OfficeRnD.
+Ingen frontend-ændringer nødvendige.
 
