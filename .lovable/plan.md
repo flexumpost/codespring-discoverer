@@ -1,44 +1,50 @@
 
 
-## Fix: Scan-notifikation ved oprettelse af post
+## Fix: Porto opkræves per adressegruppe i stedet for per brev
 
 ### Problem
-`notify_operator_on_scan_request` er kun en UPDATE-trigger. Når `apply_tenant_default_action` sætter `chosen_action = 'scan'` på INSERT, sendes ingen notifikation til operatøren.
+Breve grupperes fysisk efter adresse og sendes i én kuvert, men `sync-officernd-charge-batch` opkræver porto per brev. Resultat: Double Clicks fik opkrævet 2×18,40 kr. i stedet for 1×18,40 kr., og Total Services fik 2×46 kr. i stedet for 1×46 kr.
 
 ### Løsning
-Tilføj en ny AFTER INSERT trigger der sender scan-notifikation når `chosen_action = 'scan'` allerede er sat ved oprettelse.
+Ændr porto-logikken i batch-funktionen, så porto kun opkræves **én gang per unik adresse-kombination** per lejer (for breve). Pakker fortsætter med per-item porto.
 
-### Ændring
+### Ændringer
 
-**1. Database migration**
+**1. `supabase/functions/sync-officernd-charge-batch/index.ts`**
 
-Ny funktion `notify_operator_on_scan_request_insert()`:
-- Fires AFTER INSERT on `mail_items`
-- Checker om `NEW.chosen_action = 'scan'`
-- Hvis ja: indsætter notifikation til alle operatører (samme logik som den eksisterende UPDATE-trigger)
-- SECURITY DEFINER for at kunne læse `user_roles`
+I porto-sektionen (linje 411-481), erstat per-item iteration med adresse-gruppering for breve:
+- For **breve**: Gruppér `tenantItems` efter `porto_option`. Opret kun 1 porto-opkrævning per unik `porto_option` per lejer (da alle breve til samme adresse allerede har fået tildelt samme porto_option via ShippingPrepPage's adresse-gruppering)
+- For **pakker**: Behold per-item porto (hver pakke har unik vægt)
+- Log porto-opkrævningen på det første brev i gruppen, og marker de resterende breve som `porto_included_in_group`
 
-```sql
-CREATE OR REPLACE FUNCTION public.notify_operator_on_scan_request_insert()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
-AS $$
-DECLARE _op record; _stamp text;
-BEGIN
-  IF NEW.chosen_action IS DISTINCT FROM 'scan' THEN RETURN NEW; END IF;
-  _stamp := CASE WHEN NEW.stamp_number IS NOT NULL 
-    THEN ' (nr. ' || NEW.stamp_number || ')' ELSE '' END;
-  FOR _op IN SELECT user_id FROM user_roles WHERE role = 'operator' LOOP
-    INSERT INTO notifications (user_id, mail_item_id, title, message)
-    VALUES (_op.user_id, NEW.id, 'Scan-anmodning',
-      'En lejer har anmodet om scanning af forsendelse' || _stamp || '.');
-  END LOOP;
-  RETURN NEW;
-END; $$;
+**2. Manuel korrektion**
+De forkerte porto-opkrævninger for Double Clicks (18,40 kr.) og Total Services (46 kr.) skal slettes manuelt i OfficeRnD.
 
-CREATE TRIGGER trg_notify_operator_on_scan_request_insert
-  AFTER INSERT ON public.mail_items
-  FOR EACH ROW EXECUTE FUNCTION notify_operator_on_scan_request_insert();
+### Tekniske detaljer
+
+Nuværende flow (linje 411):
+```
+for (const it of tenantItems) → 1 porto per item
 ```
 
-Ingen frontend-ændringer nødvendige.
+Nyt flow:
+```
+// Group by porto_option for letters
+const portoGroups = new Map<string, ItemData[]>();
+for (const it of tenantItems) {
+  if (it.mail_type !== 'pakke' && it.porto_option) {
+    const key = it.porto_option;
+    if (!portoGroups.has(key)) portoGroups.set(key, []);
+    portoGroups.get(key)!.push(it);
+  } else if (it.mail_type === 'pakke') {
+    // Packages: individual porto as before
+  }
+}
+// Create 1 porto charge per group
+for (const [portoKey, groupItems] of portoGroups) {
+  // Create charge for groupItems[0], mark rest as included
+}
+```
+
+Porto-opkrævningens `description` inkluderer alle forsendelsesnumre i gruppen.
 
