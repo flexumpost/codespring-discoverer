@@ -17,6 +17,7 @@ Deno.serve(async (req) => {
 
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     if (!RESEND_API_KEY) {
       return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), {
         status: 500,
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify caller is authenticated
+    // Auth: accept either a user JWT OR the service_role key (for trigger calls)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -32,18 +33,22 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
     }
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === SERVICE_ROLE_KEY;
 
-    const callerClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: userData, error: userErr } = await callerClient.auth.getUser();
-    if (userErr || !userData.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: corsHeaders,
-      });
+    if (!isServiceRole) {
+      const callerClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: userData, error: userErr } = await callerClient.auth.getUser();
+      if (userErr || !userData.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: corsHeaders,
+        });
+      }
     }
 
     const { mail_item_id } = await req.json();
@@ -56,18 +61,18 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      SERVICE_ROLE_KEY
     );
 
-    // Fetch mail item with tenant info using caller's client so RLS enforces access
-    const { data: item } = await callerClient
+    // Fetch mail item with tenant info using admin client (works for both auth modes)
+    const { data: item } = await supabaseAdmin
       .from("mail_items")
       .select("id, stamp_number, mail_type, tenant_id, tenants(company_name)")
       .eq("id", mail_item_id)
       .maybeSingle();
 
     if (!item) {
-      return new Response(JSON.stringify({ error: "Not found or access denied" }), {
+      return new Response(JSON.stringify({ error: "Not found" }), {
         status: 404,
         headers: corsHeaders,
       });
