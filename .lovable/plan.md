@@ -1,51 +1,61 @@
+# Fjern "Afhentning" som standardhandling overalt
+
 ## Problem
+Trods reglen om at "Forsendelse" er eneste tilladte standard for pakker (og at "Afhentning" aldrig må være standard for breve heller), står der i databasen stadig lejere med `default_package_action='afhentning'` og `default_mail_action='afhentning'`. Triggeren `apply_tenant_default_action` anvender disse værdier ved registrering, hvilket gav forsendelse 3120 (Nero Trade) status "Afhentning bestilt" uden at lejeren har bestilt noget — og uden et `pickup_date`.
 
-Forsendelse **3140** (Wise Click ApS, Standard-tier) blev automatisk sat til `chosen_action = "scan"` med 30 kr. gebyr, fordi lejeren har valgt **"Scanning"** som standardhandling for breve.
+Derudover findes der i UI'et stadig en "send"-default som mapper til afhentning visse steder, samt at vi ikke har en database-spærre der forhindrer at "afhentning" gemmes som standard.
 
-Sådan fungerer det i dag:
+## Hvad der skal gøres
 
-- Lejeren vælger "Scanning" i `DefaultActionSetup` → gemmes som `default_mail_action = "scan"` på tenant.
-- DB-triggeren `apply_tenant_default_action` kopierer værdien direkte ind i `chosen_action` på hver nye mail item.
-- Edge function `sync-officernd-charge` ser `chosen_action = "scan"` og fakturerer 30 kr. (Standard-tier) / 50 kr. (Lite).
+### 1. Database trigger – afvis "afhentning" som standard
+Opdater `apply_tenant_default_action` så den **springer over** (returnerer NEW uændret) hvis lejerens default er `'afhentning'`. Så bliver nye mail_items oprettet med status `ny` og ingen `chosen_action`, og lejeren skal selv vælge handling + tidspunkt.
 
-Systemet har allerede konceptet `**standard_scan**` = "scan på næste planlagte gratis scandag" (0 kr.). Det er bare ikke det, som triggeren falder tilbage på.
+### 2. Database constraint – forhindre fremtidige fejlindtastninger
+Tilføj en CHECK-trigger på `tenants` der afviser `UPDATE/INSERT` hvor `default_mail_action = 'afhentning'` eller `default_package_action = 'afhentning'`. Bruger validation trigger (ikke CHECK constraint) jf. projektreglerne.
 
-## Løsning
+### 3. Ryd op i eksisterende lejer-data
+Sæt `default_mail_action = NULL` og `default_package_action = NULL` på alle lejere hvor værdien i dag er `'afhentning'`. Berører bl.a.:
+- Nero Trade (mail = afhentning)
+- Sjælland Entreprise og VVS (pakke = afhentning)
+- Evt. flere – bekræftes ved kørsel.
 
-Når en lejer vælger "Scanning" som standardhandling for breve, skal nye breve sættes til `**standard_scan**` (gratis, næste planlagte scandag). Lejeren kan derefter selv ændre til `**scan**` (med det samme, mod gebyr) hvis de ønsker det.
+### 4. Ryd op i forsendelse 3120 (og lignende åbne items)
+For mail_items hvor `chosen_action = 'afhentning'` AND `pickup_date IS NULL` AND `status = 'afventer_handling'` AND oprettet inden for de sidste 7 dage:
+- Nulstil `chosen_action = NULL`
+- Sæt `status = 'ny'`
+Så de dukker op hos lejeren igen og kræver et aktivt valg + tidspunkt.
 
-### Ændringer
-
-**1. DB-migration — opdater `apply_tenant_default_action`-triggeren**
-
-Map default-værdien til den gratis variant for breve:
-
-- `default_mail_action = 'scan'` → sæt `chosen_action = 'standard_scan'`
-- `default_mail_action = 'send'` → uændret (`'send'`)
-- (pakker uændret — `default_package_action` er låst til `'send'`)
-
-**2. Backfill (engangs-update)**
-
-Find mail items oprettet i dag/seneste 24t hvor:
-
-- `mail_type = 'brev'`
-- `chosen_action = 'scan'`
-- tenant's `default_mail_action = 'scan'`
-- mail item er endnu ikke synkroniseret/faktureret (eller hvor lejeren ikke aktivt har valgt scan)
-
-…og ret dem til `chosen_action = 'standard_scan'`. Konkret omfatter det forsendelse 3140. Jeg viser listen før opdatering så du kan godkende.
-
-**3. (Valgfrit) UI-tekst i `DefaultActionSetup**`
-
-Tilføj en lille hjælpetekst under "Scanning"-valget: *"Breve scannes på næste planlagte gratis scandag. Vælg manuelt 'Scan nu' på det enkelte brev hvis du ønsker det scannet med det samme (mod gebyr)."* — så lejerne forstår forskellen. ja til dette, for Lite og Standard lejere. Plus lejere kan får deres breve scannet med det samme uden gebyr.
+### 5. UI-tjek (DefaultActionSetup)
+Verificér at "Afhentning" ikke længere kan vælges i `DefaultActionSetup.tsx` for hverken breve eller pakker. Hvis den stadig er listed, fjern den fra dropdown-options.
 
 ## Tekniske detaljer
 
-- `apply_tenant_default_action` er en `BEFORE INSERT`-trigger på `mail_items`. Den eksisterende kode er allerede vist i db-functions; kun selve mappingen ændres.
-- `sync-officernd-charge` håndterer allerede `standard_scan` korrekt (linje 55: returnerer 0 kr.) — ingen ændring nødvendig.
-- `getPlanName` (linje 117) bruger `defaultAction` som fallback når `chosen_action` er null — irrelevant her, da vi sætter `chosen_action` eksplicit.
-- `OperatorDashboard.tsx` og `TenantDashboard.tsx` viser allerede "Standard scanning {dato}" korrekt for `standard_scan`.
+**Trigger-ændring (uddrag):**
+```sql
+-- Hvis default er 'afhentning', kræves manuelt valg + pickup_date
+IF _default_action = 'afhentning' THEN
+  RETURN NEW; -- bliver liggende som 'ny' uden chosen_action
+END IF;
+```
 
-## Spørgsmål inden jeg går i gang
+**Validation trigger på tenants:**
+```sql
+IF NEW.default_mail_action = 'afhentning' OR NEW.default_package_action = 'afhentning' THEN
+  RAISE EXCEPTION 'Afhentning kan ikke vælges som standardhandling – lejer skal selv booke et tidspunkt';
+END IF;
+```
 
-Skal jeg også tilføje hjælpeteksten i `DefaultActionSetup` (punkt 3), eller kun ændre selve logikken (punkt 1+2)?
+**Backfill data-fix** (via insert-tool, ikke migration):
+- `UPDATE tenants SET default_mail_action = NULL WHERE default_mail_action = 'afhentning'`
+- `UPDATE tenants SET default_package_action = NULL WHERE default_package_action = 'afhentning'`
+- `UPDATE mail_items SET chosen_action = NULL, status = 'ny' WHERE chosen_action = 'afhentning' AND pickup_date IS NULL AND status = 'afventer_handling'`
+
+## Filer der ændres
+- Ny migration: trigger-opdatering + validation trigger
+- Data-fix via insert-tool (UPDATE statements)
+- Evt. `src/components/DefaultActionSetup.tsx` hvis "Afhentning" stadig vises som mulighed
+
+## Effekt
+- Forsendelse 3120 og lignende får nulstillet handling, så Nero Trade selv kan vælge afhentning + tid
+- Ingen lejer kan fremover have afhentning som default
+- Database afviser hvis nogen prøver at gemme det igen
