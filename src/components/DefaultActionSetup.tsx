@@ -49,6 +49,14 @@ export function DefaultActionSetup({ tenantId, tenantTypeName }: DefaultActionSe
               <SelectTrigger><SelectValue placeholder={t("defaultAction.selectAction", "Vælg handling...")} /></SelectTrigger>
               <SelectContent>{MAIL_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
             </Select>
+            {mailAction === "scan" && tenantTypeName !== "Plus" && (
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  "defaultAction.scanHelpLiteStandard",
+                  "Breve scannes på næste planlagte gratis scandag. Vælg manuelt 'Scan nu' på det enkelte brev hvis du ønsker det scannet med det samme (mod gebyr).",
+                )}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>{t("defaultAction.defaultPackageAction", "Standard handling for pakker")}</Label>
