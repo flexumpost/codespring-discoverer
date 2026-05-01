@@ -1,46 +1,51 @@
+## Problem
 
+Forsendelse **3140** (Wise Click ApS, Standard-tier) blev automatisk sat til `chosen_action = "scan"` med 30 kr. gebyr, fordi lejeren har valgt **"Scanning"** som standardhandling for breve.
 
-## Diagnose: Notifikationen blev faktisk sendt
+Sådan fungerer det i dag:
 
-### Resultat af undersøgelse
-Jeg har kontrolleret database for forsendelse 3059 (Sonder IP ApS, mail_item_id `4b87d973...`):
+- Lejeren vælger "Scanning" i `DefaultActionSetup` → gemmes som `default_mail_action = "scan"` på tenant.
+- DB-triggeren `apply_tenant_default_action` kopierer værdien direkte ind i `chosen_action` på hver nye mail item.
+- Edge function `sync-officernd-charge` ser `chosen_action = "scan"` og fakturerer 30 kr. (Standard-tier) / 50 kr. (Lite).
 
-- ✅ `chosen_action = 'scan'` blev korrekt sat ved INSERT (via `apply_tenant_default_action`)
-- ✅ INSERT-trigger `trg_notify_operator_on_scan_request_insert` kørte
-- ✅ **3 notifikationsrækker blev oprettet** kl. 06:12 — én til hver operatør:
-  - rico@flexum.dk ✅
-  - rico.davidsen12@gmail.com ✅
-  - emilie@flexum.dk ✅
-- ✅ Notifikationen er øverst i din liste og stadig `is_read = false`
-- ✅ Realtime-publication er aktiv på `notifications`-tabellen
+Systemet har allerede konceptet `**standard_scan**` = "scan på næste planlagte gratis scandag" (0 kr.). Det er bare ikke det, som triggeren falder tilbage på.
 
-**Notifikationen er altså i systemet og blev leveret til din bell.** Problemet er ikke trigger-logikken (den fix vi lavede 2026-04-16 virker).
+## Løsning
 
-### Sandsynlige årsager til at du ikke "fik" den
+Når en lejer vælger "Scanning" som standardhandling for breve, skal nye breve sættes til `**standard_scan**` (gratis, næste planlagte scandag). Lejeren kan derefter selv ændre til `**scan**` (med det samme, mod gebyr) hvis de ønsker det.
 
-1. **Ingen email/push-notifikation** — `NotificationBell` viser kun en in-app badge. Hvis du ikke havde appen åben, ser du den først ved næste page load. Der er pt. ingen email til operatører ved scan-anmodninger.
-2. **Realtime-channel disconnected** — hvis browser-fanen lå længe inaktiv, kan WebSocket-channel'en være droppet, så badge-tælleren ikke opdaterede live (kræver page refresh).
-3. **Bell'en blev overset** — du har 15+ ulæste notifikationer i forvejen, så badge-tælleren stiger ikke synligt fra fx "14" til "15".
+### Ændringer
 
-### Forslag til løsning
+**1. DB-migration — opdater `apply_tenant_default_action`-triggeren**
 
-Jeg foreslår at sende **email til operatører** ved scan-anmodninger (parallelt til in-app), præcis som `notify-scan-request` Edge Function allerede er bygget til — men den kaldes pt. ikke fra triggeren.
+Map default-værdien til den gratis variant for breve:
 
-**Ændringer:**
+- `default_mail_action = 'scan'` → sæt `chosen_action = 'standard_scan'`
+- `default_mail_action = 'send'` → uændret (`'send'`)
+- (pakker uændret — `default_package_action` er låst til `'send'`)
 
-1. **Database-trigger-funktioner** (`notify_operator_on_scan_request` + `_insert`)
-   - Efter at have indsat in-app notifikationer, kald `notify-scan-request` Edge Function via `pg_net.http_post` med service-role key (samme mønster som `notify_officernd_on_archive`)
-   - Sender én email til kontakt@flexum.dk per scan-anmodning
+**2. Backfill (engangs-update)**
 
-2. **Edge Function `notify-scan-request/index.ts`**
-   - Tilpas den til at acceptere kald fra service_role (i dag kræver den en bruger-JWT via `callerClient.from('mail_items')`)
-   - Skift til `supabaseAdmin` til at hente mail_item når kaldt fra trigger
+Find mail items oprettet i dag/seneste 24t hvor:
 
-Ingen frontend-ændringer.
+- `mail_type = 'brev'`
+- `chosen_action = 'scan'`
+- tenant's `default_mail_action = 'scan'`
+- mail item er endnu ikke synkroniseret/faktureret (eller hvor lejeren ikke aktivt har valgt scan)
 
-### Alternativ (hvis du ikke vil have emails)
+…og ret dem til `chosen_action = 'standard_scan'`. Konkret omfatter det forsendelse 3140. Jeg viser listen før opdatering så du kan godkende.
 
-Forbedre realtime-robusthed i `NotificationBell`:
-- Tilføj heartbeat/reconnect-logik til channel
-- Vis toast pop-up ved nye notifikationer (ikke kun badge-tæller)
+**3. (Valgfrit) UI-tekst i `DefaultActionSetup**`
 
+Tilføj en lille hjælpetekst under "Scanning"-valget: *"Breve scannes på næste planlagte gratis scandag. Vælg manuelt 'Scan nu' på det enkelte brev hvis du ønsker det scannet med det samme (mod gebyr)."* — så lejerne forstår forskellen. ja til dette, for Lite og Standard lejere. Plus lejere kan får deres breve scannet med det samme uden gebyr.
+
+## Tekniske detaljer
+
+- `apply_tenant_default_action` er en `BEFORE INSERT`-trigger på `mail_items`. Den eksisterende kode er allerede vist i db-functions; kun selve mappingen ændres.
+- `sync-officernd-charge` håndterer allerede `standard_scan` korrekt (linje 55: returnerer 0 kr.) — ingen ændring nødvendig.
+- `getPlanName` (linje 117) bruger `defaultAction` som fallback når `chosen_action` er null — irrelevant her, da vi sætter `chosen_action` eksplicit.
+- `OperatorDashboard.tsx` og `TenantDashboard.tsx` viser allerede "Standard scanning {dato}" korrekt for `standard_scan`.
+
+## Spørgsmål inden jeg går i gang
+
+Skal jeg også tilføje hjælpeteksten i `DefaultActionSetup` (punkt 3), eller kun ændre selve logikken (punkt 1+2)?
