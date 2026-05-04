@@ -9,9 +9,7 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Preview,
-  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -24,24 +22,21 @@ export const MagicLinkEmail = ({
   siteName,
   confirmationUrl,
 }: MagicLinkEmailProps) => (
-  <Html lang="da" dir="ltr">
+  <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Dit login-link til Flexum – aktivt i 1 time</Preview>
+    <Preview>Your login link for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src="https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png" alt="Flexum" width="120" height="auto" style={{ marginBottom: '24px' }} />
-        <Heading style={h1}>Dit login-link</Heading>
+        <Heading style={h1}>Your login link</Heading>
         <Text style={text}>
-          Klik på knappen nedenfor for at logge ind på Flexum.
+          Click the button below to log in to {siteName}. This link will expire
+          shortly.
         </Text>
-        <Section style={buttonSection}>
-          <Button style={button} href={confirmationUrl}>
-            Log ind
-          </Button>
-        </Section>
-        <Text style={hint}>Linket er aktivt i 1 time.</Text>
+        <Button style={button} href={confirmationUrl}>
+          Log In
+        </Button>
         <Text style={footer}>
-          Hvis du ikke har anmodet om dette link, kan du trygt ignorere denne e-mail.
+          If you didn't request this link, you can safely ignore this email.
         </Text>
       </Container>
     </Body>
@@ -55,25 +50,21 @@ const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: 'hsl(222.2, 84%, 4.9%)',
+  color: '#000000',
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: 'hsl(215.4, 16.3%, 46.9%)',
+  color: '#55575d',
   lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const buttonSection = { textAlign: 'center' as const, margin: '32px 0' }
 const button = {
-  backgroundColor: '#00aaeb',
+  backgroundColor: '#000000',
   color: '#ffffff',
   fontSize: '14px',
-  fontWeight: '600' as const,
-  borderRadius: '0.5rem',
-  padding: '12px 24px',
+  borderRadius: '8px',
+  padding: '12px 20px',
   textDecoration: 'none',
-  display: 'inline-block' as const,
 }
-const hint = { fontSize: '12px', color: '#999999', textAlign: 'center' as const, margin: '0 0 24px' }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
