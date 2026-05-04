@@ -595,7 +595,13 @@ const TenantDetailPage = () => {
                   {contactMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
                 {tenant.contact_email && tenant.user_id && (
-                  <ResendInviteButton tenantId={tenant.id} />
+                  <ResendInviteButton tenant={{
+                    id: tenant.id,
+                    user_id: tenant.user_id ?? null,
+                    contact_email: tenant.contact_email ?? null,
+                    contact_first_name: tenant.contact_first_name ?? null,
+                    contact_last_name: tenant.contact_last_name ?? null,
+                  }} />
                 )}
               </CardContent>
             </Card>
