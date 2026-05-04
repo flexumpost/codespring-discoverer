@@ -45,17 +45,45 @@ const TYPE_COLORS: Record<string, string> = {
   "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
 };
 
-const ResendInviteButton = ({ tenantId }: { tenantId: string }) => {
+type ResendInviteTenant = {
+  id: string;
+  user_id: string | null;
+  contact_email: string | null;
+  contact_first_name: string | null;
+  contact_last_name: string | null;
+};
+
+const ResendInviteButton = ({ tenant }: { tenant: ResendInviteTenant }) => {
   const { t } = useTranslation();
   const [sending, setSending] = useState(false);
   const handleResend = async () => {
+    if (!tenant.contact_email) {
+      toast.error(t("tenantDetail.couldNotResendInvitation"));
+      return;
+    }
     setSending(true);
     try {
-      const res = await supabase.functions.invoke("send-new-mail-email", {
-        body: { tenant_id: tenantId, is_new_tenant: true },
-      });
-      if (res.error) throw res.error;
-      if (res.data?.error) throw new Error(res.data.error);
+      if (tenant.user_id) {
+        // Existing user — send branded password recovery email (recovery.tsx via auth-email-hook)
+        const res = await supabase.functions.invoke("request-password-reset", {
+          body: { email: tenant.contact_email },
+        });
+        if (res.error) throw res.error;
+        if (res.data?.error) throw new Error(res.data.error);
+      } else {
+        // No user yet — send branded invite (invite.tsx via auth-email-hook)
+        const res = await supabase.functions.invoke("create-tenant-user", {
+          body: {
+            tenant_ids: [tenant.id],
+            email: tenant.contact_email,
+            first_name: tenant.contact_first_name ?? "",
+            last_name: tenant.contact_last_name ?? "",
+            mode: "invite",
+          },
+        });
+        if (res.error) throw res.error;
+        if (res.data?.error) throw new Error(res.data.error);
+      }
       toast.success(t("tenantDetail.invitationResent"));
     } catch (err: any) {
       const msg = err.message?.includes("401") || err.message?.includes("Unauthorized")
