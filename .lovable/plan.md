@@ -1,39 +1,68 @@
-## Situation
+## Problem
 
-Dette projekt har i øjeblikket `flexum.dk` registreret som email-domæne, men det er aldrig blevet DNS-verificeret (status: `initiated`). Derfor fejler alle email-udsendelser.
+Knappen **"Gensend invitation"** (i `TenantDetailPage.tsx`) kalder i dag `send-new-mail-email` med `is_new_tenant: true`, hvilket sender `welcome_shipment`-skabelonen — en mail der lister forsendelser og er tænkt til "ny lejer + ny forsendelse på samme tid". Det er forkert konteksten "gensend invitation alene".
 
-`notify.flexum.dk` tilhører dit andet Lovable-projekt (flexum.dk-projektet) og må **ikke** ændres — det ville ødelægge emails dér.
+`welcome_shipment` skal forblive som den er, men kun bruges automatisk når en ny bruger oprettes samtidigt med at der registreres post til vedkommende (det eksisterende flow andre steder).
 
-Dit custom domæne her er `post.flexum.dk`, så vi opretter `mail.post.flexum.dk` som nyt afsenderdomæne. Det er et helt nyt subdomæne der ikke konflikter med noget eksisterende.
+## Løsning
 
-## Trin
+Skift "Gensend invitation"-knappen til at trigge et rent invitations-flow via `create-tenant-user` edge-funktionen i `mode: "invite"`. Denne sti:
 
-1. **Behold `notify.flexum.dk` urørt** — det andet projekt bliver ved med at virke
-2. **Fjern det uverificerede `flexum.dk` fra dette projekt** (det er kun "initiated", ingen aktiv brug)
-3. **Opret `mail.post.flexum.dk`** som nyt email-domæne via setup-dialogen
-4. **Du tilføjer DNS-records** hos din webhotel-udbyder (CNAME/TXT — du får de præcise værdier af dialogen)
-5. **Vent på DNS-verifikation** (kan tage minutter til timer)
-6. **Re-scaffold `auth-email-hook`** så auth-emails (login, password-reset, invites) bruger det nye domæne
-7. **Deploy `auth-email-hook` og `process-email-queue`** så den nye konfiguration træder i kraft
-8. **Verificér at email-køen drainer** — tjek `email_send_log` for nye `sent`-rækker
+- Kalder `auth.admin.inviteUserByEmail()` som Supabase Auth routes via `auth-email-hook`
+- Bruger den brandede `invite.tsx`-skabelon (auth-email)
+- Indeholder magic link til `/set-password` så modtageren kan sætte adgangskode og logge ind
+- Opdaterer ikke nogen mail_items — det er en ren konto-invitation
 
-## Hvad du ser i din inbox bagefter
+## Ændringer
 
-Lejere modtager mails fra `noreply@mail.post.flexum.dk` (eller lignende afsenderadresse), og links i mails peger på `https://post.flexum.dk` — samme domæne som de logger ind på. God genkendelighed og ingen konflikt med dit andet projekt.
+### 1. `src/pages/TenantDetailPage.tsx` — `ResendInviteButton`
 
-## Tekniske detaljer
+Opdater `handleResend` til at kalde `create-tenant-user` i stedet for `send-new-mail-email`:
 
-- **`notify.flexum.dk`** forbliver delegeret til Lovables nameservere (`ns3.lovable.cloud` / `ns4.lovable.cloud`) for det andet projekt — vi rører ikke NS-records hos din udbyder
-- **`mail.post.flexum.dk`** sættes op i CNAME-mode (advanced/proxy mode) da din udbyder ikke understøtter NS-records — kun CNAME og TXT
-- Eksisterende email-templates (welcome, new-shipment, shipment-dispatched, recovery, invite osv.) bibeholdes — kun afsenderdomænet ændres
-- `process-email-queue` cron-job kører fortsat hvert 5. sekund og vil automatisk genoptage afsendelse når DNS er verificeret
-- Eventuelle fejlede emails i kø vil retry automatisk (op til 5 gange, derefter DLQ) — ingen manuel handling nødvendig
-- `email_send_state.retry_after_until` nulstilles om nødvendigt så køen ikke er låst i cooldown
+- Hent tenant'ens `contact_email`, `contact_first_name`, `contact_last_name` (ligger allerede i den indlæste tenant — kan tilgås via prop eller hentes via id)
+- Send body: `{ tenant_ids: [tenantId], email, first_name, last_name, mode: "invite" }`
+- Hvis brugeren allerede findes (`existingUser`), vil `inviteUserByEmail` ikke køre — i stedet falder funktionen igennem og sender ingen mail. For at "gensend" til en eksisterende bruger genererer vi i stedet et password-recovery link.
 
-## Hvad du skal gøre efter godkendelse
+For at understøtte begge cases tilpasser vi enten edge-funktionen eller bruger en simpel client-side fallback. Den reneste løsning:
 
-Når du godkender denne plan:
-1. Jeg fjerner `flexum.dk` fra dette projekt (ikke `notify.flexum.dk`)
-2. Du klikker på "Set up email domain"-knappen jeg viser, og indtaster `mail.post.flexum.dk`
-3. Du får en liste af DNS-records — tilføj dem hos din udbyder
-4. Skriv til mig når status skifter til **Active** (eller Awaiting DNS), så fortsætter jeg med scaffolding og deploy
+- **Udvid `create-tenant-user`** så den i `mode: "invite"` for **eksisterende brugere** genererer en password-recovery-link via `auth.admin.generateLink({ type: "recovery", redirectTo: ".../set-password" })` og sender den via `auth-email-hook`-flow'et. Det giver samme brandede invite/recovery e-mail uanset om brugeren er ny eller eksisterende.
+
+  Konkret: tilføj en gren i `create-tenant-user` der, hvis `mode === "invite"` og brugeren findes, kalder `generateLink({ type: "recovery", email, options: { redirectTo: ${origin}/set-password } })`. Resultatets `action_link` udsendes via Supabase' standard recovery-email (auth-email-hook → `recovery.tsx`).
+
+  Alternativ: brug `inviteUserByEmail` kun til nye brugere og kald en separat password-reset for eksisterende — men vi har allerede `request-password-reset` edge-funktionen, så vi kan bare invokere den fra klienten som fallback. Dette er enklere og kræver ikke ændringer i `create-tenant-user`.
+
+### Valgt tilgang (enklere)
+
+I `ResendInviteButton.handleResend`:
+
+1. Slå tenant op (eller brug allerede tilgængelig `tenant`-data fra parent) → `email`, `first_name`, `last_name`
+2. Tjek om brugeren allerede findes ved at se på `tenant.user_id`:
+   - **`tenant.user_id === null`** → kald `create-tenant-user` med `mode: "invite"` (sender `invite.tsx`-skabelon via auth-email-hook)
+   - **`tenant.user_id` er sat** → kald `request-password-reset` (sender `recovery.tsx`-skabelon via auth-email-hook)
+3. Vis toast "Invitation sendt"
+
+### 2. Pas `ResendInviteButton`-signaturen
+
+Ændr fra `{ tenantId }` til at modtage hele `tenant`-objektet (eller minimum: `id`, `user_id`, `contact_email`, `contact_first_name`, `contact_last_name`) — disse felter er allerede hentet i `TenantDetailPage.tsx`.
+
+### 3. i18n
+
+Eksisterende strenge (`resendInvitation`, `invitationResent`, `couldNotResendInvitation`) genbruges — ingen ændringer nødvendige.
+
+## Hvad ændres IKKE
+
+- `send-new-mail-email` edge-funktionen og `welcome_shipment`-skabelonen forbliver uændrede — de bruges fortsat i andre flows hvor en ny lejer oprettes samtidig med ny post (fx `RegisterMailDialog`/bulk-upload med `is_new_tenant: true`).
+- `auth-email-hook`, `invite.tsx`, `recovery.tsx` er allerede sat op og deployer sender korrekte mails via det nye `notify.mail.post.flexum.dk`-domæne.
+- Ingen DB-migrationer nødvendige.
+
+## Filer der røres
+
+- `src/pages/TenantDetailPage.tsx` — `ResendInviteButton` opdateres
+
+Ingen edge-functions skal redeployes.
+
+## Test efter implementation
+
+1. Tenant uden `user_id` → klik "Gensend invitation" → modtager skal få branded `invite.tsx`-mail med "Accept Invitation"-knap
+2. Tenant med `user_id` → klik "Gensend invitation" → modtager skal få branded `recovery.tsx`-mail med reset-link
+3. Bekræft at ingen forsendelser/scans nævnes i mailen
