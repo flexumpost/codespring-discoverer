@@ -166,8 +166,8 @@ function getShippingFee(item: MailItemWithTenant): string {
 
   if (item.chosen_action === defaultAction) {
     if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
-      if (tier === "Lite") return "50 kr. + porto";
-      if (tier === "Standard") return "0 kr. + porto";
+      // Standard-forsendelsesdag (gratis) for Lite og Standard – kun porto
+      if (tier === "Lite" || tier === "Standard") return "0 kr. + porto";
       return "0 kr.";
     }
     if (item.chosen_action === "scan") {
@@ -179,6 +179,7 @@ function getShippingFee(item: MailItemWithTenant): string {
   }
 
   if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
+    // Ekstra forsendelse uden for standard-forsendelsesdag
     if (tier === "Lite") return "50 kr. + porto";
     if (tier === "Standard") return "0 kr. + porto";
     return "0 kr.";
