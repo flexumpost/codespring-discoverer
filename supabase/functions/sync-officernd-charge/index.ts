@@ -70,6 +70,11 @@ function calculateFee(
 
   // brev with explicit chosen_action
   if (chosenAction === "send" || chosenAction === "forsendelse") {
+    // Standard-forsendelsesdag (gratis) for Lite og Standard når brugeren sender på sin default-handling
+    if (chosenAction === defaultAction) {
+      if (tier === "Lite" || tier === "Standard") return { amountKr: 0, amountText: "0 kr. + porto" };
+      return { amountKr: 0, amountText: "0 kr." };
+    }
     if (tier === "Lite") return { amountKr: 50, amountText: "50 kr. + porto" };
     if (tier === "Standard") return { amountKr: 0, amountText: "0 kr. + porto" };
     return { amountKr: 0, amountText: "0 kr." };

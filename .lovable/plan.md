@@ -1,68 +1,57 @@
 ## Problem
 
-Knappen **"Gensend invitation"** (i `TenantDetailPage.tsx`) kalder i dag `send-new-mail-email` med `is_new_tenant: true`, hvilket sender `welcome_shipment`-skabelonen — en mail der lister forsendelser og er tænkt til "ny lejer + ny forsendelse på samme tid". Det er forkert konteksten "gensend invitation alene".
+Lite-lejere som **brAlght ApS** (stamp #3056 og #3073) bliver opkrævet **"50 kr. + porto"** for breve den 7. maj, selv om første torsdag i måneden er deres gratis forsendelsesdag og de derfor kun skulle betale **"0 kr. + porto"** (kun porto).
 
-`welcome_shipment` skal forblive som den er, men kun bruges automatisk når en ny bruger oprettes samtidigt med at der registreres post til vedkommende (det eksisterende flow andre steder).
+## Årsag
+
+I databasen ligger de berørte forsendelser sådan her:
+
+- `mail_type = 'brev'`
+- `chosen_action = 'send'`  ← bemærk: ikke `'standard_forsendelse'`
+- `default_mail_action = 'send'`
+- `tier = 'Lite'`
+
+Pris-logikken har to grene afhængigt af om handlingen hedder `standard_forsendelse` eller bare `send`:
+
+1. `**standard_forsendelse`-grenen** (eksplicit "standard / gratis" valg): returnerer korrekt **"0 kr. + porto"** for breve uanset tier.
+2. `**send`-grenen** (almindelig forsendelse): returnerer **"50 kr. + porto"** for Lite, **"0 kr. + porto"** for Standard, **"0 kr."** for Plus.
+
+For Lite-lejere skal første torsdag i måneden ("standardforsendelsesdag") også være gratis i `send`-grenen — ikke kun når handlingen hedder `standard_forsendelse`. Når `chosen_action === default_mail_action === 'send'` for en Lite-lejer på et brev, er det reelt en standardforsendelse og bør koste **"0 kr. + porto"**.
+
+Den tidligere `if (item.chosen_action === defaultAction)`-gren forsøger faktisk dette, men returnerer alligevel `"0 kr."` (uden porto) for Lite, fordi grenen kun behandler Standard som "0 kr. + porto". Den efterfølgende generelle `send`-gren overskriver så til "50 kr. + porto" — bug nr. to.
+
+Samme fejl findes tre steder, der skal holdes synkrone:
+
+- `src/pages/ShippingPrepPage.tsx` — `getShippingFee()` (visning på forsendelses-siden, det er den her brugeren ser).
+- `supabase/functions/sync-officernd-charge/index.ts` — `calculateFee()` (debiterer OfficeRnD).
+- `supabase/functions/sync-officernd-charge-batch/index.ts` — `calculateFee()` (debiterer OfficeRnD i batch ved torsdags-forsendelse).
+
+Desuden i `src/pages/TenantDashboard.tsx` (lejer-portalens visning) findes samme `tier === "Lite" → "50 kr. + porto"` for `send` på linjerne 189, 243 m.fl., som bør tjekkes for konsistens.
 
 ## Løsning
 
-Skift "Gensend invitation"-knappen til at trigge et rent invitations-flow via `create-tenant-user` edge-funktionen i `mode: "invite"`. Denne sti:
+Behandl en Lite-lejers `send` som gratis forsendelse (kun porto) når det er deres standardhandling, dvs. når `chosen_action === default_mail_action` for breve.
 
-- Kalder `auth.admin.inviteUserByEmail()` som Supabase Auth routes via `auth-email-hook`
-- Bruger den brandede `invite.tsx`-skabelon (auth-email)
-- Indeholder magic link til `/set-password` så modtageren kan sætte adgangskode og logge ind
-- Opdaterer ikke nogen mail_items — det er en ren konto-invitation
+Konkret ændring i alle tre fee-funktioner:
 
-## Ændringer
+I `send`/`forsendelse`-grenen for breve, returner:
 
-### 1. `src/pages/TenantDetailPage.tsx` — `ResendInviteButton`
+- Lite: **"0 kr. + porto"** hvis `chosen_action === default_mail_action` (= standardforsendelse), ellers fortsat **"50 kr. + porto"** (ekstra forsendelse uden for gratisdag).
+- Standard: uændret "0 kr. + porto".
+- Plus: uændret "0 kr.".
 
-Opdater `handleResend` til at kalde `create-tenant-user` i stedet for `send-new-mail-email`:
+I `ShippingPrepPage.tsx` betyder det at den eksisterende `if (item.chosen_action === defaultAction)`-gren skal returnere `"0 kr. + porto"` for Lite (i dag returnerer den `"0 kr."`), og at den efterfølgende generelle `send`-gren skal beholde `"50 kr. + porto"` for Lite (det er den korrekte pris for Lite-`send` der IKKE er på gratisdag).
 
-- Hent tenant'ens `contact_email`, `contact_first_name`, `contact_last_name` (ligger allerede i den indlæste tenant — kan tilgås via prop eller hentes via id)
-- Send body: `{ tenant_ids: [tenantId], email, first_name, last_name, mode: "invite" }`
-- Hvis brugeren allerede findes (`existingUser`), vil `inviteUserByEmail` ikke køre — i stedet falder funktionen igennem og sender ingen mail. For at "gensend" til en eksisterende bruger genererer vi i stedet et password-recovery link.
+I `sync-officernd-charge*` skal samme logik ind: tilføj `defaultAction`-tjek i `send`-grenen for breve så Lite med `chosenAction === defaultAction` giver `{ amountKr: 0, amountText: "0 kr. + porto" }`.
 
-For at understøtte begge cases tilpasser vi enten edge-funktionen eller bruger en simpel client-side fallback. Den reneste løsning:
+## Verificering
 
-- **Udvid `create-tenant-user`** så den i `mode: "invite"` for **eksisterende brugere** genererer en password-recovery-link via `auth.admin.generateLink({ type: "recovery", redirectTo: ".../set-password" })` og sender den via `auth-email-hook`-flow'et. Det giver samme brandede invite/recovery e-mail uanset om brugeren er ny eller eksisterende.
+- De to konkrete forsendelser (#3056, #3073) skal vise "0 kr. + porto" på forsendelses-siden efter ændringen.
+- En Lite-lejer der manuelt ændrer en forsendelse til `send` (uden at det er deres default) skal fortsat se "50 kr. + porto".
+- Standard og Plus skal være uændret.
+- Allerede sendte/debiterede forsendelser i OfficeRnD skal håndteres separat (manuel kreditering eller scriptet retting) — det er uden for dette fix.
 
-  Konkret: tilføj en gren i `create-tenant-user` der, hvis `mode === "invite"` og brugeren findes, kalder `generateLink({ type: "recovery", email, options: { redirectTo: ${origin}/set-password } })`. Resultatets `action_link` udsendes via Supabase' standard recovery-email (auth-email-hook → `recovery.tsx`).
+## Spørgsmål inden implementering
 
-  Alternativ: brug `inviteUserByEmail` kun til nye brugere og kald en separat password-reset for eksisterende — men vi har allerede `request-password-reset` edge-funktionen, så vi kan bare invokere den fra klienten som fallback. Dette er enklere og kræver ikke ændringer i `create-tenant-user`.
-
-### Valgt tilgang (enklere)
-
-I `ResendInviteButton.handleResend`:
-
-1. Slå tenant op (eller brug allerede tilgængelig `tenant`-data fra parent) → `email`, `first_name`, `last_name`
-2. Tjek om brugeren allerede findes ved at se på `tenant.user_id`:
-   - **`tenant.user_id === null`** → kald `create-tenant-user` med `mode: "invite"` (sender `invite.tsx`-skabelon via auth-email-hook)
-   - **`tenant.user_id` er sat** → kald `request-password-reset` (sender `recovery.tsx`-skabelon via auth-email-hook)
-3. Vis toast "Invitation sendt"
-
-### 2. Pas `ResendInviteButton`-signaturen
-
-Ændr fra `{ tenantId }` til at modtage hele `tenant`-objektet (eller minimum: `id`, `user_id`, `contact_email`, `contact_first_name`, `contact_last_name`) — disse felter er allerede hentet i `TenantDetailPage.tsx`.
-
-### 3. i18n
-
-Eksisterende strenge (`resendInvitation`, `invitationResent`, `couldNotResendInvitation`) genbruges — ingen ændringer nødvendige.
-
-## Hvad ændres IKKE
-
-- `send-new-mail-email` edge-funktionen og `welcome_shipment`-skabelonen forbliver uændrede — de bruges fortsat i andre flows hvor en ny lejer oprettes samtidig med ny post (fx `RegisterMailDialog`/bulk-upload med `is_new_tenant: true`).
-- `auth-email-hook`, `invite.tsx`, `recovery.tsx` er allerede sat op og deployer sender korrekte mails via det nye `notify.mail.post.flexum.dk`-domæne.
-- Ingen DB-migrationer nødvendige.
-
-## Filer der røres
-
-- `src/pages/TenantDetailPage.tsx` — `ResendInviteButton` opdateres
-
-Ingen edge-functions skal redeployes.
-
-## Test efter implementation
-
-1. Tenant uden `user_id` → klik "Gensend invitation" → modtager skal få branded `invite.tsx`-mail med "Accept Invitation"-knap
-2. Tenant med `user_id` → klik "Gensend invitation" → modtager skal få branded `recovery.tsx`-mail med reset-link
-3. Bekræft at ingen forsendelser/scans nævnes i mailen
+1. Skal jeg også justere `TenantDashboard.tsx` (lejer-portalens prisvisning) i samme omgang, så lejeren ser den samme rettede pris? - JA
+2. Skal jeg lave en SQL-rapport over alle Lite-breve sendt 7. maj med chosen_action='send' og default_mail_action='send', så I kan kreditere dem manuelt i OfficeRnD? - JA
