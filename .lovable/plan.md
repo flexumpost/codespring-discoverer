@@ -1,17 +1,33 @@
-# Plan
+## Mål
+Tilføj mulighed for at genafsende alle failed/dlq emails i `email_send_log` for templates `recovery` (password reset) og `welcome`, når Resend-domænet er rettet.
 
-## Hvad jeg vil rette
-- Opdatere gebyrberegningen i operator-listen, så Lite-breve med standardhandlingen `send` vises som `0 kr. + porto` på gratis forsendelsesdag i stedet for `50 kr. + porto`.
-- Holde logikken i operator-visningen på linje med den allerede rettede logik i Shipping Prep og backend-billing.
+## Løsning: Knap i Email Log fanen
 
-## Berørte filer
-- `src/pages/OperatorDashboard.tsx`
+En "Genprøv failed emails" knap i `EmailLogTab.tsx` (kun synlig for operators), som kalder en ny edge function der finder failed emails og genafsender dem.
 
-## Implementering
-1. Ret `getItemFee` i `OperatorDashboard.tsx` i grenen hvor `chosen_action === default_mail_action`, så Lite + `send/forsendelse` returnerer `0 kr. + porto`.
-2. Gennemgå samme funktions øvrige `send/forsendelse`-grene, så visningen ikke er inkonsistent mellem standardforsendelse og ekstraforsendelse.
-3. Verificere mod de konkrete eksempler (#3056, #3062, #3072, #3073), som alle er Lite med `chosen_action='send'` og `default_mail_action='send'`.
+## Filer
 
-## Teknisk note
-- Årsagen er ikke databasen: de fire viste forsendelser er korrekt registreret som Lite og med standardhandlingen `send`.
-- Fejlen ligger i frontend-visningen på operator-dashboardet, hvor Lite stadig er hardcoded til `50 kr. + porto` i netop den kodevej.
+### Ny: `supabase/functions/retry-failed-emails/index.ts`
+- Auth: kræver operator (via `is_operator()` RPC, samme mønster som `get-email-log`)
+- Henter alle rows fra `email_send_log` hvor:
+  - `status IN ('failed', 'dlq')`
+  - `template_name IN ('recovery', 'welcome', 'password_reset', 'welcome_email')` (matcher faktiske template-navne i log)
+  - Dedupliker på `recipient_email` (kun seneste failed pr. modtager — undgå dubletter hvis samme bruger fejlede flere gange)
+  - Spring over hvis modtager allerede har en nyere `sent` row (problemet allerede løst)
+- For hver unik modtager:
+  - **recovery** → kald `request-password-reset` edge function med email
+  - **welcome** → kald `send-welcome-email` edge function med tenant lookup på email
+- Returnér `{ retried: N, skipped: N, failed: N, details: [...] }`
+
+### Opdateret: `src/components/EmailLogTab.tsx`
+- Tilføj "Genprøv fejlede emails" knap øverst (ved siden af søgefelt)
+- Confirm-dialog med antal failed emails der bliver genafsendt
+- Loading-state mens kaldet kører
+- Toast med resultat + refetch af log
+
+## Tekniske noter
+- Genbrug eksisterende `request-password-reset` og `send-welcome-email` funktioner — ingen ændringer dér
+- Welcome-emails kræver tenant lookup via `contact_email` for at hente nødvendige felter
+- Dedup på recipient sikrer at gentagne fejl for samme bruger kun trigger ét nyt forsøg
+- Tjek mod nyere `sent` status forhindrer dubletter hvis user allerede har modtaget en email siden failure
+- Ingen DB schema ændringer nødvendige
