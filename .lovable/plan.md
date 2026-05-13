@@ -1,33 +1,56 @@
-## Mål
-Tilføj mulighed for at genafsende alle failed/dlq emails i `email_send_log` for templates `recovery` (password reset) og `welcome`, når Resend-domænet er rettet.
+## Årsag
 
-## Løsning: Knap i Email Log fanen
+I `src/pages/ShippingPrepPage.tsx` (linjer 362–384) filtreres forsendelser sådan:
 
-En "Genprøv failed emails" knap i `EmailLogTab.tsx` (kun synlig for operators), som kalder en ny edge function der finder failed emails og genafsender dem.
+```ts
+const isExtraShipment =
+  item.chosen_action === "send" &&
+  item.tenant_type_name.toLowerCase() === "lite" &&
+  item.mail_type === "brev";
+const shipDate = isExtraShipment
+  ? (isThursday(today) ? today : nextThursday(today))
+  : getNextShippingDateForItem(...); // 1. torsdag i måneden for Lite
+```
+
+Problemet: Alle Lite-lejere har `default_mail_action = 'send'` i DB. Triggeren `apply_tenant_default_action` sætter automatisk `chosen_action = 'send'` på nye breve. Filteret kan derfor ikke skelne mellem:
+
+- **Auto-anvendt standard** (`chosen_action='send'` sat af trigger) → skal sendes 1. torsdag i måneden
+- **Ekstra forsendelse anmodet af lejer** (`chosen_action='send'` valgt manuelt af lejer ud over standarden) → skal sendes førstkommende torsdag
+
+Resultatet: ALLE Lite-breve med default "send" behandles som ekstra forsendelse og dukker op hver torsdag.
+
+Bekræftet: 20/20 viste Lite-lejere har `default_mail_action='send'`.
+
+## Løsning
+
+Behandl kun et brev som ekstra forsendelse, når lejer aktivt har anmodet om det — dvs. når brevet er markeret med `standard_forsendelse` betyder "send på næste planlagte dag", og `send` (forskellig fra default-mapping) betyder "send hurtigst muligt".
+
+Da triggeren ikke i dag mapper `send`→`standard_forsendelse` for Lite-breve (modsat hvordan `scan`→`standard_scan` mappes), har vi to ækvivalente fixes:
+
+### Fix (anbefalet): mappe default i trigger
+
+Udvid `apply_tenant_default_action` så den for Lite-breve med default `send` sætter `chosen_action = 'standard_forsendelse'` (parallel til den eksisterende scan-mapping). Standard-tier beholder logikken som i dag (gratis hver torsdag), så for dem er der ingen forskel.
+
+Opdater også eksisterende rækker:
+
+```sql
+UPDATE mail_items mi
+SET chosen_action = 'standard_forsendelse'
+FROM tenants t JOIN tenant_types tt ON tt.id = t.tenant_type_id
+WHERE mi.tenant_id = t.id
+  AND tt.name = 'Lite'
+  AND mi.mail_type = 'brev'
+  AND mi.chosen_action = 'send'
+  AND mi.status IN ('ny','afventer_handling','ulaest','laest');
+```
+
+Efter det matcher filterets eksisterende `standard_forsendelse`-gren (`getNextShippingDateForItem` → 1. torsdag i måneden for Lite) korrekt, og kun lejer-initierede `send`-valg falder i "extra"-grenen.
+
+### Pris/anden logik
+
+`getShippingFee` håndterer allerede `standard_forsendelse` (0 kr. + porto for Lite/Standard) og adskiller "ekstra forsendelse" (`send` ≠ default → 50 kr. + porto for Lite). Ingen yderligere ændringer nødvendige.
 
 ## Filer
 
-### Ny: `supabase/functions/retry-failed-emails/index.ts`
-- Auth: kræver operator (via `is_operator()` RPC, samme mønster som `get-email-log`)
-- Henter alle rows fra `email_send_log` hvor:
-  - `status IN ('failed', 'dlq')`
-  - `template_name IN ('recovery', 'welcome', 'password_reset', 'welcome_email')` (matcher faktiske template-navne i log)
-  - Dedupliker på `recipient_email` (kun seneste failed pr. modtager — undgå dubletter hvis samme bruger fejlede flere gange)
-  - Spring over hvis modtager allerede har en nyere `sent` row (problemet allerede løst)
-- For hver unik modtager:
-  - **recovery** → kald `request-password-reset` edge function med email
-  - **welcome** → kald `send-welcome-email` edge function med tenant lookup på email
-- Returnér `{ retried: N, skipped: N, failed: N, details: [...] }`
-
-### Opdateret: `src/components/EmailLogTab.tsx`
-- Tilføj "Genprøv fejlede emails" knap øverst (ved siden af søgefelt)
-- Confirm-dialog med antal failed emails der bliver genafsendt
-- Loading-state mens kaldet kører
-- Toast med resultat + refetch af log
-
-## Tekniske noter
-- Genbrug eksisterende `request-password-reset` og `send-welcome-email` funktioner — ingen ændringer dér
-- Welcome-emails kræver tenant lookup via `contact_email` for at hente nødvendige felter
-- Dedup på recipient sikrer at gentagne fejl for samme bruger kun trigger ét nyt forsøg
-- Tjek mod nyere `sent` status forhindrer dubletter hvis user allerede har modtaget en email siden failure
-- Ingen DB schema ændringer nødvendige
+- `supabase/functions`-migration: opdatér `apply_tenant_default_action` + backfill UPDATE
+- ingen frontend-ændringer nødvendige
