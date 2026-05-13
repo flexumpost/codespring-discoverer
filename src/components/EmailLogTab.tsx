@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -8,9 +8,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Search, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { da, enGB } from "date-fns/locale";
+import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const PAGE_SIZE = 50;
 
@@ -31,7 +37,31 @@ export function EmailLogTab() {
   const [page, setPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [retrying, setRetrying] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const queryClient = useQueryClient();
+
+  async function handleRetryFailed() {
+    setRetrying(true);
+    try {
+      const res = await supabase.functions.invoke("retry-failed-emails", { body: {} });
+      if (res.error) throw res.error;
+      const { retried = 0, failed = 0, skipped = 0, total = 0 } = res.data ?? {};
+      toast({
+        title: "Genprøvning afsluttet",
+        description: `Genprøvet: ${retried}/${total}. Fejlede: ${failed}. Sprunget over: ${skipped}.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["email-log"] });
+    } catch (e) {
+      toast({
+        title: "Kunne ikke genprøve",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
