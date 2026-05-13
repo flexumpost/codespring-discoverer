@@ -4,13 +4,15 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { EmailFailureAlert } from "@/components/EmailFailureAlert";
 import { useAuth } from "@/hooks/useAuth";
 import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
-  const { user, firstName: profileFirstName } = useAuth();
+  const { user, role, firstName: profileFirstName } = useAuth();
   const displayName = profileFirstName || user?.email || "";
+  const isOperator = role === "operator";
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -37,6 +39,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
               <NotificationBell />
             </div>
           </header>
+          {isOperator && <EmailFailureAlert />}
           <div className="flex-1 p-6">
             {children}
           </div>
