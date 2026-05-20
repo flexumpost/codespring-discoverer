@@ -342,11 +342,15 @@ Deno.serve(async (req) => {
         if (companyId) chargeBody.team = companyId;
 
         const itemIds = toSync.map((i) => i.id);
+        const syncStampNums = toSync.map(i => i.stamp_number).filter((n): n is number => n !== null).sort((a,b) => a-b);
+        const syncStampLabel = syncStampNums.length > 0 ? ` (${syncStampNums.join(", ")})` : "";
+        const _bd = new Date();
+        const batchDateLabel = `${String(_bd.getDate()).padStart(2,'0')}-${String(_bd.getMonth()+1).padStart(2,'0')}-${String(_bd.getFullYear()).slice(-2)}`;
         if (planId) {
           chargeBody.plan = planId;
-          chargeBody.name = planName;
+          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
         } else {
-          chargeBody.name = `${planName}`;
+          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
         }
         chargeBody.description = `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`;
 
@@ -479,11 +483,14 @@ Deno.serve(async (req) => {
           if (memberOffice) portoBody.office = memberOffice;
           if (companyId) portoBody.team = companyId;
 
+          const _pbd = new Date();
+          const portoDateLabel = `${String(_pbd.getDate()).padStart(2,'0')}-${String(_pbd.getMonth()+1).padStart(2,'0')}-${String(_pbd.getFullYear()).slice(-2)}`;
+          const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
           if (portoPlanId) {
             portoBody.plan = portoPlanId;
-            portoBody.name = portoInfo.planName;
+            portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
           } else {
-            portoBody.name = `Porto: ${portoInfo.planName}`;
+            portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
           }
 
           const portoRes = await fetch(`${apiBase}/fees`, {

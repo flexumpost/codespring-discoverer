@@ -309,13 +309,17 @@ Deno.serve(async (req) => {
       if (memberOffice) chargeBody.office = memberOffice;
       if (companyId) chargeBody.team = companyId;
 
+      const _d = new Date();
+      const dateLabel = `${String(_d.getDate()).padStart(2,'0')}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getFullYear()).slice(-2)}`;
+      const stampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
+
       if (planId && planName) {
         chargeBody.plan = planId;
-        chargeBody.name = planName;
+        chargeBody.name = `${planName}${stampLabel} - ${dateLabel}`;
         chargeBody.description = `[mail_item_id:${mailItemId}]`;
         console.log(`Using plan reference: ${planId} (${planName})`);
       } else {
-        chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})`;
+        chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})${stampLabel} - ${dateLabel}`;
         chargeBody.description = `[mail_item_id:${mailItemId}]`;
         console.warn(`No plan ID found — creating custom one-off fee`);
       }
@@ -385,11 +389,14 @@ Deno.serve(async (req) => {
         if (memberOffice) portoBody.office = memberOffice;
         if (companyId) portoBody.team = companyId;
 
+        const _pd = new Date();
+        const portoDateLabel = `${String(_pd.getDate()).padStart(2,'0')}-${String(_pd.getMonth()+1).padStart(2,'0')}-${String(_pd.getFullYear()).slice(-2)}`;
+        const portoStampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
         if (portoPlanId) {
           portoBody.plan = portoPlanId;
-          portoBody.name = portoInfo.planName;
+          portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
         } else {
-          portoBody.name = `Porto: ${portoInfo.planName}`;
+          portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
         }
 
         console.log(`Porto charge body:`, JSON.stringify(portoBody));
