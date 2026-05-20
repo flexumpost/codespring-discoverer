@@ -1,56 +1,27 @@
 ## Mål
 
-Når en operatør afviser en scanning, skal lejer modtage:
+Noten om afvist scanning ("Scanning annulleret" + operatørens årsag) skal blive synlig for lejeren permanent på forsendelsen — også efter at handlingen er skiftet til "send"/forsendelse af operatøren ved afvisning, og også efter at lejeren selv vælger en ny handling. Lejeren skal kunne se årsagen, så de ikke bare vælger scanning igen.
 
-1. **In-app notifikation** (klokken) — kort besked
-2. **Email-notifikation** til lejerens kontakt-email (og eventuelle ekstra tenant_users), med:
-   - Besked om at scanningen er annulleret
-   - Operatørens begrundelse
-   - Information om at brevet sendes automatisk på næste forsendelsesdato, hvis lejer ikke foretager sig yderligere
-   - Login-link
+## Ændringer
 
-## Løsning
+### 1. `src/components/OperatorMailItemDialog.tsx` — `handleRejectAction`
+Ingen funktionel ændring i selve afvisningen (chosen_action sættes stadig til "send" ved scan-afvisning), men `action_rejected_reason` skal forblive intakt fremover. Markér `note_read = false` så lejeren får besked-prikken.
 
-### 1. Ny edge function: `notify-scan-rejected`
+### 2. `src/pages/TenantDashboard.tsx` — `chooseAction` mutation (linje ~675)
+Fjern `action_rejected_reason: null` fra opdateringen. Årsagen må aldrig nulstilles automatisk når lejeren vælger en ny handling — den skal blive der som en permanent log.
 
-Følger samme mønster som `notify-scan-request`:
-- Auth: operator JWT (verificeret via `auth.getClaims`)
-- Input: `{ mail_item_id }`
-- Henter `mail_items` + `tenants` (contact_email, navn, user_id)
-- Henter ekstra modtagere via `tenant_users` → `profiles`
-- Indsætter in-app notifikation i `notifications` (service_role omgår RLS):
-  ```
-  title: 'Scanning annulleret'
-  message: 'Din anmodning om scanning' + ev. ' (nr. <stamp>)' +
-           ' er blevet annulleret. Årsag: <reason>.\n
-           Hvis du ikke foretager dig yderligere, sendes brevet på næste forsendelsesdato.'
-  ```
-- Sender email via Resend (`kontakt@flexum.dk`) til lejerens contact_email + ekstra modtagere
-- HTML-body (inline, dansk):
-  - Hilsen med lejernavn
-  - "Vi har desværre måttet annullere scanning af forsendelse #<stamp>."
-  - Operatørens begrundelse i en citatboks
-  - "Hvis du ikke foretager dig yderligere, sender vi brevet til dig på næste forsendelsesdato."
-  - Login-knap → `https://post.flexum.dk/login`
-- Logger til `email_send_log` med `template_name: 'scan_rejected'`
+### 3. `src/pages/TenantDashboard.tsx` — visning af status (linje ~1018-1037 og `getStatusDisplay`)
+I dag vises afvisnings-badge kun når `rejectedReason && !item.chosen_action`. Dette betyder at badgen aldrig vises efter en scan-afvisning (fordi `chosen_action` sættes til "send"), og forsvinder så snart lejeren vælger noget nyt.
 
-Konfig: `supabase/config.toml` får `[functions.notify-scan-rejected]` med `verify_jwt = false` (samme som andre funktioner).
+Ny adfærd:
+- Vis altid den normale statusbadge baseret på `chosen_action`/`status`.
+- Hvis `action_rejected_reason` er sat, vis derudover en lille destruktiv "Scanning annulleret"-badge (med MessageSquare-ikon + tooltip indeholdende årsagen) under/ved siden af statusbadgen.
+- Badgen vises uanset hvilken handling der nu er valgt — også efter lejeren har skiftet handling.
 
-### 2. Frontend: kald edge function efter rejection
+### 4. `src/pages/TenantDashboard.tsx` — handlingsvalg-UI
+Hvis `action_rejected_reason` er sat, deaktivér "Scan"-knappen i handlingsvælgeren med en tooltip: "Scanning blev afvist af operatøren. Kontakt support for at vælge scan igen." Dette forhindrer at lejeren bare vælger scan igen efter en afvisning. (Operatør kan stadig manuelt vælge scan via operatør-dialogen.)
 
-I `src/components/OperatorMailItemDialog.tsx` → `handleRejectAction`:
-- Efter den nuværende `supabase.from("mail_items").update(...)` lykkes
-- Kald `supabase.functions.invoke("notify-scan-rejected", { body: { mail_item_id: item.id } })`
-- Logfejl, men block ikke UI'et hvis email fejler (toast.success vises stadig)
-
-### 3. Ingen DB-trigger nødvendig
-
-Edge function håndterer både in-app notifikation og email i én operation — undgår dobbeltlogik og holder alt samlet.
-
-## Filer
-
-- **Ny:** `supabase/functions/notify-scan-rejected/index.ts`
-- **Opdateret:** `supabase/config.toml` (tilføj function-block)
-- **Opdateret:** `src/components/OperatorMailItemDialog.tsx` (kald edge function i `handleRejectAction`)
-
-Ingen DB-migration nødvendig.
+### Tekniske detaljer
+- Ingen databaseændringer nødvendige — `action_rejected_reason` findes allerede og bevares nu permanent.
+- Operatørens egne handlinger (fx ny scan-afvisning) overskriver naturligvis feltet med ny årsag.
+- i18n-strenge tilføjes i `da`/`en` for tooltip på deaktiveret scan-knap.
