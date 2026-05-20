@@ -1,40 +1,56 @@
 ## Mål
 
-Når en operatør afviser en scan-handling, skal forsendelsen ikke ende uden handling (hvilket i dag blot nulstiller status og opdaterer scan-datoen i lejerens visning). Den skal automatisk få handlingen **"Sendes"** (`send`), så lejeren tydeligt ser at forsendelsen nu står til afsendelse.
+Når en operatør afviser en scanning, skal lejer modtage:
 
-## Ændring
+1. **In-app notifikation** (klokken) — kort besked
+2. **Email-notifikation** til lejerens kontakt-email (og eventuelle ekstra tenant_users), med:
+   - Besked om at scanningen er annulleret
+   - Operatørens begrundelse
+   - Information om at brevet sendes automatisk på næste forsendelsesdato, hvis lejer ikke foretager sig yderligere
+   - Login-link
 
-I `src/components/OperatorMailItemDialog.tsx` → `handleRejectAction` (linjer 180–202):
+## Løsning
 
-I dag:
-```ts
-.update({
-  chosen_action: null,
-  action_rejected_reason: rejectReason.trim(),
-  note_read: false,
-  status: "ny",
-})
-```
+### 1. Ny edge function: `notify-scan-rejected`
 
-Nyt — kun når den afviste handling var en scanning (`scan` eller `standard_scan`):
-```ts
-const wasScan = item.chosen_action === "scan" || item.chosen_action === "standard_scan";
-.update({
-  chosen_action: wasScan ? "send" : null,
-  action_rejected_reason: rejectReason.trim(),
-  note_read: false,
-  status: wasScan ? "afventer_handling" : "ny",
-})
-```
+Følger samme mønster som `notify-scan-request`:
+- Auth: operator JWT (verificeret via `auth.getClaims`)
+- Input: `{ mail_item_id }`
+- Henter `mail_items` + `tenants` (contact_email, navn, user_id)
+- Henter ekstra modtagere via `tenant_users` → `profiles`
+- Indsætter in-app notifikation i `notifications` (service_role omgår RLS):
+  ```
+  title: 'Scanning annulleret'
+  message: 'Din anmodning om scanning' + ev. ' (nr. <stamp>)' +
+           ' er blevet annulleret. Årsag: <reason>.\n
+           Hvis du ikke foretager dig yderligere, sendes brevet på næste forsendelsesdato.'
+  ```
+- Sender email via Resend (`kontakt@flexum.dk`) til lejerens contact_email + ekstra modtagere
+- HTML-body (inline, dansk):
+  - Hilsen med lejernavn
+  - "Vi har desværre måttet annullere scanning af forsendelse #<stamp>."
+  - Operatørens begrundelse i en citatboks
+  - "Hvis du ikke foretager dig yderligere, sender vi brevet til dig på næste forsendelsesdato."
+  - Login-knap → `https://post.flexum.dk/login`
+- Logger til `email_send_log` med `template_name: 'scan_rejected'`
 
-For ikke-scan-afvisninger bevares nuværende adfærd (handling nulstilles til `ny`).
+Konfig: `supabase/config.toml` får `[functions.notify-scan-rejected]` med `verify_jwt = false` (samme som andre funktioner).
 
-## Effekt
+### 2. Frontend: kald edge function efter rejection
 
-- Afvises fx forsendelse #3262 (scan), sættes `chosen_action = 'send'` og status = `afventer_handling`.
-- Forsendelsen dukker straks op på "Send breve og pakker"-listen og behandles som almindelig forsendelse (porto/fakturering håndteres allerede af eksisterende logik for `send` ≠ default).
-- Lejeren ser stadig afvisningsbegrundelsen via `action_rejected_reason`, men handlingen er nu "Sendes" i stedet for "Handling afvist".
+I `src/components/OperatorMailItemDialog.tsx` → `handleRejectAction`:
+- Efter den nuværende `supabase.from("mail_items").update(...)` lykkes
+- Kald `supabase.functions.invoke("notify-scan-rejected", { body: { mail_item_id: item.id } })`
+- Logfejl, men block ikke UI'et hvis email fejler (toast.success vises stadig)
+
+### 3. Ingen DB-trigger nødvendig
+
+Edge function håndterer både in-app notifikation og email i én operation — undgår dobbeltlogik og holder alt samlet.
 
 ## Filer
 
-- `src/components/OperatorMailItemDialog.tsx` (kun frontend, ingen DB-ændringer)
+- **Ny:** `supabase/functions/notify-scan-rejected/index.ts`
+- **Opdateret:** `supabase/config.toml` (tilføj function-block)
+- **Opdateret:** `src/components/OperatorMailItemDialog.tsx` (kald edge function i `handleRejectAction`)
+
+Ingen DB-migration nødvendig.

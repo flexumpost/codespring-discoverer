@@ -195,6 +195,9 @@ export function OperatorMailItemDialog({
       toast.error(t("operatorMailItem.couldNotReject"));
       console.error(error);
     } else {
+      supabase.functions
+        .invoke("notify-scan-rejected", { body: { mail_item_id: item.id } })
+        .catch((err) => console.error("notify-scan-rejected failed:", err));
       toast.success(t("operatorMailItem.actionRejected"));
       setShowRejectDialog(false);
       onSaved();
