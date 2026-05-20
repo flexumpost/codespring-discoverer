@@ -483,11 +483,14 @@ Deno.serve(async (req) => {
           if (memberOffice) portoBody.office = memberOffice;
           if (companyId) portoBody.team = companyId;
 
+          const _pbd = new Date();
+          const portoDateLabel = `${String(_pbd.getDate()).padStart(2,'0')}-${String(_pbd.getMonth()+1).padStart(2,'0')}-${String(_pbd.getFullYear()).slice(-2)}`;
+          const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
           if (portoPlanId) {
             portoBody.plan = portoPlanId;
-            portoBody.name = portoInfo.planName;
+            portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
           } else {
-            portoBody.name = `Porto: ${portoInfo.planName}`;
+            portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
           }
 
           const portoRes = await fetch(`${apiBase}/fees`, {
