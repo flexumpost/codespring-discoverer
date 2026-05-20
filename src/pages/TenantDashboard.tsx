@@ -1137,9 +1137,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                         actionForExtras = "standard_scan";
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
+                      const hasRejectedScan = !!(item as any).action_rejected_reason;
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan")) || (a === "standard_afhentning" && allowedActions.includes("afhentning"))
-                      );
+                      ).filter((a) => !(hasRejectedScan && (a === "scan" || a === "standard_scan")));
 
                       if (availableExtras.length === 0) {
                         return defaultAction ? (
