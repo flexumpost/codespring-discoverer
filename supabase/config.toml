@@ -33,6 +33,8 @@ project_id = "hokiuavxyoymcenqlvly"
     verify_jwt = false
   [functions.notify-scan-request]
     verify_jwt = false
+  [functions.notify-scan-rejected]
+    verify_jwt = false
   [functions.sync-officernd-charge]
     verify_jwt = false
   [functions.officernd-webhook]
