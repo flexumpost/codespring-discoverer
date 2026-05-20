@@ -726,6 +726,7 @@
     "sentWithPostNord": "Sent with PostNord",
     "sentReturn": "Sent return",
     "actionRejected": "Action rejected",
+    "scanCancelled": "Scan cancelled",
     "awaitingScan": "Awaiting scan",
     "scannedWithin24h": "Scanned within 24 hours",
     "unread": "Unread",

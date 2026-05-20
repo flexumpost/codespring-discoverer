@@ -672,7 +672,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
       const { error } = await supabase
         .from("mail_items")
-        .update({ chosen_action: action, status: "afventer_handling" as MailStatus, action_rejected_reason: null } as any)
+        .update({ chosen_action: action, status: "afventer_handling" as MailStatus } as any)
         .eq("id", id);
       if (error) throw error;
     },
@@ -1018,23 +1018,23 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   {(() => {
                     const [line1, line2] = getStatusDisplay(item, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
                     const rejectedReason = (item as any).action_rejected_reason;
-                    if (rejectedReason && !item.chosen_action) {
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center gap-1.5 cursor-help">
-                                <Badge variant="destructive">{line1}</Badge>
-                                <MessageSquare className="h-4 w-4 text-destructive" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-[250px]">
-                              <p className="text-xs">{rejectedReason}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }
+                    const rejectionBadge = rejectedReason ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="inline-flex items-center gap-1 cursor-help mt-1">
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                {t("statusDisplay.scanCancelled")}
+                              </Badge>
+                              <MessageSquare className="h-3.5 w-3.5 text-destructive" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[250px]">
+                            <p className="text-xs whitespace-pre-wrap">{rejectedReason}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : null;
                     return (
                       <div>
                         <Badge variant="outline">{line1}</Badge>
@@ -1053,6 +1053,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                             {t("tenantDashboard.trackPackage")}
                           </Button>
                         )}
+                        {rejectionBadge && <div>{rejectionBadge}</div>}
                       </div>
                     );
                   })()}
@@ -1136,9 +1137,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                         actionForExtras = "standard_scan";
                       }
                       const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
+                      const hasRejectedScan = !!(item as any).action_rejected_reason;
                       const availableExtras = extraActions.filter(
                         (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan")) || (a === "standard_afhentning" && allowedActions.includes("afhentning"))
-                      );
+                      ).filter((a) => !(hasRejectedScan && (a === "scan" || a === "standard_scan")));
 
                       if (availableExtras.length === 0) {
                         return defaultAction ? (
