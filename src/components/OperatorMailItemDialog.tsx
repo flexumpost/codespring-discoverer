@@ -180,13 +180,14 @@ export function OperatorMailItemDialog({
   const handleRejectAction = async () => {
     if (!rejectReason.trim()) return;
     setRejecting(true);
+    const wasScan = item.chosen_action === "scan" || item.chosen_action === "standard_scan";
     const { error } = await supabase
       .from("mail_items")
       .update({
-        chosen_action: null,
+        chosen_action: wasScan ? "send" : null,
         action_rejected_reason: rejectReason.trim(),
         note_read: false,
-        status: "ny" as any,
+        status: (wasScan ? "afventer_handling" : "ny") as any,
       })
       .eq("id", item.id);
     setRejecting(false);
