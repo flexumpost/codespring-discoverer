@@ -726,6 +726,7 @@
     "sentWithPostNord": "Sendt med PostNord",
     "sentReturn": "Sendt retur",
     "actionRejected": "Handling afvist",
+    "scanCancelled": "Scanning annulleret",
     "awaitingScan": "Afventer scanning",
     "scannedWithin24h": "Scannes inden for 24 timer",
     "unread": "Ulæst",
