@@ -389,11 +389,14 @@ Deno.serve(async (req) => {
         if (memberOffice) portoBody.office = memberOffice;
         if (companyId) portoBody.team = companyId;
 
+        const _pd = new Date();
+        const portoDateLabel = `${String(_pd.getDate()).padStart(2,'0')}-${String(_pd.getMonth()+1).padStart(2,'0')}-${String(_pd.getFullYear()).slice(-2)}`;
+        const portoStampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
         if (portoPlanId) {
           portoBody.plan = portoPlanId;
-          portoBody.name = portoInfo.planName;
+          portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
         } else {
-          portoBody.name = `Porto: ${portoInfo.planName}`;
+          portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
         }
 
         console.log(`Porto charge body:`, JSON.stringify(portoBody));
