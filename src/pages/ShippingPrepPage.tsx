@@ -306,17 +306,26 @@ export default function ShippingPrepPage() {
         body: { mail_item_ids: ids },
       }).catch((err) => console.error("Batch OfficeRnD sync error:", err));
 
-      for (const si of sentItems) {
-        supabase.functions.invoke("send-new-mail-email", {
-          body: {
-            tenant_id: si.tenant_id,
-            mail_type: si.mail_type,
-            stamp_number: si.stamp_number,
-            tracking_number: si.tracking_number,
-            template_slug: "shipment_dispatched",
-          },
-        }).catch((err) => console.error("Email send error:", err));
-      }
+      // Fire emails sequentially with a small delay so we don't trigger Resend's
+      // 5 req/sec rate limit when many shipments are dispatched at once.
+      (async () => {
+        for (const si of sentItems) {
+          try {
+            await supabase.functions.invoke("send-new-mail-email", {
+              body: {
+                tenant_id: si.tenant_id,
+                mail_type: si.mail_type,
+                stamp_number: si.stamp_number,
+                tracking_number: si.tracking_number,
+                template_slug: "shipment_dispatched",
+              },
+            });
+          } catch (err) {
+            console.error("Email send error:", err);
+          }
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      })();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shipping-prep-items"] });

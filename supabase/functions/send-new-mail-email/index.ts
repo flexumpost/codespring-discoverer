@@ -235,22 +235,38 @@ Deno.serve(async (req) => {
 
     const plainText = bodyRaw.replace(/<[^>]*>/g, "");
 
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: "Flexum Coworking <kontakt@flexum.dk>",
-        to: [test_recipient_email || tenant.contact_email],
-        subject: test_recipient_email ? `[TEST] ${subject}` : subject,
-        html,
-        text: plainText,
-      }),
-    });
+    // Helper: post to Resend with one 429 retry honoring Retry-After
+    const sendViaResend = async (payload: Record<string, unknown>) => {
+      const doFetch = () =>
+        fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      let res = await doFetch();
+      if (res.status === 429) {
+        const retryAfterHeader = res.headers.get("retry-after");
+        const waitSec = retryAfterHeader ? Math.max(0, parseFloat(retryAfterHeader)) : 1;
+        const waitMs = Math.min(5000, Math.max(500, Math.ceil(waitSec * 1000)));
+        await res.text().catch(() => {});
+        console.warn(`Resend 429 rate-limited; retrying after ${waitMs}ms`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        res = await doFetch();
+      }
+      const body = await res.json().catch(() => ({}));
+      return { res, body };
+    };
 
-    const resendBody = await resendRes.json();
+    const { res: resendRes, body: resendBody } = await sendViaResend({
+      from: "Flexum Coworking <kontakt@flexum.dk>",
+      to: [test_recipient_email || tenant.contact_email],
+      subject: test_recipient_email ? `[TEST] ${subject}` : subject,
+      html,
+      text: plainText,
+    });
 
     if (!resendRes.ok) {
       throw new Error(`Resend API error ${resendRes.status}: ${JSON.stringify(resendBody)}`);
@@ -264,31 +280,26 @@ Deno.serve(async (req) => {
       metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: !!is_new_tenant },
     });
 
-    // Send to extra tenant_users (standard template, no welcome/magic-link)
+    // Send to extra tenant_users (standard template, no welcome/magic-link).
+    // Throttle to stay under Resend's 5 req/sec limit.
     for (const extraEmail of test_recipient_email ? [] : extraEmails) {
       try {
+        // ~250ms spacing keeps us safely under 5 req/sec across this and other concurrent invocations
+        await new Promise((r) => setTimeout(r, 250));
+
         const extraHtml = await renderAsync(
           slug === "shipment_dispatched"
             ? ShipmentDispatchedEmail({ name, subject, bodyHtml, loginUrl, trackingNumber: trackingLabel || undefined, stampNumber: stampLabel || undefined, mailTypeLabel })
             : NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
         );
 
-        const extraRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${RESEND_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "Flexum Coworking <kontakt@flexum.dk>",
-            to: [extraEmail],
-            subject,
-            html: extraHtml,
-            text: plainText,
-          }),
+        const { res: extraRes, body: extraBody } = await sendViaResend({
+          from: "Flexum Coworking <kontakt@flexum.dk>",
+          to: [extraEmail],
+          subject,
+          html: extraHtml,
+          text: plainText,
         });
-
-        const extraBody = await extraRes.json();
 
         await supabaseAdmin.from("email_send_log").insert({
           message_id: extraBody.id || crypto.randomUUID(),
