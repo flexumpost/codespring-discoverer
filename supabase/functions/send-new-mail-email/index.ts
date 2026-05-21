@@ -243,8 +243,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Flexum Coworking <kontakt@flexum.dk>",
-        to: [tenant.contact_email],
-        subject,
+        to: [test_recipient_email || tenant.contact_email],
+        subject: test_recipient_email ? `[TEST] ${subject}` : subject,
         html,
         text: plainText,
       }),
