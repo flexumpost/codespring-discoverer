@@ -1,63 +1,40 @@
-## Hvad jeg fandt
+# Problem
 
-To uafhængige fejl ramte forsendelserne for Rawa A/S den 21-05-2026 kl. 10:26 (brev #3256 og #3257):
+Når flere breve afsendes til samme lejer i samme batch (fx Nordværk: #3232 og #3233), kalder `ShippingPrepPage` `send-new-mail-email` én gang pr. brev. Lejeren modtager derfor én "shipment_dispatched" mail pr. forsendelse i stedet for én samlet mail.
 
-### 1. OfficeRnD-gebyret kunne ikke overføres
+# Løsning
 
-`officernd_sync_log` viser for begge breve:
+Konsolidér email-udsendelsen pr. lejer i selve afsendelses-flowet, og lad mailen liste alle stempelnumre der er med i samme fysiske kuvert.
 
-```
-status: failed
-error_message: No OfficeRnD member found for kontakt@rawa.dk
-```
+## 1. `src/pages/ShippingPrepPage.tsx`
+- Efter loop'et der opdaterer `mail_items`, gruppér `sentItems` pr. `tenant_id`.
+- Kald `send-new-mail-email` én gang pr. lejer med:
+  - `tenant_id`
+  - `template_slug: "shipment_dispatched"`
+  - `stamp_numbers: number[]` (alle stempelnumre i batchen for den lejer)
+  - `tracking_numbers: string[]` (alle tracking-numre, kun PostNord)
+  - `mail_type` (fra første item — bruges kun til label)
+- Behold 300ms throttle mellem hver lejer (ikke pr. brev).
 
-Lejeren i Lovable hedder `kontakt@rawa.dk` (det er `tenants.contact_email`), men i OfficeRnD findes medlemmet under en anden email — sandsynligvis `kontakt@rawabyg.dk` (den email der står som ekstra bruger på lejeren og som du selv refererer til).
+## 2. `supabase/functions/send-new-mail-email/index.ts`
+- Acceptér nye valgfri felter `stamp_numbers: number[]` og `tracking_numbers: string[]` i request body. Bevar `stamp_number` / `tracking_number` for bagudkompatibilitet.
+- Når `template_slug === "shipment_dispatched"`:
+  - Spring den eksisterende `mail_items`-query (`status='ny'`) over — dispatched items har ikke status `ny`.
+  - Render `ShipmentDispatchedEmail` med nye props `stampNumbers` og `trackingNumbers` (arrays). Hvis kun ét stempelnummer, opfør sig som før.
+- Erstat `{{stamp_number}}` i subject/body med komma-separeret liste når flere stempler er angivet.
 
-`sync-officernd-charge-batch` slår kun op på `tenants.contact_email` — den prøver ikke andre emails på lejeren. Når der ikke findes et match, logges fejlen og der oprettes intet charge.
+## 3. `supabase/functions/_shared/email-templates/shipment-dispatched.tsx`
+- Tilføj props `stampNumbers?: string[]` og `trackingNumbers?: string[]`.
+- Hvis `stampNumbers.length > 1`: render listen som flere `Text`-linjer i `infoBox` ("Stempelnumre: #3232, #3233").
+- Hvis `trackingNumbers.length > 1`: render én "Spor din pakke"-knap pr. tracking-nummer (eller en linje med link pr. nummer). Hvis kun ét: uændret.
+- Bevar single-værdi opførsel når kun ét nummer leveres.
 
-### 2. shipping_dispatched email til kontakt@rawabyg.dk fejlede
+## Resultat
+Lejeren får én mail med begge stempelnumre (#3232 og #3233) når begge breve afsendes i samme batch. OfficeRnD-batch-sync er allerede konsolideret pr. lejer og påvirkes ikke.
 
-`email_send_log` viser:
+## Filer
+- `src/pages/ShippingPrepPage.tsx`
+- `supabase/functions/send-new-mail-email/index.ts`
+- `supabase/functions/_shared/email-templates/shipment-dispatched.tsx`
 
-- `kontakt@rawa.dk` (primær) → `sent` ✅
-- `kontakt@rawabyg.dk` (ekstra tenant_user) → `failed` med Resend 429:
-  `"Too many requests. You can only make 5 requests per second."`
-
-Den primære og de ekstra modtagere sendes i en stram løkke uden delay. Når shipping-siden afsender flere breve på én gang (2 breve × 2 modtagere = 4 mails inden for ~200 ms, oveni evt. OfficeRnD-kald og andre baggrundsmails), rammer vi Resends 5 req/sek grænse. Samme fejl er sket tidligere (30-04-2026, brev #3109).
-
-## Anbefalet rettelse
-
-### A. OfficeRnD member lookup — fallback til alle tenant-emails
-
-I `supabase/functions/sync-officernd-charge-batch/index.ts` (linje 262-294) og samme blok i `sync-officernd-charge/index.ts`:
-
-1. Saml alle kandidat-emails for lejeren: `tenants.contact_email` + alle `profiles.email` for tilknyttede `tenant_users`.
-2. Slå op i OfficeRnD i prioriteret rækkefølge — første match vinder.
-3. Skriv den fundne email ind i `officernd_sync_log.error_message`/metadata for sporbarhed.
-4. Først hvis ingen af emails giver match → log `failed` med listen af forsøgte emails.
-
-Dette løser Rawa-sagen uden manuelt at skulle rette emailen i Lovable eller OfficeRnD, og det dækker fremover alle lejere hvor OfficeRnD-medlemmet er registreret på en sekundær email.
-
-### B. Resend rate limit — throttle udsendelsen
-
-I `supabase/functions/send-new-mail-email/index.ts`:
-
-1. Tilføj et lille delay (~250 ms) mellem hver fetch til Resend i `for (const extraEmail of extraEmails)`-løkken (linje 268). Det holder os under 5 req/sek selv hvis main + extras sendes sekventielt.
-2. Retry én gang på 429 efter `Retry-After`-headeren (eller 1 sek hvis ikke til stede), så enkelte sammenstød ikke ender som hård fejl.
-3. På shipping-siden (`src/pages/ShippingPrepPage.tsx` linje 309-319) afsendes `send-new-mail-email` i en `for`-løkke uden `await` — overvej at sekventialisere med et lille delay mellem hver `invoke` så vi ikke fyrer N parallelle funktion-kald af på én gang.
-
-### C. Genafsendelse for Rawa (manuel oprydning efter fix)
-
-Når A og B er deployet:
-
-- Genkør OfficeRnD-sync for de to breve (#3256, #3257) — fx via et lille admin-endpoint eller direkte ved at kalde `sync-officernd-charge-batch` med `mail_item_ids: ["053b863a…","7546f903…"]`. Med fix A vil den nu finde Rawa-medlemmet via `kontakt@rawabyg.dk`.
-- Genprøv den fejlede email via knappen "Genprøv fejlede emails" i operator-portalen (den eksisterende `retry-failed-emails`-funktion).
-
-## Filer der berøres
-
-- `supabase/functions/sync-officernd-charge-batch/index.ts` (member lookup + fallback)
-- `supabase/functions/sync-officernd-charge/index.ts` (samme fallback for single-sync)
-- `supabase/functions/send-new-mail-email/index.ts` (delay + retry på 429)
-- `src/pages/ShippingPrepPage.tsx` (sekventialisering af email-invokes — valgfrit, hjælpsomt)
-
-Ingen DB-ændringer kræves.
+Ingen DB-ændringer.

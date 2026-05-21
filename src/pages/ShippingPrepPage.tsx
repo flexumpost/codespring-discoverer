@@ -306,17 +306,31 @@ export default function ShippingPrepPage() {
         body: { mail_item_ids: ids },
       }).catch((err) => console.error("Batch OfficeRnD sync error:", err));
 
-      // Fire emails sequentially with a small delay so we don't trigger Resend's
-      // 5 req/sec rate limit when many shipments are dispatched at once.
+      // Send ONE email per tenant — one physical envelope can contain multiple
+      // mail items, so the recipient should receive a single consolidated email
+      // listing all stamp numbers in that dispatch.
+      const byTenant = new Map<string, typeof sentItems>();
+      for (const si of sentItems) {
+        const arr = byTenant.get(si.tenant_id) ?? [];
+        arr.push(si);
+        byTenant.set(si.tenant_id, arr);
+      }
+
       (async () => {
-        for (const si of sentItems) {
+        for (const [tenantId, group] of byTenant) {
           try {
+            const stamp_numbers = group
+              .map((g) => g.stamp_number)
+              .filter((s): s is number => s != null);
+            const tracking_numbers = group
+              .map((g) => g.tracking_number)
+              .filter((t): t is string => !!t);
             await supabase.functions.invoke("send-new-mail-email", {
               body: {
-                tenant_id: si.tenant_id,
-                mail_type: si.mail_type,
-                stamp_number: si.stamp_number,
-                tracking_number: si.tracking_number,
+                tenant_id: tenantId,
+                mail_type: group[0].mail_type,
+                stamp_numbers,
+                tracking_numbers,
                 template_slug: "shipment_dispatched",
               },
             });
