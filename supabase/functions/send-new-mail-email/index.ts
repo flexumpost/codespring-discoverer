@@ -298,7 +298,17 @@ Deno.serve(async (req) => {
 
         const extraHtml = await renderAsync(
           slug === "shipment_dispatched"
-            ? ShipmentDispatchedEmail({ name, subject, bodyHtml, loginUrl, trackingNumber: trackingLabel || undefined, stampNumber: stampLabel || undefined, mailTypeLabel })
+            ? ShipmentDispatchedEmail({
+                name,
+                subject,
+                bodyHtml,
+                loginUrl,
+                trackingNumber: trackingList[0] || undefined,
+                stampNumber: stampList.length === 1 ? stampList[0] : undefined,
+                stampNumbers: stampList.length > 1 ? stampList : undefined,
+                trackingNumbers: trackingList.length > 1 ? trackingList : undefined,
+                mailTypeLabel,
+              })
             : NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
         );
 
