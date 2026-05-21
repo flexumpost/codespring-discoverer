@@ -162,8 +162,8 @@ Deno.serve(async (req) => {
     const name = escapeHtml([tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || tenant.company_name);
     const companyNameEscaped = escapeHtml(tenant.company_name);
     const mailTypeLabel = mail_type === "pakke" ? "pakke" : "forsendelse";
-    const stampLabel = stamp_number ? escapeHtml(String(stamp_number)) : "";
-    const trackingLabel = tracking_number ? escapeHtml(String(tracking_number)) : "";
+    const stampLabel = stampList.length ? escapeHtml(stampList.join(", ")) : "";
+    const trackingLabel = trackingList.length ? escapeHtml(trackingList[0]) : "";
 
     const subject = template.subject
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
@@ -224,8 +224,10 @@ Deno.serve(async (req) => {
           subject,
           bodyHtml,
           loginUrl,
-          trackingNumber: trackingLabel || undefined,
-          stampNumber: stampLabel || undefined,
+          trackingNumber: trackingList[0] || undefined,
+          stampNumber: stampList.length === 1 ? stampList[0] : undefined,
+          stampNumbers: stampList.length > 1 ? stampList : undefined,
+          trackingNumbers: trackingList.length > 1 ? trackingList : undefined,
           mailTypeLabel,
         })
       );
