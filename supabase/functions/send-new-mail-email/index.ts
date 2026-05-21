@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
@@ -243,8 +243,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Flexum Coworking <kontakt@flexum.dk>",
-        to: [tenant.contact_email],
-        subject,
+        to: [test_recipient_email || tenant.contact_email],
+        subject: test_recipient_email ? `[TEST] ${subject}` : subject,
         html,
         text: plainText,
       }),
@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
     });
 
     // Send to extra tenant_users (standard template, no welcome/magic-link)
-    for (const extraEmail of extraEmails) {
+    for (const extraEmail of test_recipient_email ? [] : extraEmails) {
       try {
         const extraHtml = await renderAsync(
           slug === "shipment_dispatched"
