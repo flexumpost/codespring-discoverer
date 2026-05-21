@@ -241,11 +241,17 @@ Deno.serve(async (req) => {
     if (tenant?.contact_email) candidateEmails.push(tenant.contact_email);
     const { data: tuRows } = await supabase
       .from("tenant_users")
-      .select("profiles(email)")
+      .select("user_id")
       .eq("tenant_id", item.tenant_id);
-    for (const row of (tuRows ?? []) as any[]) {
-      const e = row?.profiles?.email;
-      if (e && !candidateEmails.includes(e)) candidateEmails.push(e);
+    const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
+    if (userIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("email")
+        .in("id", userIds);
+      for (const p of (profs ?? []) as any[]) {
+        if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+      }
     }
     if (candidateEmails.length === 0) throw new Error("Tenant has no contact_email");
 
