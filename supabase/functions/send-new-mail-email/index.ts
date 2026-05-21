@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
     });
 
     // Send to extra tenant_users (standard template, no welcome/magic-link)
-    for (const extraEmail of extraEmails) {
+    for (const extraEmail of test_recipient_email ? [] : extraEmails) {
       try {
         const extraHtml = await renderAsync(
           slug === "shipment_dispatched"
