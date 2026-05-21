@@ -72,13 +72,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
         { status: 400, headers: corsHeaders }
       );
     }
+
+    const stampList: string[] = Array.isArray(stamp_numbers) && stamp_numbers.length
+      ? stamp_numbers.map((s: number | string) => String(s))
+      : (stamp_number ? [String(stamp_number)] : []);
+    const trackingList: string[] = Array.isArray(tracking_numbers) && tracking_numbers.length
+      ? tracking_numbers.map((t: string) => String(t))
+      : (tracking_number ? [String(tracking_number)] : []);
 
     // Get tenant
     const { data: tenant } = await supabaseAdmin
@@ -155,8 +162,8 @@ Deno.serve(async (req) => {
     const name = escapeHtml([tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || tenant.company_name);
     const companyNameEscaped = escapeHtml(tenant.company_name);
     const mailTypeLabel = mail_type === "pakke" ? "pakke" : "forsendelse";
-    const stampLabel = stamp_number ? escapeHtml(String(stamp_number)) : "";
-    const trackingLabel = tracking_number ? escapeHtml(String(tracking_number)) : "";
+    const stampLabel = stampList.length ? escapeHtml(stampList.join(", ")) : "";
+    const trackingLabel = trackingList.length ? escapeHtml(trackingList[0]) : "";
 
     const subject = template.subject
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
@@ -217,8 +224,10 @@ Deno.serve(async (req) => {
           subject,
           bodyHtml,
           loginUrl,
-          trackingNumber: trackingLabel || undefined,
-          stampNumber: stampLabel || undefined,
+          trackingNumber: trackingList[0] || undefined,
+          stampNumber: stampList.length === 1 ? stampList[0] : undefined,
+          stampNumbers: stampList.length > 1 ? stampList : undefined,
+          trackingNumbers: trackingList.length > 1 ? trackingList : undefined,
           mailTypeLabel,
         })
       );
@@ -289,7 +298,17 @@ Deno.serve(async (req) => {
 
         const extraHtml = await renderAsync(
           slug === "shipment_dispatched"
-            ? ShipmentDispatchedEmail({ name, subject, bodyHtml, loginUrl, trackingNumber: trackingLabel || undefined, stampNumber: stampLabel || undefined, mailTypeLabel })
+            ? ShipmentDispatchedEmail({
+                name,
+                subject,
+                bodyHtml,
+                loginUrl,
+                trackingNumber: trackingList[0] || undefined,
+                stampNumber: stampList.length === 1 ? stampList[0] : undefined,
+                stampNumbers: stampList.length > 1 ? stampList : undefined,
+                trackingNumbers: trackingList.length > 1 ? trackingList : undefined,
+                mailTypeLabel,
+              })
             : NewShipmentEmail({ name, subject, bodyHtml, loginUrl })
         );
 
