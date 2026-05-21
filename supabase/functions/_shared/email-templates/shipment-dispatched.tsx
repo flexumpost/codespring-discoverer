@@ -21,6 +21,8 @@ interface ShipmentDispatchedEmailProps {
   loginUrl: string
   trackingNumber?: string
   stampNumber?: string
+  stampNumbers?: string[]
+  trackingNumbers?: string[]
   mailTypeLabel?: string
 }
 
@@ -31,11 +33,16 @@ export const ShipmentDispatchedEmail = ({
   loginUrl,
   trackingNumber,
   stampNumber,
+  stampNumbers,
+  trackingNumbers,
   mailTypeLabel,
 }: ShipmentDispatchedEmailProps) => {
-  const trackingUrl = trackingNumber
-    ? `https://tracking.postnord.com/tracking.html?id=${encodeURIComponent(trackingNumber)}`
-    : null
+  const stamps = stampNumbers && stampNumbers.length > 0
+    ? stampNumbers
+    : (stampNumber ? [stampNumber] : [])
+  const trackings = trackingNumbers && trackingNumbers.length > 0
+    ? trackingNumbers
+    : (trackingNumber ? [trackingNumber] : [])
 
   return (
     <Html lang="da" dir="ltr">
@@ -55,36 +62,44 @@ export const ShipmentDispatchedEmail = ({
             <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
           </Section>
 
-          {(stampNumber || mailTypeLabel) && (
+          {(stamps.length > 0 || mailTypeLabel) && (
             <Section style={infoBox}>
               {mailTypeLabel && (
                 <Text style={infoText}>
                   <strong>Type:</strong> {mailTypeLabel === 'pakke' ? 'Pakke' : 'Brev (DAO)'}
                 </Text>
               )}
-              {stampNumber && (
+              {stamps.length === 1 && (
                 <Text style={infoText}>
-                  <strong>Stempelnummer:</strong> {stampNumber}
+                  <strong>Stempelnummer:</strong> {stamps[0]}
+                </Text>
+              )}
+              {stamps.length > 1 && (
+                <Text style={infoText}>
+                  <strong>Stempelnumre:</strong> {stamps.join(', ')}
                 </Text>
               )}
             </Section>
           )}
 
-          {trackingUrl && (
-            <Section style={{ textAlign: 'center' as const, margin: '24px 0' }}>
-              <div dangerouslySetInnerHTML={{ __html: `
+          {trackings.map((tn) => {
+            const trackingUrl = `https://tracking.postnord.com/tracking.html?id=${encodeURIComponent(tn)}`
+            return (
+              <Section key={tn} style={{ textAlign: 'center' as const, margin: '12px 0' }}>
+                <div dangerouslySetInnerHTML={{ __html: `
 <!--[if mso]>
-<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${trackingUrl}" style="height:44px;v-text-anchor:middle;width:220px;" arcsize="14%" stroke="f" fillcolor="#00aaeb">
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${trackingUrl}" style="height:44px;v-text-anchor:middle;width:260px;" arcsize="14%" stroke="f" fillcolor="#00aaeb">
 <w:anchorlock/>
-<center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">Spor din pakke →</center>
+<center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:600;">Spor ${tn} →</center>
 </v:roundrect>
 <![endif]-->
 <!--[if !mso]><!-->
-<a href="${trackingUrl}" style="background-color:#00aaeb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Spor din pakke →</a>
+<a href="${trackingUrl}" style="background-color:#00aaeb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">${trackings.length > 1 ? `Spor ${tn} →` : 'Spor din pakke →'}</a>
 <!--<![endif]-->
-              ` }} />
-            </Section>
-          )}
+                ` }} />
+              </Section>
+            )
+          })}
 
           <Section style={{ textAlign: 'center' as const, margin: '16px 0 32px' }}>
             <div dangerouslySetInnerHTML={{ __html: `
