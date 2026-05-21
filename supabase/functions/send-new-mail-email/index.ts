@@ -72,13 +72,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
         { status: 400, headers: corsHeaders }
       );
     }
+
+    const stampList: string[] = Array.isArray(stamp_numbers) && stamp_numbers.length
+      ? stamp_numbers.map((s: number | string) => String(s))
+      : (stamp_number ? [String(stamp_number)] : []);
+    const trackingList: string[] = Array.isArray(tracking_numbers) && tracking_numbers.length
+      ? tracking_numbers.map((t: string) => String(t))
+      : (tracking_number ? [String(tracking_number)] : []);
 
     // Get tenant
     const { data: tenant } = await supabaseAdmin
