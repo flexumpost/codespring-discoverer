@@ -246,8 +246,22 @@ Deno.serve(async (req) => {
 
     for (const [tenantId, tenantItems] of byTenant) {
       const firstItem = tenantItems[0];
-      if (!firstItem.contact_email) {
-        console.error(`Tenant ${tenantId} has no contact_email, skipping`);
+
+      // Build candidate emails: tenant.contact_email first, then linked tenant_users emails
+      const candidateEmails: string[] = [];
+      if (firstItem.contact_email) candidateEmails.push(firstItem.contact_email);
+
+      const { data: tuRows } = await supabase
+        .from("tenant_users")
+        .select("profiles(email)")
+        .eq("tenant_id", tenantId);
+      for (const row of (tuRows ?? []) as any[]) {
+        const e = row?.profiles?.email;
+        if (e && !candidateEmails.includes(e)) candidateEmails.push(e);
+      }
+
+      if (candidateEmails.length === 0) {
+        console.error(`Tenant ${tenantId} has no candidate emails, skipping`);
         for (const it of tenantItems) {
           await supabase.from("officernd_sync_log").insert({
             mail_item_id: it.id,
@@ -259,38 +273,45 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Find OfficeRnD member
-      const memberRes = await fetch(
-        `${apiBase}/members?email=${encodeURIComponent(firstItem.contact_email)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // Try each candidate email until we find a member in OfficeRnD
       let members: any[] = [];
-      if (!memberRes.ok) {
-        const txt = await memberRes.text();
-        console.error(`Member lookup failed for ${firstItem.contact_email}: ${txt}`);
-        for (const it of tenantItems) {
-          await supabase.from("officernd_sync_log").insert({
-            mail_item_id: it.id,
-            status: "failed",
-            error_message: `Member lookup failed for ${firstItem.contact_email}: ${txt}`,
-            amount_text: null,
-          });
+      let matchedEmail: string | null = null;
+      let lookupError: string | null = null;
+      for (const email of candidateEmails) {
+        const memberRes = await fetch(
+          `${apiBase}/members?email=${encodeURIComponent(email)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!memberRes.ok) {
+          const txt = await memberRes.text();
+          lookupError = `Member lookup failed for ${email}: ${txt}`;
+          console.error(lookupError);
+          continue;
         }
-        continue;
-      } else {
-        members = await memberRes.json();
+        const found = await memberRes.json();
+        if (Array.isArray(found) && found.length > 0) {
+          members = found;
+          matchedEmail = email;
+          break;
+        }
       }
+
       if (!members.length) {
-        console.error(`No OfficeRnD member for ${firstItem.contact_email}`);
+        const msg = lookupError ?? `No OfficeRnD member found for any of: ${candidateEmails.join(", ")}`;
+        console.error(msg);
         for (const it of tenantItems) {
           await supabase.from("officernd_sync_log").insert({
             mail_item_id: it.id,
             status: "failed",
-            error_message: `No OfficeRnD member found for ${firstItem.contact_email}`,
+            error_message: msg,
             amount_text: null,
           });
         }
         continue;
+      }
+
+      if (matchedEmail && matchedEmail !== firstItem.contact_email) {
+        console.log(`Tenant ${tenantId}: matched OfficeRnD member via secondary email ${matchedEmail} (contact_email was ${firstItem.contact_email})`);
       }
 
       const member = members.find((m: any) => m.team) || members[0];
