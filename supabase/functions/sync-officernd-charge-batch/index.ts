@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
     // Fetch all mail items with tenant info
     const { data: rawItems, error: itemsErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(company_name, contact_email, billed_by_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .in("id", mailItemIds);
 
     if (itemsErr) throw new Error(`Failed to fetch items: ${itemsErr.message}`);
@@ -231,6 +231,8 @@ Deno.serve(async (req) => {
       default_action: item.mail_type === "pakke"
         ? item.tenants?.default_package_action
         : item.tenants?.default_mail_action,
+      billed_by_email: item.tenants?.billed_by_email ?? null,
+      tenant_company_name: item.tenants?.company_name ?? null,
     }));
 
     // Group by tenant_id
