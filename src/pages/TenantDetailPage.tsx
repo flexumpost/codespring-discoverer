@@ -635,6 +635,44 @@ const TenantDetailPage = () => {
 
             <Card>
               <CardHeader>
+                <CardTitle className="text-base">Betales af</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Hvis udfyldt, sendes alle OfficeRnD-gebyrer for denne lejer til den angivne e-mail/virksomhed i stedet for lejerens egen konto. Lad felterne være tomme for at fakturere lejeren direkte.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="billed_by_email">E-mail</Label>
+                  <Input
+                    id="billed_by_email"
+                    type="email"
+                    value={billedByEmail}
+                    onChange={(e) => setBilledByEmail(e.target.value)}
+                    placeholder="betaler@firma.dk"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billed_by_company">Firmanavn</Label>
+                  <Input
+                    id="billed_by_company"
+                    value={billedByCompany}
+                    onChange={(e) => setBilledByCompany(e.target.value)}
+                    placeholder="Navn på betalende virksomhed"
+                  />
+                </div>
+                <Button
+                  onClick={() => billedByMutation.mutate()}
+                  disabled={!billedByChanged || billedByMutation.isPending}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {billedByMutation.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </CardContent>
+            </Card>
+
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
