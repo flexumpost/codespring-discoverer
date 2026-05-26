@@ -229,28 +229,34 @@ Deno.serve(async (req) => {
     // Fetch mail item with tenant info
     const { data: item, error: itemErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, porto_option, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(company_name, contact_email, billed_by_email, billed_by_company, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .eq("id", mailItemId)
       .single();
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
 
     const tenant = (item as any).tenants;
+    const billedByEmail: string | null = tenant?.billed_by_email || null;
+    const tenantCompanyName: string | null = tenant?.company_name || null;
 
-    // Build candidate emails: tenant.contact_email first, then linked tenant_users emails
+    // Build candidate emails. If billed_by_email is set, ONLY use that.
     const candidateEmails: string[] = [];
-    if (tenant?.contact_email) candidateEmails.push(tenant.contact_email);
-    const { data: tuRows } = await supabase
-      .from("tenant_users")
-      .select("user_id")
-      .eq("tenant_id", item.tenant_id);
-    const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
-    if (userIds.length > 0) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("email")
-        .in("id", userIds);
-      for (const p of (profs ?? []) as any[]) {
-        if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+    if (billedByEmail) {
+      candidateEmails.push(billedByEmail);
+    } else {
+      if (tenant?.contact_email) candidateEmails.push(tenant.contact_email);
+      const { data: tuRows } = await supabase
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", item.tenant_id);
+      const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("email")
+          .in("id", userIds);
+        for (const p of (profs ?? []) as any[]) {
+          if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+        }
       }
     }
     if (candidateEmails.length === 0) throw new Error("Tenant has no contact_email");
@@ -344,15 +350,16 @@ Deno.serve(async (req) => {
 
       const _d = new Date();
       const dateLabel = `${String(_d.getDate()).padStart(2,'0')}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getFullYear()).slice(-2)}`;
-      const stampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
+      const stampLabel = item.stamp_number ? ` ${item.stamp_number}` : "";
+      const tenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
 
       if (planId && planName) {
         chargeBody.plan = planId;
-        chargeBody.name = `${planName}${stampLabel} - ${dateLabel}`;
+        chargeBody.name = `${planName}${tenantLabel} -${stampLabel} - ${dateLabel}`;
         chargeBody.description = `[mail_item_id:${mailItemId}]`;
         console.log(`Using plan reference: ${planId} (${planName})`);
       } else {
-        chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})${stampLabel} - ${dateLabel}`;
+        chargeBody.name = `Postgebyr: ${amountText} (${item.mail_type})${tenantLabel} -${stampLabel} - ${dateLabel}`;
         chargeBody.description = `[mail_item_id:${mailItemId}]`;
         console.warn(`No plan ID found — creating custom one-off fee`);
       }
@@ -424,12 +431,13 @@ Deno.serve(async (req) => {
 
         const _pd = new Date();
         const portoDateLabel = `${String(_pd.getDate()).padStart(2,'0')}-${String(_pd.getMonth()+1).padStart(2,'0')}-${String(_pd.getFullYear()).slice(-2)}`;
-        const portoStampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
+        const portoStampLabel = item.stamp_number ? ` ${item.stamp_number}` : "";
+        const portoTenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
         if (portoPlanId) {
           portoBody.plan = portoPlanId;
-          portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+          portoBody.name = `${portoInfo.planName}${portoTenantLabel} -${portoStampLabel} - ${portoDateLabel}`;
         } else {
-          portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+          portoBody.name = `Porto: ${portoInfo.planName}${portoTenantLabel} -${portoStampLabel} - ${portoDateLabel}`;
         }
 
         console.log(`Porto charge body:`, JSON.stringify(portoBody));

@@ -165,6 +165,8 @@ interface ItemData {
   contact_email: string;
   tier_name: string;
   default_action: string | null;
+  billed_by_email: string | null;
+  tenant_company_name: string | null;
 }
 
 Deno.serve(async (req) => {
@@ -211,7 +213,7 @@ Deno.serve(async (req) => {
     // Fetch all mail items with tenant info
     const { data: rawItems, error: itemsErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(company_name, contact_email, billed_by_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .in("id", mailItemIds);
 
     if (itemsErr) throw new Error(`Failed to fetch items: ${itemsErr.message}`);
@@ -229,6 +231,8 @@ Deno.serve(async (req) => {
       default_action: item.mail_type === "pakke"
         ? item.tenants?.default_package_action
         : item.tenants?.default_mail_action,
+      billed_by_email: item.tenants?.billed_by_email ?? null,
+      tenant_company_name: item.tenants?.company_name ?? null,
     }));
 
     // Group by tenant_id
@@ -246,23 +250,30 @@ Deno.serve(async (req) => {
 
     for (const [tenantId, tenantItems] of byTenant) {
       const firstItem = tenantItems[0];
+      const billedByEmail: string | null = firstItem.billed_by_email;
+      const tenantCompanyName: string | null = firstItem.tenant_company_name;
+      const tenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
 
-      // Build candidate emails: tenant.contact_email first, then linked tenant_users emails
+      // Build candidate emails. If billed_by_email is set, ONLY use that.
       const candidateEmails: string[] = [];
-      if (firstItem.contact_email) candidateEmails.push(firstItem.contact_email);
+      if (billedByEmail) {
+        candidateEmails.push(billedByEmail);
+      } else {
+        if (firstItem.contact_email) candidateEmails.push(firstItem.contact_email);
 
-      const { data: tuRows } = await supabase
-        .from("tenant_users")
-        .select("user_id")
-        .eq("tenant_id", tenantId);
-      const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
-      if (userIds.length > 0) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("email")
-          .in("id", userIds);
-        for (const p of (profs ?? []) as any[]) {
-          if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+        const { data: tuRows } = await supabase
+          .from("tenant_users")
+          .select("user_id")
+          .eq("tenant_id", tenantId);
+        const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("email")
+            .in("id", userIds);
+          for (const p of (profs ?? []) as any[]) {
+            if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+          }
         }
       }
 
@@ -375,9 +386,9 @@ Deno.serve(async (req) => {
         const batchDateLabel = `${String(_bd.getDate()).padStart(2,'0')}-${String(_bd.getMonth()+1).padStart(2,'0')}-${String(_bd.getFullYear()).slice(-2)}`;
         if (planId) {
           chargeBody.plan = planId;
-          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
+          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
         } else {
-          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
+          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
         }
         chargeBody.description = `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`;
 
@@ -515,9 +526,9 @@ Deno.serve(async (req) => {
           const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
           if (portoPlanId) {
             portoBody.plan = portoPlanId;
-            portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+            portoBody.name = `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
           } else {
-            portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+            portoBody.name = `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
           }
 
           const portoRes = await fetch(`${apiBase}/fees`, {

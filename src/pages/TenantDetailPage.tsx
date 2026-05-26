@@ -179,6 +179,8 @@ const TenantDetailPage = () => {
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingCountry, setShippingCountry] = useState("");
+  const [billedByEmail, setBilledByEmail] = useState("");
+  const [billedByCompany, setBilledByCompany] = useState("");
 
   useEffect(() => {
     if (tenant) {
@@ -195,6 +197,8 @@ const TenantDetailPage = () => {
       setShippingCity(tenant.shipping_city ?? "");
       setShippingState(tenant.shipping_state ?? "");
       setShippingCountry(tenant.shipping_country ?? "");
+      setBilledByEmail(((tenant as any).billed_by_email as string | null) ?? "");
+      setBilledByCompany(((tenant as any).billed_by_company as string | null) ?? "");
     }
   }, [tenant]);
 
@@ -345,6 +349,24 @@ const TenantDetailPage = () => {
     onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
+  const billedByMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          billed_by_email: billedByEmail.trim() || null,
+          billed_by_company: billedByCompany.trim() || null,
+        } as any)
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
+      toast.success("Betales af opdateret");
+    },
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -401,6 +423,11 @@ const TenantDetailPage = () => {
       shippingCity !== (tenant.shipping_city ?? "") ||
       shippingState !== (tenant.shipping_state ?? "") ||
       shippingCountry !== (tenant.shipping_country ?? ""));
+
+  const billedByChanged =
+    tenant &&
+    (billedByEmail !== (((tenant as any).billed_by_email as string | null) ?? "") ||
+      billedByCompany !== (((tenant as any).billed_by_company as string | null) ?? ""));
 
   return (
     <AppLayout>
@@ -605,6 +632,44 @@ const TenantDetailPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Betales af</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Hvis udfyldt, sendes alle OfficeRnD-gebyrer for denne lejer til den angivne e-mail/virksomhed i stedet for lejerens egen konto. Lad felterne være tomme for at fakturere lejeren direkte.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="billed_by_email">E-mail</Label>
+                  <Input
+                    id="billed_by_email"
+                    type="email"
+                    value={billedByEmail}
+                    onChange={(e) => setBilledByEmail(e.target.value)}
+                    placeholder="betaler@firma.dk"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="billed_by_company">Firmanavn</Label>
+                  <Input
+                    id="billed_by_company"
+                    value={billedByCompany}
+                    onChange={(e) => setBilledByCompany(e.target.value)}
+                    placeholder="Navn på betalende virksomhed"
+                  />
+                </div>
+                <Button
+                  onClick={() => billedByMutation.mutate()}
+                  disabled={!billedByChanged || billedByMutation.isPending}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {billedByMutation.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </CardContent>
+            </Card>
+
 
             <Card>
               <CardHeader>
