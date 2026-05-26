@@ -349,6 +349,24 @@ const TenantDetailPage = () => {
     onError: () => toast.error(t("tenantDetail.couldNotSave")),
   });
 
+  const billedByMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          billed_by_email: billedByEmail.trim() || null,
+          billed_by_company: billedByCompany.trim() || null,
+        } as any)
+        .eq("id", id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
+      toast.success("Betales af opdateret");
+    },
+    onError: () => toast.error(t("tenantDetail.couldNotSave")),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const { data: sessionData } = await supabase.auth.getSession();
