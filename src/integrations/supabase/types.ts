@@ -579,6 +579,8 @@ export type Database = {
       tenants: {
         Row: {
           address: string | null
+          billed_by_company: string | null
+          billed_by_email: string | null
           company_name: string
           contact_email: string | null
           contact_first_name: string | null
@@ -605,6 +607,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          billed_by_company?: string | null
+          billed_by_email?: string | null
           company_name: string
           contact_email?: string | null
           contact_first_name?: string | null
@@ -631,6 +635,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          billed_by_company?: string | null
+          billed_by_email?: string | null
           company_name?: string
           contact_email?: string | null
           contact_first_name?: string | null

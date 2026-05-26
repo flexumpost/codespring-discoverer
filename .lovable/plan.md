@@ -1,40 +1,57 @@
-# Problem
+# Betales af-funktion (OfficeRnD fakturering på andens konto)
 
-Når flere breve afsendes til samme lejer i samme batch (fx Nordværk: #3232 og #3233), kalder `ShippingPrepPage` `send-new-mail-email` én gang pr. brev. Lejeren modtager derfor én "shipment_dispatched" mail pr. forsendelse i stedet for én samlet mail.
+Tilføj mulighed for at en lejers gebyrer i OfficeRnD overføres til en anden virksomheds konto (f.eks. Unimont betales af Radner). Kun operatører kan konfigurere dette.
 
-# Løsning
+## 1. Database
+Migration der tilføjer felter på `tenants`:
+- `billed_by_email` (text, nullable)
+- `billed_by_company` (text, nullable)
 
-Konsolidér email-udsendelsen pr. lejer i selve afsendelses-flowet, og lad mailen liste alle stempelnumre der er med i samme fysiske kuvert.
+Ingen ændring af RLS — eksisterende "Operators update tenants" dækker redigering. Vi tilføjer ikke disse felter til "Tenants update own tenant"-policy, så lejeren selv kan ikke ændre dem.
 
-## 1. `src/pages/ShippingPrepPage.tsx`
-- Efter loop'et der opdaterer `mail_items`, gruppér `sentItems` pr. `tenant_id`.
-- Kald `send-new-mail-email` én gang pr. lejer med:
-  - `tenant_id`
-  - `template_slug: "shipment_dispatched"`
-  - `stamp_numbers: number[]` (alle stempelnumre i batchen for den lejer)
-  - `tracking_numbers: string[]` (alle tracking-numre, kun PostNord)
-  - `mail_type` (fra første item — bruges kun til label)
-- Behold 300ms throttle mellem hver lejer (ikke pr. brev).
+## 2. UI på lejerens indstillingsside (`src/pages/TenantDetailPage.tsx`)
+Ny boks "Betales af" placeret under kontakt-sektionen:
+- 2 felter: E-mail og Firmanavn
+- Hjælpetekst: "Hvis udfyldt, sendes alle OfficeRnD-gebyrer for denne lejer til den angivne e-mail/virksomhed i stedet for lejerens egen konto."
+- Knap: "Gem"
+- Vises **kun for operatører** (`isOperator`-check, samme mønster som andre operator-only felter på siden)
+- Felterne tilføjes til `tenant`-typen, state og update-mutation
+- Tom e-mail = ingen override (gebyrer sendes som hidtil)
 
-## 2. `supabase/functions/send-new-mail-email/index.ts`
-- Acceptér nye valgfri felter `stamp_numbers: number[]` og `tracking_numbers: string[]` i request body. Bevar `stamp_number` / `tracking_number` for bagudkompatibilitet.
-- Når `template_slug === "shipment_dispatched"`:
-  - Spring den eksisterende `mail_items`-query (`status='ny'`) over — dispatched items har ikke status `ny`.
-  - Render `ShipmentDispatchedEmail` med nye props `stampNumbers` og `trackingNumbers` (arrays). Hvis kun ét stempelnummer, opfør sig som før.
-- Erstat `{{stamp_number}}` i subject/body med komma-separeret liste når flere stempler er angivet.
+Ingen ny side; vi udvider eksisterende detail-page.
 
-## 3. `supabase/functions/_shared/email-templates/shipment-dispatched.tsx`
-- Tilføj props `stampNumbers?: string[]` og `trackingNumbers?: string[]`.
-- Hvis `stampNumbers.length > 1`: render listen som flere `Text`-linjer i `infoBox` ("Stempelnumre: #3232, #3233").
-- Hvis `trackingNumbers.length > 1`: render én "Spor din pakke"-knap pr. tracking-nummer (eller en linje med link pr. nummer). Hvis kun ét: uændret.
-- Bevar single-værdi opførsel når kun ét nummer leveres.
+## 3. Edge function `sync-officernd-charge`
+Læs `billed_by_email` og `billed_by_company` fra tenant.
 
-## Resultat
-Lejeren får én mail med begge stempelnumre (#3232 og #3233) når begge breve afsendes i samme batch. OfficeRnD-batch-sync er allerede konsolideret pr. lejer og påvirkes ikke.
+**Når `billed_by_email` er sat:**
+- Brug *kun* `billed_by_email` til OfficeRnD-medlemslookup (override af nuværende candidate-liste). Hvis ikke fundet → fejl som hidtil.
+- Tilføj lejerens firmanavn i `name`-feltet på charges, så betaleren kan se hvem gebyret tilhører.
 
-## Filer
-- `src/pages/ShippingPrepPage.tsx`
-- `supabase/functions/send-new-mail-email/index.ts`
-- `supabase/functions/_shared/email-templates/shipment-dispatched.tsx`
+**Når `billed_by_email` er tom:** uændret adfærd (contact_email + tenant_users-fallback).
 
-Ingen DB-ændringer.
+### Navnegenerering
+Nuværende format:
+- Med plan: `${planName} (${stamp}) - ${date}`
+- Uden plan: `Postgebyr: ${amountText} (${mailType}) (${stamp}) - ${date}`
+- Porto: `${portoPlan} (${stamp}) - ${date}`
+
+Når override er aktiv, præfix med lejerens firmanavn:
+- `${planName} (${tenantCompanyName}) - ${stamp} - ${date}`
+- Porto: `${portoPlan} (${tenantCompanyName}) - ${stamp} - ${date}`
+
+Eksempel fra brugerens prompt: `Forsendelse (Unimont) - 3285 - 26-05-26`
+
+Tenant-firmanavnet hentes via det eksisterende `mail_items → tenants`-select (tilføj `company_name` og de to nye felter).
+
+## 4. Edge function `sync-officernd-charge-batch`
+Samme override-logik (medlemslookup via `billed_by_email`, præfix firmanavn i charge `name`). Læser tenant fields i samme query.
+
+## Teknisk
+- Migration tilføjes via supabase migration tool.
+- `src/integrations/supabase/types.ts` regenereres automatisk efter migration.
+- Begge edge functions deployes efter ændringerne.
+- Ingen ændring af fee-beregning eller plan-lookup — kun *hvem* der debiteres og *hvad* der står i charge-navnet.
+
+## Ikke inkluderet (kan tilføjes senere hvis ønsket)
+- Retry-knap på fejlede `officernd_sync_log`-rækker (nævnt i tidligere besked).
+- Validering af at `billed_by_email` faktisk findes i OfficeRnD ved gem-tidspunkt.
