@@ -386,9 +386,9 @@ Deno.serve(async (req) => {
         const batchDateLabel = `${String(_bd.getDate()).padStart(2,'0')}-${String(_bd.getMonth()+1).padStart(2,'0')}-${String(_bd.getFullYear()).slice(-2)}`;
         if (planId) {
           chargeBody.plan = planId;
-          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
+          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
         } else {
-          chargeBody.name = `${planName}${syncStampLabel} - ${batchDateLabel}`;
+          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
         }
         chargeBody.description = `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`;
 
