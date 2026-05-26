@@ -165,6 +165,8 @@ interface ItemData {
   contact_email: string;
   tier_name: string;
   default_action: string | null;
+  billed_by_email: string | null;
+  tenant_company_name: string | null;
 }
 
 Deno.serve(async (req) => {
