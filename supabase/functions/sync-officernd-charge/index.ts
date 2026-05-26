@@ -229,28 +229,34 @@ Deno.serve(async (req) => {
     // Fetch mail item with tenant info
     const { data: item, error: itemErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, porto_option, tenants(contact_email, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(company_name, contact_email, billed_by_email, billed_by_company, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .eq("id", mailItemId)
       .single();
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
 
     const tenant = (item as any).tenants;
+    const billedByEmail: string | null = tenant?.billed_by_email || null;
+    const tenantCompanyName: string | null = tenant?.company_name || null;
 
-    // Build candidate emails: tenant.contact_email first, then linked tenant_users emails
+    // Build candidate emails. If billed_by_email is set, ONLY use that.
     const candidateEmails: string[] = [];
-    if (tenant?.contact_email) candidateEmails.push(tenant.contact_email);
-    const { data: tuRows } = await supabase
-      .from("tenant_users")
-      .select("user_id")
-      .eq("tenant_id", item.tenant_id);
-    const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
-    if (userIds.length > 0) {
-      const { data: profs } = await supabase
-        .from("profiles")
-        .select("email")
-        .in("id", userIds);
-      for (const p of (profs ?? []) as any[]) {
-        if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+    if (billedByEmail) {
+      candidateEmails.push(billedByEmail);
+    } else {
+      if (tenant?.contact_email) candidateEmails.push(tenant.contact_email);
+      const { data: tuRows } = await supabase
+        .from("tenant_users")
+        .select("user_id")
+        .eq("tenant_id", item.tenant_id);
+      const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("email")
+          .in("id", userIds);
+        for (const p of (profs ?? []) as any[]) {
+          if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+        }
       }
     }
     if (candidateEmails.length === 0) throw new Error("Tenant has no contact_email");
