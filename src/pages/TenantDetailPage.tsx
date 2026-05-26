@@ -424,6 +424,11 @@ const TenantDetailPage = () => {
       shippingState !== (tenant.shipping_state ?? "") ||
       shippingCountry !== (tenant.shipping_country ?? ""));
 
+  const billedByChanged =
+    tenant &&
+    (billedByEmail !== (((tenant as any).billed_by_email as string | null) ?? "") ||
+      billedByCompany !== (((tenant as any).billed_by_company as string | null) ?? ""));
+
   return (
     <AppLayout>
       <div className="flex items-center gap-3 mb-6">
