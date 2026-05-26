@@ -179,6 +179,8 @@ const TenantDetailPage = () => {
   const [shippingCity, setShippingCity] = useState("");
   const [shippingState, setShippingState] = useState("");
   const [shippingCountry, setShippingCountry] = useState("");
+  const [billedByEmail, setBilledByEmail] = useState("");
+  const [billedByCompany, setBilledByCompany] = useState("");
 
   useEffect(() => {
     if (tenant) {
@@ -195,6 +197,8 @@ const TenantDetailPage = () => {
       setShippingCity(tenant.shipping_city ?? "");
       setShippingState(tenant.shipping_state ?? "");
       setShippingCountry(tenant.shipping_country ?? "");
+      setBilledByEmail(((tenant as any).billed_by_email as string | null) ?? "");
+      setBilledByCompany(((tenant as any).billed_by_company as string | null) ?? "");
     }
   }, [tenant]);
 
