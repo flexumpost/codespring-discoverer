@@ -431,12 +431,13 @@ Deno.serve(async (req) => {
 
         const _pd = new Date();
         const portoDateLabel = `${String(_pd.getDate()).padStart(2,'0')}-${String(_pd.getMonth()+1).padStart(2,'0')}-${String(_pd.getFullYear()).slice(-2)}`;
-        const portoStampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
+        const portoStampLabel = item.stamp_number ? ` ${item.stamp_number}` : "";
+        const portoTenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
         if (portoPlanId) {
           portoBody.plan = portoPlanId;
-          portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+          portoBody.name = `${portoInfo.planName}${portoTenantLabel} -${portoStampLabel} - ${portoDateLabel}`;
         } else {
-          portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+          portoBody.name = `Porto: ${portoInfo.planName}${portoTenantLabel} -${portoStampLabel} - ${portoDateLabel}`;
         }
 
         console.log(`Porto charge body:`, JSON.stringify(portoBody));
