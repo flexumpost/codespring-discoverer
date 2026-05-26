@@ -526,9 +526,9 @@ Deno.serve(async (req) => {
           const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
           if (portoPlanId) {
             portoBody.plan = portoPlanId;
-            portoBody.name = `${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+            portoBody.name = `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
           } else {
-            portoBody.name = `Porto: ${portoInfo.planName}${portoStampLabel} - ${portoDateLabel}`;
+            portoBody.name = `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
           }
 
           const portoRes = await fetch(`${apiBase}/fees`, {
