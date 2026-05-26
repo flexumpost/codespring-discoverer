@@ -250,23 +250,30 @@ Deno.serve(async (req) => {
 
     for (const [tenantId, tenantItems] of byTenant) {
       const firstItem = tenantItems[0];
+      const billedByEmail: string | null = firstItem.billed_by_email;
+      const tenantCompanyName: string | null = firstItem.tenant_company_name;
+      const tenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
 
-      // Build candidate emails: tenant.contact_email first, then linked tenant_users emails
+      // Build candidate emails. If billed_by_email is set, ONLY use that.
       const candidateEmails: string[] = [];
-      if (firstItem.contact_email) candidateEmails.push(firstItem.contact_email);
+      if (billedByEmail) {
+        candidateEmails.push(billedByEmail);
+      } else {
+        if (firstItem.contact_email) candidateEmails.push(firstItem.contact_email);
 
-      const { data: tuRows } = await supabase
-        .from("tenant_users")
-        .select("user_id")
-        .eq("tenant_id", tenantId);
-      const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
-      if (userIds.length > 0) {
-        const { data: profs } = await supabase
-          .from("profiles")
-          .select("email")
-          .in("id", userIds);
-        for (const p of (profs ?? []) as any[]) {
-          if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+        const { data: tuRows } = await supabase
+          .from("tenant_users")
+          .select("user_id")
+          .eq("tenant_id", tenantId);
+        const userIds = ((tuRows ?? []) as any[]).map((r) => r.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("email")
+            .in("id", userIds);
+          for (const p of (profs ?? []) as any[]) {
+            if (p?.email && !candidateEmails.includes(p.email)) candidateEmails.push(p.email);
+          }
         }
       }
 
