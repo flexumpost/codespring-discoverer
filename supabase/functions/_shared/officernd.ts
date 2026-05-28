@@ -41,6 +41,7 @@ export interface OfficeRndItem {
 const TOKEN_SCOPES = [
   "flex.billing.charges.create",
   "flex.billing.charges.read",
+  "flex.billing.checkout.create",
   "flex.community.members.read",
   "flex.billing.plans.read",
 ].join(" ");
@@ -158,33 +159,43 @@ export interface CreateFeeInput {
 }
 
 /**
- * Create a one-off fee in OfficeRnD v2.
+ * Create a one-off fee in OfficeRnD v2 via POST /checkout.
  *
- * Uses POST /api/v2/organizations/<slug>/fees. Body is mostly compatible with
- * v1: when we have a resolved item we attach it via `plan` (which OfficeRnD
- * accepts whether the item lives in /fees or /plans, since one-off plans are
- * the same underlying object). Without an item we fall back to a custom
- * one-off fee with the given price + name.
+ * v2 FeeRequestDto only accepts { plan, date, location } — pricing is
+ * determined entirely by the referenced plan (no per-line price override).
+ * That means we MUST have a resolved item.id; without one we throw so the
+ * caller logs a "plan not found" error instead of silently creating a free
+ * checkout.
+ *
+ * Required scope: flex.billing.checkout.create (already on the app).
  */
 export async function createFee(
   apiBase: string,
   token: string,
   input: CreateFeeInput
 ): Promise<{ id: string | null; planType: string; raw: any }> {
-  const body: Record<string, unknown> = {
-    price: input.price,
-    quantity: input.quantity,
-    date: input.date ?? new Date().toISOString(),
-    name: input.name,
-    isPersonal: input.isPersonal,
-  };
-  if (input.description) body.description = input.description;
-  if (input.isPersonal && input.member) body.member = input.member;
-  if (input.office) body.office = input.office;
-  if (input.team) body.team = input.team;
-  if (input.item?.id) body.plan = input.item.id;
+  if (!input.item?.id) {
+    throw new Error(
+      `OfficeRnD checkout requires a resolved plan id; none found for "${input.name}"`
+    );
+  }
+  if (!input.member) {
+    throw new Error(`OfficeRnD checkout requires a member id`);
+  }
 
-  const res = await fetch(`${apiBase}/fees`, {
+  const date = (input.date ?? new Date().toISOString()).slice(0, 10); // YYYY-MM-DD
+  const body: Record<string, unknown> = {
+    member: input.member,
+    fees: [{ plan: input.item.id, date }],
+    options: {
+      shouldSendInvoice: false,
+      shouldInvoiceImmediately: false,
+      shouldChargeImmediately: false,
+      shouldRequireCreditCard: false,
+    },
+  };
+
+  const res = await fetch(`${apiBase}/checkout`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -194,13 +205,14 @@ export async function createFee(
   });
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`OfficeRnD fee creation failed [${res.status}]: ${txt}`);
+    throw new Error(`OfficeRnD checkout failed [${res.status}]: ${txt}`);
   }
   const raw = await res.json();
-  const fee = Array.isArray(raw) ? raw[0] : raw;
+  const feeArr = Array.isArray(raw?.fees) ? raw.fees : [];
+  const first = feeArr[0] ?? raw;
   return {
-    id: fee?._id ?? fee?.id ?? null,
-    planType: fee?.planType ?? "OneOff",
-    raw: fee,
+    id: first?._id ?? first?.id ?? raw?._id ?? raw?.id ?? null,
+    planType: "OneOff",
+    raw,
   };
 }

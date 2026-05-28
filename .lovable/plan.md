@@ -1,67 +1,26 @@
-# OfficeRnD v1 → v2 migration
+## Mål
+Genoverfør kun de fees, der fejlede **i dag** (præ-godkendelse af v2-token). Ældre fejl er manuelt indtastet og skal ikke røres.
 
-## Baggrund
+## Udgangspunkt
+`officernd_sync_log` har 44 unikke `mail_item_id` med seneste status `failed` fra i dag (alle med `AccessDeniedError` mod v1). Disse skal nu køres igennem den nye v2-flow.
 
-- App i OfficeRnD: **"Flexum Coworking Post"** har allerede korrekte v2-scopes (`flex.billing.charges.*`, `flex.billing.checkout.create`, `flex.billing.plans.read`, `flex.community.members.read`). Ingen ændringer i OfficeRnD-appens scopes nødvendige.
-- "Pilotomail" og "OfficeRnD til Dinero" i deprecation-advarslen er separate v1-apps – ignoreres her.
-- Årsag til 403/AccessDeniedError: koden kalder `/api/v1/...`, men token har `flex.*`-scopes → v1 afviser. Løsning = skifte til `/api/v2/...`.
-- Alle vores poster (Brev forsendelse, Brev/pakke afhentning, Pakke håndtering, Scanning af brev, Pakke forsendelse – Lite/Standard/Plus) findes allerede som **One-off Plans** i OfficeRnD. Intet skal oprettes manuelt.
+## Plan
 
-## Hvad ændres v1 → v2
+### 1. One-off resync via exec-script (efter switch til build mode)
+- SQL: vælg distinct `mail_item_id` hvor seneste log-række er `failed` AND `created_at >= current_date` AND der ikke findes en senere `success/confirmed`-række.
+- For hver: kald deployed `sync-officernd-charge` edge function med service-role nøgle, sekventielt med ~400 ms delay.
+- Saml resultat i CSV til `/mnt/documents/officernd-resync-result.csv` med kolonner: `tenant`, `contact_email`, `mail_item_id`, `stamp_number`, `mail_type`, `new_status`, `charge_id`, `error_message`.
+- Vis resultatet til operatøren som artifact + kort opsummering (succeded/failed counts).
 
-| Område | v1 | v2 |
-|---|---|---|
-| Base URL | `/api/v1/<org>/...` | `/api/v2/<org>/...` |
-| Find member | `GET /members?email=` (array) | `GET /members?email=` (`{ results, cursorNext, cursorPrev }`) |
-| Find one-off plan | `GET /plans?name=` (array) | `GET /fees?name=` ELLER `GET /plans?name=` (cursor-respons) |
-| Opret charge | `POST /charges {member, plan, price, name}` | `POST /checkout {fees:[{fee\|plan, quantity, name}]}` |
-| Token | uændret (`/oauth/token`) | uændret |
+### 2. Ingen UI-ændringer
+Fordi det er en engangsoperation knyttet til migrationen. Hvis lignende fejl opstår senere, kan vi tilføje en knap. UI-arbejde springes over nu.
 
-Empirisk opslag: helper kalder først `/fees?name=…`. Hvis 0 hits, fallback til `/plans?name=…`. Den endpoint der gav hit, bestemmer felt-navnet (`fee` vs `plan`) i checkout-payload. Resultatet caches in-memory pr. invokation.
+## Tekniske noter
+- Genbruger eksisterende `sync-officernd-charge` (ingen ny edge function).
+- `sync-officernd-charge` skriver nye log-rækker pr. forsøg – historik bevares.
+- Idempotens: hvis et item nu er manuelt håndteret i OfficeRnD, vil v2 enten finde eksisterende fee eller oprette en ny – vi tager kun items hvor *seneste* log er `failed` (ingen efterfølgende success), så manuelt-løste items rammes ikke automatisk.
 
-## Filer der ændres
-
-- `supabase/functions/_shared/officernd.ts` (NY) – v2-helper: `getToken`, `findMemberByEmail`, `findItemByName` (fee→plan fallback + cache), `createCheckout`.
-- `supabase/functions/sync-officernd-charge/index.ts` – brug helper, fjern v1-kald.
-- `supabase/functions/sync-officernd-charge-batch/index.ts` – samme.
-- `supabase/functions/officernd-webhook/index.ts` – evt. v2-tilpasning af payload-felter (tjekkes ved implementering; uændret hvis webhook-format ikke skifter).
-- `supabase/functions/test-officernd-connection/index.ts` (NY) – kalder `getToken` + `findMemberByEmail` for valgt test-email + slår valgt fee-navn op. Returnerer status pr. trin.
-- `src/components/operator/OfficeRnDSettingsTab.tsx` (eller eksisterende settings-komponent) – "Test forbindelse"-knap der kalder edge function og viser resultat.
-
-Bevares uændret: "Betales af"-logik, retry, business rules omkring hvornår synkronisering trigges, `officernd_sync_log`-skrivning.
-
-## Faser
-
-**Fase 1 – Forberedelse (operator):**
-- Bekræft at en kendt test-bruger findes i OfficeRnD (email matcher en lejer-kontaktmail).
-- Ingen oprettelse af items nødvendig.
-
-**Fase 2 – Kode-migration:**
-- Implementér `_shared/officernd.ts`.
-- Refaktorer `sync-officernd-charge` + `sync-officernd-charge-batch` til v2 + checkout-payload.
-- Hård cutover – ingen v1-fallback i koden. Rollback sker via revision hvis nødvendigt.
-
-**Fase 3 – Test & resync:**
-- Deploy med `officernd_settings.enabled = false` for at undgå auto-trigger.
-- Brug "Test forbindelse"-knappen → verificér token, member-opslag, fee-opslag.
-- Aktivér `enabled = true`.
-- Tilføj/brug eksisterende "Resend"-knap på fejlede `officernd_sync_log`-rækker til at køre dem igennem v2.
-
-**Fase 4 – Webhooks (separat task, ikke i denne migration):**
-- Verificér at `officernd-webhook` stadig modtager events i v2-format; håndteres som opfølgning.
-
-## Risici
-
-- **Pris-override (porto):** v2-checkout bruger fee'ens forud-definerede pris. Hvis koden i dag sender variabel porto, skal vi enten (a) acceptere fee-prisen som den er, eller (b) bekræfte at `price`-felt på checkout-fee accepteres som override. Afklares i Fase 2 ved første test mod sandkasse-charge; hvis override ikke virker, kommer det op som beslutning før vi går videre.
-- **Webhook-payload-felter** kan have skiftet navne i v2 – verificeres i Fase 4.
-- **Hård cutover** – revision-rollback hvis Fase 2 fejler i produktion.
-
-## Teknisk note (checkout-payload)
-
-```ts
-// hit fra /fees:
-{ fees: [{ fee: "<id>", quantity: 1, name: "<label>" }] }
-// hit fra /plans (one-off):
-{ fees: [{ plan: "<id>", quantity: 1, name: "<label>" }] }
-// member tilknyttes via member-id på checkout-rod (felt verificeres mod v2-docs ved implementering).
-```
+## Out of scope
+- Ældre fejl (`created_at < current_date`) – ignoreres.
+- Webhook-migration.
+- Ingen UI-knap eller ny edge function.
