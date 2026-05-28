@@ -134,10 +134,13 @@ Deno.serve(async (req) => {
         .select("email")
         .in("id", userIds);
       if (profiles) {
+        const seen = new Set<string>([tenant.contact_email.toLowerCase()]);
         for (const p of profiles) {
-          if (p.email && p.email !== tenant.contact_email) {
-            extraEmails.push(p.email);
-          }
+          if (!p.email) continue;
+          const lower = p.email.toLowerCase();
+          if (seen.has(lower)) continue;
+          seen.add(lower);
+          extraEmails.push(p.email);
         }
       }
     }
