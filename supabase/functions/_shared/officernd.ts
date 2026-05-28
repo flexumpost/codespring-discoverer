@@ -160,31 +160,39 @@ export interface CreateFeeInput {
 /**
  * Create a one-off fee in OfficeRnD v2.
  *
- * Uses POST /api/v2/organizations/<slug>/fees. Body is mostly compatible with
- * v1: when we have a resolved item we attach it via `plan` (which OfficeRnD
- * accepts whether the item lives in /fees or /plans, since one-off plans are
- * the same underlying object). Without an item we fall back to a custom
- * one-off fee with the given price + name.
+ * Uses POST /api/v2/organizations/<slug>/checkout, which is what the
+ * `flex.billing.charges.create` scope actually grants. The legacy
+ * POST /fees endpoint returns 401 in v2 even with the correct scope.
+ *
+ * When item.source === "fees" we send `fee: itemId`; when "plans" we send
+ * `plan: itemId`. Without a resolved item we send only price + name.
  */
 export async function createFee(
   apiBase: string,
   token: string,
   input: CreateFeeInput
 ): Promise<{ id: string | null; planType: string; raw: any }> {
-  const body: Record<string, unknown> = {
-    price: input.price,
+  const feeLine: Record<string, unknown> = {
     quantity: input.quantity,
-    date: input.date ?? new Date().toISOString(),
     name: input.name,
-    isPersonal: input.isPersonal,
+    price: input.price,
   };
-  if (input.description) body.description = input.description;
+  if (input.description) feeLine.description = input.description;
+  if (input.item?.id) {
+    if (input.item.source === "fees") feeLine.fee = input.item.id;
+    else feeLine.plan = input.item.id;
+  }
+
+  const body: Record<string, unknown> = {
+    isPersonal: input.isPersonal,
+    date: input.date ?? new Date().toISOString(),
+    fees: [feeLine],
+  };
   if (input.isPersonal && input.member) body.member = input.member;
   if (input.office) body.office = input.office;
   if (input.team) body.team = input.team;
-  if (input.item?.id) body.plan = input.item.id;
 
-  const res = await fetch(`${apiBase}/fees`, {
+  const res = await fetch(`${apiBase}/checkout`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -194,13 +202,14 @@ export async function createFee(
   });
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`OfficeRnD fee creation failed [${res.status}]: ${txt}`);
+    throw new Error(`OfficeRnD checkout failed [${res.status}]: ${txt}`);
   }
   const raw = await res.json();
-  const fee = Array.isArray(raw) ? raw[0] : raw;
+  const feeArr = Array.isArray(raw?.fees) ? raw.fees : (Array.isArray(raw) ? raw : []);
+  const first = feeArr[0] ?? raw;
   return {
-    id: fee?._id ?? fee?.id ?? null,
-    planType: fee?.planType ?? "OneOff",
-    raw: fee,
+    id: first?._id ?? first?.id ?? raw?._id ?? raw?.id ?? null,
+    planType: first?.planType ?? "OneOff",
+    raw,
   };
 }
