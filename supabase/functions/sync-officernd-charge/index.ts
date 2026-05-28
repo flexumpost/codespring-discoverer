@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
 
     const _d = new Date();
     const dateLabel = `${String(_d.getDate()).padStart(2,'0')}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getFullYear()).slice(-2)}`;
-    const stampLabel = item.stamp_number ? ` ${item.stamp_number}` : "";
+    const stampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
     const tenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
 
     if (!skippedMainFee) {
