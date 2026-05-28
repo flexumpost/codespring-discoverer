@@ -462,44 +462,25 @@ Deno.serve(async (req) => {
         }
 
         try {
-          const portoPlanId = await findPlanId(apiBase, token, portoInfo.planName);
-
-          const portoBody: Record<string, unknown> = {
-            price: portoInfo.amountKr,
-            date: new Date().toISOString(),
-            quantity: 1,
-            isPersonal,
-            description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
-          };
-
-          if (isPersonal) portoBody.member = memberId;
-          if (memberOffice) portoBody.office = memberOffice;
-          if (companyId) portoBody.team = companyId;
-
+          const portoItem = await findItemByName(apiBase, token, portoInfo.planName);
           const _pbd = new Date();
           const portoDateLabel = `${String(_pbd.getDate()).padStart(2,'0')}-${String(_pbd.getMonth()+1).padStart(2,'0')}-${String(_pbd.getFullYear()).slice(-2)}`;
           const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
-          if (portoPlanId) {
-            portoBody.plan = portoPlanId;
-            portoBody.name = `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
-          } else {
-            portoBody.name = `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
-          }
 
-          const portoRes = await fetch(`${apiBase}/fees`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify(portoBody),
+          const portoFee = await createFee(apiBase, token, {
+            member: memberId,
+            team: companyId,
+            office: memberOffice,
+            isPersonal,
+            price: portoInfo.amountKr,
+            quantity: 1,
+            name: portoItem
+              ? `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`
+              : `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`,
+            description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
+            item: portoItem,
           });
-
-          if (!portoRes.ok) {
-            const txt = await portoRes.text();
-            throw new Error(`Porto charge failed: ${txt}`);
-          }
-
-          const portoRaw = await portoRes.json();
-          const portoCharge = Array.isArray(portoRaw) ? portoRaw[0] : portoRaw;
-          const portoChargeId = portoCharge?._id || portoCharge?.id || null;
+          const portoChargeId = portoFee.id;
 
           if (portoLogId) {
             await supabase.from("officernd_sync_log")
@@ -514,6 +495,7 @@ Deno.serve(async (req) => {
               .eq("id", portoLogId);
           }
         }
+
       };
 
       // Process letter porto groups (1 charge per unique porto_option)
