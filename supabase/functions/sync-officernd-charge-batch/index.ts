@@ -388,10 +388,8 @@ Deno.serve(async (req) => {
           }
           continue;
         }
-
-
-        results.push({ tenant_id: tenantId, charge_id: chargeId, quantity: toSync.length, plan: planName });
       } else {
+
         // Zero fee — log as skipped for each item
         for (const it of tenantItems) {
           const { data: existingLog } = await supabase
