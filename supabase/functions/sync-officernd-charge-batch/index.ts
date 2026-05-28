@@ -133,35 +133,8 @@ function getPlanName(
   return null;
 }
 
-async function getOfficeRndToken(clientId: string, clientSecret: string): Promise<string> {
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    scope: "flex.billing.charges.create flex.community.members.read flex.billing.plans.read",
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
-  const res = await fetch("https://identity.officernd.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`OfficeRnD auth failed [${res.status}]: ${txt}`);
-  }
-  const data = await res.json();
-  return data.access_token;
-}
+// OfficeRnD v2 helpers live in ../_shared/officernd.ts
 
-async function findPlanId(apiBase: string, token: string, planName: string): Promise<string | null> {
-  const res = await fetch(`${apiBase}/plans`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  const plans = await res.json();
-  const match = plans.find((p: any) => p.name === planName);
-  return match?._id ?? null;
-}
 
 interface ItemData {
   id: string;
