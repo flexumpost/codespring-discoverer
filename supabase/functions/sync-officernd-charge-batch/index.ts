@@ -1,10 +1,18 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  createFee,
+  findItemByName,
+  findMembersByEmail,
+  getOfficeRndToken,
+  v2Base,
+} from "../_shared/officernd.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
 
 // Fee calculation logic (mirrors sync-officernd-charge)
 function calculateFee(
@@ -125,35 +133,8 @@ function getPlanName(
   return null;
 }
 
-async function getOfficeRndToken(clientId: string, clientSecret: string): Promise<string> {
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    scope: "flex.billing.charges.create flex.community.members.read flex.billing.plans.read",
-    client_id: clientId,
-    client_secret: clientSecret,
-  });
-  const res = await fetch("https://identity.officernd.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`OfficeRnD auth failed [${res.status}]: ${txt}`);
-  }
-  const data = await res.json();
-  return data.access_token;
-}
+// OfficeRnD v2 helpers live in ../_shared/officernd.ts
 
-async function findPlanId(apiBase: string, token: string, planName: string): Promise<string | null> {
-  const res = await fetch(`${apiBase}/plans`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  const plans = await res.json();
-  const match = plans.find((p: any) => p.name === planName);
-  return match?._id ?? null;
-}
 
 interface ItemData {
   id: string;
@@ -242,9 +223,9 @@ Deno.serve(async (req) => {
       byTenant.get(item.tenant_id)!.push(item);
     }
 
-    // Get OfficeRnD token
-    const token = await getOfficeRndToken(clientId, clientSecret);
-    const apiBase = `https://app.officernd.com/api/v1/organizations/${orgSlug}`;
+    // Get OfficeRnD token (v2)
+    const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug });
+    const apiBase = v2Base(orgSlug);
 
     const results: any[] = [];
 
@@ -295,21 +276,16 @@ Deno.serve(async (req) => {
       let matchedEmail: string | null = null;
       let lookupError: string | null = null;
       for (const email of candidateEmails) {
-        const memberRes = await fetch(
-          `${apiBase}/members?email=${encodeURIComponent(email)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!memberRes.ok) {
-          const txt = await memberRes.text();
-          lookupError = `Member lookup failed for ${email}: ${txt}`;
+        try {
+          const found = await findMembersByEmail(apiBase, token, email);
+          if (found.length > 0) {
+            members = found;
+            matchedEmail = email;
+            break;
+          }
+        } catch (e) {
+          lookupError = e instanceof Error ? e.message : String(e);
           console.error(lookupError);
-          continue;
-        }
-        const found = await memberRes.json();
-        if (Array.isArray(found) && found.length > 0) {
-          members = found;
-          matchedEmail = email;
-          break;
         }
       }
 
@@ -347,7 +323,6 @@ Deno.serve(async (req) => {
       const stampText = stampNumbers.length > 0 ? ` (nr. ${stampNumbers.join(", ")})` : "";
 
       const planName = getPlanName(firstItem.mail_type, firstItem.chosen_action, firstItem.default_action, firstItem.tier_name);
-      const quantity = tenantItems.length;
 
       // Create consolidated main charge
       if (totalMainFee > 0 && planName) {
@@ -366,75 +341,55 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const planId = await findPlanId(apiBase, token, planName);
-
-        const chargeBody: Record<string, unknown> = {
-          price: fees[0].amountKr, // price per unit
-          date: new Date().toISOString(),
-          quantity: toSync.length,
-          isPersonal,
-        };
-
-        if (isPersonal) chargeBody.member = memberId;
-        if (memberOffice) chargeBody.office = memberOffice;
-        if (companyId) chargeBody.team = companyId;
-
         const itemIds = toSync.map((i) => i.id);
         const syncStampNums = toSync.map(i => i.stamp_number).filter((n): n is number => n !== null).sort((a,b) => a-b);
         const syncStampLabel = syncStampNums.length > 0 ? ` (${syncStampNums.join(", ")})` : "";
         const _bd = new Date();
         const batchDateLabel = `${String(_bd.getDate()).padStart(2,'0')}-${String(_bd.getMonth()+1).padStart(2,'0')}-${String(_bd.getFullYear()).slice(-2)}`;
-        if (planId) {
-          chargeBody.plan = planId;
-          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
-        } else {
-          chargeBody.name = `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`;
-        }
-        chargeBody.description = `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`;
 
-        console.log(`Batch charge for tenant ${tenantId}:`, JSON.stringify(chargeBody));
+        try {
+          const matchedItem = await findItemByName(apiBase, token, planName);
+          const fee = await createFee(apiBase, token, {
+            member: memberId,
+            team: companyId,
+            office: memberOffice,
+            isPersonal,
+            price: fees[0].amountKr,
+            quantity: toSync.length,
+            name: `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`,
+            description: `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`,
+            item: matchedItem,
+          });
+          const chargeId = fee.id;
+          const resolvedPlanType = fee.planType;
 
-        const chargeRes = await fetch(`${apiBase}/fees`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(chargeBody),
-        });
-
-        if (!chargeRes.ok) {
-          const txt = await chargeRes.text();
-          console.error(`Charge creation failed for tenant ${tenantId}: ${txt}`);
-          // Log failure for each item
+          for (const it of toSync) {
+            await supabase.from("officernd_sync_log").insert({
+              mail_item_id: it.id,
+              status: "pending_confirmation",
+              charge_id: chargeId,
+              amount_text: fees[0].amountText,
+              plan_name: planName,
+              plan_type: resolvedPlanType,
+              member_id: memberId,
+            });
+          }
+          results.push({ tenant_id: tenantId, charge_id: chargeId, quantity: toSync.length, plan: planName });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error(`Charge creation failed for tenant ${tenantId}: ${msg}`);
           for (const it of toSync) {
             await supabase.from("officernd_sync_log").insert({
               mail_item_id: it.id,
               status: "failed",
-              error_message: `Batch charge failed: ${txt}`,
+              error_message: `Batch charge failed: ${msg}`,
               amount_text: fees[0].amountText,
             });
           }
           continue;
         }
-
-        const chargeRaw = await chargeRes.json();
-        const charge = Array.isArray(chargeRaw) ? chargeRaw[0] : chargeRaw;
-        const chargeId = charge?._id || charge?.id || null;
-        const resolvedPlanType = charge?.planType || "OneOff";
-
-        // Log for each item in the batch
-        for (const it of toSync) {
-          await supabase.from("officernd_sync_log").insert({
-            mail_item_id: it.id,
-            status: "pending_confirmation",
-            charge_id: chargeId,
-            amount_text: fees[0].amountText,
-            plan_name: planName,
-            plan_type: resolvedPlanType,
-            member_id: memberId,
-          });
-        }
-
-        results.push({ tenant_id: tenantId, charge_id: chargeId, quantity: toSync.length, plan: planName });
       } else {
+
         // Zero fee — log as skipped for each item
         for (const it of tenantItems) {
           const { data: existingLog } = await supabase
@@ -507,44 +462,25 @@ Deno.serve(async (req) => {
         }
 
         try {
-          const portoPlanId = await findPlanId(apiBase, token, portoInfo.planName);
-
-          const portoBody: Record<string, unknown> = {
-            price: portoInfo.amountKr,
-            date: new Date().toISOString(),
-            quantity: 1,
-            isPersonal,
-            description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
-          };
-
-          if (isPersonal) portoBody.member = memberId;
-          if (memberOffice) portoBody.office = memberOffice;
-          if (companyId) portoBody.team = companyId;
-
+          const portoItem = await findItemByName(apiBase, token, portoInfo.planName);
           const _pbd = new Date();
           const portoDateLabel = `${String(_pbd.getDate()).padStart(2,'0')}-${String(_pbd.getMonth()+1).padStart(2,'0')}-${String(_pbd.getFullYear()).slice(-2)}`;
           const portoStampLabel = stampNums.length > 0 ? ` (${stampNums.join(", ")})` : "";
-          if (portoPlanId) {
-            portoBody.plan = portoPlanId;
-            portoBody.name = `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
-          } else {
-            portoBody.name = `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`;
-          }
 
-          const portoRes = await fetch(`${apiBase}/fees`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify(portoBody),
+          const portoFee = await createFee(apiBase, token, {
+            member: memberId,
+            team: companyId,
+            office: memberOffice,
+            isPersonal,
+            price: portoInfo.amountKr,
+            quantity: 1,
+            name: portoItem
+              ? `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`
+              : `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`,
+            description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
+            item: portoItem,
           });
-
-          if (!portoRes.ok) {
-            const txt = await portoRes.text();
-            throw new Error(`Porto charge failed: ${txt}`);
-          }
-
-          const portoRaw = await portoRes.json();
-          const portoCharge = Array.isArray(portoRaw) ? portoRaw[0] : portoRaw;
-          const portoChargeId = portoCharge?._id || portoCharge?.id || null;
+          const portoChargeId = portoFee.id;
 
           if (portoLogId) {
             await supabase.from("officernd_sync_log")
@@ -559,6 +495,7 @@ Deno.serve(async (req) => {
               .eq("id", portoLogId);
           }
         }
+
       };
 
       // Process letter porto groups (1 charge per unique porto_option)

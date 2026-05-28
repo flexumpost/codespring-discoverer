@@ -116,6 +116,9 @@ export function OfficeRnDSettingsTab() {
         </CardContent>
       </Card>
 
+      <TestConnectionCard />
+
+
       <Card>
         <CardHeader>
           <CardTitle>Sync Log</CardTitle>
@@ -178,3 +181,92 @@ export function OfficeRnDSettingsTab() {
     </div>
   );
 }
+
+interface TestStep { step: string; ok: boolean; detail?: string }
+
+function TestConnectionCard() {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [itemName, setItemName] = useState("Brev forsendelse (Lite)");
+  const [steps, setSteps] = useState<TestStep[] | null>(null);
+  const [topError, setTopError] = useState<string | null>(null);
+
+  const test = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("test-officernd-connection", {
+        body: { email: email || null, item_name: itemName || null },
+      });
+      if (error) throw error;
+      return data as { success: boolean; steps: TestStep[]; error?: string };
+    },
+    onSuccess: (data) => {
+      setSteps(data.steps ?? []);
+      setTopError(data.success ? null : data.error ?? "Test fejlede");
+      toast({
+        title: data.success ? "Test gennemført" : "Test fejlede",
+        variant: data.success ? "default" : "destructive",
+      });
+    },
+    onError: (err: any) => {
+      setSteps(null);
+      setTopError(err?.message ?? String(err));
+      toast({ title: "Fejl", description: err?.message ?? String(err), variant: "destructive" });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Test forbindelse (v2)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Verificér token, member-opslag og fee-opslag mod OfficeRnD v2 API.
+          Opretter ingen charges.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3 max-w-2xl">
+          <div className="space-y-1">
+            <Label htmlFor="test-email">Test-email (valgfri)</Label>
+            <Input
+              id="test-email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="lejer@eksempel.dk"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="test-item">Plan/Fee-navn (valgfri)</Label>
+            <Input
+              id="test-item"
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
+              placeholder="f.eks. Brev forsendelse (Lite)"
+            />
+          </div>
+        </div>
+        <Button onClick={() => test.mutate()} disabled={test.isPending} size="sm">
+          {test.isPending ? "Tester..." : "Kør test"}
+        </Button>
+
+        {topError && (
+          <p className="text-sm text-destructive">{topError}</p>
+        )}
+
+        {steps && steps.length > 0 && (
+          <div className="space-y-1.5">
+            {steps.map((s, i) => (
+              <div key={i} className="flex items-start gap-2 text-sm">
+                <Badge variant={s.ok ? "default" : "destructive"}>{s.ok ? "OK" : "FEJL"}</Badge>
+                <div>
+                  <div className="font-medium">{s.step}</div>
+                  {s.detail && <div className="text-xs text-muted-foreground">{s.detail}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
