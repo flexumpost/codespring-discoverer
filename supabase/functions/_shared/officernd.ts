@@ -184,9 +184,10 @@ export async function createFee(
   }
 
   const date = (input.date ?? new Date().toISOString()).slice(0, 10); // YYYY-MM-DD
+  // v2 FeeRequestDto only accepts { plan, date, location } — extra fields
+  // (name/description) cause 400 "property X should not exist". We set the
+  // custom label via a follow-up PATCH /fees/{id} after creation.
   const feeLine: Record<string, unknown> = { plan: input.item.id, date };
-  if (input.name) feeLine.name = input.name;
-  if (input.description) feeLine.description = input.description;
   const body: Record<string, unknown> = {
     member: input.member,
     fees: [feeLine],
@@ -213,9 +214,34 @@ export async function createFee(
   const raw = await res.json();
   const feeArr = Array.isArray(raw?.fees) ? raw.fees : [];
   const first = feeArr[0] ?? raw;
-  return {
-    id: first?._id ?? first?.id ?? raw?._id ?? raw?.id ?? null,
-    planType: "OneOff",
-    raw,
-  };
+  const feeId: string | null =
+    first?._id ?? first?.id ?? raw?._id ?? raw?.id ?? null;
+
+  // Best-effort: PATCH the freshly-created fee with a human-readable
+  // description (date + stamp number). Failure must NOT break the main flow
+  // — the charge already exists in OfficeRnD.
+  const label = input.description ?? input.name;
+  if (feeId && label) {
+    try {
+      const patchRes = await fetch(`${apiBase}/fees/${feeId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ description: label, name: label }),
+      });
+      if (!patchRes.ok) {
+        const txt = await patchRes.text();
+        console.warn(
+          `OfficeRnD PATCH /fees/${feeId} failed [${patchRes.status}]: ${txt}`
+        );
+      }
+      await patchRes.body?.cancel().catch(() => {});
+    } catch (e) {
+      console.warn(`OfficeRnD PATCH /fees/${feeId} threw:`, e);
+    }
+  }
+
+  return { id: feeId, planType: "OneOff", raw };
 }

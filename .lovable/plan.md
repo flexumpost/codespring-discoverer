@@ -1,55 +1,36 @@
-## Mål
+## Årsag
 
-Hver gebyrlinje, der oprettes i OfficeRnD, skal vise dato og forsendelsesnummer i selve linjebeskrivelsen, fx:
+Forsendelsen til **M.O.D** (mail_item `1e65af06…`) fejlede i `sync-officernd-charge-batch` med:
 
 ```
-DAO Porto Danmark (0 - 100 g.) kr. 18,4 - 28-05-26 (12345)
+OfficeRnD checkout failed [400]:
+  "fees.0.property name should not exist"
+  "fees.0.property description should not exist"
 ```
 
-## Baggrund / problem
+I sidste runde tilføjede vi `name` og `description` direkte på fee-linjen i `POST /checkout` for at få datoen og forsendelsesnummeret med ind på fakturalinjen. Det blev valideret lokalt, men OfficeRnD v2's `FeeRequestDto` accepterer **kun** `{ plan, date, location }` på fee-linjer og afviser hele kaldet hvis der er ekstra felter. Derfor blev hverken hoved-gebyr eller porto overført for M.O.D — og det rammer alle andre overførsler oprettet i samme batch/flow efter ændringen.
 
-Vi bygger allerede strenge som `${planName} - ${dato} (${stampNumber})` i `sync-officernd-charge` og `sync-officernd-charge-batch` og sender dem som `name`/`description` til `createFee(...)`. Men i `supabase/functions/_shared/officernd.ts` bygger `createFee` v2-payloaden som:
-
-```ts
-fees: [{ plan: input.item.id, date }]
-```
-
-`name` og `description` bliver derfor smidt væk, og OfficeRnD viser kun plan-navnet uden dato/nummer.
-
-## Ændringer
+## Plan
 
 ### 1. `supabase/functions/_shared/officernd.ts`
-- Udvid `CreateFeeInput` så `name` og `description` officielt indgår.
-- Lad `createFee` lægge dem ind på hver fee-linje i v2 checkout-payloaden:
-  ```ts
-  fees: [{
-    plan: input.item.id,
-    date,
-    ...(input.name ? { name: input.name } : {}),
-    ...(input.description ? { description: input.description } : {}),
-  }]
-  ```
-- Behold krav om `item.id` og `member` som i dag.
+- Fjern `name` og `description` fra `feeLine` igen, så `POST /checkout` kun sender `{ plan, date }` (det v2 faktisk accepterer).
+- Behold `name`/`description` på `CreateFeeInput` (de bruges til loggen + til opfølgnings-PATCH).
+- Efter `POST /checkout` returnerer et fee-id: hvis `input.description` (eller `input.name`) er sat, lav et opfølgnings-kald:
+  - `PATCH {apiBase}/fees/{id}` med body `{ description: input.description ?? input.name }`.
+  - Wrap i try/catch — fejler PATCH'en logges det som warning, men hovedflowet skal stadig returnere success (gebyret er allerede oprettet i OfficeRnD).
+- Hvis det viser sig at v2 også afviser `PATCH /fees/{id}` på description (kendt fra v1→v2 ændringer), prøv subsidært `PATCH {apiBase}/charges/{id}` eller læg info i `metadata` — vælges først hvis første PATCH også giver 400/404; ingen ekstra scopes nødvendige ud over hvad appen allerede har til charges.
 
-### 2. `supabase/functions/sync-officernd-charge/index.ts`
-- Standardisér label-formatet til præcis det, brugeren ønsker:
-  - Hoved-gebyr: `"${planName}${tenantLabel} - ${dateLabel} (${stamp_number})"`
-  - Porto: `"${portoInfo.planName}${tenantLabel} - ${dateLabel} (${stamp_number})"`
-- `dateLabel` fortsætter som `DD-MM-YY`.
-- Hvis `stamp_number` mangler udelades `( ... )`-delen.
-- `tenantLabel` (kun ved `billed_by_email`) bevares uændret.
+### 2. Sync-funktionerne
+- `sync-officernd-charge/index.ts` og `sync-officernd-charge-batch/index.ts` ændres ikke i deres label-bygning — de fortsætter med at sende det fulde format (`"${planName} - ${dateLabel} (${stamp_number})"`) som `name`/`description` til `createFee`. Det er nu `_shared/officernd.ts` der står for, hvordan den info kommer ind i OfficeRnD.
 
-### 3. `supabase/functions/sync-officernd-charge-batch/index.ts`
-- Samme format for konsoliderede linjer, hvor flere forsendelser samles:
-  - `"${planName}${tenantLabel} - ${dateLabel} (${nr1}, ${nr2}, ...)"`
-- Gælder både hoved-gebyr og brev-porto-grupper. Pakke-porto (per-item) får et enkelt nummer.
+### 3. Genoverfør M.O.D-fejlen
+- Efter deploy: kør samme resync som sidst, men kun for `mail_item_id = 1e65af06-af95-4f27-bd9a-10d7c5ece0d6`, så M.O.D's gebyr (30 kr. + porto) lander i OfficeRnD med korrekt beskrivelse.
+- Bekræft i `officernd_sync_log` at status er `success` og at linjen i OfficeRnD viser dato + forsendelsesnummer.
 
-### 4. Deploy og verificér
-- Deploy `sync-officernd-charge` og `sync-officernd-charge-batch`.
-- Kør en testforsendelse (eller bed bruger om at lave én), åbn fakturaen i OfficeRnD og bekræft at linjen viser fx `DAO Porto Danmark (0 - 100 g.) kr. 18,4 - 28-05-26 (12345)`.
-- Hvis OfficeRnD v2 afviser `name`/`description` på fee-linjen: fald tilbage til at PATCH'e den oprettede fee bagefter (`PATCH /fees/{id}` med `{ description }`). Logges som separat trin uden at fejle hovedflowet.
+### 4. Verificér
+- Lav en ny testforsendelse (eller bed bruger om at sende én), åbn fakturaen i OfficeRnD og kontroller at fee-linjen viser fx `Pakke forsendelse (Standard) - 28-05-26 (12345)` via PATCH-beskrivelsen.
+- Hvis OfficeRnD UI viser plan-navnet uden beskrivelsen prominent, accepter det som best effort — info findes på fee'en og i `officernd_sync_log`.
 
 ## Ud af scope
-
-- Ingen ændringer i fee-beregning, plan-matching, idempotens, UI eller priser.
-- Ingen retroaktive ændringer af allerede overførte gebyrer.
+- Ingen prisændringer, ingen ny plan-matching, ingen UI-ændringer.
+- Ingen retroaktiv genoverførsel af andre tidligere gebyrer ud over de der konkret fejlede i denne batch (kun M.O.D pt.).
