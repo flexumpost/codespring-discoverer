@@ -159,39 +159,41 @@ export interface CreateFeeInput {
 }
 
 /**
- * Create a one-off fee in OfficeRnD v2.
+ * Create a one-off fee in OfficeRnD v2 via POST /checkout.
  *
- * Uses POST /api/v2/organizations/<slug>/checkout, which is what the
- * `flex.billing.charges.create` scope actually grants. The legacy
- * POST /fees endpoint returns 401 in v2 even with the correct scope.
+ * v2 FeeRequestDto only accepts { plan, date, location } — pricing is
+ * determined entirely by the referenced plan (no per-line price override).
+ * That means we MUST have a resolved item.id; without one we throw so the
+ * caller logs a "plan not found" error instead of silently creating a free
+ * checkout.
  *
- * When item.source === "fees" we send `fee: itemId`; when "plans" we send
- * `plan: itemId`. Without a resolved item we send only price + name.
+ * Required scope: flex.billing.checkout.create (already on the app).
  */
 export async function createFee(
   apiBase: string,
   token: string,
   input: CreateFeeInput
 ): Promise<{ id: string | null; planType: string; raw: any }> {
-  const feeLine: Record<string, unknown> = {
-    quantity: input.quantity,
-    name: input.name,
-    price: input.price,
-  };
-  if (input.description) feeLine.description = input.description;
-  if (input.item?.id) {
-    if (input.item.source === "fees") feeLine.fee = input.item.id;
-    else feeLine.plan = input.item.id;
+  if (!input.item?.id) {
+    throw new Error(
+      `OfficeRnD checkout requires a resolved plan id; none found for "${input.name}"`
+    );
+  }
+  if (!input.member) {
+    throw new Error(`OfficeRnD checkout requires a member id`);
   }
 
+  const date = (input.date ?? new Date().toISOString()).slice(0, 10); // YYYY-MM-DD
   const body: Record<string, unknown> = {
-    isPersonal: input.isPersonal,
-    date: input.date ?? new Date().toISOString(),
-    fees: [feeLine],
+    member: input.member,
+    fees: [{ plan: input.item.id, date }],
+    options: {
+      shouldSendInvoice: false,
+      shouldInvoiceImmediately: false,
+      shouldChargeImmediately: false,
+      shouldRequireCreditCard: false,
+    },
   };
-  if (input.isPersonal && input.member) body.member = input.member;
-  if (input.office) body.office = input.office;
-  if (input.team) body.team = input.team;
 
   const res = await fetch(`${apiBase}/checkout`, {
     method: "POST",
@@ -206,11 +208,11 @@ export async function createFee(
     throw new Error(`OfficeRnD checkout failed [${res.status}]: ${txt}`);
   }
   const raw = await res.json();
-  const feeArr = Array.isArray(raw?.fees) ? raw.fees : (Array.isArray(raw) ? raw : []);
+  const feeArr = Array.isArray(raw?.fees) ? raw.fees : [];
   const first = feeArr[0] ?? raw;
   return {
     id: first?._id ?? first?.id ?? raw?._id ?? raw?.id ?? null,
-    planType: first?.planType ?? "OneOff",
+    planType: "OneOff",
     raw,
   };
 }
