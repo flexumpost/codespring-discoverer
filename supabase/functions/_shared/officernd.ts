@@ -41,6 +41,7 @@ export interface OfficeRndItem {
 const TOKEN_SCOPES = [
   "flex.billing.charges.create",
   "flex.billing.charges.read",
+  "flex.billing.checkout.create",
   "flex.community.members.read",
   "flex.billing.plans.read",
 ].join(" ");
