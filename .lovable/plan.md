@@ -1,57 +1,67 @@
-# Betales af-funktion (OfficeRnD fakturering på andens konto)
+# OfficeRnD v1 → v2 migration
 
-Tilføj mulighed for at en lejers gebyrer i OfficeRnD overføres til en anden virksomheds konto (f.eks. Unimont betales af Radner). Kun operatører kan konfigurere dette.
+## Baggrund
 
-## 1. Database
-Migration der tilføjer felter på `tenants`:
-- `billed_by_email` (text, nullable)
-- `billed_by_company` (text, nullable)
+- App i OfficeRnD: **"Flexum Coworking Post"** har allerede korrekte v2-scopes (`flex.billing.charges.*`, `flex.billing.checkout.create`, `flex.billing.plans.read`, `flex.community.members.read`). Ingen ændringer i OfficeRnD-appens scopes nødvendige.
+- "Pilotomail" og "OfficeRnD til Dinero" i deprecation-advarslen er separate v1-apps – ignoreres her.
+- Årsag til 403/AccessDeniedError: koden kalder `/api/v1/...`, men token har `flex.*`-scopes → v1 afviser. Løsning = skifte til `/api/v2/...`.
+- Alle vores poster (Brev forsendelse, Brev/pakke afhentning, Pakke håndtering, Scanning af brev, Pakke forsendelse – Lite/Standard/Plus) findes allerede som **One-off Plans** i OfficeRnD. Intet skal oprettes manuelt.
 
-Ingen ændring af RLS — eksisterende "Operators update tenants" dækker redigering. Vi tilføjer ikke disse felter til "Tenants update own tenant"-policy, så lejeren selv kan ikke ændre dem.
+## Hvad ændres v1 → v2
 
-## 2. UI på lejerens indstillingsside (`src/pages/TenantDetailPage.tsx`)
-Ny boks "Betales af" placeret under kontakt-sektionen:
-- 2 felter: E-mail og Firmanavn
-- Hjælpetekst: "Hvis udfyldt, sendes alle OfficeRnD-gebyrer for denne lejer til den angivne e-mail/virksomhed i stedet for lejerens egen konto."
-- Knap: "Gem"
-- Vises **kun for operatører** (`isOperator`-check, samme mønster som andre operator-only felter på siden)
-- Felterne tilføjes til `tenant`-typen, state og update-mutation
-- Tom e-mail = ingen override (gebyrer sendes som hidtil)
+| Område | v1 | v2 |
+|---|---|---|
+| Base URL | `/api/v1/<org>/...` | `/api/v2/<org>/...` |
+| Find member | `GET /members?email=` (array) | `GET /members?email=` (`{ results, cursorNext, cursorPrev }`) |
+| Find one-off plan | `GET /plans?name=` (array) | `GET /fees?name=` ELLER `GET /plans?name=` (cursor-respons) |
+| Opret charge | `POST /charges {member, plan, price, name}` | `POST /checkout {fees:[{fee\|plan, quantity, name}]}` |
+| Token | uændret (`/oauth/token`) | uændret |
 
-Ingen ny side; vi udvider eksisterende detail-page.
+Empirisk opslag: helper kalder først `/fees?name=…`. Hvis 0 hits, fallback til `/plans?name=…`. Den endpoint der gav hit, bestemmer felt-navnet (`fee` vs `plan`) i checkout-payload. Resultatet caches in-memory pr. invokation.
 
-## 3. Edge function `sync-officernd-charge`
-Læs `billed_by_email` og `billed_by_company` fra tenant.
+## Filer der ændres
 
-**Når `billed_by_email` er sat:**
-- Brug *kun* `billed_by_email` til OfficeRnD-medlemslookup (override af nuværende candidate-liste). Hvis ikke fundet → fejl som hidtil.
-- Tilføj lejerens firmanavn i `name`-feltet på charges, så betaleren kan se hvem gebyret tilhører.
+- `supabase/functions/_shared/officernd.ts` (NY) – v2-helper: `getToken`, `findMemberByEmail`, `findItemByName` (fee→plan fallback + cache), `createCheckout`.
+- `supabase/functions/sync-officernd-charge/index.ts` – brug helper, fjern v1-kald.
+- `supabase/functions/sync-officernd-charge-batch/index.ts` – samme.
+- `supabase/functions/officernd-webhook/index.ts` – evt. v2-tilpasning af payload-felter (tjekkes ved implementering; uændret hvis webhook-format ikke skifter).
+- `supabase/functions/test-officernd-connection/index.ts` (NY) – kalder `getToken` + `findMemberByEmail` for valgt test-email + slår valgt fee-navn op. Returnerer status pr. trin.
+- `src/components/operator/OfficeRnDSettingsTab.tsx` (eller eksisterende settings-komponent) – "Test forbindelse"-knap der kalder edge function og viser resultat.
 
-**Når `billed_by_email` er tom:** uændret adfærd (contact_email + tenant_users-fallback).
+Bevares uændret: "Betales af"-logik, retry, business rules omkring hvornår synkronisering trigges, `officernd_sync_log`-skrivning.
 
-### Navnegenerering
-Nuværende format:
-- Med plan: `${planName} (${stamp}) - ${date}`
-- Uden plan: `Postgebyr: ${amountText} (${mailType}) (${stamp}) - ${date}`
-- Porto: `${portoPlan} (${stamp}) - ${date}`
+## Faser
 
-Når override er aktiv, præfix med lejerens firmanavn:
-- `${planName} (${tenantCompanyName}) - ${stamp} - ${date}`
-- Porto: `${portoPlan} (${tenantCompanyName}) - ${stamp} - ${date}`
+**Fase 1 – Forberedelse (operator):**
+- Bekræft at en kendt test-bruger findes i OfficeRnD (email matcher en lejer-kontaktmail).
+- Ingen oprettelse af items nødvendig.
 
-Eksempel fra brugerens prompt: `Forsendelse (Unimont) - 3285 - 26-05-26`
+**Fase 2 – Kode-migration:**
+- Implementér `_shared/officernd.ts`.
+- Refaktorer `sync-officernd-charge` + `sync-officernd-charge-batch` til v2 + checkout-payload.
+- Hård cutover – ingen v1-fallback i koden. Rollback sker via revision hvis nødvendigt.
 
-Tenant-firmanavnet hentes via det eksisterende `mail_items → tenants`-select (tilføj `company_name` og de to nye felter).
+**Fase 3 – Test & resync:**
+- Deploy med `officernd_settings.enabled = false` for at undgå auto-trigger.
+- Brug "Test forbindelse"-knappen → verificér token, member-opslag, fee-opslag.
+- Aktivér `enabled = true`.
+- Tilføj/brug eksisterende "Resend"-knap på fejlede `officernd_sync_log`-rækker til at køre dem igennem v2.
 
-## 4. Edge function `sync-officernd-charge-batch`
-Samme override-logik (medlemslookup via `billed_by_email`, præfix firmanavn i charge `name`). Læser tenant fields i samme query.
+**Fase 4 – Webhooks (separat task, ikke i denne migration):**
+- Verificér at `officernd-webhook` stadig modtager events i v2-format; håndteres som opfølgning.
 
-## Teknisk
-- Migration tilføjes via supabase migration tool.
-- `src/integrations/supabase/types.ts` regenereres automatisk efter migration.
-- Begge edge functions deployes efter ændringerne.
-- Ingen ændring af fee-beregning eller plan-lookup — kun *hvem* der debiteres og *hvad* der står i charge-navnet.
+## Risici
 
-## Ikke inkluderet (kan tilføjes senere hvis ønsket)
-- Retry-knap på fejlede `officernd_sync_log`-rækker (nævnt i tidligere besked).
-- Validering af at `billed_by_email` faktisk findes i OfficeRnD ved gem-tidspunkt.
+- **Pris-override (porto):** v2-checkout bruger fee'ens forud-definerede pris. Hvis koden i dag sender variabel porto, skal vi enten (a) acceptere fee-prisen som den er, eller (b) bekræfte at `price`-felt på checkout-fee accepteres som override. Afklares i Fase 2 ved første test mod sandkasse-charge; hvis override ikke virker, kommer det op som beslutning før vi går videre.
+- **Webhook-payload-felter** kan have skiftet navne i v2 – verificeres i Fase 4.
+- **Hård cutover** – revision-rollback hvis Fase 2 fejler i produktion.
+
+## Teknisk note (checkout-payload)
+
+```ts
+// hit fra /fees:
+{ fees: [{ fee: "<id>", quantity: 1, name: "<label>" }] }
+// hit fra /plans (one-off):
+{ fees: [{ plan: "<id>", quantity: 1, name: "<label>" }] }
+// member tilknyttes via member-id på checkout-rod (felt verificeres mod v2-docs ved implementering).
+```
