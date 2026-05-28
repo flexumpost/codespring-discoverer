@@ -184,9 +184,12 @@ export async function createFee(
   }
 
   const date = (input.date ?? new Date().toISOString()).slice(0, 10); // YYYY-MM-DD
+  const feeLine: Record<string, unknown> = { plan: input.item.id, date };
+  if (input.name) feeLine.name = input.name;
+  if (input.description) feeLine.description = input.description;
   const body: Record<string, unknown> = {
     member: input.member,
-    fees: [{ plan: input.item.id, date }],
+    fees: [feeLine],
     options: {
       shouldSendInvoice: false,
       shouldInvoiceImmediately: false,
