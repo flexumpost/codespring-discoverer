@@ -116,6 +116,9 @@ export function OfficeRnDSettingsTab() {
         </CardContent>
       </Card>
 
+      <TestConnectionCard />
+
+
       <Card>
         <CardHeader>
           <CardTitle>Sync Log</CardTitle>
