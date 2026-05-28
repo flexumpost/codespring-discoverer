@@ -359,8 +359,8 @@ Deno.serve(async (req) => {
           price: portoInfo.amountKr,
           quantity: 1,
           name: portoItem
-            ? `${portoInfo.planName}${tenantLabel} -${stampLabel} - ${dateLabel}`
-            : `Porto: ${portoInfo.planName}${tenantLabel} -${stampLabel} - ${dateLabel}`,
+            ? `${portoInfo.planName}${tenantLabel} - ${dateLabel}${stampLabel}`
+            : `Porto: ${portoInfo.planName}${tenantLabel} - ${dateLabel}${stampLabel}`,
           description: `[mail_item_id:${mailItemId}] porto`,
           item: portoItem,
         });
