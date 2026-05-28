@@ -356,7 +356,7 @@ Deno.serve(async (req) => {
             isPersonal,
             price: fees[0].amountKr,
             quantity: toSync.length,
-            name: `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`,
+            name: `${planName}${tenantLabel} - ${batchDateLabel}${syncStampLabel}`,
             description: `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`,
             item: matchedItem,
           });
