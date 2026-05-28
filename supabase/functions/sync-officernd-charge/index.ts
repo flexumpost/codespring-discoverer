@@ -313,8 +313,8 @@ Deno.serve(async (req) => {
         price: amountKr,
         quantity: 1,
         name: matchedItem && planName
-          ? `${planName}${tenantLabel} -${stampLabel} - ${dateLabel}`
-          : `Postgebyr: ${amountText} (${item.mail_type})${tenantLabel} -${stampLabel} - ${dateLabel}`,
+          ? `${planName}${tenantLabel} - ${dateLabel}${stampLabel}`
+          : `Postgebyr: ${amountText} (${item.mail_type})${tenantLabel} - ${dateLabel}${stampLabel}`,
         description: `[mail_item_id:${mailItemId}]`,
         item: matchedItem,
       });
