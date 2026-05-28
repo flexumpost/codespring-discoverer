@@ -356,7 +356,7 @@ Deno.serve(async (req) => {
             isPersonal,
             price: fees[0].amountKr,
             quantity: toSync.length,
-            name: `${planName}${tenantLabel}${syncStampLabel} - ${batchDateLabel}`,
+            name: `${planName}${tenantLabel} - ${batchDateLabel}${syncStampLabel}`,
             description: `${planName} x${toSync.length}${stampText} [mail_item_ids:${itemIds.join(",")}]`,
             item: matchedItem,
           });
@@ -475,8 +475,8 @@ Deno.serve(async (req) => {
             price: portoInfo.amountKr,
             quantity: 1,
             name: portoItem
-              ? `${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`
-              : `Porto: ${portoInfo.planName}${tenantLabel}${portoStampLabel} - ${portoDateLabel}`,
+              ? `${portoInfo.planName}${tenantLabel} - ${portoDateLabel}${portoStampLabel}`
+              : `Porto: ${portoInfo.planName}${tenantLabel} - ${portoDateLabel}${portoStampLabel}`,
             description: `[mail_item_ids:${chargeItems.map(i => i.id).join(",")}] porto ${stampLabel}`,
             item: portoItem,
           });

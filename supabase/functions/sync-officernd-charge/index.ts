@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
 
     const _d = new Date();
     const dateLabel = `${String(_d.getDate()).padStart(2,'0')}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getFullYear()).slice(-2)}`;
-    const stampLabel = item.stamp_number ? ` ${item.stamp_number}` : "";
+    const stampLabel = item.stamp_number ? ` (${item.stamp_number})` : "";
     const tenantLabel = billedByEmail && tenantCompanyName ? ` (${tenantCompanyName})` : "";
 
     if (!skippedMainFee) {
@@ -313,8 +313,8 @@ Deno.serve(async (req) => {
         price: amountKr,
         quantity: 1,
         name: matchedItem && planName
-          ? `${planName}${tenantLabel} -${stampLabel} - ${dateLabel}`
-          : `Postgebyr: ${amountText} (${item.mail_type})${tenantLabel} -${stampLabel} - ${dateLabel}`,
+          ? `${planName}${tenantLabel} - ${dateLabel}${stampLabel}`
+          : `Postgebyr: ${amountText} (${item.mail_type})${tenantLabel} - ${dateLabel}${stampLabel}`,
         description: `[mail_item_id:${mailItemId}]`,
         item: matchedItem,
       });
@@ -359,8 +359,8 @@ Deno.serve(async (req) => {
           price: portoInfo.amountKr,
           quantity: 1,
           name: portoItem
-            ? `${portoInfo.planName}${tenantLabel} -${stampLabel} - ${dateLabel}`
-            : `Porto: ${portoInfo.planName}${tenantLabel} -${stampLabel} - ${dateLabel}`,
+            ? `${portoInfo.planName}${tenantLabel} - ${dateLabel}${stampLabel}`
+            : `Porto: ${portoInfo.planName}${tenantLabel} - ${dateLabel}${stampLabel}`,
           description: `[mail_item_id:${mailItemId}] porto`,
           item: portoItem,
         });
