@@ -1,40 +1,48 @@
-# Fix: Dobbelt shipment-email til M.O.D
+# Fix: "Fejl" ved opdatering af Ubetalt faktura
 
 ## Årsag
-M.O.D's `tenants.contact_email` = `Pedersenlottepedersen@gmail.com` (stort P).
-Profilen i `tenant_users → profiles.email` = `pedersenlottepedersen@gmail.com` (lille p).
 
-I `supabase/functions/send-new-mail-email/index.ts` filtreres ekstra modtagere case-sensitivt:
-```ts
-if (p.email && p.email !== tenant.contact_email) {
-  extraEmails.push(p.email);
-}
+Postgres-loggene viser:
 ```
-Da strengene ikke matcher pga. casing, ryger profilen ind som "ekstra modtager", og samme person modtager mailen to gange. Bekræftet i `email_send_log` (én normal afsendelse + én med `extra_recipient: true`, begge til samme adresse i forskellig casing).
-
-## Ændringer
-
-### 1. `supabase/functions/send-new-mail-email/index.ts`
-Gør filtreringen case-insensitiv og deduplikér også internt blandt profiler:
-```ts
-const primaryLower = tenant.contact_email.toLowerCase();
-const seen = new Set<string>([primaryLower]);
-for (const p of profiles) {
-  if (!p.email) continue;
-  const lower = p.email.toLowerCase();
-  if (seen.has(lower)) continue;
-  seen.add(lower);
-  extraEmails.push(p.email);
-}
+ERROR: infinite recursion detected in policy for relation "tenants"
 ```
-Genudrul edge function.
 
-### 2. Tjek øvrige steder (kun læse-tjek, ingen ændring medmindre nødvendigt)
-Hurtig `rg` for tilsvarende `!== tenant.contact_email`-mønstre i andre edge functions (fx `send-welcome-email`, notify-* funktioner). Hvis samme bug findes, anvendes samme fix der.
+Policy'en `"Tenants update own tenant"` på `public.tenants` har denne WITH CHECK:
+```sql
+((user_id = auth.uid()) AND (tenant_type_id = (
+  SELECT tenants_1.tenant_type_id
+  FROM tenants tenants_1
+  WHERE (tenants_1.id = tenants_1.id)   -- altid sand → rammer alle rækker
+)))
+```
+
+To problemer:
+1. Subquery'en laver `SELECT ... FROM tenants` inde i en policy på `tenants` → uendelig rekursion (RLS udløses igen på subquery'en).
+2. `WHERE tenants_1.id = tenants_1.id` matcher alle rækker i stedet for den aktuelle række.
+
+Selv når en operatør laver `UPDATE tenants SET has_unpaid_invoice = false WHERE id = '...'`, evalueres WITH CHECK fra denne policy som en del af det samlede policy-udtryk og fejler — derfor `error` retur fra `supabase.update(...)` og "Fejl"-toast i `TenantsPage.tsx`.
+
+## Plan
+
+### 1. Migration: erstat policy + tilføj SECURITY DEFINER guard for tenant_type_id
+
+- Drop policy `"Tenants update own tenant"`.
+- Tilføj ny policy med samme USING (`user_id = auth.uid()`) og en simpel WITH CHECK uden self-reference:
+  - `WITH CHECK (user_id = auth.uid())`
+- Bevar reglen om at en lejer ikke selv kan ændre `tenant_type_id` via en BEFORE UPDATE trigger:
+  ```sql
+  CREATE FUNCTION public.prevent_tenant_self_type_change() RETURNS trigger ...
+  -- Hvis auth.uid() = NEW.user_id (dvs. lejer-opdatering, ikke operator)
+  -- og NEW.tenant_type_id IS DISTINCT FROM OLD.tenant_type_id → RAISE EXCEPTION
+  ```
+  Operatører rammer ikke triggeren da deres opdateringer typisk har `auth.uid()` ≠ tenant.user_id, men for at være sikker tjekker vi også `public.is_operator()` og skipper.
+
+### 2. Verifikation
+
+- Som operatør: toggle "Ubetalt faktura" af/på på MetaCad → ingen fejl, værdi gemmes.
+- Som lejer: kan stadig opdatere egne felter (fx shipping-adresse), men forsøg på at ændre `tenant_type_id` afvises.
 
 ## Out of scope
-- Ingen normalisering/lowercase af eksisterende `contact_email`-data i databasen (kan gøres separat hvis ønsket).
-- Ingen UI-ændringer.
 
-## Verifikation
-- Send en test-forsendelse til M.O.D og bekræft kun ét row i `email_send_log` for `shipment_dispatched`.
+- Ingen ændring i `TenantsPage.tsx` (frontend-logikken er korrekt; den fejler kun pga. RLS-rekursionen).
+- Ingen ændring i email-flow eller pickup_date-genberegning.
