@@ -9,6 +9,7 @@ type EnvelopeGroup = {
   shippingRecipient: string | null;
   shippingCo: string | null;
   shippingAddress: string | null;
+  shippingAddress2: string | null;
   shippingZip: string | null;
   shippingCity: string | null;
   shippingState: string | null;
