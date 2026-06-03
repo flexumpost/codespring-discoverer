@@ -1,48 +1,27 @@
-# Fix: "Fejl" ved opdatering af Ubetalt faktura
+# Fejl: Adresse linje 2 mangler på printede konvolutter
 
 ## Årsag
+CardX har i databasen:
+- `shipping_address` = tom
+- `shipping_address_2` = "Vadbro 96, 1f"
 
-Postgres-loggene viser:
-```
-ERROR: infinite recursion detected in policy for relation "tenants"
-```
+`EnvelopePrint.tsx` modtager kun `shippingAddress` fra `ShippingPrepPage` og udskriver kun det felt. `shipping_address_2` bliver hverken videregivet eller printet, så hele vejnavn-linjen forsvinder på konvolutten. På skærmen vises begge linjer, derfor opdages fejlen først ved print.
 
-Policy'en `"Tenants update own tenant"` på `public.tenants` har denne WITH CHECK:
-```sql
-((user_id = auth.uid()) AND (tenant_type_id = (
-  SELECT tenants_1.tenant_type_id
-  FROM tenants tenants_1
-  WHERE (tenants_1.id = tenants_1.id)   -- altid sand → rammer alle rækker
-)))
-```
+Dette rammer alle lejere, der har udfyldt adresselinje 2 — ikke kun CardX.
 
-To problemer:
-1. Subquery'en laver `SELECT ... FROM tenants` inde i en policy på `tenants` → uendelig rekursion (RLS udløses igen på subquery'en).
-2. `WHERE tenants_1.id = tenants_1.id` matcher alle rækker i stedet for den aktuelle række.
+## Løsning
 
-Selv når en operatør laver `UPDATE tenants SET has_unpaid_invoice = false WHERE id = '...'`, evalueres WITH CHECK fra denne policy som en del af det samlede policy-udtryk og fejler — derfor `error` retur fra `supabase.update(...)` og "Fejl"-toast i `TenantsPage.tsx`.
+1. **`src/components/EnvelopePrint.tsx`**
+   - Udvid `EnvelopeGroup`-typen med `shippingAddress2: string | null`.
+   - Render `shippingAddress2` som egen linje umiddelbart efter `shippingAddress` (samme stil som de øvrige linjer, tomme linjer skjules automatisk som i forvejen).
 
-## Plan
+2. **`src/pages/ShippingPrepPage.tsx`**
+   - Inkluder `shippingAddress2: group.shippingAddress2` når `EnvelopeGroup`-objekterne sendes videre til `<EnvelopePrint />` (felterne hentes og grupperes allerede, så det er kun mapping i print-payload).
 
-### 1. Migration: erstat policy + tilføj SECURITY DEFINER guard for tenant_type_id
+Ingen ændringer i database, RLS, edge functions eller adresseskema. Eksisterende 6-linjers visning på skærmen forbliver uændret; konvolutten kan nu have op til 7 linjer (recipient, c/o, address, address 2, zip/city, state, country) — tomme linjer skjules.
 
-- Drop policy `"Tenants update own tenant"`.
-- Tilføj ny policy med samme USING (`user_id = auth.uid()`) og en simpel WITH CHECK uden self-reference:
-  - `WITH CHECK (user_id = auth.uid())`
-- Bevar reglen om at en lejer ikke selv kan ændre `tenant_type_id` via en BEFORE UPDATE trigger:
-  ```sql
-  CREATE FUNCTION public.prevent_tenant_self_type_change() RETURNS trigger ...
-  -- Hvis auth.uid() = NEW.user_id (dvs. lejer-opdatering, ikke operator)
-  -- og NEW.tenant_type_id IS DISTINCT FROM OLD.tenant_type_id → RAISE EXCEPTION
-  ```
-  Operatører rammer ikke triggeren da deres opdateringer typisk har `auth.uid()` ≠ tenant.user_id, men for at være sikker tjekker vi også `public.is_operator()` og skipper.
+## Verifikation
+Print en testkonvolut for CardX og bekræft, at "Vadbro 96, 1f" nu fremgår mellem c/o-linjen og postnummer-linjen.
 
-### 2. Verifikation
-
-- Som operatør: toggle "Ubetalt faktura" af/på på MetaCad → ingen fejl, værdi gemmes.
-- Som lejer: kan stadig opdatere egne felter (fx shipping-adresse), men forsøg på at ændre `tenant_type_id` afvises.
-
-## Out of scope
-
-- Ingen ændring i `TenantsPage.tsx` (frontend-logikken er korrekt; den fejler kun pga. RLS-rekursionen).
-- Ingen ændring i email-flow eller pickup_date-genberegning.
+## Ud af scope
+- Vi flytter ikke "Vadbro 96, 1f" fra `shipping_address_2` til `shipping_address` i CardX' record. Adressen er gyldig, og rettelsen skal virke for alle lejere der bruger felt 2.
