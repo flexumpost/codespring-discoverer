@@ -1094,12 +1094,22 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     }
 
                     if (scanExpired || isSentWithDao || (isLockedForShipping && item.status !== "arkiveret")) {
+                      const rowIsCompleted =
+                        item.status === "sendt_med_dao" ||
+                        item.status === "sendt_med_postnord" ||
+                        !!item.scan_url;
                       return (
                         <Button
                           size="sm"
                           variant="outline"
                           className="text-xs"
-                          onClick={() => archiveMutation.mutate(item.id)}
+                          onClick={() => {
+                            if (rowIsCompleted) {
+                              archiveMutation.mutate(item.id);
+                            } else {
+                              setArchiveBlockedOpen(true);
+                            }
+                          }}
                           disabled={archiveMutation.isPending}
                         >
                           {t("common.archive")}

@@ -1,50 +1,31 @@
-# Krav til arkivering: handlingen skal være gennemført
+# Hvorfor kan brev 11111 stadig arkiveres?
 
-## Problem
-Lejere kan i dag arkivere en hvilken som helst forsendelse i status `ny`, `ulaest`, `laest` eller `afventer_handling` direkte fra detalje-dialogen i `TenantDashboard`. Det betyder at breve kan ende i arkiv uden at handlingen (send, scan, afhentning, destruktion) er gennemført.
+Den popup-spærring vi tilføjede sidst ligger kun på arkiver-knappen i **detalje-dialogen** (linje 1325-1340 i `src/pages/TenantDashboard.tsx`).
 
-## Regel for "gennemført"
-Et brev/pakke betragtes som gennemført — og må arkiveres af lejeren — hvis mindst én af følgende gælder:
+I selve **tabel-rækken** findes en separat arkiver-knap (linje 1096-1108) der vises når `scanExpired || isSentWithDao || isLockedForShipping` er sand. `isLockedForShipping` bliver sand så snart pakkedagen er nået for et "send"-brev — også selv om brevet endnu ikke er fysisk sendt (status er stadig `afventer_handling`, ikke `sendt_med_dao`/`sendt_med_postnord`). Knappen kalder `archiveMutation.mutate(item.id)` direkte uden `isCompleted`-tjek, så brev 11111 (afventer afsendelse) kan arkiveres derfra.
 
-- `status` er `sendt_med_dao` eller `sendt_med_postnord` (afsendelse fuldført af operatør)
-- `scan_url` er sat (scanning faktisk uploadet — ikke blot anmodet)
+## Ændring
 
-Bemærk: når en pakke/brev er **afhentet** eller **destrueret**, sætter systemet allerede `status = arkiveret` automatisk, så lejeren rammer aldrig manuel arkivering for de tilfælde. At blot have valgt `chosen_action = scan / afhentning / destruer / send` tæller ikke som gennemført.
+`src/pages/TenantDashboard.tsx`, række-knappen (linje 1096-1108):
 
-## Ændringer
-
-### `src/pages/TenantDashboard.tsx`
-
-1. Erstat `canArchive`-blokken (linje 845-848):
+1. Beregn samme `isCompleted` lokalt for rækken:
    ```ts
    const isCompleted =
-     !!selectedItem &&
-     (selectedItem.status === "sendt_med_dao" ||
-       selectedItem.status === "sendt_med_postnord" ||
-       !!selectedItem.scan_url);
-   const canArchive = !!selectedItem && selectedItem.status !== "arkiveret";
+     item.status === "sendt_med_dao" ||
+     item.status === "sendt_med_postnord" ||
+     !!item.scan_url;
    ```
-   Knappen vises stadig på alle ikke-arkiverede items, så vi kan vise en forklarende popup ved klik.
+2. Ændr `onClick`:
+   - Hvis `isCompleted` → `archiveMutation.mutate(item.id)` som i dag.
+   - Ellers → `setArchiveBlockedOpen(true)` (genbruger eksisterende popup og i18n-nøgler).
 
-2. Tilføj lokal state + `AlertDialog` (shadcn) til at vise en "vælg/gennemfør handling først"-besked.
-
-3. Arkivér-knappens `onClick`:
-   - Hvis `isCompleted` → kald `archiveMutation.mutate(selectedItem.id)` som i dag.
-   - Ellers → åbn forklarings-dialogen i stedet.
-
-### i18n (`src/i18n/locales/da.json` + `en.json`)
-Tilføj under `tenantDashboard`:
-- `archiveBlockedTitle` — DA: "Handling skal gennemføres først" / EN: "Action must be completed first"
-- `archiveBlockedMessage` — DA: "Forsendelsen kan først arkiveres når handlingen er gennemført — dvs. brevet er sendt, scannet, afhentet eller destrueret. Vælg en handling og afvent at den er udført." / EN: tilsvarende.
-- `archiveBlockedAck` — "Forstået" / "Got it"
+Knappen vises stadig i samme tilfælde som før, men klik på et ikke-gennemført brev åbner forklarings-popup'en i stedet for at arkivere.
 
 ## Ud af scope
-- Operator-flow (operatører må fortsat arkivere frit).
-- Ingen DB-/RLS-ændringer; reglen håndhæves i UI for lejer-flowet, hvor knappen vises.
-- Reaktivér-knappen ændres ikke.
+- Detalje-dialogens arkiver-knap (allerede korrekt).
+- Reaktivér-flow, operator-flow, DB/RLS.
 
 ## Verifikation
-1. Forsendelse med status `ny`/`ulaest`/`laest` uden `scan_url` → klik Arkiver → popup vises, status uændret.
-2. Forsendelse hvor lejer har valgt `chosen_action = scan` men intet scan endnu → popup vises.
-3. Forsendelse med `scan_url` sat → Arkiver virker som før.
-4. Forsendelse med status `sendt_med_dao` eller `sendt_med_postnord` → Arkiver virker som før.
+1. Brev 11111 (status `afventer_handling`, ingen `scan_url`) på/efter pakkedag → klik Arkiver i rækken → popup vises, status uændret.
+2. Brev med `scan_url` (scan udløbet) → Arkiver i rækken virker som før.
+3. Brev med status `sendt_med_dao` eller `sendt_med_postnord` → Arkiver i rækken virker som før.
