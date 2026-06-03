@@ -69,6 +69,7 @@ const TenantsPage = () => {
         shippingRecipient: t.shipping_recipient ?? null,
         shippingCo: t.shipping_co ?? null,
         shippingAddress: t.shipping_address ?? null,
+        shippingAddress2: (t as any).shipping_address_2 ?? null,
         shippingZip: t.shipping_zip ?? null,
         shippingCity: t.shipping_city ?? null,
         shippingState: t.shipping_state ?? null,
