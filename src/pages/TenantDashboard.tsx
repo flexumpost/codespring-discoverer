@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Mail, Archive, ImageIcon, ScanLine, Download, CalendarIcon, FileCheck, Undo2, MessageSquare, ExternalLink, Inbox, MessageCircle, AlertTriangle } from "lucide-react";
@@ -577,6 +578,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
+  const [archiveBlockedOpen, setArchiveBlockedOpen] = useState(false);
 
   useEffect(() => {
     setScanSignedUrl(null);
@@ -842,10 +844,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     }
   };
 
-  const canArchive =
-    selectedItem &&
-    (selectedItem.status === "laest" || selectedItem.status === "afventer_handling" ||
-      selectedItem.status === "ny" || selectedItem.status === "ulaest");
+  const isCompleted =
+    !!selectedItem &&
+    (selectedItem.status === "sendt_med_dao" ||
+      selectedItem.status === "sendt_med_postnord" ||
+      !!selectedItem.scan_url);
+  const canArchive = !!selectedItem && selectedItem.status !== "arkiveret";
 
   const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
 
@@ -1321,7 +1325,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             {canArchive && selectedItem?.status !== "arkiveret" && (
               <Button
                 variant="outline"
-                onClick={() => archiveMutation.mutate(selectedItem!.id)}
+                onClick={() => {
+                  if (isCompleted) {
+                    archiveMutation.mutate(selectedItem!.id);
+                  } else {
+                    setArchiveBlockedOpen(true);
+                  }
+                }}
                 disabled={archiveMutation.isPending}
               >
                 <Archive className="mr-2 h-4 w-4" />
@@ -1334,6 +1344,21 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={archiveBlockedOpen} onOpenChange={setArchiveBlockedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("tenantDashboard.archiveBlockedTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("tenantDashboard.archiveBlockedMessage")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setArchiveBlockedOpen(false)}>
+              {t("tenantDashboard.archiveBlockedAck")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       {/* Photo preview dialog */}
       <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
