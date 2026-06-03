@@ -842,10 +842,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     }
   };
 
-  const canArchive =
-    selectedItem &&
-    (selectedItem.status === "laest" || selectedItem.status === "afventer_handling" ||
-      selectedItem.status === "ny" || selectedItem.status === "ulaest");
+  const isCompleted =
+    !!selectedItem &&
+    (selectedItem.status === "sendt_med_dao" ||
+      selectedItem.status === "sendt_med_postnord" ||
+      !!selectedItem.scan_url);
+  const canArchive = !!selectedItem && selectedItem.status !== "arkiveret";
 
   const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
 
