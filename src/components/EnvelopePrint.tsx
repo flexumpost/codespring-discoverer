@@ -176,6 +176,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
               {group.shippingRecipient && <div>{group.shippingRecipient}</div>}
               {group.shippingCo && <div>{formatCo(group.shippingCo)}</div>}
               {group.shippingAddress && <div>{group.shippingAddress}</div>}
+              {group.shippingAddress2 && <div>{group.shippingAddress2}</div>}
               {(group.shippingZip || group.shippingCity) && (
                 <div>
                   {[cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ")}
