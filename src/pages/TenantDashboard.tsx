@@ -1325,7 +1325,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             {canArchive && selectedItem?.status !== "arkiveret" && (
               <Button
                 variant="outline"
-                onClick={() => archiveMutation.mutate(selectedItem!.id)}
+                onClick={() => {
+                  if (isCompleted) {
+                    archiveMutation.mutate(selectedItem!.id);
+                  } else {
+                    setArchiveBlockedOpen(true);
+                  }
+                }}
                 disabled={archiveMutation.isPending}
               >
                 <Archive className="mr-2 h-4 w-4" />
@@ -1338,6 +1344,21 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={archiveBlockedOpen} onOpenChange={setArchiveBlockedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("tenantDashboard.archiveBlockedTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("tenantDashboard.archiveBlockedMessage")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setArchiveBlockedOpen(false)}>
+              {t("tenantDashboard.archiveBlockedAck")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
 
       {/* Photo preview dialog */}
       <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
