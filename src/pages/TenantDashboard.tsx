@@ -577,6 +577,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
+  const [archiveBlockedOpen, setArchiveBlockedOpen] = useState(false);
 
   useEffect(() => {
     setScanSignedUrl(null);
