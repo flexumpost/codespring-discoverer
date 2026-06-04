@@ -189,6 +189,8 @@
   "tenants": {
     "title": "Lejere",
     "sendWelcomeEmail": "Send velkomst e-mail",
+    "sendWelcomeEmailShort": "Send",
+    "resendWelcomeEmail": "Gensend",
     "createNewTenant": "Opret ny lejer",
     "searchPlaceholder": "Søg på lejer navn...",
     "unpaidInvoice": "Ubetalt faktura",

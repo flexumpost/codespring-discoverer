@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { Plus, Mail, Printer } from "lucide-react";
+import { Plus, Mail, Printer, MailPlus } from "lucide-react";
 import { toast } from "sonner";
 import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
 
@@ -47,6 +47,7 @@ const TenantsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [pendingWelcomeTenantId, setPendingWelcomeTenantId] = useState<string | null>(null);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
@@ -136,9 +137,11 @@ const TenantsPage = () => {
       if (failed > 0) toast.error(t("tenants.failedCount", { count: failed }));
       
       setSelectedTenantIds(new Set());
+      setPendingWelcomeTenantId(null);
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
     },
     onError: (err: Error) => {
+      setPendingWelcomeTenantId(null);
       toast.error(t("tenants.couldNotSendWelcome") + ": " + err.message);
     },
   });
@@ -317,14 +320,30 @@ const TenantsPage = () => {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {tenant.welcome_email_sent_at ? (
-                        <span className="text-sm text-muted-foreground">
-                          {formatDate(tenant.welcome_email_sent_at)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">–</span>
-                      )}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        {tenant.welcome_email_sent_at ? (
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(tenant.welcome_email_sent_at)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">–</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={sendWelcomeMutation.isPending && pendingWelcomeTenantId === tenant.id}
+                          onClick={() => {
+                            setPendingWelcomeTenantId(tenant.id);
+                            sendWelcomeMutation.mutate([tenant.id]);
+                          }}
+                        >
+                          <MailPlus className="h-4 w-4 mr-1" />
+                          {tenant.welcome_email_sent_at
+                            ? t("tenants.resendWelcomeEmail")
+                            : t("tenants.sendWelcomeEmailShort")}
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
