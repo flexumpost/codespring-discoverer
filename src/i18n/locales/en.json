@@ -189,6 +189,8 @@
   "tenants": {
     "title": "Tenants",
     "sendWelcomeEmail": "Send welcome email",
+    "sendWelcomeEmailShort": "Send",
+    "resendWelcomeEmail": "Resend",
     "createNewTenant": "Create new tenant",
     "searchPlaceholder": "Search by tenant name...",
     "unpaidInvoice": "Unpaid invoice",
