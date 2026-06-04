@@ -137,9 +137,11 @@ const TenantsPage = () => {
       if (failed > 0) toast.error(t("tenants.failedCount", { count: failed }));
       
       setSelectedTenantIds(new Set());
+      setPendingWelcomeTenantId(null);
       queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
     },
     onError: (err: Error) => {
+      setPendingWelcomeTenantId(null);
       toast.error(t("tenants.couldNotSendWelcome") + ": " + err.message);
     },
   });
