@@ -621,7 +621,7 @@ const TenantDetailPage = () => {
                   <Save className="mr-2 h-4 w-4" />
                   {contactMutation.isPending ? t("common.saving") : t("common.save")}
                 </Button>
-                {tenant.contact_email && tenant.user_id && (
+                {tenant.contact_email && (
                   <ResendInviteButton tenant={{
                     id: tenant.id,
                     user_id: tenant.user_id ?? null,
