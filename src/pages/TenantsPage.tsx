@@ -320,14 +320,30 @@ const TenantsPage = () => {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {tenant.welcome_email_sent_at ? (
-                        <span className="text-sm text-muted-foreground">
-                          {formatDate(tenant.welcome_email_sent_at)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">–</span>
-                      )}
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        {tenant.welcome_email_sent_at ? (
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(tenant.welcome_email_sent_at)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">–</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={sendWelcomeMutation.isPending && pendingWelcomeTenantId === tenant.id}
+                          onClick={() => {
+                            setPendingWelcomeTenantId(tenant.id);
+                            sendWelcomeMutation.mutate([tenant.id]);
+                          }}
+                        >
+                          <MailPlus className="h-4 w-4 mr-1" />
+                          {tenant.welcome_email_sent_at
+                            ? t("tenants.resendWelcomeEmail")
+                            : t("tenants.sendWelcomeEmailShort")}
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
