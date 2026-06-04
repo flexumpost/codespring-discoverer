@@ -47,6 +47,7 @@ const TenantsPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [showPrint, setShowPrint] = useState(false);
+  const [pendingWelcomeTenantId, setPendingWelcomeTenantId] = useState<string | null>(null);
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ["all-tenants"],
