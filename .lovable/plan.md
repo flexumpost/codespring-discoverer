@@ -1,31 +1,40 @@
-# Hvorfor kan brev 11111 stadig arkiveres?
+## Årsag
 
-Den popup-spærring vi tilføjede sidst ligger kun på arkiver-knappen i **detalje-dialogen** (linje 1325-1340 i `src/pages/TenantDashboard.tsx`).
+Velkomst e-mailen kan kun sendes via topknappen "Send velkomst e-mail" i `src/pages/TenantsPage.tsx` (linje 232), efter at man markerer lejere i listen med checkbokse. Den knap virker også som gensend — der er ingen spærring på `welcome_email_sent_at`, og edge function'en `send-welcome-email` sender til alle tenants den får i `tenant_ids` (inkl. når flere deler samme e-mail).
 
-I selve **tabel-rækken** findes en separat arkiver-knap (linje 1096-1108) der vises når `scanExpired || isSentWithDao || isLockedForShipping` er sand. `isLockedForShipping` bliver sand så snart pakkedagen er nået for et "send"-brev — også selv om brevet endnu ikke er fysisk sendt (status er stadig `afventer_handling`, ikke `sendt_med_dao`/`sendt_med_postnord`). Knappen kalder `archiveMutation.mutate(item.id)` direkte uden `isCompleted`-tjek, så brev 11111 (afventer afsendelse) kan arkiveres derfra.
+Du har sandsynligvis ikke set/brugt den, fordi:
+- Knappen er kun aktiv når mindst én lejer er afkrydset.
+- Den hedder "Send" — ikke "Gensend" — selv om kolonnen viser at velkomstmailen allerede er sendt.
+- Inde på lejer-detaljesiden er der kun "Gensend invitation" (sender enten invite eller password-reset via auth-email-hook — ikke velkomst-skabelonen).
+
+Så for Nordtræ Entreprise og Nordengen kan du allerede i dag: åbn "Lejere", afkryds de to rækker, klik "Send velkomst e-mail" — de bliver gensendt via Resend (begge til `fmb@nordt.dk`). Men der mangler en tydelig pr.-lejer "Gensend"-knap.
 
 ## Ændring
 
-`src/pages/TenantDashboard.tsx`, række-knappen (linje 1096-1108):
+`src/pages/TenantsPage.tsx`, kolonnen "Velkomst e-mail" (linje 320-327):
 
-1. Beregn samme `isCompleted` lokalt for rækken:
-   ```ts
-   const isCompleted =
-     item.status === "sendt_med_dao" ||
-     item.status === "sendt_med_postnord" ||
-     !!item.scan_url;
-   ```
-2. Ændr `onClick`:
-   - Hvis `isCompleted` → `archiveMutation.mutate(item.id)` som i dag.
-   - Ellers → `setArchiveBlockedOpen(true)` (genbruger eksisterende popup og i18n-nøgler).
+- Bevar visning af dato når `welcome_email_sent_at` er sat.
+- Tilføj ved siden af datoen en lille `Button variant="ghost" size="sm"` med ikonet `MailPlus` og tekst `tenants.resendWelcomeEmail` ("Gensend").
+- onClick (med `e.stopPropagation()` så raden ikke navigerer):
+  - Kald `sendWelcomeMutation.mutate([tenant.id])` — genbruger eksisterende mutation, toast, invalidation.
+- Når `welcome_email_sent_at` er null, vis i stedet samme knap med tekst `tenants.sendWelcomeEmail` ("Send") så enkelt-afsendelse også er muligt uden checkbox.
+- Disable knappen mens `sendWelcomeMutation.isPending` er sand for den valgte række (track `pendingTenantId` i lokal state for at undgå at disable alle).
 
-Knappen vises stadig i samme tilfælde som før, men klik på et ikke-gennemført brev åbner forklarings-popup'en i stedet for at arkivere.
+`src/i18n/locales/da.json` og `en.json` (sektionen `tenants`):
+
+- Tilføj `resendWelcomeEmail`: "Gensend" / "Resend".
+- Genbrug eksisterende `sendWelcomeEmail` til "Send"-varianten.
 
 ## Ud af scope
-- Detalje-dialogens arkiver-knap (allerede korrekt).
-- Reaktivér-flow, operator-flow, DB/RLS.
+
+- Detaljesidens "Gensend invitation"-knap (uændret, sender invite/recovery).
+- Edge function `send-welcome-email` (uændret — virker allerede med delt e-mail).
+- Top-bulk-knappen "Send velkomst e-mail" (uændret).
+- Logik for at vise modtager-status (suppression, fejl).
 
 ## Verifikation
-1. Brev 11111 (status `afventer_handling`, ingen `scan_url`) på/efter pakkedag → klik Arkiver i rækken → popup vises, status uændret.
-2. Brev med `scan_url` (scan udløbet) → Arkiver i rækken virker som før.
-3. Brev med status `sendt_med_dao` eller `sendt_med_postnord` → Arkiver i rækken virker som før.
+
+1. Åbn "Lejere", find Nordtræ Entreprise — kolonnen viser dato + "Gensend"-knap. Klik → toast "Velkomst e-mail sendt til 1 lejer(e)", `welcome_email_sent_at` opdateres, `email_send_log` får ny `sent`-række for `fmb@nordt.dk`.
+2. Gentag for Nordengen ApS — ny sending sker uafhængigt selv om e-mailen er den samme.
+3. For en lejer uden `welcome_email_sent_at` viser kolonnen "Send"-knap som gør det samme.
+4. Top-bulk-knappen fungerer stadig som før når man afkrydser flere rækker.
