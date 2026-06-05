@@ -9,8 +9,10 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
+  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -20,31 +22,34 @@ interface InviteEmailProps {
   confirmationUrl: string
 }
 
-export const InviteEmail = ({
-  siteName,
-  siteUrl,
-  confirmationUrl,
-}: InviteEmailProps) => (
-  <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>You've been invited to join {siteName}</Preview>
+const LOGO_URL =
+  'https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png'
+
+export const InviteEmail = ({ confirmationUrl }: InviteEmailProps) => (
+  <Html lang="da" dir="ltr">
+    <Head>
+      <meta name="color-scheme" content="light only" />
+      <meta name="supported-color-schemes" content="light" />
+    </Head>
+    <Preview>Du er blevet inviteret til Flexum Coworking</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>You've been invited</Heading>
+        <Img src={LOGO_URL} alt="Flexum Coworking" width="120" height="auto" style={logo} />
+        <Heading style={h1}>Velkommen til Flexum Coworking</Heading>
         <Text style={text}>
-          You've been invited to join{' '}
-          <Link href={siteUrl} style={link}>
-            <strong>{siteName}</strong>
-          </Link>
-          . Click the button below to accept the invitation and create your
-          account.
+          Du er blevet oprettet som lejer hos <strong>Flexum Coworking</strong>. Klik på knappen nedenfor for at sætte din adgangskode og få adgang til din digitale postkasse.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Accept Invitation
-        </Button>
+        <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
+          <Button style={button} href={confirmationUrl}>
+            Sæt din adgangskode →
+          </Button>
+        </Section>
+        <Text style={fallback}>
+          Virker knappen ikke? Kopiér dette link ind i din browser:<br />
+          <Link href={confirmationUrl} style={link}>{confirmationUrl}</Link>
+        </Text>
         <Text style={footer}>
-          If you weren't expecting this invitation, you can safely ignore this
-          email.
+          Hvis du ikke forventede denne invitation, kan du roligt ignorere e-mailen.
         </Text>
       </Container>
     </Body>
@@ -54,26 +59,35 @@ export const InviteEmail = ({
 export default InviteEmail
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
+const container = { padding: '20px 25px', maxWidth: '560px', margin: '0 auto' }
+const logo = { marginBottom: '24px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: 'hsl(222.2, 47.4%, 11.2%)',
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
+  color: 'hsl(215.4, 16.3%, 46.9%)',
+  lineHeight: '1.6',
+  margin: '0 0 16px',
 }
-const link = { color: 'inherit', textDecoration: 'underline' }
+const link = { color: '#00aaeb', textDecoration: 'underline', wordBreak: 'break-all' as const }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#00aaeb',
   color: '#ffffff',
   fontSize: '14px',
-  borderRadius: '8px',
-  padding: '12px 20px',
+  fontWeight: '600' as const,
+  borderRadius: '6px',
+  padding: '12px 24px',
   textDecoration: 'none',
+  display: 'inline-block' as const,
+}
+const fallback = {
+  fontSize: '12px',
+  color: '#666666',
+  lineHeight: '1.6',
+  margin: '0 0 24px',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
