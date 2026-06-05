@@ -36,7 +36,7 @@ export const RecoveryEmail = ({ confirmationUrl }: RecoveryEmailProps) => (
         <Img src={LOGO_URL} alt="Flexum Coworking" width="120" height="auto" style={logo} />
         <Heading style={h1}>Nulstil din adgangskode</Heading>
         <Text style={text}>
-          Vi har modtaget en anmodning om at nulstille adgangskoden til din konto hos <strong>Flexum Coworking</strong>. Klik på knappen nedenfor for at vælge en ny adgangskode.
+          Vi har modtaget en anmodning om at nulstille adgangskoden til din konto hos <strong>Flexum Coworking digitale postkasse</strong>. Klik på knappen nedenfor for at vælge en ny adgangskode.
         </Text>
         <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
           <Button style={button} href={confirmationUrl}>
