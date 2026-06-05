@@ -17,12 +17,12 @@ const corsHeaders = {
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'Bekræft din e-mail',
+  invite: 'Du er blevet inviteret til Flexum Coworking',
+  magiclink: 'Dit login-link',
+  recovery: 'Nulstil din adgangskode',
+  email_change: 'Bekræft din nye e-mail',
+  reauthentication: 'Din bekræftelseskode',
 }
 
 // Template mapping
@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "codespring-discoverer"
+const SITE_NAME = "Flexum Coworking"
 const SENDER_DOMAIN = "notify.mail.post.flexum.dk"
 const ROOT_DOMAIN = "mail.post.flexum.dk"
 const FROM_DOMAIN = "mail.post.flexum.dk" // Domain shown in From address (may be root or sender subdomain)

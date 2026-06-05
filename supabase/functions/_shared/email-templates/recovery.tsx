@@ -9,7 +9,10 @@ import {
   Head,
   Heading,
   Html,
+  Img,
+  Link,
   Preview,
+  Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
 
@@ -18,26 +21,34 @@ interface RecoveryEmailProps {
   confirmationUrl: string
 }
 
-export const RecoveryEmail = ({
-  siteName,
-  confirmationUrl,
-}: RecoveryEmailProps) => (
-  <Html lang="en" dir="ltr">
-    <Head />
-    <Preview>Reset your password for {siteName}</Preview>
+const LOGO_URL =
+  'https://hokiuavxyoymcenqlvly.supabase.co/storage/v1/object/public/email-assets/flexum-logo.png'
+
+export const RecoveryEmail = ({ confirmationUrl }: RecoveryEmailProps) => (
+  <Html lang="da" dir="ltr">
+    <Head>
+      <meta name="color-scheme" content="light only" />
+      <meta name="supported-color-schemes" content="light" />
+    </Head>
+    <Preview>Nulstil din adgangskode hos Flexum Coworking</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Reset your password</Heading>
+        <Img src={LOGO_URL} alt="Flexum Coworking" width="120" height="auto" style={logo} />
+        <Heading style={h1}>Nulstil din adgangskode</Heading>
         <Text style={text}>
-          We received a request to reset your password for {siteName}. Click
-          the button below to choose a new password.
+          Vi har modtaget en anmodning om at nulstille adgangskoden til din konto hos <strong>Flexum Coworking</strong>. Klik på knappen nedenfor for at vælge en ny adgangskode.
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Reset Password
-        </Button>
+        <Section style={{ textAlign: 'center' as const, margin: '32px 0' }}>
+          <Button style={button} href={confirmationUrl}>
+            Nulstil adgangskode →
+          </Button>
+        </Section>
+        <Text style={fallback}>
+          Virker knappen ikke? Kopiér dette link ind i din browser:<br />
+          <Link href={confirmationUrl} style={link}>{confirmationUrl}</Link>
+        </Text>
         <Text style={footer}>
-          If you didn't request a password reset, you can safely ignore this
-          email. Your password will not be changed.
+          Hvis du ikke har anmodet om dette, kan du roligt ignorere e-mailen — din adgangskode forbliver uændret.
         </Text>
       </Container>
     </Body>
@@ -47,25 +58,35 @@ export const RecoveryEmail = ({
 export default RecoveryEmail
 
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
-const container = { padding: '20px 25px' }
+const container = { padding: '20px 25px', maxWidth: '560px', margin: '0 auto' }
+const logo = { marginBottom: '24px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  color: '#000000',
+  color: 'hsl(222.2, 47.4%, 11.2%)',
   margin: '0 0 20px',
 }
 const text = {
   fontSize: '14px',
-  color: '#55575d',
-  lineHeight: '1.5',
-  margin: '0 0 25px',
+  color: 'hsl(215.4, 16.3%, 46.9%)',
+  lineHeight: '1.6',
+  margin: '0 0 16px',
 }
+const link = { color: '#00aaeb', textDecoration: 'underline', wordBreak: 'break-all' as const }
 const button = {
-  backgroundColor: '#000000',
+  backgroundColor: '#00aaeb',
   color: '#ffffff',
   fontSize: '14px',
-  borderRadius: '8px',
-  padding: '12px 20px',
+  fontWeight: '600' as const,
+  borderRadius: '6px',
+  padding: '12px 24px',
   textDecoration: 'none',
+  display: 'inline-block' as const,
+}
+const fallback = {
+  fontSize: '12px',
+  color: '#666666',
+  lineHeight: '1.6',
+  margin: '0 0 24px',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
