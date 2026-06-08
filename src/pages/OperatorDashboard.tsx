@@ -665,8 +665,9 @@ const OperatorDashboard = () => {
                        body: { tenant_id: item.tenant_id, mail_type: "scan", stamp_number: item.stamp_number, template_slug: "new_scan" },
                      }).catch((err: any) => console.error("send scan email failed:", err));
                   } catch (err: any) {
-                    console.error("Inline scan drop error:", err);
-                    toast.error(t("scanUpload.couldNotUpload"));
+                    console.error("Inline scan drop error:", err, JSON.stringify(err));
+                    const detail = err?.message || err?.error?.message || err?.statusText || (typeof err === "string" ? err : "");
+                    toast.error(detail ? `${t("scanUpload.couldNotUpload")}: ${detail}` : t("scanUpload.couldNotUpload"));
                   }
                 };
                 return (
