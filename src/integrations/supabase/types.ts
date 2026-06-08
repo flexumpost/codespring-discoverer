@@ -400,6 +400,30 @@ export type Database = {
           },
         ]
       }
+      onboarding_tokens: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          token?: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       pricing_settings: {
         Row: {
           category: string
