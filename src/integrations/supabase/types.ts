@@ -729,6 +729,25 @@ export type Database = {
         Returns: boolean
       }
       is_operator: { Args: never; Returns: boolean }
+      mail_item_operator_fields_unchanged: {
+        Args: {
+          _id: string
+          _is_registered: boolean
+          _mail_type: string
+          _operator_id: string
+          _photo_url: string
+          _porto_option: string
+          _received_at: string
+          _scan_url: string
+          _scanned_at: string
+          _sender_name: string
+          _stamp_number: number
+          _status: string
+          _tenant_id: string
+          _tracking_number: string
+        }
+        Returns: boolean
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
