@@ -196,19 +196,21 @@ Deno.serve(async (req) => {
     let html: string;
 
     if (is_new_tenant && tenant.user_id) {
-      // Generate a recovery link so the user can set their password
+      // Generate a custom onboarding token valid for 24 hours
       const origin = "https://post.flexum.dk";
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: "recovery",
-        email: tenant.contact_email,
-        options: { redirectTo: `${origin}/set-password` },
-      });
-
       let confirmationUrl = loginUrl;
-      if (linkError || !linkData?.properties?.action_link) {
-        console.error("Failed to generate recovery link:", linkError);
+
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { data: tokenRow, error: tokenError } = await supabaseAdmin
+        .from("onboarding_tokens")
+        .insert({ email: tenant.contact_email, expires_at: expiresAt })
+        .select("token")
+        .single();
+
+      if (tokenError || !tokenRow?.token) {
+        console.error("Failed to create onboarding token:", tokenError);
       } else {
-        confirmationUrl = linkData.properties.action_link;
+        confirmationUrl = `${origin}/set-password?onboarding_token=${tokenRow.token}`;
       }
 
       console.log("confirmationUrl for welcome_shipment:", confirmationUrl);
@@ -216,6 +218,7 @@ Deno.serve(async (req) => {
         console.error("Invalid confirmationUrl, using fallback:", confirmationUrl);
         confirmationUrl = loginUrl;
       }
+
 
       html = await renderAsync(
         WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl })

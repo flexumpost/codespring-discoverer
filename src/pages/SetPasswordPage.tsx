@@ -21,8 +21,43 @@ const SetPasswordPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 1. Check for PKCE code in query params
     const searchParams = new URLSearchParams(window.location.search);
+
+    // 1. Custom 24h onboarding token (welcome shipment flow)
+    const onboardingToken = searchParams.get("onboarding_token");
+    if (onboardingToken) {
+      (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke("consume-onboarding-token", {
+            body: { token: onboardingToken },
+          });
+          if (error || !data?.hashed_token || !data?.email) {
+            console.error("Failed to consume onboarding token:", error, data);
+            setLinkExpired(true);
+            return;
+          }
+          const { error: verifyErr } = await supabase.auth.verifyOtp({
+            email: data.email,
+            token: data.hashed_token,
+            type: data.type === "magiclink" ? "magiclink" : "recovery",
+          });
+          if (verifyErr) {
+            console.error("verifyOtp failed:", verifyErr);
+            setLinkExpired(true);
+          } else {
+            setIsReady(true);
+          }
+        } catch (e) {
+          console.error("Onboarding token exchange failed:", e);
+          setLinkExpired(true);
+        } finally {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      })();
+      return;
+    }
+
+    // 2. Check for PKCE code in query params
     const code = searchParams.get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
@@ -37,7 +72,7 @@ const SetPasswordPage = () => {
       return;
     }
 
-    // 2. Check for hash-based tokens (implicit flow)
+    // 3. Check for hash-based tokens (implicit flow)
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
 
@@ -75,6 +110,7 @@ const SetPasswordPage = () => {
       return () => subscription.unsubscribe();
     }
   }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
