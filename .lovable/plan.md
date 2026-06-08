@@ -1,36 +1,24 @@
-## Problemerne
+## Plan
 
-På billedet er e-mailen den indbyggede "InviteEmail" der sendes af `auth-email-hook`, når "Gensend invitation" kalder `create-tenant-user` i `mode: invite`. To bugs:
+1. Trace and harden the shared scan upload flow
+- Review the shared `uploadScanFile` helper used by both the dialog and the inline drag-and-drop row upload.
+- Normalize validation for file type/size/path so drag-and-drop and button upload behave identically.
+- Prevent row-level click side effects from interfering with drop handling.
 
-1. **Afsender vises som "codespring-discoverer"** — `auth-email-hook` har stadig scaffold-default `SITE_NAME = "codespring-discoverer"` (linje 39) og indsætter det også i `from`-headeren (linje 261). Modtagerens mail-klient bruger From-navnet som afsender.
-2. **Ingen synlig knap** — `InviteEmail` (og de andre auth-templates) bruger en sort knap (`#000000` baggrund). I iOS Mail dark mode auto-inverteres farverne og knappen forsvinder mod den mørke baggrund. Skabelonen er også på engelsk og helt ubranded sammenlignet med `WelcomeEmail`.
+2. Expose the real failure instead of the generic toast
+- Capture and surface the exact storage/database error in the client logs.
+- Show a more specific operator-facing error when the backend rejects the file (for example unsupported format, file too large, or permission/update failure).
 
-## Løsning
+3. Fix the backend mismatch causing the upload to fail
+- Verify the upload sequence against existing storage and `mail_items` policies.
+- Adjust the failing part of the flow so operators can complete scan uploads from inline drag-and-drop, including the follow-up `scan_url`/status update.
+- Keep the fix scoped to scan upload only.
 
-### 1. Ret `supabase/functions/auth-email-hook/index.ts`
-- `SITE_NAME = "Flexum Coworking"`
-- `from` ender op som `Flexum Coworking <noreply@mail.post.flexum.dk>` (uændret domæne, kun navnet ændres).
-- Danske emnefelter:
-  - `signup`: "Bekræft din e-mail"
-  - `invite`: "Du er blevet inviteret til Flexum Coworking"
-  - `magiclink`: "Dit login-link"
-  - `recovery`: "Nulstil din adgangskode"
-  - `email_change`: "Bekræft din nye e-mail"
-  - `reauthentication`: "Din bekræftelseskode"
+4. Validate both operator upload paths
+- Test inline drag-and-drop on the dashboard row.
+- Test the existing “Upload scan” button/dialog flow to ensure the shared helper still works.
+- Confirm the scan is stored, `scan_url` is saved, and the item refreshes correctly in the dashboard.
 
-### 2. Brand de 6 auth-templates i `supabase/functions/_shared/email-templates/`
-Genskriv `invite.tsx`, `recovery.tsx`, `signup.tsx`, `magic-link.tsx`, `email-change.tsx`, `reauthentication.tsx` så de matcher `welcome.tsx`:
-- Dansk tekst hele vejen igennem.
-- Flexum-logo øverst (samme storage-URL som welcome).
-- Knap-styling: `backgroundColor: '#00aaeb'`, `color: '#ffffff'`, `padding: '12px 24px'`, `borderRadius: '6px'`, `display: 'inline-block'`, `fontWeight: 600`. Dette undgår iOS dark-mode-inverteringen, så knappen forbliver synlig.
-- Tilføj `<Head>` med `<meta name="color-scheme" content="light only" />` og `<meta name="supported-color-schemes" content="light" />` så Apple Mail ikke auto-inverterer farverne.
-- Tilføj fallback-tekstlink under hver knap ("Virker knappen ikke? Brug dette link: …") så brugeren altid har en klikbar vej videre, selv hvis knappen ikke renderer.
-- `invite.tsx` får overskriften "Du er blevet inviteret" og brødtekst der forklarer at modtageren skal klikke for at sætte sin adgangskode og logge ind på sin postkasse hos Flexum Coworking.
-
-### 3. Deploy
-Deploy `auth-email-hook` så ændringerne træder i kraft. Næste gang operatøren trykker "Gensend invitation" sendes den nye, brandede danske invitation med synlig knap fra "Flexum Coworking".
-
-## Bemærk
-- Ingen ændringer i app-koden eller databasen — kun edge function + templates.
-- Recovery-rækken i log'en (billede 2) er fra den separate `request-password-reset` flow (welcome-mailen). Den er allerede branded korrekt og rammes ikke.
-- DNS/sender-domæne forbliver `mail.post.flexum.dk` — ingen ny domæneopsætning kræves.
+## Technical notes
+- Relevant files already identified: `src/pages/OperatorDashboard.tsx`, `src/components/ScanUploadDialog.tsx`, and the scan-related storage/`mail_items` migrations.
+- The most likely breakage is in the handoff between storage upload and the `mail_items` update, so I’ll verify both paths before changing anything.
