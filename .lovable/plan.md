@@ -1,24 +1,34 @@
-## Plan
+## Problem
 
-1. Trace and harden the shared scan upload flow
-- Review the shared `uploadScanFile` helper used by both the dialog and the inline drag-and-drop row upload.
-- Normalize validation for file type/size/path so drag-and-drop and button upload behave identically.
-- Prevent row-level click side effects from interfering with drop handling.
+Scan-upload fejler med `infinite recursion detected in policy for relation "mail_items"`.
 
-2. Expose the real failure instead of the generic toast
-- Capture and surface the exact storage/database error in the client logs.
-- Show a more specific operator-facing error when the backend rejects the file (for example unsupported format, file too large, or permission/update failure).
+Årsagen er RLS-policyen `Tenants update own mail action` på `mail_items`. Dens `WITH CHECK` indeholder ~14 subselects af typen `(SELECT m.<col> FROM mail_items m WHERE m.id = mail_items.id)` — altså opslag i samme tabel som policyen beskytter. Det udløser uendelig rekursion ved enhver `UPDATE`, også for operatører (fordi flere permissive UPDATE-policies kombineres med OR og alle evalueres).
 
-3. Fix the backend mismatch causing the upload to fail
-- Verify the upload sequence against existing storage and `mail_items` policies.
-- Adjust the failing part of the flow so operators can complete scan uploads from inline drag-and-drop, including the follow-up `scan_url`/status update.
-- Keep the fix scoped to scan upload only.
+Policyens intention er at lade lejere kun ændre `chosen_action`/handlingsfelter og blokere ændringer af følsomme felter som `scan_url`, `status`, `tenant_id`, osv.
 
-4. Validate both operator upload paths
-- Test inline drag-and-drop on the dashboard row.
-- Test the existing “Upload scan” button/dialog flow to ensure the shared helper still works.
-- Confirm the scan is stored, `scan_url` is saved, and the item refreshes correctly in the dashboard.
+## Løsning
 
-## Technical notes
-- Relevant files already identified: `src/pages/OperatorDashboard.tsx`, `src/components/ScanUploadDialog.tsx`, and the scan-related storage/`mail_items` migrations.
-- The most likely breakage is in the handoff between storage upload and the `mail_items` update, so I’ll verify both paths before changing anything.
+1. Tilføj en `SECURITY DEFINER` helper-funktion `public.mail_item_field_unchanged(_id uuid, _field text, _new_value text)` der slår op i `mail_items` udenom RLS — eller endnu enklere: flyt immutability-checks ud i en `BEFORE UPDATE` trigger og forenkl policyen.
+
+   Foretrukket: en `BEFORE UPDATE` trigger `enforce_tenant_mail_item_immutability` der, hvis kalderen ikke er operator (`NOT is_operator()`), kaster fejl hvis nogen af de beskyttede felter ændres (`scan_url`, `status`, `tenant_id`, `operator_id`, `mail_type`, `sender_name`, `photo_url`, `tracking_number`, `stamp_number`, `porto_option`, `is_registered`, `received_at`, `scanned_at`).
+
+2. Erstat policyen `Tenants update own mail action` med en simpel udgave:
+   ```sql
+   USING  (tenant_id IN (SELECT my_tenant_ids()))
+   WITH CHECK (tenant_id IN (SELECT my_tenant_ids()))
+   ```
+   Triggeren håndterer kolonne-beskyttelsen, så der ikke længere er rekursive opslag i `mail_items`.
+
+3. Behold `Operators update mail` policyen som den er — operatører kan opdatere alt (inkl. `scan_url`) uden problem.
+
+## Validering
+
+- Operator drag-and-drop scan-upload virker (storage upload + `scan_url`-update lykkes).
+- Operator "Upload scan"-dialog virker.
+- Lejer kan stadig vælge `chosen_action` på egne mail items.
+- Lejer kan IKKE ændre `scan_url`/`status`/etc. (triggeren afviser).
+
+## Tekniske noter
+
+- Filer berørt: én ny migration der dropper + genskaber policyen og tilføjer trigger + funktion.
+- Ingen frontend-ændringer nødvendige; den forbedrede fejlmeddelelse i `OperatorDashboard.tsx` (fra forrige tur) bliver hængende som diagnostisk hjælp.
