@@ -600,8 +600,10 @@ export default function ShippingPrepPage() {
                                 <SelectContent>
                                   {isDk ? (
                                     <>
-                                      <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
+                                       <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
                                       <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
+                                      <SelectItem value="dk_250_500">DK 250-500g (54,00 kr.)</SelectItem>
+                                      <SelectItem value="dk_500_1500">DK 500-1500g (72,00 kr.)</SelectItem>
                                     </>
                                   ) : (
                                     <>
