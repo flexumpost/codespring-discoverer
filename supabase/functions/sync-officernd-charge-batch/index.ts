@@ -99,6 +99,8 @@ function calculateFee(
 const PORTO_MAP: Record<string, { planName: string; amountKr: number }> = {
   dk_0_100: { planName: 'DAO Porto Danmark (0 - 100 g.) kr. 18,4', amountKr: 18.40 },
   dk_100_250: { planName: 'DAO Porto Danmark (100 - 250 g.) kr. 36,8', amountKr: 36.80 },
+  dk_250_500: { planName: 'DAO Porto Danmark (250 - 500 g.) kr. 54', amountKr: 54.00 },
+  dk_500_1500: { planName: 'DAO Porto Danmark (500 - 1500 g.) kr. 72', amountKr: 72.00 },
   udland_0_100: { planName: 'DAO Porto Udland (0 - 100 g.) kr. 46', amountKr: 46.00 },
   udland_100_250: { planName: 'DAO Porto Udland (100 - 250 g.) kr. 92', amountKr: 92.00 },
   dk_pakke_0_1: { planName: 'Pakke porto (0 - 1 kg.) á kr. 48,00', amountKr: 48.00 },
