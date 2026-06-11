@@ -1,29 +1,12 @@
-## Tilføjelse af nye porto-muligheder for breve (DK)
+## Fix manglende porto-charge for nye DK-vægtklasser
 
-### Baggrund
-Operatøren har i dag kun to porto-muligheder for brevforsendelser indenfor Danmark (DK) til Lite og Standard-lejere:
-- DK (0–100 g.) kr. 18,40
-- DK (100–250 g.) kr. 36,80
+### Årsag
+De nye porto-værdier `dk_250_500` og `dk_500_1500` blev tilføjet til `sync-officernd-charge/index.ts`, men `sync-officernd-charge-batch/index.ts` — som shipping-siden faktisk kalder for `sendt_med_dao`/`sendt_med_postnord` — fik ikke samme opdatering. Når `PORTO_MAP[portoOption]` returnerer `undefined`, springes porto-beregningen over (`if (!portoInfo) continue;`), så lejeren ikke blev faktureret porto for PETITES POMPOMES APS (nr. 3384).
 
-Der skal tilføjes to nye vægt-intervaller:
-- DK (250–500 g.) kr. 54,00
-- DK (500–1500 g.) kr. 72,00
+### Ændring
+Udvid `PORTO_MAP` i `supabase/functions/sync-officernd-charge-batch/index.ts` med:
+- `dk_250_500`: `'DAO Porto Danmark (250 - 500 g.) kr. 54'`, 54,00 kr.
+- `dk_500_1500`: `'DAO Porto Danmark (500 - 1500 g.) kr. 72'`, 72,00 kr.
 
-### Ændringer
-
-1. **Frontend UI – `src/pages/ShippingPrepPage.tsx`**
-   - I brev-forsendelses-dropdown (grupperet visning) tilføjes to nye `<SelectItem>`-rækker under `isDk`-grenen.
-   - Nye værdier: `dk_250_500` og `dk_500_1500`.
-
-2. **Backend – `supabase/functions/sync-officernd-charge/index.ts`**
-   - Udvid `PORTO_MAP` med de to nye poster, så OfficeRnD-synkroniseringen kender prisen og plan-navnet.
-   - Plan-navne følger eksisterende mønster: "DAO Porto Danmark (250 - 500 g.) kr. 54" og "DAO Porto Danmark (500 - 1500 g.) kr. 72".
-
-### Ingen database-migration nødvendig
-`porto_option`-kolonnen i `mail_items` er af typen `text` og ikke en enum, så nye værdier kan gemmes uden skema-ændring.
-
-### Tekniske detaljer
-- `dk_250_500`: `amountKr: 54.00`, planName: `'DAO Porto Danmark (250 - 500 g.) kr. 54'`
-- `dk_500_1500`: `amountKr: 72.00`, planName: `'DAO Porto Danmark (500 - 1500 g.) kr. 72'`
-
-Efter kode-ændringer deployes `sync-officernd-charge` Edge Function igen.
+### Efterbehandling
+For den ene allerede sendte forsendelse (nr. 3384) skal porto-charge oprettes manuelt i OfficeRnD, da batch-funktionen ikke kører igen for samme item. Alternativt kan jeg trigge en éngangs-opretttelse via en lille engangs-edge-function eller du opretter det direkte i OfficeRnD.
