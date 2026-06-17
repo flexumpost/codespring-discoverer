@@ -1,50 +1,53 @@
-# Plan: Rekommanderet kun for breve + farve når tildelt lejer
+# Plan: Pakker skal altid auto-få "Forsendelse" som handling
 
-## B) Pakker kan ikke være "Rekommanderet"
+## Diagnose af #3414
 
-**UI – `src/components/RegisterMailDialog.tsx`**
-- Skjul checkboksen "Rekommanderet" når `mailType === "pakke"`.
-- Tving `is_registered = false` ved gem, hvis mail_type er pakke (uanset hvad OCR foreslog).
-- I OCR-handleren: ignorér `data.is_registered` for pakker (ingen toast, ingen state-opdatering).
+- `mail_type = 'pakke'`, `tenant_id` sat, `chosen_action = NULL`, `status = 'ny'`.
+- Lejeren har `default_package_action = NULL` (124 ud af 218 lejere har NULL).
+- Triggeren `apply_tenant_default_action` kører kun på INSERT, og selv hvis den kørte, ville den returnere uden ændring fordi `_default_action IS NULL`.
+- Resultat: pakken får aldrig automatisk `chosen_action = 'send'`, falder igennem til den nye "lyseblå"-regel.
 
-**UI – `src/components/OperatorMailItemDialog.tsx`**
-- Samme: skjul evt. Rekommanderet-felt for pakker.
+Forretningsreglen er klar: **pakker har altid "Forsendelse" som standard** (jf. `DefaultActionSetup.tsx` hvor `packageAction = "send"` er hardcoded). Så NULL skal behandles som `'send'` for pakker.
 
-**Dashboard – `src/pages/OperatorDashboard.tsx` (linje 690)**
-- Vis kun "R"-badget hvis `item.mail_type !== "pakke" && item.is_registered`.
+## Ændringer
 
-**Data-oprydning (migration / data-update)**
-- Sæt `is_registered = false` på alle eksisterende `mail_items` hvor `mail_type = 'pakke'` (så #3414 og evt. andre ikke længere viser R).
+### 1. Opdater trigger-funktion `apply_tenant_default_action`
 
-**Database-guard (valgfri men anbefalet)**
-- Tilføj CHECK constraint eller trigger på `mail_items`: hvis `mail_type = 'pakke'` så skal `is_registered` være `false`. Forhindrer fremtidige fejl-registreringer.
+- For pakker: hvis `default_package_action` er NULL/tom → brug `'send'` som fallback.
+- Tilføj logik så funktionen også kører på **UPDATE** når `tenant_id` går fra NULL → ikke-NULL (i dag kører den kun på INSERT, så pakker der tildeles en lejer bagefter får ingen handling).
 
-## A) Farve når lejer er tildelt men afventer handling
+### 2. Tilføj/opdater trigger så den fyrer på både INSERT og UPDATE OF tenant_id
 
-Lige nu: status=`ny`, ingen `chosen_action` → falder igennem til **gul** (samme farve som "ikke tildelt"). Lejer-tildelingen kan ikke ses på farven.
+```sql
+DROP TRIGGER IF EXISTS apply_tenant_default_action_trg ON mail_items;
+CREATE TRIGGER apply_tenant_default_action_trg
+BEFORE INSERT OR UPDATE OF tenant_id ON mail_items
+FOR EACH ROW
+WHEN (NEW.tenant_id IS NOT NULL AND NEW.chosen_action IS NULL)
+EXECUTE FUNCTION apply_tenant_default_action();
+```
 
-**To dele:**
+(Det præcise trigger-navn verificeres i migrationen.)
 
-1. **Status-opdatering** – `src/lib/mailRowColor.ts`
-   - Ny regel før den nuværende "ikke tildelt"-regel:
-     - Hvis `tenant_id` er sat, `chosen_action` er null, ingen `scan_url`, status er `ny` eller `afventer_handling` → returnér en ny farve (forslag: **lyseblå** `bg-sky-100 dark:bg-sky-900/30`), så det visuelt skiller sig fra ægte "ikke tildelt".
-   - Beholder den eksisterende gule "ikke tildelt"-regel for items uden tenant.
+### 3. Backfill af eksisterende pakker
 
-2. **Backfill af eksisterende item #3414** (og lignende)
-   - Ingen DB-ændring nødvendig — farven beregnes i frontend ud fra `tenant_id`. Når lejeren er tilknyttet, vil farven automatisk skifte fra gul til lyseblå efter denne ændring.
+```sql
+UPDATE mail_items
+SET chosen_action = 'send', status = 'afventer_handling'
+WHERE mail_type = 'pakke'
+  AND tenant_id IS NOT NULL
+  AND chosen_action IS NULL
+  AND status IN ('ny','afventer_handling')
+  AND scan_url IS NULL;
+```
 
-## Tekniske detaljer
+Dette retter #3414 og lignende pakker, så de bliver fersken/peach (bestilt forsendelse) i stedet for lyseblå.
 
-- Filer der ændres:
-  - `src/components/RegisterMailDialog.tsx`
-  - `src/components/OperatorMailItemDialog.tsx`
-  - `src/pages/OperatorDashboard.tsx`
-  - `src/lib/mailRowColor.ts`
-- Migration:
-  - `UPDATE mail_items SET is_registered = false WHERE mail_type = 'pakke' AND is_registered = true;` (data-opdatering via insert-tool)
-  - Valgfri CHECK constraint: `ALTER TABLE mail_items ADD CONSTRAINT packages_not_registered CHECK (mail_type <> 'pakke' OR is_registered = false);`
+### 4. (Valgfri) Backfill `tenants.default_package_action`
 
-## Spørgsmål før jeg går i gang
+Sæt `default_package_action = 'send'` for alle 124 lejere hvor det er NULL, så fremtidige UI-visninger er konsistente.
 
-1. Skal jeg tilføje **DB-constraint'en** der forhindrer pakker i nogensinde at få `is_registered = true`? (Anbefalet.)
-2. Er **lyseblå** OK som farve for "tildelt lejer, afventer lejerens valg af handling", eller foretrækker du en anden (fx lyselilla, lysegrå)?
+## Spørgsmål
+
+1. Skal jeg også backfille `tenants.default_package_action = 'send'` for de 124 lejere med NULL? (Anbefalet — UI viser allerede "Forsendelse" som eneste valg.)
+2. For breve på lejere med `default_mail_action = NULL` (55 stk.): skal lyseblå farve forblive (lejer mangler at vælge standard), eller skal vi tvinge dem ind i `DefaultActionSetup`-flowet næste gang de logger ind? (Ingen ændring foreslået nu — kun bekræftelse.)
