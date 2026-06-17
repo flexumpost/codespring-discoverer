@@ -236,7 +236,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         toast.success(t("registerMail.senderFound") + ": " + detectedSender);
       }
 
-      if (data?.is_registered === true) {
+      if (data?.is_registered === true && mailType !== "pakke") {
         setIsRegistered(true);
         toast.success(t("registerMail.registeredDetected"));
       }
@@ -523,7 +523,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         tenant_id: selectedTenantId,
         notes: notes || null,
         photo_url: photoUrl,
-        is_registered: isRegistered,
+        is_registered: mailType === "pakke" ? false : isRegistered,
       });
 
       if (error) throw error;
@@ -862,16 +862,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         <Input id="sender" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder={t("registerMail.senderPlaceholder")} />
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="is_registered"
-          checked={isRegistered}
-          onCheckedChange={(checked) => setIsRegistered(checked === true)}
-        />
-        <Label htmlFor="is_registered" className="cursor-pointer text-sm font-normal">
-          {t("registerMail.registered")}
-        </Label>
-      </div>
+      {mailType !== "pakke" && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="is_registered"
+            checked={isRegistered}
+            onCheckedChange={(checked) => setIsRegistered(checked === true)}
+          />
+          <Label htmlFor="is_registered" className="cursor-pointer text-sm font-normal">
+            {t("registerMail.registered")}
+          </Label>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="notes">{t("registerMail.notes")}</Label>

@@ -687,7 +687,7 @@ const OperatorDashboard = () => {
                       <Badge variant={item.mail_type === "pakke" ? "secondary" : "outline"}>
                         {item.mail_type === "pakke" ? t("common.package") : t("common.letter")}
                       </Badge>
-                      {(item as any).is_registered && (
+                      {(item as any).is_registered && item.mail_type !== "pakke" && (
                         <span className="inline-flex items-center justify-center w-5 h-5 border border-current font-bold text-xs rounded-sm">R</span>
                       )}
                     </div>

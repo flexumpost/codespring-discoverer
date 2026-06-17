@@ -89,6 +89,11 @@ export function getMailRowColor(item: {
     return "bg-yellow-200 dark:bg-yellow-900/40";
   }
 
-  // 8. Ny / afventer → gul
+  // 8. Tildelt lejer, afventer lejerens valg af handling → lyseblå
+  if (item.tenant_id && !action && !item.scan_url) {
+    return "bg-sky-100 dark:bg-sky-900/30";
+  }
+
+  // 9. Ny / afventer (fallback) → gul
   return "bg-yellow-100 dark:bg-yellow-900/30";
 }
