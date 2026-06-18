@@ -1,39 +1,40 @@
-## Kontrol af omkostningsoverførsel: Erik Villiam Thomsen K/S → Management Company K/S
+# Plan: Forhindre manglende porto-overførsel fremover
 
-### Hvad jeg har tjekket i databasen
+Formålet er at sikre at en forsendelse aldrig kan ende i en tilstand hvor `chosen_action = under_forsendelse` men `porto_option` mangler — uden at det opdages.
 
-**Lejer-opsætning:**
-- `ERIK VILLIAM THOMSEN K/S` — tier: **Plus**, `billed_by_email = lundeager25@gmail.com`
-- `Management Company K/S` — tier: **Plus**, `contact_email = lundeager25@gmail.com`
+## 1. UI-validering i ShippingPrepPage
 
-Routingen er altså korrekt sat op: når Erik Villiam Thomsen K/S har en omkostning, slår batch-sync `lundeager25@gmail.com` op i OfficeRnD, finder medlemmet (som hører til Management Company K/S' team), og opretter gebyret på Management Company K/S' team — ikke på Erik Villiam Thomsen K/S.
+I `src/pages/ShippingPrepPage.tsx` (og evt. relaterede komponenter hvor porto vælges):
 
-### Det konkrete brev (stempel 3410)
+- Når operatøren forsøger at låse/afslutte en forsendelse med `chosen_action = under_forsendelse`:
+  - Kræv at `porto_option` er udfyldt (ikke `NULL` og ikke `'none'`).
+  - Hvis tomt: vis fejl ("Vælg porto før forsendelsen kan låses") og bloker lås-knappen.
+- Visuel markering (rød ramme / advarselsikon) på rækker hvor porto mangler, så det fanges før låsning.
 
-- `mail_type = brev`, `chosen_action = under_forsendelse`, `porto_option = NULL`
-- Sync-log: `skipped_zero_fee` (0 kr.)
+## 2. Edge function — defensiv sikring
 
-Det er **korrekt og forventet** — ikke en fejl:
+I `supabase/functions/sync-officernd-charge-batch/index.ts`:
 
-1. **Hovedgebyr:** Plus-lejere har 0 kr. på brev-forsendelse → intet at fakturere.
-2. **Porto:** Plus-lejere er undtaget porto-opkrævning i `sync-officernd-charge-batch` (linje: `if (!isPackagePorto && it.tier_name === "Plus") continue;`). Plus inkluderer porto i abonnementet.
+- Når en mail-item har `chosen_action = under_forsendelse` og `porto_option` er `NULL`/`'none'`:
+  - Skip charge (i stedet for at sende 0 kr.).
+  - Log til `officernd_sync_log` med ny status `skipped_missing_porto` + mail_item_id.
+  - Opret en `notifications`-række til operatør om at en forsendelse mangler porto og ikke blev faktureret.
 
-Så der er **ingen omkostning at overføre** for dette brev — hverken til Erik Villiam Thomsen K/S eller til Management Company K/S.
+## 3. Operatør-notifikation
 
-### Hvis fremtidige Erik Villiam Thomsen-forsendelser får et gebyr
+- Tilføj notifikationstype så manglende-porto-sager dukker op i operatør-dashboardet (samme mekanisme som øvrige notes/notifikationer).
+- Inkluder mail_item_id og lejer-navn så det er klikbart/sporbart.
 
-Eksempel: en pakke, eller hvis tier ændres fra Plus til Standard/Lite. Da `billed_by_email` peger på Management Company K/S' kontakt, vil:
+## 4. Verifikation
 
-- Hoved-gebyret blive oprettet på Management Company K/S' team i OfficeRnD
-- Porto (hvis relevant, dvs. ikke-Plus brev eller pakke-porto) ligeledes blive lagt på Management Company K/S' team
+- Manuelt test-flow: opret en forsendelse uden porto → bekræft at UI blokerer låsning.
+- Simuler edge-function-kald på en mail_item uden porto → bekræft `skipped_missing_porto` log + notifikation.
+- Tjek at eksisterende Plus-tier-breve (0 kr.) stadig logges som `skipped_zero_fee` og ikke som manglende porto.
 
-Beskrivelsen på gebyret vil indeholde `(ERIK VILLIAM THOMSEN K/S)` så det er sporbart hvilken lejer omkostningen reelt vedrører.
+## Tekniske detaljer
 
-### Forslag
-
-**Ingen kodeændring nødvendig.** Opsætningen er korrekt og fungerer som tilsigtet. Hvis du vil, kan jeg i stedet:
-
-- **A)** Bare bekræfte ovenstående (ingen ændringer) — vi går videre med Part 2 (UI-validering af porto + edge function-fix) når du sender porto-koderne for de 6 breve.
-- **B)** Tilføje en lille verifikation i OfficeRnD ved at sende en test-opslagning på `lundeager25@gmail.com` og rapportere hvilket team/company medlemmet hører til, så vi er 100 % sikre på at OfficeRnD-siden også er korrekt opsat.
-
-Hvilken vil du have?
+- Berørte filer:
+  - `src/pages/ShippingPrepPage.tsx` (UI-validering + lås-knap)
+  - `supabase/functions/sync-officernd-charge-batch/index.ts` (skip + log + notify)
+- Ingen DB-skemaændringer nødvendige — `officernd_sync_log.status` og `notifications` understøtter allerede frie tekstværdier.
+- Plus-tier-undtagelse (`if (!isPackagePorto && tier === "Plus") continue;`) bevares uændret.

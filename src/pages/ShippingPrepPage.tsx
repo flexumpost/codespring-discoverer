@@ -378,6 +378,38 @@ export default function ShippingPrepPage() {
       toast({ title: t("shippingPrep.noShipmentsSelected"), description: t("shippingPrep.selectShipmentsToSend"), variant: "destructive" });
       return;
     }
+
+    // Kræv porto før forsendelsen kan låses.
+    // Plus-tier breve er undtaget (porto inkluderet i abonnement).
+    if (tab === "brev") {
+      for (const id of ids) {
+        const group = grouped.find((g) => g.items.some((i) => i.id === id));
+        if (!group) continue;
+        const hasNonPlus = group.companies.some((c) => c.typeName !== "Plus");
+        if (!hasNonPlus) continue;
+        if (!portoSelections[group.addressKey]) {
+          toast({
+            title: "Manglende porto",
+            description: `Vælg porto for ${group.companies.map((c) => c.name).join(", ")} før forsendelsen kan låses.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    } else {
+      for (const id of ids) {
+        if (!portoSelections[id]) {
+          const item = items.find((i) => i.id === id);
+          toast({
+            title: "Manglende porto",
+            description: `Vælg porto for pakke nr. ${item?.stamp_number ?? "?"} (${item?.company_name ?? ""}) før forsendelsen kan låses.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     sendMutation.mutate(ids);
   };
 

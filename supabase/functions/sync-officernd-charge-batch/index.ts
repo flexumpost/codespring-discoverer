@@ -218,6 +218,56 @@ Deno.serve(async (req) => {
       tenant_company_name: item.tenants?.company_name ?? null,
     }));
 
+    // Defensive guard: detect under_forsendelse items missing porto.
+    // Plus-tier letters are exempt (porto included in subscription); all
+    // other under_forsendelse rows must have porto_option set.
+    const missingPortoItems = items.filter((it) => {
+      if (it.chosen_action !== "under_forsendelse") return false;
+      if (it.porto_option && it.porto_option !== "none") return false;
+      if (it.mail_type !== "pakke" && it.tier_name === "Plus") return false;
+      return true;
+    });
+
+    if (missingPortoItems.length > 0) {
+      const { data: operators } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "operator");
+      const operatorIds = (operators ?? []).map((o: any) => o.user_id).filter(Boolean);
+
+      for (const it of missingPortoItems) {
+        // Log skip so the main/porto charge logic doesn't accidentally treat
+        // it as zero-fee and hide the problem.
+        const { data: existingLog } = await supabase
+          .from("officernd_sync_log")
+          .select("id")
+          .eq("mail_item_id", it.id)
+          .eq("status", "skipped_missing_porto")
+          .maybeSingle();
+        if (!existingLog) {
+          await supabase.from("officernd_sync_log").insert({
+            mail_item_id: it.id,
+            status: "skipped_missing_porto",
+            charge_id: "skipped_missing_porto",
+            amount_text: null,
+            error_message: "Forsendelse låst uden porto_option — porto ikke faktureret.",
+          });
+        }
+
+        const stampLabel = it.stamp_number ? ` (nr. ${it.stamp_number})` : "";
+        const company = it.tenant_company_name ?? "lejer";
+        for (const opId of operatorIds) {
+          await supabase.from("notifications").insert({
+            user_id: opId,
+            mail_item_id: it.id,
+            title: "Manglende porto på forsendelse",
+            message: `Forsendelse${stampLabel} for ${company} er låst uden porto — porto blev ikke overført til OfficeRnD. Tilføj porto manuelt.`,
+          });
+        }
+      }
+    }
+
+
     // Group by tenant_id
     const byTenant = new Map<string, ItemData[]>();
     for (const item of items) {
