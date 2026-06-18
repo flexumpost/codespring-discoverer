@@ -1,53 +1,64 @@
-# Plan: Pakker skal altid auto-få "Forsendelse" som handling
+## Hvorfor skete det
 
-## Diagnose af #3414
+Alle 7 forsendelser har `porto_option = NULL` i databasen. På "Klargør forsendelse"-siden er porto-valget en dropdown pr. adressegruppe, men **der er ingen validering** — operatøren kan klikke "Send" uden at vælge porto, og koden skriver kun `porto_option` hvis et valg er foretaget:
 
-- `mail_type = 'pakke'`, `tenant_id` sat, `chosen_action = NULL`, `status = 'ny'`.
-- Lejeren har `default_package_action = NULL` (124 ud af 218 lejere har NULL).
-- Triggeren `apply_tenant_default_action` kører kun på INSERT, og selv hvis den kørte, ville den returnere uden ændring fordi `_default_action IS NULL`.
-- Resultat: pakken får aldrig automatisk `chosen_action = 'send'`, falder igennem til den nye "lyseblå"-regel.
-
-Forretningsreglen er klar: **pakker har altid "Forsendelse" som standard** (jf. `DefaultActionSetup.tsx` hvor `packageAction = "send"` er hardcoded). Så NULL skal behandles som `'send'` for pakker.
-
-## Ændringer
-
-### 1. Opdater trigger-funktion `apply_tenant_default_action`
-
-- For pakker: hvis `default_package_action` er NULL/tom → brug `'send'` som fallback.
-- Tilføj logik så funktionen også kører på **UPDATE** når `tenant_id` går fra NULL → ikke-NULL (i dag kører den kun på INSERT, så pakker der tildeles en lejer bagefter får ingen handling).
-
-### 2. Tilføj/opdater trigger så den fyrer på både INSERT og UPDATE OF tenant_id
-
-```sql
-DROP TRIGGER IF EXISTS apply_tenant_default_action_trg ON mail_items;
-CREATE TRIGGER apply_tenant_default_action_trg
-BEFORE INSERT OR UPDATE OF tenant_id ON mail_items
-FOR EACH ROW
-WHEN (NEW.tenant_id IS NOT NULL AND NEW.chosen_action IS NULL)
-EXECUTE FUNCTION apply_tenant_default_action();
+```ts
+if (porto) {
+  await supabase.from("mail_items").update({ porto_option: porto }).eq("id", id);
+}
 ```
 
-(Det præcise trigger-navn verificeres i migrationen.)
+Når `sync-officernd-charge-batch` derefter løber porto-loopet, springer den hver post over med `if (!portoOption) continue;` → ingen portopostering oprettes i OfficeRnD.
 
-### 3. Backfill af eksisterende pakker
+Hovedgebyret blev oprettet korrekt (det afhænger ikke af porto_option), så fakturaerne ligger der — bare uden porto.
 
-```sql
-UPDATE mail_items
-SET chosen_action = 'send', status = 'afventer_handling'
-WHERE mail_type = 'pakke'
-  AND tenant_id IS NOT NULL
-  AND chosen_action IS NULL
-  AND status IN ('ny','afventer_handling')
-  AND scan_url IS NULL;
+---
+
+## Plan
+
+### Del 1 — Ret de 7 forsendelser nu
+
+Jeg har brug for at vide hvilken porto-sats hver enkelt forsendelse skal have. Gyldige værdier (fra `PORTO_MAP` i edge-funktionen):
+
+| Nøgle | Beskrivelse |
+|---|---|
+| `dk_0_100` | DAO DK 0–100 g · 18,40 kr. |
+| `dk_100_250` | DAO DK 100–250 g · 36,80 kr. |
+| `dk_250_500` | DAO DK 250–500 g · 54,00 kr. |
+| `dk_500_1500` | DAO DK 500–1500 g · 72,00 kr. |
+| `udland_0_100` | DAO Udland 0–100 g · 46,00 kr. |
+| `udland_100_250` | DAO Udland 100–250 g · 92,00 kr. |
+
+Bemærk: forsendelse **3410** (ERIK VILLIAM THOMSEN K/S) er **Plus**-tier, og Plus får ikke porto-postering (skip-regel i batch sync). Hvis du alligevel vil have porto påført denne, må reglen ændres — sig til.
+
+Trin:
+1. Du angiver porto_option for hver af de 6 ikke-Plus forsendelser (3398, 3403, 3407, 3408, 3409, 3411).
+2. Jeg `UPDATE mail_items SET porto_option = …` for hver.
+3. Jeg justerer `sync-officernd-charge-batch` så den **ikke** springer porto-loopet over når hovedgebyret allerede er synket (i dag rammer `continue;` i "all already synced"-grenen og hopper helt forbi porto). Efter rettelsen kører porto-loopet uafhængigt.
+4. Jeg kalder `sync-officernd-charge-batch` igen for de 6 ID'er → porto-posteringer oprettes i OfficeRnD og logges i `officernd_sync_log`.
+
+### Del 2 — Forhindre fremover
+
+I `src/pages/ShippingPrepPage.tsx` på "brev"-fanen:
+- Send-knappen disables (og viser tooltip) hvis nogen valgt forsendelse tilhører en adressegruppe uden porto valgt — undtaget Plus-tier-forsendelser (som per regel ikke har porto).
+- Inline rød markering ved den adressegruppe der mangler porto, så det er tydeligt hvor klikket skal ske.
+
+Ingen DB-constraint tilføjes — `porto_option` skal stadig kunne være NULL for Plus og for pakker uden porto.
+
+### Tekniske noter
+
+- Edge-funktion: ændring i `supabase/functions/sync-officernd-charge-batch/index.ts` — flyt porto-blokken ud af `else`-grenen, så den altid kører pr. tenant uanset om hovedgebyret blev sprunget over pga. idempotens.
+- Frontend: ny `useMemo` der pr. valgt brev-ID slår op i `portoSelections[addrKey]` og returnerer en liste af manglende adressegrupper; knap disabled hvis listen ikke er tom.
+
+---
+
+**Næste skridt:** Skriv porto-koden for hver af de 6 forsendelser, fx:
 ```
-
-Dette retter #3414 og lignende pakker, så de bliver fersken/peach (bestilt forsendelse) i stedet for lyseblå.
-
-### 4. (Valgfri) Backfill `tenants.default_package_action`
-
-Sæt `default_package_action = 'send'` for alle 124 lejere hvor det er NULL, så fremtidige UI-visninger er konsistente.
-
-## Spørgsmål
-
-1. Skal jeg også backfille `tenants.default_package_action = 'send'` for de 124 lejere med NULL? (Anbefalet — UI viser allerede "Forsendelse" som eneste valg.)
-2. For breve på lejere med `default_mail_action = NULL` (55 stk.): skal lyseblå farve forblive (lejer mangler at vælge standard), eller skal vi tvinge dem ind i `DefaultActionSetup`-flowet næste gang de logger ind? (Ingen ændring foreslået nu — kun bekræftelse.)
+3398: dk_0_100
+3403: dk_100_250
+3407: dk_0_100
+3408: dk_0_100
+3409: dk_250_500
+3411: dk_0_100
+```
+Så kører jeg planen.
