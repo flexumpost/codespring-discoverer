@@ -251,7 +251,7 @@ const BulkUploadPage = () => {
 
       toast.success(t("bulkUpload.shipmentsSaved", { count: validItems.length }));
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
-      navigate("/mail");
+      navigate("/");
     } catch (err: any) {
       toast.error(t("bulkUpload.couldNotSave") + ": " + err.message);
     } finally {
@@ -265,7 +265,7 @@ const BulkUploadPage = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/mail")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h2 className="text-2xl font-bold">{t("bulkUpload.title")}</h2>
