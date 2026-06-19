@@ -265,7 +265,7 @@ const BulkUploadPage = () => {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/mail")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h2 className="text-2xl font-bold">{t("bulkUpload.title")}</h2>
