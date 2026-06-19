@@ -251,7 +251,7 @@ const BulkUploadPage = () => {
 
       toast.success(t("bulkUpload.shipmentsSaved", { count: validItems.length }));
       queryClient.invalidateQueries({ queryKey: ["mail-items"] });
-      navigate("/mail");
+      navigate("/");
     } catch (err: any) {
       toast.error(t("bulkUpload.couldNotSave") + ": " + err.message);
     } finally {
