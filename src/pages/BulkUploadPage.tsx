@@ -247,6 +247,17 @@ const BulkUploadPage = () => {
           photo_url: path,
         });
         if (insertErr) throw insertErr;
+
+        if (item.tenantId) {
+          supabase.functions.invoke("send-new-mail-email", {
+            body: {
+              tenant_id: item.tenantId,
+              mail_type: item.mailType,
+              stamp_number: item.stampNumber ? parseInt(item.stampNumber, 10) : null,
+              is_new_tenant: false,
+            },
+          }).catch((err) => console.error("send-new-mail-email failed:", err));
+        }
       }
 
       toast.success(t("bulkUpload.shipmentsSaved", { count: validItems.length }));
