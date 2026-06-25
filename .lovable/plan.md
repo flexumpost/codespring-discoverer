@@ -1,18 +1,36 @@
 ## Problem
 
-`email_send_log` viser at invite-mailen til `frederik_frederik@hotmail.com` kl. 08:04 i dag fejlede med `"Emails disabled for this project"`. Project Emails er deaktiveret på workspace-niveau — det er årsagen til at hverken invite eller recovery sendes. DNS er korrekt: NS-records (`ns7/ns8.lovable.cloud`) og TXT-verifikationen er live; quic.cloud-fejlen "Same record already exists" betyder bare at recorden allerede er der.
+Den nye UPDATE-policy på `public.tenants` indeholder en `WITH CHECK` med en subquery på `public.tenants` selv:
 
-## Trin
+```
+WITH CHECK (
+  user_id = auth.uid()
+  AND NOT (tenant_type_id IS DISTINCT FROM (
+    SELECT t.tenant_type_id FROM tenants t WHERE t.id = tenants.id
+  ))
+)
+```
 
-1. **Genaktivér Lovable Emails** for projektet (`toggle_project_emails` → enabled).
-2. **Verificér status** — bekræft at både domænestatus og emails-toggle er aktive.
-3. **Gensend invite** til `frederik_frederik@hotmail.com` via den eksisterende admin/genudsend-flow (samme som tidligere manuelle resend).
-4. **Tjek `email_send_log`** efter ~30 sek for at bekræfte at status går fra `pending` → `sent`.
+Når lejeren opdaterer sin række (fx forsendelsesadresse), evaluerer Postgres `WITH CHECK`, som læser `tenants` igen → trigger samme policy → **infinite recursion**.
 
-## Ingen kodeændringer
+## Løsning
 
-Dette er rent en konfigurations-/driftshandling — ingen ændringer i `src/` eller `supabase/functions/`. DNS forbliver uændret.
+Privilege-escalation er allerede beskyttet af triggeren `prevent_tenant_self_type_change` (kører ved UPDATE, bruger `is_operator()` + `SECURITY DEFINER`, kaster exception hvis non-operator ændrer `tenant_type_id`). `WITH CHECK`-klausulen er derfor overflødig.
 
-## Hvis Lovable Emails forbliver inaktive
+**Migration:** Drop og genskab `Tenants update own tenant` med en simpel check:
 
-Hvis toggle ikke kan slås til (f.eks. fordi domænestatus stadig hænger i `verifying`), peger jeg i Cloud → Emails → Manage Domains → **Verify Domain** for at tvinge en re-check, og hvis det fejler: slet og gentilføj domænet.
+```sql
+DROP POLICY "Tenants update own tenant" ON public.tenants;
+
+CREATE POLICY "Tenants update own tenant"
+ON public.tenants FOR UPDATE
+TO authenticated
+USING (user_id = auth.uid())
+WITH CHECK (user_id = auth.uid());
+```
+
+Triggeren håndterer fortsat tenant_type_id-låsen, så security-findingen `tenants_update_tenant_type_escalation` forbliver lukket.
+
+## Efter migration
+
+Test at lejeren kan gemme forsendelsesadresse uden recursion-fejl.
