@@ -106,6 +106,25 @@ Deno.serve(async (req) => {
     if (found) {
       newUserId = found.id;
       existingUser = true;
+
+      // Resend invite if user exists but never confirmed and caller asked for invite mode
+      if (mode === "invite" && !found.email_confirmed_at) {
+        const origin = "https://post.flexum.dk";
+        const { error: reinviteError } =
+          await adminClient.auth.admin.inviteUserByEmail(email, {
+            data: {
+              first_name: first_name || found.user_metadata?.first_name || "",
+              last_name: last_name || found.user_metadata?.last_name || "",
+            },
+            redirectTo: `${origin}/set-password`,
+          });
+        if (reinviteError) {
+          return new Response(JSON.stringify({ error: reinviteError.message }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
     } else if (mode === "invite") {
       // Use inviteUserByEmail — triggers auth-email-hook which sends branded invite email
       const origin = "https://post.flexum.dk";
