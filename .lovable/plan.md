@@ -1,30 +1,18 @@
 ## Problem
 
-`BulkUploadPage.tsx`'s `handleSaveAll` indsætter `mail_items` direkte, men kalder aldrig edge-funktionen `send-new-mail-email`. Til sammenligning kalder både `RegisterMailDialog.tsx` (linje 531-540) og `OperatorDashboard.tsx` (linje 664) `supabase.functions.invoke("send-new-mail-email", {...})` efter hver insert. Derfor blev der ingen "ny post"-mails sendt til lejerne ved den seneste bulk-upload, og `email_send_log` indeholder ingen rækker for de pågældende forsendelser.
+`email_send_log` viser at invite-mailen til `frederik_frederik@hotmail.com` kl. 08:04 i dag fejlede med `"Emails disabled for this project"`. Project Emails er deaktiveret på workspace-niveau — det er årsagen til at hverken invite eller recovery sendes. DNS er korrekt: NS-records (`ns7/ns8.lovable.cloud`) og TXT-verifikationen er live; quic.cloud-fejlen "Same record already exists" betyder bare at recorden allerede er der.
 
-## Løsning
+## Trin
 
-I `src/pages/BulkUploadPage.tsx`, inde i `handleSaveAll`-løkken efter en succesfuld `mail_items.insert`:
+1. **Genaktivér Lovable Emails** for projektet (`toggle_project_emails` → enabled).
+2. **Verificér status** — bekræft at både domænestatus og emails-toggle er aktive.
+3. **Gensend invite** til `frederik_frederik@hotmail.com` via den eksisterende admin/genudsend-flow (samme som tidligere manuelle resend).
+4. **Tjek `email_send_log`** efter ~30 sek for at bekræfte at status går fra `pending` → `sent`.
 
-```ts
-supabase.functions.invoke("send-new-mail-email", {
-  body: {
-    tenant_id: item.tenantId,
-    mail_type: item.mailType,
-    stamp_number: item.stampNumber ? parseInt(item.stampNumber, 10) : null,
-    is_new_tenant: false,
-  },
-}).catch((err) => console.error("send-new-mail-email failed:", err));
-```
+## Ingen kodeændringer
 
-- Fire-and-forget (samme mønster som `RegisterMailDialog`) så bulk-flow ikke bliver langsomt eller stopper, hvis én mail fejler.
-- Kører kun når `item.tenantId` er sat (allerede garanteret af `validItems`-filteret).
-- `is_new_tenant: false` — bulk-flow understøtter ikke inline-tenant-oprettelse.
+Dette er rent en konfigurations-/driftshandling — ingen ændringer i `src/` eller `supabase/functions/`. DNS forbliver uændret.
 
-## Bemærkning om allerede uploadede forsendelser
+## Hvis Lovable Emails forbliver inaktive
 
-Den bulk-upload du lige har lavet har ikke trigget mails. Hvis du ønsker, kan jeg som et separat skridt køre `send-new-mail-email` manuelt for de berørte `mail_items` (efter id eller tidsinterval), så lejerne stadig får besked. Sig til hvis du vil have det med.
-
-## Filer
-
-- `src/pages/BulkUploadPage.tsx` (én tilføjelse i save-løkken)
+Hvis toggle ikke kan slås til (f.eks. fordi domænestatus stadig hænger i `verifying`), peger jeg i Cloud → Emails → Manage Domains → **Verify Domain** for at tvinge en re-check, og hvis det fejler: slet og gentilføj domænet.
