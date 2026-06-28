@@ -103,7 +103,7 @@ export function ChooseActionDialog({
         )}
         <div className="flex justify-end pt-2">
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Luk
+            {t("common.close")}
           </Button>
         </div>
       </DialogContent>
