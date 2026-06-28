@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
+import { AutomationCard } from "@/components/AutomationCard";
 import {
   Dialog,
   DialogContent,
