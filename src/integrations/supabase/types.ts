@@ -795,6 +795,10 @@ export type Database = {
         Args: { _tenant_id: string; _tenant_type_id: string }
         Returns: boolean
       }
+      tenant_type_unchanged: {
+        Args: { _id: string; _tenant_type_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "operator" | "tenant"
