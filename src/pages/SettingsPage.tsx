@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
+import { AutomationCard } from "@/components/AutomationCard";
 import {
   Dialog,
   DialogContent,
@@ -336,6 +337,13 @@ const SettingsPage = () => {
               <Plus className="mr-2 h-4 w-4" />
               {t("settings.createMailRecipient")}
             </Button>
+
+            {selectedTenant && (
+              <AutomationCard
+                tenantId={selectedTenant.id}
+                currentMailAction={(selectedTenant as any).default_mail_action ?? null}
+              />
+            )}
           </div>
 
           {/* Column 2: Mail pricing */}

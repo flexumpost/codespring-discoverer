@@ -762,6 +762,78 @@
     "officeStandard": "Læg på kontoret (standard)",
     "shipmentDestroyed": "Forsendelse destrueret"
   },
+  "chooseAction": {
+    "standardScan": {
+      "title": "Standard scan",
+      "desc": "Brevet scannes gratis på først kommende scanningsdag.",
+      "datePrefix": "Scannes",
+      "cta": "Vælg standard scan"
+    },
+    "scanNow": {
+      "title": "Scan nu",
+      "desc": "Brevet scannes inden for 24 timer på hverdage.",
+      "cta": "Scan nu"
+    },
+    "standardSend": {
+      "title": "Standard forsendelse",
+      "desc": "Brevet sendes gratis (+ porto) på standard forsendelsesdag.",
+      "datePrefix": "Sendes",
+      "cta": "Send på standard dag"
+    },
+    "fastSend": {
+      "title": "Hurtig forsendelse",
+      "desc": "Sendes på først kommende torsdag.",
+      "datePrefix": "Sendes",
+      "cta": "Send hurtigt"
+    },
+    "standardPickup": {
+      "title": "Standard afhentning",
+      "desc": "Brevet kan afhentes gratis på næste planlagte afhentningsdag.",
+      "datePrefix": "Afhentes",
+      "cta": "Bestil standard afhentning"
+    },
+    "fastPickup": {
+      "title": "Hurtig afhentning",
+      "desc": "Brevet kan afhentes efter aftale — afhentning skal bookes.",
+      "cta": "Book afhentning"
+    },
+    "destroy": {
+      "title": "Destruktion",
+      "desc": "Brevet bliver makuleret. Handlingen kan ikke fortrydes.",
+      "cta": "Makulér brevet"
+    },
+    "archive": {
+      "title": "Arkivér",
+      "desc": "Hold overblik over dine forsendelser — arkivér når den ikke længere er relevant.",
+      "cta": "Arkivér"
+    },
+    "reactivate": {
+      "title": "Genaktivér",
+      "desc": "Flyt forsendelsen tilbage til oversigten over aktive forsendelser.",
+      "cta": "Genaktivér"
+    },
+    "cancel": {
+      "title": "Annullér valg",
+      "desc": "Fjern din nuværende handling så du kan vælge en ny.",
+      "cta": "Annullér valg"
+    }
+  },
+  "automation": {
+    "title": "Automatisering",
+    "description": "Vælg hvad der som standard skal ske med nye breve. Du kan altid vælge en anden handling på det enkelte brev.",
+    "mailLabel": "Standard handling for breve",
+    "packageLabel": "Standard handling for pakker",
+    "packageLocked": "Forsendelse (kan ikke ændres for pakker)",
+    "saved": "Automatisering gemt",
+    "couldNotSave": "Kunne ikke gemme automatisering",
+    "save": "Gem",
+    "shipment": "Forsendelse",
+    "shipmentHelp": "Nye breve sættes til forsendelse på din standard forsendelsesdag — gratis.",
+    "scanning": "Scanning",
+    "scanningHelp": "Nye breve sættes til scanning på din standard scanningsdag — gratis.",
+    "pickup": "Afhentning",
+    "pickupHelp": "Nye breve sættes til afhentning på din standard afhentningsdag — gratis."
+  },
   "languageToggle": {
     "da": "DA",
     "en": "EN"
