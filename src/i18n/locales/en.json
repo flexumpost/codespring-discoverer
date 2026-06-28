@@ -762,6 +762,78 @@
     "officeStandard": "Office delivery (standard)",
     "shipmentDestroyed": "Shipment destroyed"
   },
+  "chooseAction": {
+    "standardScan": {
+      "title": "Standard scan",
+      "desc": "The letter is scanned for free on the next scheduled scanning day.",
+      "datePrefix": "Scanned",
+      "cta": "Choose standard scan"
+    },
+    "scanNow": {
+      "title": "Scan now",
+      "desc": "The letter is scanned within 24 hours on weekdays.",
+      "cta": "Scan now"
+    },
+    "standardSend": {
+      "title": "Standard shipment",
+      "desc": "The letter is shipped for free (+ postage) on the standard shipping day.",
+      "datePrefix": "Sent",
+      "cta": "Send on standard day"
+    },
+    "fastSend": {
+      "title": "Fast shipment",
+      "desc": "Sent on the next upcoming Thursday.",
+      "datePrefix": "Sent",
+      "cta": "Send fast"
+    },
+    "standardPickup": {
+      "title": "Standard pickup",
+      "desc": "The letter can be picked up for free on the next scheduled pickup day.",
+      "datePrefix": "Pickup",
+      "cta": "Order standard pickup"
+    },
+    "fastPickup": {
+      "title": "Fast pickup",
+      "desc": "The letter can be picked up by appointment — pickup must be booked.",
+      "cta": "Book pickup"
+    },
+    "destroy": {
+      "title": "Destruction",
+      "desc": "The letter will be shredded. This action cannot be undone.",
+      "cta": "Shred the letter"
+    },
+    "archive": {
+      "title": "Archive",
+      "desc": "Keep an overview of your shipments — archive when no longer relevant.",
+      "cta": "Archive"
+    },
+    "reactivate": {
+      "title": "Reactivate",
+      "desc": "Move the shipment back to your list of active shipments.",
+      "cta": "Reactivate"
+    },
+    "cancel": {
+      "title": "Cancel choice",
+      "desc": "Remove your current action so you can choose a new one.",
+      "cta": "Cancel choice"
+    }
+  },
+  "automation": {
+    "title": "Automation",
+    "description": "Choose what happens by default with new letters. You can always choose a different action for each individual letter.",
+    "mailLabel": "Default action for letters",
+    "packageLabel": "Default action for packages",
+    "packageLocked": "Shipment (cannot be changed for packages)",
+    "saved": "Automation saved",
+    "couldNotSave": "Could not save automation",
+    "save": "Save",
+    "shipment": "Shipment",
+    "shipmentHelp": "New letters are set to shipment on your standard shipping day — free.",
+    "scanning": "Scanning",
+    "scanningHelp": "New letters are set to scanning on your standard scanning day — free.",
+    "pickup": "Pickup",
+    "pickupHelp": "New letters are set to pickup on your standard pickup day — free."
+  },
   "languageToggle": {
     "da": "DA",
     "en": "EN"
