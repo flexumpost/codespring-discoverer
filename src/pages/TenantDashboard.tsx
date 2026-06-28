@@ -619,8 +619,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         .from("mail_items")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", selectedTenantId!)
-        .eq("chosen_action", "scan")
+        .in("chosen_action", ["scan", "standard_scan"])
         .is("scan_url", null);
+
 
       const scannetUlaestRes = await supabase
         .from("mail_items")
@@ -656,7 +657,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         .order("received_at", { ascending: false });
 
       if (activeFilter === "afventer_scanning") {
-        query = query.eq("chosen_action", "scan").is("scan_url", null);
+        query = query.in("chosen_action", ["scan", "standard_scan"]).is("scan_url", null);
+
       } else if (activeFilter === "scannet") {
         query = query.not("scan_url", "is", null).neq("status", "arkiveret" as MailStatus);
       } else if (activeFilter) {
