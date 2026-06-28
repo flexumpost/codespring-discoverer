@@ -1370,6 +1370,38 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         </DialogContent>
       </Dialog>
       <MailItemLogSheet mailItemId={logMailItemId} open={!!logMailItemId} onOpenChange={(v) => { if (!v) setLogMailItemId(null); }} />
+
+      {/* Vælg handling dialog */}
+      <ChooseActionDialog
+        open={!!actionDialogItem}
+        onOpenChange={(o) => { if (!o) setActionDialogItem(null); }}
+        title={t("tenantDashboard.selectAction")}
+        description={actionDialogItem ? `${actionDialogItem.mail_type === "pakke" ? t("common.package") : t("common.letter")}${actionDialogItem.stamp_number ? ` · ${t("operatorDashboard.stampNumber")} ${actionDialogItem.stamp_number}` : ""}` : undefined}
+        cards={actionDialogItem ? buildActionCards({ item: actionDialogItem, tier: tenantTypeName, t }) : []}
+        onSelect={(card) => {
+          if (!actionDialogItem) return;
+          const id = actionDialogItem.id;
+          setActionDialogItem(null);
+          if (card.action === "__archive__") {
+            const completed =
+              actionDialogItem.status === "sendt_med_dao" ||
+              actionDialogItem.status === "sendt_med_postnord" ||
+              actionDialogItem.status === "sendt_retur" ||
+              !!actionDialogItem.scan_url ||
+              actionDialogItem.chosen_action === "afhentet" ||
+              actionDialogItem.chosen_action === "destruer";
+            if (completed) archiveMutation.mutate(id);
+            else setArchiveBlockedOpen(true);
+          } else if (card.action === "__reactivate__") {
+            reactivateMutation.mutate(id);
+          } else if (card.action === "__cancel__") {
+            cancelAction.mutate(id);
+          } else {
+            handleAction(id, card.action);
+          }
+        }}
+        disabled={chooseAction.isPending || cancelAction.isPending || archiveMutation.isPending || reactivateMutation.isPending}
+      />
     </div>
   );
 };
