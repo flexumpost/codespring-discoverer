@@ -37,6 +37,7 @@ export function ChooseActionDialog({
   onSelect,
   disabled,
 }: ChooseActionDialogProps) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
