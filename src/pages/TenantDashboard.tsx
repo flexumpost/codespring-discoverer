@@ -1065,137 +1065,15 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   })()}
                 </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {(() => {
-                    const scanExpired = item.chosen_action === "scan" && item.scan_url && getDaysLeftForScan((item as any).scanned_at ?? null) === 0;
-                    const isSentWithDao = item.status === "sendt_med_dao" || item.status === "sendt_med_postnord" || item.status === "sendt_retur";
-
-                    const defaultAction = item.mail_type === "pakke"
-                      ? (selectedTenant as any)?.default_package_action
-                      : (selectedTenant as any)?.default_mail_action;
-                    const effectiveAction = item.chosen_action ?? defaultAction ?? "send";
-                    const shippingDate = getNextShippingDate(tenantTypeName, item.mail_type);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    shippingDate.setHours(0, 0, 0, 0);
-                    const packingDay = new Date(shippingDate);
-                    packingDay.setDate(packingDay.getDate() - 1);
-                    const isLockedForShipping = !item.chosen_action && effectiveAction === "send" && today >= packingDay;
-
-                    if (item.status === "arkiveret" && item.chosen_action !== "destruer") {
-                      return (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => reactivateMutation.mutate(item.id)}
-                          title={t("tenantDashboard.reactivateShipment")}
-                          className="h-8 w-8 text-blue-600 hover:text-blue-800"
-                        >
-                          <Undo2 className="h-4 w-4" />
-                        </Button>
-                      );
-                    }
-
-                    if (scanExpired || isSentWithDao || (isLockedForShipping && item.status !== "arkiveret")) {
-                      const rowIsCompleted =
-                        item.status === "sendt_med_dao" ||
-                        item.status === "sendt_med_postnord" ||
-                        !!item.scan_url;
-                      return (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs"
-                          onClick={() => {
-                            if (rowIsCompleted) {
-                              archiveMutation.mutate(item.id);
-                            } else {
-                              setArchiveBlockedOpen(true);
-                            }
-                          }}
-                          disabled={archiveMutation.isPending}
-                        >
-                          {t("common.archive")}
-                        </Button>
-                      );
-                    }
-
-                    if (item.chosen_action && item.chosen_action !== "destruer") {
-                      return (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => cancelAction.mutate(item.id)}
-                          title={t("tenantDashboard.cancelAction")}
-                          className="text-xs text-muted-foreground hover:text-destructive"
-                        >
-                          <Undo2 className="h-4 w-4 mr-1" />
-                          {t("tenantDashboard.cancelAction")}
-                        </Button>
-                      );
-                    }
-
-                    if (allowedActions.length > 0) {
-                      let actionForExtras = effectiveAction;
-                      if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "scan") {
-                        actionForExtras = "standard_scan";
-                      }
-                      if (!item.chosen_action && tenantTypeName === "Lite" && effectiveAction === "send") {
-                        actionForExtras = "standard_forsendelse";
-                      }
-                      if (!item.chosen_action && tenantTypeName === "Lite" && item.mail_type === "pakke" && effectiveAction === "afhentning") {
-                        actionForExtras = "standard_afhentning";
-                      }
-                      if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type === "pakke") {
-                        if (effectiveAction === "afhentning") actionForExtras = "standard_afhentning";
-                        else if (effectiveAction === "send") actionForExtras = "standard_forsendelse";
-                      }
-                      if (!item.chosen_action && tenantTypeName === "Standard" && item.mail_type !== "pakke" && effectiveAction === "scan") {
-                        actionForExtras = "standard_scan";
-                      }
-                      const extraActions = getExtraActions(tenantTypeName, item.mail_type, actionForExtras, defaultAction);
-                      const hasRejectedScan = !!(item as any).action_rejected_reason;
-                      const availableExtras = extraActions.filter(
-                        (a) => a === "destruer" || a === "gratis_afhentning" || allowedActions.includes(a) || (a === "anden_afhentningsdag" && allowedActions.includes("afhentning")) || (a === "standard_forsendelse" && allowedActions.includes("send")) || (a === "standard_scan" && allowedActions.includes("scan")) || (a === "standard_afhentning" && allowedActions.includes("afhentning"))
-                      ).filter((a) => !(hasRejectedScan && (a === "scan" || a === "standard_scan")));
-
-                      if (availableExtras.length === 0) {
-                        return defaultAction ? (
-                          <Badge className="bg-primary/10 text-primary border-primary/20">
-                            {ACTION_LABELS[defaultAction] ?? defaultAction}
-                          </Badge>
-                        ) : <span className="text-muted-foreground">—</span>;
-                      }
-
-                      return (
-                        <Select
-                          value=""
-                          onValueChange={(value) => handleAction(item.id, value)}
-                          disabled={chooseAction.isPending}
-                        >
-                          <SelectTrigger className="h-8 w-[140px] sm:w-[180px] text-xs">
-                            <SelectValue placeholder={t("tenantDashboard.selectAction")} />
-                          </SelectTrigger>
-                          <SelectContent className="z-50 bg-popover">
-                            {availableExtras.map((action) => (
-                              <SelectItem key={action} value={action} className="text-xs">
-                                {getActionLabel(action, tenantTypeName, t)}
-                                {(() => { const p = getActionPrice(action, tenantTypeName, item.mail_type); return p ? ` (${p})` : ""; })()}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      );
-                    }
-
-                    if (item.chosen_action) {
-                      return (
-                        <Badge className="bg-primary/10 text-primary border-primary/20">
-                          {ACTION_LABELS[item.chosen_action] ?? item.chosen_action}
-                        </Badge>
-                      );
-                    }
-                    return <span className="text-muted-foreground">—</span>;
-                  })()}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs whitespace-nowrap"
+                    onClick={() => setActionDialogItem(item)}
+                    disabled={hasUnpaidInvoice}
+                  >
+                    {t("tenantDashboard.selectAction")}
+                  </Button>
                 </TableCell>
                 <TableCell>
                   {(() => {
