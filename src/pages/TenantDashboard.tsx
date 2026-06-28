@@ -619,8 +619,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         .from("mail_items")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", selectedTenantId!)
-        .eq("chosen_action", "scan")
+        .in("chosen_action", ["scan", "standard_scan"])
         .is("scan_url", null);
+
 
       const scannetUlaestRes = await supabase
         .from("mail_items")
