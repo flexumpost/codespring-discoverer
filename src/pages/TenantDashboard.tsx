@@ -22,7 +22,6 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { DefaultActionSetup } from "@/components/DefaultActionSetup";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards } from "@/lib/mailActions";
@@ -868,23 +867,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     { title: t("tenantDashboard.archived"), value: stats.arkiveret, icon: Archive, status: "arkiveret" as FilterStatus },
   ];
 
-  const needsDefaultActions =
-    selectedTenant &&
-    ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? "") &&
-    ((selectedTenant as any).default_mail_action == null || (selectedTenant as any).default_package_action == null);
-
   const hasUnpaidInvoice = !!(selectedTenant as any)?.has_unpaid_invoice;
 
   const locale = i18n.language === "da" ? "da-DK" : "en-GB";
 
   return (
     <div>
-      {needsDefaultActions && (
-        <DefaultActionSetup
-          tenantId={selectedTenant!.id}
-          tenantTypeName={tenantTypeName!}
-        />
-      )}
+
       {tenants.length > 1 && (
         <div className="mb-6">
           <TenantSelector

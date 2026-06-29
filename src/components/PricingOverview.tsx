@@ -88,20 +88,7 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
     <Card>
       <CardHeader><CardTitle className="text-base">{t("pricing.mailTitle", { tier: tenantTypeName })}</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {tenant && (
-          <div className="space-y-3 border-b pb-4 mb-2">
-            <Label>{t("pricing.defaultMailAction")}</Label>
-            <div className="flex items-center gap-2">
-              <Select value={mailAction} onValueChange={setMailAction}>
-                <SelectTrigger className="w-[200px]"><SelectValue placeholder={t("pricing.selectAction")} /></SelectTrigger>
-                <SelectContent>{MAIL_ACTIONS.map((a) => <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button size="sm" onClick={() => mailMutation.mutate()} disabled={!mailChanged || !mailAction || mailMutation.isPending}>
-                <Save className="mr-1 h-4 w-4" /> {mailMutation.isPending ? t("common.saving") : t("common.save")}
-              </Button>
-            </div>
-          </div>
-        )}
+
         {mail.forklaring && <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">{renderForklaring(mail.forklaring)}</div>}
         <Table>
           <TableHeader><TableRow><TableHead className="w-[200px]">{t("pricing.subject")}</TableHead><TableHead>{t("pricing.conditionPrice")}</TableHead></TableRow></TableHeader>
