@@ -22,7 +22,6 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { DefaultActionSetup } from "@/components/DefaultActionSetup";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards } from "@/lib/mailActions";
