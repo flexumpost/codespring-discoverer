@@ -459,8 +459,24 @@ function getPickupHours(date: Date | undefined): string[] {
   if (!date) return [];
   const day = date.getDay();
   const maxHour = day === 5 ? 14 : 16;
+
+  // 2-hour buffer when booking today
+  const now = new Date();
+  const isToday =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  let minHour = 9;
+  if (isToday) {
+    const threshold = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    minHour = threshold.getMinutes() > 0 || threshold.getSeconds() > 0
+      ? threshold.getHours() + 1
+      : threshold.getHours();
+    if (minHour < 9) minHour = 9;
+  }
+
   const hours: string[] = [];
-  for (let h = 9; h <= maxHour; h++) {
+  for (let h = minHour; h <= maxHour; h++) {
     hours.push(`${h.toString().padStart(2, "0")}:00-${(h + 1).toString().padStart(2, "0")}:00`);
   }
   return hours;
