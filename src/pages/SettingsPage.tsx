@@ -338,14 +338,6 @@ const SettingsPage = () => {
               {t("settings.createMailRecipient")}
             </Button>
 
-            {selectedTenant && (
-              <AutomationCard
-                tenantId={selectedTenant.id}
-                currentMailAction={(selectedTenant as any).default_mail_action ?? null}
-              />
-            )}
-          </div>
-
           {/* Column 2: Mail pricing */}
           <MailPricingCard tenantTypeName={typeName} tenant={selectedTenant as any} />
 
