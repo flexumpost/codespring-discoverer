@@ -1,4 +1,4 @@
-import { Users, Settings, LayoutDashboard, LogOut, MapPin, Package } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, MapPin, Package, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ export function AppSidebar() {
   const tenantItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
     { title: t("nav.shippingAddress"), url: "/shipping-address", icon: MapPin },
+    { title: t("nav.automation"), url: "/automation", icon: Zap },
     { title: t("nav.settings"), url: "/settings", icon: Settings },
   ];
 

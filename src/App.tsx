@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AutomationPage from "./pages/AutomationPage";
 import ShippingAddressPage from "./pages/ShippingAddressPage";
 import TenantsPage from "./pages/TenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
@@ -71,6 +72,14 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <SettingsPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/automation"
+      element={
+        <ProtectedRoute>
+          <AutomationPage />
         </ProtectedRoute>
       }
     />
