@@ -337,6 +337,8 @@ const SettingsPage = () => {
               <Plus className="mr-2 h-4 w-4" />
               {t("settings.createMailRecipient")}
             </Button>
+          </div>
+
 
           {/* Column 2: Mail pricing */}
           <MailPricingCard tenantTypeName={typeName} tenant={selectedTenant as any} />
