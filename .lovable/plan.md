@@ -1,35 +1,20 @@
 ## Mål
+Når en lejer booker afhentning, må det tidligste valgbare tidsrum ligge mindst 2 timer fremme i tiden. Eksempel: kl. 10:17 → tidligste slot starter kl. 13:00 (slottet 12:00–13:00 udelukkes, da det starter før 12:17).
 
-Flyt automatiserings-indstillinger ud i sit eget menupunkt så indstillingssiden bliver mere overskuelig, og fjern duplikerede / unødvendige valg af "Standard handling for breve".
+## Ændring
 
-## Ændringer
+### `src/pages/TenantDashboard.tsx` — `getPickupHours(date)`
+- Tilføj logik der beregner tærskel = `nu + 2 timer`.
+- Hvis den valgte `date` er **i dag**, filtreres tidsrum, så kun slots hvis starttime `>=` ceil(tærskel-time, oprundet hvis der er minutter) vises.
+  - Konkret: `minHour = thresholdMinutes > 0 ? thresholdHour + 1 : thresholdHour`.
+- Hvis den valgte dato er en fremtidig dag, vises alle slots fra 09:00 som i dag (ingen ændring).
+- Bibehold den eksisterende max-time-logik (fredag 14, ellers 16).
+- Hvis ingen slots er tilbage for i dag (f.eks. efter kl. 14:01 mandag–torsdag, hvor min = 17 > 16), returneres tom liste — `Select` viser så ingen valgmuligheder, og `Bestil afhentning`-knappen forbliver disabled (allerede styret af `!pickupHour`).
 
-### 1. Nyt menupunkt i lejer-sidebar
-- `src/components/AppSidebar.tsx`: Tilføj `{ title: t("nav.automation"), url: "/automation", icon: Zap }` (eller `Sliders`) i `tenantItems` — placeret over `Settings`.
-- Tilføj oversættelse `nav.automation` = "Automatisering" / "Automation" i `da.json` og `en.json`.
-
-### 2. Ny side `/automation`
-- Opret `src/pages/AutomationPage.tsx`:
-  - Bruger `AppLayout` + `TenantSelector` (samme mønster som `SettingsPage`).
-  - Viser den eksisterende `<AutomationCard>` for den valgte tenant.
-  - Header: "Automatisering" + kort intro-tekst.
-- Registrer ruten i `src/App.tsx` under tenant-routes (beskyttet på samme måde som `/settings`).
-
-### 3. Fjern Automatisering-kortet fra Settings
-- `src/pages/SettingsPage.tsx`: Fjern `<AutomationCard>`-blokken i venstre kolonne (importen ryger med).
-
-### 4. Fjern duplikeret "Standard handling for breve" i pris-kortet
-- `src/components/PricingOverview.tsx` (`MailPricingCard`): Fjern dropdown + Gem-knap for `default_mail_action` (det vises i image 1). Resten af pris-/betingelses-indholdet bevares uændret.
-- Behold mutation-koden kun hvis den bruges andre steder; ellers ryd op.
-
-### 5. Fjern første-login prompt om standard handling for breve
-- `src/components/DefaultActionSetup.tsx` + det sted komponenten mountes (tjekkes via `rg "DefaultActionSetup"`): Fjern komponenten og dens kald, så nye lejere ikke bliver spurgt. Default i DB forbliver `send` (Forsendelse) — sættes eksplicit ved tenant-oprettelse hvis ikke allerede.
-
-### 6. AutomationCard uændret indhold
-- Radio-valg for breve (Forsendelse / Scanning / Afhentning) **bevares** på den nye side.
-- Pakke-sektion forbliver låst til "Forsendelse (kan ikke ændres for pakker)".
+### Kalender (samme dialog)
+- Ingen ændring i `disabled`-funktionen på kalenderen. I dag forbliver valgbar — brugeren kan stadig vælge i dag, men får kun de slots der ligger ≥ 2 timer ude.
 
 ## Ikke-mål
-- Ingen DB-migrationer.
-- Ingen ændringer for operator-rollen.
-- Ingen ændring af eksisterende logik bag `default_mail_action`.
+- Ingen ændring af weekend/lukkedags-logik.
+- Ingen ændring af serverside validering eller `choosePickup`-mutationen.
+- Ingen ændring af tekster/oversættelser.
