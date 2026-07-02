@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 function getDefaultShippingDate(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+  const daysUntil = (4 - dayOfWeek + 7) % 7;
   return startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil));
 }
 
@@ -49,16 +49,17 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
 
   if (mailType === "pakke" || tenantTypeName.toLowerCase() !== "lite") {
     const dayOfWeek = today.getDay();
-    const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+    const daysUntil = (4 - dayOfWeek + 7) % 7;
     return startOfDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysUntil));
   }
 
   const firstThurs = getFirstThursdayOfMonth(now);
-  if (firstThurs > today) return startOfDay(firstThurs);
+  if (firstThurs >= today) return startOfDay(firstThurs);
 
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return startOfDay(getFirstThursdayOfMonth(nextMonth));
 }
+
 
 const COUNTRY_CODES: Record<string, string> = {
   "danmark": "DK", "denmark": "DK",
