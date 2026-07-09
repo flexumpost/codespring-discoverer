@@ -1,27 +1,42 @@
+# Fix: OCR-matching foreslår "test" i stedet for korrekt lejer
+
 ## Problem
+For forsendelse 3543 læste OCR korrekt: modtager = "SKATTESTYRELSEN", afsender = "AQWA APS". Men systemet foreslog lejeren **"test"** i stedet for **AQWA APS**, fordi `fuzzyMatchTenant` finder delstrengen "test" inde i "ska**ttest**yrelsen" og returnerer den før swap-logikken når at prøve afsenderen.
 
-Lite-brevet med stempel 3489 (chosen_action = `standard_forsendelse`, Roepkjær ApS) står ikke under "torsdag 2. juli 2026" på **Send breve og pakker**, selvom 2. juli **er** første torsdag i juli.
+## Årsag
+`fuzzyMatchTenant` (findes både i `src/components/RegisterMailDialog.tsx` og `src/pages/BulkUploadPage.tsx`) laver naiv `includes`-substring-match uden længdekrav og uden score. Ethvert lejernavn på 3–4 tegn ("test", "EVT", etc.) rammer stort set alle OCR-strenge.
 
-Årsag ligger i `src/pages/ShippingPrepPage.tsx`:
+## Løsning
 
-- `getNextShippingDateForItem(...)` for Lite-breve returnerer `getFirstThursdayOfMonth(now)` **kun hvis `firstThurs > today`**. Da dagens dato (2. juli) er lig med første torsdag, springer logikken videre til næste måneds første torsdag (6. august).
-- Samme problem i den generelle gren (`daysUntil = (4 - dow + 7) % 7 || 7`): når dagen `er` torsdag, giver `|| 7` én uge frem i stedet for i dag.
-- `getDefaultShippingDate()` har samme "|| 7"-fejl, så default-dato på en torsdag hopper til næste torsdag.
+**1. Skærp `fuzzyMatchTenant` — samme regler begge steder:**
+- Kræv minimum længde på det korteste navn i en substring-sammenligning (fx ≥ 5 tegn), så "test" ikke længere matcher tilfældige ord.
+- Kræv at delstrengsmatch sker på **ordgrænser** (regex `\b`) frem for midt inde i et andet ord — "test" i "skattestyrelsen" udelukkes; "AQWA" i "AQWA APS" beholdes.
+- Returner match sammen med en score (eksakt > ordgrænse-inklusion > kontakt-navn), så bedste kandidat kan vælges.
 
-Effekt: onsdag virker (firstThurs = i morgen > i dag), men torsdag (hvor brugeren også skal kunne klargøre) skjuler brevene.
+**2. Vælg bedste kombination i kalderen:**
+- Hent match for både `recipientName` og `senderName` med score.
+- Vælg den kandidat med højeste score; ved uafgjort foretræk modtager.
+- Bevar swap-adfærd: hvis det valgte match kom fra `sender_name`-feltet, byttes felterne i UI'en, så lejeren står som modtager og modparten som afsender.
 
-## Ændring
+**3. Ingen ændringer i edge-function `ocr-stamp`** — OCR-aflæsningen selv var korrekt for 3543.
 
-### `src/pages/ShippingPrepPage.tsx`
+## Berørte filer
+- `src/components/RegisterMailDialog.tsx` — skærp `fuzzyMatchTenant`, opdatér kalder-logik omkring linje 220–235.
+- `src/pages/BulkUploadPage.tsx` — samme ændring i lokal `fuzzyMatchTenant` og swap-blok.
 
-1. `getDefaultShippingDate()` — fjern `|| 7`, så `daysUntil = (4 - dow + 7) % 7`. På en torsdag defaulter siden til i dag; øvrige dage uændret.
-2. `getNextShippingDateForItem(tenantTypeName, mailType)`:
-   - Generel gren (pakker + ikke-Lite breve): samme fix — fjern `|| 7` så torsdag = i dag.
-   - Lite-brev gren: skift `if (firstThurs > today)` til `if (firstThurs >= today)`, så første torsdag i måneden også tælles når den er i dag.
+## Teknisk detalje
+Ny matcher pseudo-kode:
+```
+score:
+  4  exact company_name
+  3  exact contact full name
+  2  company_name matches on \b-boundary AND min(len)≥5
+  1  contact name matches on \b-boundary AND min(len)≥5
+  0  no match
+```
+Kalder tager `Math.max(recipientScore, senderScore)`; hvis begge 0 → ingen forslag; hvis sender vinder → swap.
 
-Ingen ændring af filter, gruppering, mutation, eller andre komponenter. Onsdags-klargøring virker som før (firstThurs = i morgen). Torsdags-klargøring virker nu også.
-
-## Ikke-mål
-- Ingen ændring af backend, RLS, eller edge functions.
-- Ingen ændring af `mailActions.ts` (tenant-siden viser stadig "Skal sendes Torsdag den 2. juli" korrekt).
-- Ingen tekst-/oversættelsesændringer.
+## Verifikation
+- Manuelt test-case: modtager="SKATTESTYRELSEN", afsender="AQWA APS" → foreslår AQWA APS (swap).
+- Modtager="AQWA APS", afsender="PostNord" → foreslår AQWA APS uden swap.
+- Modtager="test lejer", afsender="Danske Bank" → foreslår "test lejer" (eksakt, uændret).
