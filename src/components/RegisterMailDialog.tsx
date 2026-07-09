@@ -203,9 +203,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       let recipientName = data?.recipient_name ?? "";
       let detectedSender = data?.sender_name ?? "";
       if (tenants && recipientName && detectedSender) {
-        const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
-        const senderMatch = fuzzyMatchTenant(detectedSender, tenants);
-        if (!recipientMatch && senderMatch) {
+        const { swap } = pickBestTenantMatch(recipientName, detectedSender, tenants);
+        if (swap) {
           const tmp = recipientName;
           recipientName = detectedSender;
           detectedSender = tmp;
