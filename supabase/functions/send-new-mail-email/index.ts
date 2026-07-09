@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
           mailTypeLabel,
         })
       );
-    } else if (is_new_tenant) {
+    } else if (effectiveIsNew) {
       // New tenant but no user_id yet — fallback to welcome with login URL
       html = await renderAsync(
         WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: loginUrl })
