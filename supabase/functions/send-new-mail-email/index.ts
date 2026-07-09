@@ -101,6 +101,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Auto-detect: does the tenant's user still need to set a password?
+    // If the user has never signed in, treat this send as a welcome/onboarding
+    // send regardless of what the client passed, so the email carries a fresh
+    // 24h onboarding link instead of pointing to /login.
+    let needsOnboarding = false;
+    if (tenant.user_id) {
+      try {
+        const { data: userLookup } = await supabaseAdmin.auth.admin.getUserById(tenant.user_id);
+        if (userLookup?.user && !userLookup.user.last_sign_in_at) {
+          needsOnboarding = true;
+        }
+      } catch (e) {
+        console.warn("getUserById failed for tenant.user_id", tenant.user_id, e);
+      }
+    }
+    const effectiveIsNew = !!is_new_tenant || needsOnboarding;
+
     // Fetch mail items for this tenant to include in the email
     let itemsListHtml = "";
     const { data: mailItems } = await supabaseAdmin
