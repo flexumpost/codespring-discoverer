@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
 
     let html: string;
 
-    if (is_new_tenant && tenant.user_id) {
+    if (effectiveIsNew && tenant.user_id) {
       // Generate a custom onboarding token valid for 24 hours
       const origin = "https://post.flexum.dk";
       let confirmationUrl = loginUrl;
