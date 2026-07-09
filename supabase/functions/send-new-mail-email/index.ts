@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
       template_name: slug,
       recipient_email: tenant.contact_email,
       status: "sent",
-      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: !!is_new_tenant },
+      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: effectiveIsNew, needs_onboarding: needsOnboarding },
     });
 
     // Send to extra tenant_users (standard template, no welcome/magic-link).
