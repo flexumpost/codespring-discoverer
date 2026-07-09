@@ -101,6 +101,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Auto-detect: does the tenant's user still need to set a password?
+    // If the user has never signed in, treat this send as a welcome/onboarding
+    // send regardless of what the client passed, so the email carries a fresh
+    // 24h onboarding link instead of pointing to /login.
+    let needsOnboarding = false;
+    if (tenant.user_id) {
+      try {
+        const { data: userLookup } = await supabaseAdmin.auth.admin.getUserById(tenant.user_id);
+        if (userLookup?.user && !userLookup.user.last_sign_in_at) {
+          needsOnboarding = true;
+        }
+      } catch (e) {
+        console.warn("getUserById failed for tenant.user_id", tenant.user_id, e);
+      }
+    }
+    const effectiveIsNew = !!is_new_tenant || needsOnboarding;
+
     // Fetch mail items for this tenant to include in the email
     let itemsListHtml = "";
     const { data: mailItems } = await supabaseAdmin
@@ -146,7 +163,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine slug: welcome_shipment for new tenants, otherwise provided or default
-    const slug = is_new_tenant ? "welcome_shipment" : (template_slug || "new_shipment");
+    const slug = effectiveIsNew ? "welcome_shipment" : (template_slug || "new_shipment");
 
     // Get template
     const { data: template } = await supabaseAdmin
@@ -195,7 +212,7 @@ Deno.serve(async (req) => {
 
     let html: string;
 
-    if (is_new_tenant && tenant.user_id) {
+    if (effectiveIsNew && tenant.user_id) {
       // Generate a custom onboarding token valid for 24 hours
       const origin = "https://post.flexum.dk";
       let confirmationUrl = loginUrl;
@@ -237,7 +254,7 @@ Deno.serve(async (req) => {
           mailTypeLabel,
         })
       );
-    } else if (is_new_tenant) {
+    } else if (effectiveIsNew) {
       // New tenant but no user_id yet — fallback to welcome with login URL
       html = await renderAsync(
         WelcomeShipmentEmail({ name, subject, bodyHtml, confirmationUrl: loginUrl })
@@ -292,7 +309,7 @@ Deno.serve(async (req) => {
       template_name: slug,
       recipient_email: tenant.contact_email,
       status: "sent",
-      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: !!is_new_tenant },
+      metadata: { tenant_id: tenant.id, mail_type, stamp_number, provider: "resend", is_new_tenant: effectiveIsNew, needs_onboarding: needsOnboarding },
     });
 
     // Send to extra tenant_users (standard template, no welcome/magic-link).
