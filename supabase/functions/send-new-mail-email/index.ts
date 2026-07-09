@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     }
 
     // Determine slug: welcome_shipment for new tenants, otherwise provided or default
-    const slug = is_new_tenant ? "welcome_shipment" : (template_slug || "new_shipment");
+    const slug = effectiveIsNew ? "welcome_shipment" : (template_slug || "new_shipment");
 
     // Get template
     const { data: template } = await supabaseAdmin
