@@ -143,14 +143,12 @@ const BulkUploadPage = () => {
           }
         } else {
           let { recipientName, senderName } = result;
-          const recipientMatch = fuzzyMatchTenant(recipientName, tenants);
-          const senderMatch = fuzzyMatchTenant(senderName, tenants);
-          if (!recipientMatch && senderMatch) {
+          const { match, swap } = pickBestTenantMatch(recipientName, senderName, tenants);
+          if (swap) {
             const tmp = recipientName;
             recipientName = senderName;
             senderName = tmp;
           }
-          const match = recipientMatch || senderMatch;
 
           let validatedStampNumber = result.stampNumber;
           if (validatedStampNumber) {
