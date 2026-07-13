@@ -10,6 +10,11 @@ import { useToast } from "@/hooks/use-toast";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import flexumLogo from "@/assets/flexum-coworking-logo.png";
 
+type PendingToken =
+  | { kind: "onboarding"; token: string }
+  | { kind: "pkce"; code: string }
+  | { kind: "hash"; accessToken: string; refreshToken: string };
+
 const SetPasswordPage = () => {
   const { t } = useTranslation();
   const [password, setPassword] = useState("");
@@ -17,100 +22,114 @@ const SetPasswordPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [linkExpired, setLinkExpired] = useState(false);
+  const [pending, setPending] = useState<PendingToken | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
-
-    // 1. Custom 24h onboarding token (welcome shipment flow)
-    const onboardingToken = searchParams.get("onboarding_token");
-    if (onboardingToken) {
-      (async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke("consume-onboarding-token", {
-            body: { token: onboardingToken },
-          });
-          if (error || !data?.hashed_token || !data?.email) {
-            console.error("Failed to consume onboarding token:", error, data);
-            setLinkExpired(true);
-            return;
-          }
-          const { error: verifyErr } = await supabase.auth.verifyOtp({
-            email: data.email,
-            token: data.hashed_token,
-            type: data.type === "magiclink" ? "magiclink" : "recovery",
-          });
-          if (verifyErr) {
-            console.error("verifyOtp failed:", verifyErr);
-            setLinkExpired(true);
-          } else {
-            setIsReady(true);
-          }
-        } catch (e) {
-          console.error("Onboarding token exchange failed:", e);
-          setLinkExpired(true);
-        } finally {
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      })();
-      return;
-    }
-
-    // 2. Check for PKCE code in query params
-    const code = searchParams.get("code");
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          console.error("Failed to exchange code for session:", error);
-          setLinkExpired(true);
-        } else {
-          setIsReady(true);
-        }
-        window.history.replaceState(null, "", window.location.pathname);
-      });
-      return;
-    }
-
-    // 3. Check for hash-based tokens (implicit flow)
     const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
+    const hashParams = new URLSearchParams(hash);
 
-    // Check for error from expired/invalid links FIRST
-    const errorParam = params.get("error") || params.get("error_code");
+    // Explicit error in hash (Supabase told us the link is dead) — no need to try.
+    const errorParam = hashParams.get("error") || hashParams.get("error_code");
     if (errorParam) {
       setLinkExpired(true);
       window.history.replaceState(null, "", window.location.pathname);
       return;
     }
 
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
+    // 1. Custom 24h onboarding token
+    const onboardingToken = searchParams.get("onboarding_token");
+    if (onboardingToken) {
+      setPending({ kind: "onboarding", token: onboardingToken });
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
 
+    // 2. PKCE code
+    const code = searchParams.get("code");
+    if (code) {
+      setPending({ kind: "pkce", code });
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
+    // 3. Hash-based tokens (implicit flow)
+    const accessToken = hashParams.get("access_token");
     if (accessToken) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || "",
-      }).then(({ error }) => {
+      setPending({
+        kind: "hash",
+        accessToken,
+        refreshToken: hashParams.get("refresh_token") || "",
+      });
+      window.history.replaceState(null, "", window.location.pathname);
+      return;
+    }
+
+    // 4. No token in URL — user may already have a session (e.g. onAuthStateChange PASSWORD_RECOVERY)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setIsReady(true);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") setIsReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleConfirm = async () => {
+    if (!pending) return;
+    setConfirming(true);
+    try {
+      if (pending.kind === "onboarding") {
+        const { data, error } = await supabase.functions.invoke("consume-onboarding-token", {
+          body: { token: pending.token },
+        });
+        if (error || !data?.hashed_token || !data?.email) {
+          console.error("Failed to consume onboarding token:", error, data);
+          setLinkExpired(true);
+          return;
+        }
+        const { error: verifyErr } = await supabase.auth.verifyOtp({
+          email: data.email,
+          token: data.hashed_token,
+          type: data.type === "magiclink" ? "magiclink" : "recovery",
+        });
+        if (verifyErr) {
+          console.error("verifyOtp failed:", verifyErr);
+          setLinkExpired(true);
+        } else {
+          setIsReady(true);
+        }
+      } else if (pending.kind === "pkce") {
+        const { error } = await supabase.auth.exchangeCodeForSession(pending.code);
+        if (error) {
+          console.error("Failed to exchange code for session:", error);
+          setLinkExpired(true);
+        } else {
+          setIsReady(true);
+        }
+      } else if (pending.kind === "hash") {
+        const { error } = await supabase.auth.setSession({
+          access_token: pending.accessToken,
+          refresh_token: pending.refreshToken,
+        });
         if (error) {
           console.error("Failed to set session from hash:", error);
           setLinkExpired(true);
         } else {
           setIsReady(true);
-          window.history.replaceState(null, "", window.location.pathname);
         }
-      });
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) setIsReady(true);
-      });
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_IN" || event === "PASSWORD_RECOVERY") setIsReady(true);
-      });
-      return () => subscription.unsubscribe();
+      }
+    } catch (e) {
+      console.error("Confirm failed:", e);
+      setLinkExpired(true);
+    } finally {
+      setConfirming(false);
+      setPending(null);
     }
-  }, []);
-
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +154,12 @@ const SetPasswordPage = () => {
     }
   };
 
+  // Description under title
+  let description = t("setPassword.waitingForLink");
+  if (linkExpired) description = t("setPassword.linkExpired");
+  else if (isReady) description = t("setPassword.subtitle");
+  else if (pending) description = t("setPassword.confirmDescription");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="absolute top-4 right-4">
@@ -145,15 +170,27 @@ const SetPasswordPage = () => {
           <div className="mx-auto mb-4">
             <img src={flexumLogo} alt="Flexum Coworking" className="h-14" />
           </div>
-          <CardTitle className="text-2xl">{t("setPassword.title")}</CardTitle>
-          <CardDescription>
-            {linkExpired ? t("setPassword.linkExpired") : isReady ? t("setPassword.subtitle") : t("setPassword.waitingForLink")}
-          </CardDescription>
+          <CardTitle className="text-2xl">
+            {linkExpired
+              ? t("setPassword.linkExpired")
+              : pending && !isReady
+                ? t("setPassword.confirmTitle")
+                : t("setPassword.title")}
+          </CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
           {linkExpired ? (
-            <div className="text-center space-y-2">
-              <p className="text-muted-foreground">{t("setPassword.linkExpiredMessage")}</p>
+            <div className="space-y-4">
+              <p className="text-center text-muted-foreground">
+                {t("setPassword.linkExpiredCanRequestNew")}
+              </p>
+              <Button className="w-full" onClick={() => navigate("/login")}>
+                {t("setPassword.requestNewLink")}
+              </Button>
+              <Button variant="link" className="w-full" onClick={() => navigate("/login")}>
+                {t("setPassword.backToLogin")}
+              </Button>
             </div>
           ) : isReady ? (
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,6 +206,10 @@ const SetPasswordPage = () => {
                 {isLoading ? t("common.pleaseWait") : t("setPassword.createPassword")}
               </Button>
             </form>
+          ) : pending ? (
+            <Button className="w-full" onClick={handleConfirm} disabled={confirming}>
+              {confirming ? t("common.pleaseWait") : t("setPassword.confirmButton")}
+            </Button>
           ) : (
             <p className="text-center text-muted-foreground">{t("common.loading")}</p>
           )}
