@@ -109,7 +109,13 @@
     "passwordTooShort": "Password must be at least 6 characters",
     "invalidLink": "The link is invalid or expired. Please try again.",
     "linkExpired": "Link expired",
-    "linkExpiredMessage": "Your login link has expired. Please contact Flexum Coworking to request a new link."
+    "linkExpiredMessage": "Your login link has expired. Please contact Flexum Coworking to request a new link.",
+    "confirmTitle": "Confirm your link",
+    "confirmDescription": "Click below to continue and create your password.",
+    "confirmButton": "Continue",
+    "linkExpiredCanRequestNew": "The link has been used or has expired. Request a new reset link.",
+    "requestNewLink": "Request new link",
+    "backToLogin": "Back to login"
   },
   "notFound": {
     "title": "404",

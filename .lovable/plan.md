@@ -1,42 +1,46 @@
-## Diagnose
 
-Ny lejer får e-mailen "Ny forsendelse modtaget" med knappen **"Se din post →"** der peger på `https://post.flexum.dk/login`, men lejeren har aldrig sat en adgangskode → kan ikke logge ind.
+# Robust /set-password mod link-scannere
 
-Årsagen ligger i `send-new-mail-email`, som kun sender velkomst-varianten (`welcome_shipment` med et 24-timers onboarding-link til `/set-password`) hvis kalderen sætter `is_new_tenant: true`. Den flag sættes kun ét sted:
+## Problem
+Gmail/Outlook/antivirus henter ofte URL'er i baggrunden inden brugeren klikker. Vores `/set-password` kalder straks `exchangeCodeForSession(code)` / `setSession(...)` ved page load — det forbruger Supabase's engangs-recovery-token. Når brugeren så klikker, er koden væk → "linket er udløbet".
 
-- ✅ `RegisterMailDialog` — men kun når lejeren blev oprettet **inline i samme dialog-session** (`pendingNewTenant`).
-- ❌ `BulkUploadPage` — hardkodet `is_new_tenant: false`.
-- ❌ `OperatorDashboard`, `ShippingPrepPage`, `ScanUploadDialog`, `TenantsPage` (send-actions) — sender aldrig `is_new_tenant: true`.
-- ❌ `RegisterMailDialog` når lejeren var oprettet i en **tidligere session** (fx via `TenantsPage`, hvor Supabase-invite-linket kan være udløbet efter 24 t) → næste postregistrering sender bare "Se din post" til en bruger uden password.
-- ❌ Selv i den korrekte inline-flow: hvis lejeren venter >24 t med at klikke, er `onboarding_token` udløbet, og der kommer aldrig et nyt link — alle efterfølgende mails peger på `/login`.
+Det er stort set det der skete for `alfapravo11@gmail.com`: hun endte alligevel med at komme ind (kom lige efter scanneren), men oplevelsen føles som et udløbet link.
 
-Resultatet: enhver lejer, hvis bruger endnu ikke har sat egen adgangskode (aldrig logget ind), får e-mails der leder til login-siden, hvor de ikke kan komme videre.
+## Løsning: opdel flowet i to trin
 
-## Fix
+### 1. `src/pages/SetPasswordPage.tsx`
+- Ved mount: læs `code`, hash-tokens eller `onboarding_token` fra URL'en, men **veksl dem IKKE med det samme**. Gem parametrene i state og fjern dem fra URL'en (så scanner/refresh ikke kan trigge dem igen ved et uheld).
+- Vis en simpel "bekræft"-skærm med teksten "Klik for at fortsætte og vælg ny adgangskode" og en knap `Fortsæt`. Dette forhindrer preview-bots i at forbruge tokenet.
+- Først når brugeren klikker `Fortsæt`, kaldes:
+  - `exchangeCodeForSession(code)` (PKCE-flow), eller
+  - `setSession({ access_token, refresh_token })` (implicit hash-flow), eller
+  - `consume-onboarding-token` + `verifyOtp` (24t onboarding-flow).
+- Efter succes: vis password-formular som i dag.
+- Hvis brugeren allerede har en aktiv session (fx allerede recovered i denne tab), spring bekræftelses-trinnet over og vis formularen direkte.
+- Ved fejl (token allerede forbrugt / udløbet): vis tydeligere besked med to knapper:
+  - "Anmod om nyt link" → navigerer til `/login` i forgot-mode med email prefill hvis muligt.
+  - "Tilbage til login" → `/login`.
+- Behold auto-detection af eksisterende session (`onAuthStateChange` / `PASSWORD_RECOVERY`) for gammeldags flows uden token i URL.
 
-Flyt beslutningen "skal denne mail have et onboarding-link?" fra klienten til `send-new-mail-email`, så alle afsendelses-stier automatisk gør det rigtige.
+### 2. `src/i18n/locales/da.json` og `en.json`
+Nye nøgler under `setPassword`:
+- `confirmTitle` — "Bekræft dit link"
+- `confirmDescription` — "Klik nedenfor for at fortsætte og oprette din adgangskode."
+- `confirmButton` — "Fortsæt"
+- `linkExpiredCanRequestNew` — "Linket er brugt eller udløbet. Anmod om et nyt reset-link."
+- `requestNewLink` — "Anmod om nyt link"
+- `backToLogin` — "Tilbage til login"
 
-### 1) `supabase/functions/send-new-mail-email/index.ts`
+### 3. Ingen ændringer i backend/edge functions
+Recovery-mailen, `request-password-reset`, `consume-onboarding-token` og skabelonen `recovery.tsx` er uændrede. Ændringen er ren frontend.
 
-- Efter opslag af `tenant`: hvis `tenant.user_id` findes, hent brugeren via `supabaseAdmin.auth.admin.getUserById(tenant.user_id)` og udled `needsOnboarding = !user.last_sign_in_at` (brugeren har aldrig logget ind → intet reelt password).
-- Beregn `effectiveIsNew = is_new_tenant || needsOnboarding`.
-- Brug `effectiveIsNew` alle de steder hvor `is_new_tenant` bruges i dag: valg af template-slug (`welcome_shipment`), render af `WelcomeShipmentEmail` med et nyt 24-timers `onboarding_token`, samt log-metadata.
-- Sikrer, at hver ny forsendelses-mail til en endnu-ikke-aktiveret bruger indeholder et **frisk** onboarding-link (og dermed ikke er afhængig af det 24 t-vindue der blev genereret ved allerførste mail).
-- Bevar nuværende adfærd for lejere der har logget ind mindst én gang: normal `NewShipmentEmail` med "Se din post →".
+## Verifikation
+- Åbn en recovery-mail i Gmail → observér at `/set-password` viser bekræft-skærm og at scanneren ikke længere kan forbruge tokenet.
+- Klik `Fortsæt` → session etableres, formular vises, ny adgangskode gemmes.
+- Genindlæs siden efter forbrug → vis "linket er brugt eller udløbet" med knap til at anmode om nyt link.
+- Test også onboarding-token-flow (`?onboarding_token=…`) og hash-flow (`#access_token=…`).
 
-### 2) Klientsiderne (ingen ændring i logik, kun oprydning)
-
-- Behold `is_new_tenant: true` i `RegisterMailDialog` (uskadelig, forbliver som eksplicit hint).
-- `BulkUploadPage`, `OperatorDashboard`, `ShippingPrepPage`, `ScanUploadDialog`, `TenantsPage`: ingen ændringer nødvendige — server-siden opdager selv onboarding-behov via `last_sign_in_at`.
-
-### 3) Verifikation
-
-- Manuel test: opret ny lejer via `TenantsPage` (invite udløber), vent, registrer post via `RegisterMailDialog` for eksisterende lejer → tjek at e-mailen nu er "Velkommen…" med `/set-password?onboarding_token=…`.
-- Genafspil scenariet fra screenshottet (jkp-89@hotmail.com): resend `send-new-mail-email` for lejeren → skal nu levere onboarding-linket.
-- Tjek `email_send_log.metadata.is_new_tenant` viser `true` efter fix i disse tilfælde.
-
-### Ikke i scope
-
-- Selve `SetPasswordPage`- og `consume-onboarding-token`-flowet virker som forventet og ændres ikke.
-- Vi udvider ikke onboarding-token-gyldigheden (bliver 24 t), da hver ny mail nu genererer et nyt link.
-- Ingen ændring af auth-invite-mails eller `create-tenant-user`.
+## Tekniske detaljer
+- Fjern URL-parametre med `window.history.replaceState` **så snart** vi har læst dem, uanset hvilken bekræft-knap brugeren klikker. Det undgår genforbrug ved refresh.
+- Bevar `linkExpired`-state for eksplicitte `error`/`error_code` i hash (den vej ved vi allerede at linket er dødt uden at prøve).
+- Ingen state gemmes i `localStorage` — kun i React state, så den er væk efter fuld reload (bevidst; forhindrer at scanner-flow via forudindlæste tabs kan udnytte det).

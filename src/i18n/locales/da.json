@@ -109,7 +109,13 @@
     "passwordTooShort": "Adgangskoden skal være mindst 6 tegn",
     "invalidLink": "Linket er ugyldigt eller udløbet. Prøv igen.",
     "linkExpired": "Linket er udløbet",
-    "linkExpiredMessage": "Dit login-link er udløbet. Kontakt venligst Flexum Coworking for at få tilsendt et nyt link."
+    "linkExpiredMessage": "Dit login-link er udløbet. Kontakt venligst Flexum Coworking for at få tilsendt et nyt link.",
+    "confirmTitle": "Bekræft dit link",
+    "confirmDescription": "Klik nedenfor for at fortsætte og oprette din adgangskode.",
+    "confirmButton": "Fortsæt",
+    "linkExpiredCanRequestNew": "Linket er brugt eller udløbet. Anmod om et nyt reset-link.",
+    "requestNewLink": "Anmod om nyt link",
+    "backToLogin": "Tilbage til login"
   },
   "notFound": {
     "title": "404",
