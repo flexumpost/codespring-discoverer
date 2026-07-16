@@ -539,10 +539,55 @@ const OperatorDashboard = () => {
         );
       })
     : cardFiltered;
+  const getProcessingDate = (item: MailItem): Date => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tier = item.tenants?.tenant_types?.name;
+    const action = item.chosen_action
+      ?? (item.mail_type === "pakke"
+        ? item.tenants?.default_package_action
+        : item.tenants?.default_mail_action)
+      ?? null;
+
+    switch (action) {
+      case "scan":
+      case "destruer":
+      case "daglig":
+        return today;
+      case "standard_scan":
+        return getShippingDate(tier, "brev");
+      case "send":
+      case "under_forsendelse":
+        return getNextThursday();
+      case "standard_forsendelse":
+        return getShippingDate(tier, item.mail_type);
+      case "afhentning":
+        return item.pickup_date ? new Date(item.pickup_date) : getShippingDate(tier, item.mail_type);
+      case "gratis_afhentning":
+        return getShippingDate("Lite", "brev");
+      default:
+        return item.received_at ? new Date(item.received_at) : today;
+    }
+  };
+
+  const isDoneItem = (item: MailItem): boolean => {
+    if (["sendt_med_dao", "sendt_med_postnord", "sendt_retur", "arkiveret"].includes(item.status as string)) return true;
+    if (selectedCard === t("operatorDashboard.openAndScan") && item.scan_url) return true;
+    return false;
+  };
+
   const sortedItems = [...filteredItems].sort((a, b) => {
-    if (a.stamp_number == null) return 1;
-    if (b.stamp_number == null) return -1;
-    return b.stamp_number - a.stamp_number;
+    if (!selectedCard) {
+      if (a.stamp_number == null) return 1;
+      if (b.stamp_number == null) return -1;
+      return (b.stamp_number ?? 0) - (a.stamp_number ?? 0);
+    }
+    const aDone = isDoneItem(a);
+    const bDone = isDoneItem(b);
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    const diff = getProcessingDate(a).getTime() - getProcessingDate(b).getTime();
+    if (diff !== 0) return diff;
+    return (b.stamp_number ?? 0) - (a.stamp_number ?? 0);
   });
   const filteredByType = mailTypeFilter === "all" ? sortedItems : sortedItems.filter(i => i.mail_type === mailTypeFilter);
   const displayItems = unprocessedOnly ? filteredByType.filter(isUnprocessed) : filteredByType;
