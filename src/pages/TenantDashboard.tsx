@@ -292,7 +292,7 @@ function getFirstThursdayOfMonth(): Date {
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+  const daysUntil = (4 - dayOfWeek + 7) % 7;
   const d = new Date(now);
   d.setDate(d.getDate() + daysUntil);
   return d;

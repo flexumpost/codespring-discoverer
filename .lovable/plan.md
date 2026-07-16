@@ -1,46 +1,35 @@
-
-# Robust /set-password mod link-scannere
-
 ## Problem
-Gmail/Outlook/antivirus henter ofte URL'er i baggrunden inden brugeren klikker. Vores `/set-password` kalder straks `exchangeCodeForSession(code)` / `setSession(...)` ved page load — det forbruger Supabase's engangs-recovery-token. Når brugeren så klikker, er koden væk → "linket er udløbet".
 
-Det er stort set det der skete for `alfapravo11@gmail.com`: hun endte alligevel med at komme ind (kom lige efter scanneren), men oplevelsen føles som et udløbet link.
+Forsendelse 3568 vises til scanning d. 23. juli i stedet for i dag d. 16. juli, fordi `getNextThursday()` bruger:
 
-## Løsning: opdel flowet i to trin
+```ts
+const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+```
 
-### 1. `src/pages/SetPasswordPage.tsx`
-- Ved mount: læs `code`, hash-tokens eller `onboarding_token` fra URL'en, men **veksl dem IKKE med det samme**. Gem parametrene i state og fjern dem fra URL'en (så scanner/refresh ikke kan trigge dem igen ved et uheld).
-- Vis en simpel "bekræft"-skærm med teksten "Klik for at fortsætte og vælg ny adgangskode" og en knap `Fortsæt`. Dette forhindrer preview-bots i at forbruge tokenet.
-- Først når brugeren klikker `Fortsæt`, kaldes:
-  - `exchangeCodeForSession(code)` (PKCE-flow), eller
-  - `setSession({ access_token, refresh_token })` (implicit hash-flow), eller
-  - `consume-onboarding-token` + `verifyOtp` (24t onboarding-flow).
-- Efter succes: vis password-formular som i dag.
-- Hvis brugeren allerede har en aktiv session (fx allerede recovered i denne tab), spring bekræftelses-trinnet over og vis formularen direkte.
-- Ved fejl (token allerede forbrugt / udløbet): vis tydeligere besked med to knapper:
-  - "Anmod om nyt link" → navigerer til `/login` i forgot-mode med email prefill hvis muligt.
-  - "Tilbage til login" → `/login`.
-- Behold auto-detection af eksisterende session (`onAuthStateChange` / `PASSWORD_RECOVERY`) for gammeldags flows uden token i URL.
+Når i dag *er* torsdag bliver `daysUntil` = 0, og `|| 7` tvinger springet til **næste** torsdag. Alle datovisninger på operator- og lejer-dashboard viser derfor "på torsdag = næste uge" i stedet for i dag.
 
-### 2. `src/i18n/locales/da.json` og `en.json`
-Nye nøgler under `setPassword`:
-- `confirmTitle` — "Bekræft dit link"
-- `confirmDescription` — "Klik nedenfor for at fortsætte og oprette din adgangskode."
-- `confirmButton` — "Fortsæt"
-- `linkExpiredCanRequestNew` — "Linket er brugt eller udløbet. Anmod om et nyt reset-link."
-- `requestNewLink` — "Anmod om nyt link"
-- `backToLogin` — "Tilbage til login"
+Bemærk: `ShippingPrepPage.tsx` (linje 35, 52) bruger allerede den korrekte variant *uden* `|| 7`, så dispatch-siden behandler allerede torsdag-i-dag som gyldig afsendelsesdag — det er kun visningerne der er ude af trit.
 
-### 3. Ingen ændringer i backend/edge functions
-Recovery-mailen, `request-password-reset`, `consume-onboarding-token` og skabelonen `recovery.tsx` er uændrede. Ændringen er ren frontend.
+## Løsning
 
-## Verifikation
-- Åbn en recovery-mail i Gmail → observér at `/set-password` viser bekræft-skærm og at scanneren ikke længere kan forbruge tokenet.
-- Klik `Fortsæt` → session etableres, formular vises, ny adgangskode gemmes.
-- Genindlæs siden efter forbrug → vis "linket er brugt eller udløbet" med knap til at anmode om nyt link.
-- Test også onboarding-token-flow (`?onboarding_token=…`) og hash-flow (`#access_token=…`).
+Fjern `|| 7` i alle `getNextThursday()`-varianter, så torsdag-i-dag returneres som "næste torsdag". Ingen ny cut-off tid — operatoren beslutter selv i løbet af dagen om posten når med, og action-lock-logikken i `ShippingPrepPage` bruger allerede samme logik.
 
-## Tekniske detaljer
-- Fjern URL-parametre med `window.history.replaceState` **så snart** vi har læst dem, uanset hvilken bekræft-knap brugeren klikker. Det undgår genforbrug ved refresh.
-- Bevar `linkExpired`-state for eksplicitte `error`/`error_code` i hash (den vej ved vi allerede at linket er dødt uden at prøve).
-- Ingen state gemmes i `localStorage` — kun i React state, så den er væk efter fuld reload (bevidst; forhindrer at scanner-flow via forudindlæste tabs kan udnytte det).
+### Filer der ændres
+
+1. **`src/lib/mailActions.ts`** (linje 24-30)
+   - Ret `getNextThursday()`: `(4 - dayOfWeek + 7) % 7 || 7` → `(4 - dayOfWeek + 7) % 7`
+
+2. **`src/pages/OperatorDashboard.tsx`** (linje 48-53)
+   - Samme rettelse i den lokale `getNextThursday()`.
+
+3. **`src/pages/TenantDashboard.tsx`** (linje 292-298)
+   - Samme rettelse i den lokale `getNextThursday()`.
+
+4. **`src/pages/TenantsPage.tsx`** (linje 378-379)
+   - Inline-udregning: fjern `|| 7`.
+
+Ingen ændringer i database, edge functions, action-locking, e-mailskabeloner eller forretningsregler. Kun visningsdatoer opdateres, så torsdag-i-dag = i dag i stedet for +7 dage.
+
+### Konsekvens for 3568
+
+Efter rettelsen vil 3568 vises som "Scanning bestilt 16. juli" i dag (torsdag). Fra og med fredag rykkes den automatisk til torsdag d. 23. juli som forventet.

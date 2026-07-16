@@ -48,7 +48,7 @@ function getTenantTypeBadgeClass(name: string): string {
 function getNextThursday(): Date {
   const now = new Date();
   const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7 || 7;
+  const daysUntil = (4 - dayOfWeek + 7) % 7;
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil);
 }
 

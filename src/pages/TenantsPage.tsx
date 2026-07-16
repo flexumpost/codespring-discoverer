@@ -375,7 +375,7 @@ const TenantsPage = () => {
                             const nextThurs = (() => {
                               const d = new Date();
                               const day = d.getDay();
-                              const daysUntil = (4 - day + 7) % 7 || 7;
+                              const daysUntil = (4 - day + 7) % 7;
                               d.setDate(d.getDate() + daysUntil);
                               d.setHours(0, 0, 0, 0);
                               return d;
