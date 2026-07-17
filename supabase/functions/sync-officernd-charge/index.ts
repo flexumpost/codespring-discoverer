@@ -13,6 +13,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Returnerer [start, end) ISO-strenge der dækker "i dag" i Europe/Copenhagen,
+// beregnet i UTC. Håndterer sommertid (+01:00 / +02:00).
+function copenhagenDayBoundsUtc(): [string, string] {
+  const now = new Date();
+  const dParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Copenhagen",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const y = Number(dParts.find(p => p.type === "year")!.value);
+  const m = Number(dParts.find(p => p.type === "month")!.value);
+  const d = Number(dParts.find(p => p.type === "day")!.value);
+  // Bestem Copenhagens UTC-offset for denne dag (1 eller 2 timer)
+  const noonUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const localHourStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Copenhagen", hour: "2-digit", hour12: false,
+  }).format(noonUtc);
+  const offsetHours = parseInt(localHourStr, 10) - 12;
+  const start = new Date(Date.UTC(y, m - 1, d, -offsetHours, 0, 0)).toISOString();
+  const end = new Date(Date.UTC(y, m - 1, d + 1, -offsetHours, 0, 0)).toISOString();
+  return [start, end];
+}
+
+
 
 // Fee calculation logic (mirrors frontend getShippingFee)
 function calculateFee(
