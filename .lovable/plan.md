@@ -1,31 +1,17 @@
-## Mål
+## Forklaring
 
-Når operatøren klikker på et filter-kort (fx "Åben og scan", "Send", "Afhentes", "Destrueres", "Læg på kontoret"), skal listen sorteres efter **hvornår forsendelsen skal behandles** – tidligste behandlingsdato øverst – i stedet for `stamp_number` desc.
+Forsendelse 3568 er et **brev** tilhørende en lejer af typen **Standard**, hvor lejerens `default_mail_action` er sat til `"scan"`.
 
-Når intet kort er valgt (fuld liste), beholdes nuværende sortering (`stamp_number` desc), så oversigten er uændret.
+Når et brev registreres uden at operatøren aktivt vælger en handling, sætter systemet automatisk `chosen_action = "standard_scan"` baseret på lejerens standardhandling. Det er præcis det, der er sket her — så adfærden er som forventet.
 
-## Ændring (kun frontend)
+## Mulige næste skridt (ingen kode ændres endnu)
 
-**Fil:** `src/pages/OperatorDashboard.tsx`
+1. **Ingen ændring** — accepter at denne lejer får breve til scanning som standard.
+2. **Skift lejerens standardhandling** for breve fra `"scan"` til `"send"` (forsendelse), så fremtidige breve automatisk går til forsendelse i stedet. Kan ændres af lejeren selv under Indstillinger → Automatisering, eller af operatøren.
+3. **Skift handlingen på 3568 specifikt** — åbn forsendelsen og vælg en anden handling (f.eks. Forsendelse) manuelt.
 
-1. Tilføj en hjælpefunktion `getProcessingDate(item): Date` der returnerer den dato posten skal behandles:
-   - `chosen_action = "scan"` → i dag (ekstra scanning behandles med det samme).
-   - `chosen_action = "standard_scan"` → `getShippingDate(tier, "brev")`.
-   - `chosen_action = "send"` eller `"under_forsendelse"` → `getNextThursday()`.
-   - `chosen_action = "standard_forsendelse"` → `getShippingDate(tier, mail_type)`.
-   - `chosen_action = "afhentning"` + `pickup_date` → `pickup_date`.
-   - `chosen_action = "gratis_afhentning"` → `getShippingDate("Lite", "brev")`.
-   - `chosen_action = "destruer"` → i dag.
-   - `chosen_action = "daglig"` → i dag.
-   - Intet `chosen_action`: brug `default_mail_action`/`default_package_action` med samme mapping.
-   - Fald tilbage til `received_at`, hvis intet af ovenstående passer.
+Sig til hvis du vil have mig til at gøre én af disse — ellers er dette blot en forklaring.
 
-2. Tilføj en "færdig-behandlet"-flag pr. række, så gennemførte poster sorteres nederst i det valgte kort:
-   - `status ∈ (sendt_med_dao, sendt_med_postnord, sendt_retur, arkiveret)` → nederst.
-   - Scan uploadet (`scan_url` sat) i "Åben og scan" → nederst.
+&nbsp;
 
-3. Ret sorteringen (linje 542-546):
-   - Hvis `selectedCard` er null → behold `stamp_number` desc.
-   - Hvis `selectedCard` er valgt → sortér ascending på `getProcessingDate(item)` (`getTime()`), med færdig-behandlede nederst; tie-break på `stamp_number` desc.
-
-Ingen ændringer i database, edge functions, count-tal på kortene eller andre filtre (`Ubehandlet`, mail-type radio, søgning). Kun rækkefølgen i tabellen skifter, når et kort er aktivt.
+Næste skridt er nr. 2, men sørg også for at operatøren kan se dette når operatøren går ind på lejerens profil, så operatøren kan se og hjælpe lejeren med at ændre dette

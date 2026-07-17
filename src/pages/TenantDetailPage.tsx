@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import { AutomationCard } from "@/components/AutomationCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -780,8 +781,16 @@ const TenantDetailPage = () => {
             )}
           </div>
 
-          {/* Column 2: Mail pricing */}
-          <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+          {/* Column 2: Mail pricing + automation */}
+          <div className="space-y-6">
+            <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+            <AutomationCard
+              tenantId={(tenant as any).id}
+              currentMailAction={(tenant as any).default_mail_action ?? null}
+              showPackages={false}
+              invalidateKeys={[["tenant-detail", id]]}
+            />
+          </div>
 
           {/* Column 3: Package pricing */}
           <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />

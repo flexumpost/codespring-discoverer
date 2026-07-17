@@ -13,6 +13,8 @@ interface AutomationCardProps {
   currentMailAction: string | null;
   /** Hide the package row for Plus etc.; defaults to true */
   showPackages?: boolean;
+  /** Extra react-query keys to invalidate after saving */
+  invalidateKeys?: (string | undefined)[][];
 }
 
 const OPTIONS: { value: string; labelKey: string; helpKey: string }[] = [
@@ -21,7 +23,7 @@ const OPTIONS: { value: string; labelKey: string; helpKey: string }[] = [
   { value: "afhentning", labelKey: "automation.pickup", helpKey: "automation.pickupHelp" },
 ];
 
-export function AutomationCard({ tenantId, currentMailAction, showPackages = true }: AutomationCardProps) {
+export function AutomationCard({ tenantId, currentMailAction, showPackages = true, invalidateKeys }: AutomationCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [value, setValue] = useState<string>(currentMailAction ?? "send");
@@ -41,6 +43,7 @@ export function AutomationCard({ tenantId, currentMailAction, showPackages = tru
     onSuccess: () => {
       toast.success(t("automation.saved"));
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
+      (invalidateKeys ?? []).forEach((k) => queryClient.invalidateQueries({ queryKey: k as any }));
     },
     onError: () => {
       toast.error(t("automation.couldNotSave"));
