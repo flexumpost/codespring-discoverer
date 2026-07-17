@@ -1,30 +1,29 @@
 ## Mål
 
-Gør det tydeligt for både lejere og operatører at:
-- **Ekstra scanning:** gebyret er **pr. brev**.
-- **Ekstra afhentning:** gebyret er **pr. afhentning** (flere breve kan afhentes samlet, men der pålægges kun ét gebyr).
+Når flere breve/pakker afhentes af samme lejer samme dag, skal OfficeRnD kun tillægges **ét** afhentningsgebyr (fx 30 kr. for Standard) i stedet for ét pr. brev.
 
-## Ændringer
+## Ændring
 
-1. **`src/components/PricingOverview.tsx`** — opdatér tekstværdierne for `ekstraScanning` og `ekstraAfhentning` for alle tre tiers (Lite, Standard, Plus) samt afsnittet i `forklaring`, så det fremgår tydeligt:
-   - Lite: `"50 kr. pr. brev — kan scannes tirsdag eller torsdag"` og `"50 kr. pr. afhentning — kan afhentes tirsdag eller torsdag (Skal bookes)"`.
-   - Standard: `"30 kr. pr. brev — kan scannes alle hverdage"` og `"30 kr. pr. afhentning — kan afhentes tirsdag eller torsdag (Skal bookes)"`.
-   - Plus: uændret ("Inkluderet …").
-   - Tilføj tilsvarende præcisering i `forklaring`-Markdown ("gebyret afregnes pr. brev" / "pr. afhentning uanset antal breve").
+Kun `supabase/functions/sync-officernd-charge/index.ts` (den funktion trigger-en `notify_officernd_on_archive` kalder pr. arkiveret afhentning).
 
-2. **Migration for `pricing_settings`** — opdatér `field_value` for de eksisterende rækker, så operatøren i Indstillinger → Priser ser samme formulering som standard:
-   - `Lite/mail/ekstraScanning` → `"50 kr. pr. brev"`
-   - `Lite/mail/ekstraAfhentning` → `"50 kr. pr. afhentning (Skal bookes)"`
-   - `Standard/mail/ekstraScanning` → `"30 kr. pr. brev"`
-   - `Standard/mail/ekstraAfhentning` → `"30 kr. pr. afhentning (Skal bookes)"`
-   - Plus-rækker uændret (`"0 kr."`).
+Lige inden hovedgebyret oprettes i OfficeRnD, indsæt en check:
 
-3. **`src/pages/OperatorDashboard.tsx`** (kun kosmetisk visning i eventuel prisoversigt) — hvis værdier vises direkte, opdatér til samme format: `"50 kr. pr. brev"` / `"50 kr. pr. afhentning"` osv.
+1. Beregn den effektive handling; hvis det er `"afhentning"` (dvs. `chosen_action` var `"afhentet"` eller `"afhentning"`), slå op i `officernd_sync_log`:
+   - Find rækker hvor `charge_id` matcher et afhentnings-gebyr for **samme lejer**, **samme dato** (dansk kalenderdag), og status er `"confirmed"` eller `"pending_confirmation"`.
+   - Join via `mail_items.tenant_id`.
+   - Filtrer på `plan_name = "Brev/pakke afhentning (<tier>)"` (feltet findes allerede i log-tabellen).
+2. Hvis en sådan række findes: spring hovedgebyret over — indsæt i stedet en log-linje med `status = "skipped_grouped_pickup"`, `charge_id = "skipped_grouped_pickup"`, `amount_text = "0 kr. (samlet afhentning)"`. Porto-delen springes ikke over (afhentning har ingen porto alligevel).
+3. Ellers: fortsæt uændret og opret gebyret som i dag.
 
-Ingen ændringer i beregningslogik eller i handlings-dialogen (`mailActions.ts`) — kun tekst.
+Ingen ændring i:
+- `sync-officernd-charge-batch` (bruges kun til forsendelse; ingen afhentning her).
+- Scanning-fakturering (forbliver pr. brev jf. bekræftelse).
+- DB-trigger, RLS, priser, UI, pris-tekster.
 
 ## Tekniske detaljer
 
-- `PricingOverview.tsx` bruger en hardcoded `TIER_DATA`-map — teksten redigeres direkte.
-- `pricing_settings`-tabellen indeholder de redigérbare værdier operatøren kan overskrive; migration bruger `UPDATE ... WHERE tier=... AND field_key=...`.
-- Ingen i18n-nøgler skal ændres (labels som "Ekstra scanning" / "Ekstra afhentning" er stadig korrekte).
+- "Samme dag" bestemmes af `created_at::date` på log-rækkerne i tidszonen `Europe/Copenhagen` (`(created_at AT TIME ZONE 'Europe/Copenhagen')::date`).
+- Query udføres via supabase-js: hent kandidat-logs for i dag med `plan_name ILIKE 'Brev/pakke afhentning%'` og `status IN ('confirmed','pending_confirmation')`, joinet med `mail_items!inner(tenant_id)` filtreret på lejerens `tenant_id`.
+- Idempotens: hvis samme mail_item allerede har en `confirmed`/`pending_confirmation`-linje, springes den allerede over øverst i funktionen — den eksisterende guard bevares.
+- Log-status `"skipped_grouped_pickup"` er nyt, men `status` er en fri `text`-kolonne, så ingen migration nødvendig.
+- Efter kodeændring: deploy edge-funktionen og test med `curl_edge_functions` på en tenant med to nyligt afhentede breve i test-miljøet hvis muligt; ellers bekræft ved næste rigtige afhentning at kun én charge oprettes i OfficeRnD.
