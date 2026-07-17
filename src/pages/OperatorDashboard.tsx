@@ -248,8 +248,8 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
 }
 
 const MAIL_PRICING_DEFAULTS: Record<string, Record<string, string>> = {
-  Lite: { ekstraForsendelse: "50 kr.", ekstraScanning: "50 kr.", ekstraAfhentning: "50 kr." },
-  Standard: { ekstraForsendelse: "Inkluderet", ekstraScanning: "30 kr.", ekstraAfhentning: "30 kr." },
+  Lite: { ekstraForsendelse: "50 kr.", ekstraScanning: "50 kr. pr. brev", ekstraAfhentning: "50 kr. pr. afhentning" },
+  Standard: { ekstraForsendelse: "Inkluderet", ekstraScanning: "30 kr. pr. brev", ekstraAfhentning: "30 kr. pr. afhentning" },
   Plus: { ekstraForsendelse: "Inkluderet", ekstraScanning: "Inkluderet", ekstraAfhentning: "Inkluderet" },
 };
 
