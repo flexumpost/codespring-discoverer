@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import { AutomationCard } from "@/components/AutomationCard";
 import {
   AlertDialog,
   AlertDialogAction,
