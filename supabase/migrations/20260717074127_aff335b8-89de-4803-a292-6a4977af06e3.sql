@@ -1,0 +1,1 @@
+UPDATE public.tenants SET default_mail_action='send' WHERE id='0df7c220-6b0a-481e-bfb4-6aa2897f2c77';
