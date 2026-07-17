@@ -240,6 +240,38 @@ Deno.serve(async (req) => {
 
     const { amountKr, amountText } = calculateFee(item.mail_type, item.chosen_action, defaultAction, tierName);
 
+    // Consolidér afhentningsgebyr: ét gebyr pr. lejer pr. dag (Europe/Copenhagen).
+    // Hvis en anden afhentning allerede er faktureret i dag for samme lejer, spring
+    // hovedgebyret over og log som "skipped_grouped_pickup". Porto er 0 for afhentning.
+    const effectiveAction = (item.chosen_action === "afhentet" || item.chosen_action === "afhentning") ? "afhentning" : null;
+    if (effectiveAction === "afhentning" && amountKr > 0) {
+      const [startIso, endIso] = copenhagenDayBoundsUtc();
+      const { data: sameDay } = await supabase
+        .from("officernd_sync_log")
+        .select("id, mail_items!inner(tenant_id)")
+        .eq("mail_items.tenant_id", item.tenant_id)
+        .ilike("plan_name", "Brev/pakke afhentning%")
+        .in("status", ["confirmed", "pending_confirmation"])
+        .gte("created_at", startIso)
+        .lt("created_at", endIso)
+        .limit(1);
+      if (sameDay && sameDay.length > 0) {
+        await supabase.from("officernd_sync_log").insert({
+          mail_item_id: mailItemId,
+          status: "skipped_grouped_pickup",
+          charge_id: "skipped_grouped_pickup",
+          amount_text: "0 kr. (samlet afhentning)",
+          plan_name: `Brev/pakke afhentning (${tierName ?? "Lite"})`,
+        });
+        console.log(`Skipping main fee: tenant ${item.tenant_id} already has an afhentning charge today.`);
+        return new Response(
+          JSON.stringify({ success: true, skipped_main: true, status: "skipped_grouped_pickup" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+
     // Insert pending log
     const { data: logRow } = await supabase
       .from("officernd_sync_log")
