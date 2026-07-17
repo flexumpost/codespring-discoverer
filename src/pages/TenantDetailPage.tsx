@@ -781,8 +781,16 @@ const TenantDetailPage = () => {
             )}
           </div>
 
-          {/* Column 2: Mail pricing */}
-          <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+          {/* Column 2: Mail pricing + automation */}
+          <div className="space-y-6">
+            <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+            <AutomationCard
+              tenantId={(tenant as any).id}
+              currentMailAction={(tenant as any).default_mail_action ?? null}
+              showPackages={false}
+              invalidateKeys={[["tenant-detail", id]]}
+            />
+          </div>
 
           {/* Column 3: Package pricing */}
           <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
