@@ -13,6 +13,8 @@ interface AutomationCardProps {
   currentMailAction: string | null;
   /** Hide the package row for Plus etc.; defaults to true */
   showPackages?: boolean;
+  /** Extra react-query keys to invalidate after saving */
+  invalidateKeys?: (string | undefined)[][];
 }
 
 const OPTIONS: { value: string; labelKey: string; helpKey: string }[] = [
