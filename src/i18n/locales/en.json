@@ -772,6 +772,24 @@
     "officeStandard": "Office delivery (standard)",
     "shipmentDestroyed": "Shipment destroyed"
   },
+  "chooseActionPackage": {
+    "standardSend": {
+      "title": "Shipment",
+      "desc": "The package is shipped (+ postage) on the next shipping day.",
+      "datePrefix": "Sent",
+      "cta": "Send the package"
+    },
+    "standardPickup": {
+      "title": "Pickup",
+      "desc": "Book a pickup time to collect your package",
+      "cta": "Book pickup"
+    },
+    "destroy": {
+      "title": "Destruction",
+      "desc": "The package will be destroyed. This action cannot be undone.",
+      "cta": "Destroy the package"
+    }
+  },
   "chooseAction": {
     "standardScan": {
       "title": "Standard scan",
