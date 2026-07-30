@@ -144,9 +144,17 @@ function makeCard(
   const action = actionValue(kind, tier, mailType);
   if (!action) return null;
   const price = priceFor(kind, tier, mailType, t);
+  const isPackage = mailType === "pakke";
+  /** Package-specific copy with fallback to the generic (letter) text. */
+  const tk = (path: string): string =>
+    isPackage
+      ? t(`chooseActionPackage.${path}`, { defaultValue: t(`chooseAction.${path}`) })
+      : t(`chooseAction.${path}`);
   const dateText = opts.date && opts.datePrefix
     ? `${opts.datePrefix} ${formatI18nDate(opts.date, t)}`
     : undefined;
+
+
 
   switch (kind) {
     case "standard_scan":
