@@ -1,27 +1,27 @@
-## Årsagen er den samme for begge tal
+## Hvorfor mangler brev 3618?
 
-Tællerne på kortene i operatør-dashboardet ser ikke på **status** — de tæller også forsendelser, der for længst er arkiveret.
+Brev 3618 (Svartstrand ApS, Standard) har status `ny` og **ingen valgt handling**. Listen "Send breve og pakker" viser kun forsendelser med en handling (valgt af lejeren eller sat automatisk), så 3618 falder udenfor.
 
-**"Åben og scan" = 7**
-- 1 reel: nr. 3620 (ROADRUNNERCARGO APS, "Scan nu")
-- 6 arkiverede breve uden scan-fil: nr. 3261, 3255, 3254, 3247, 3246 (Management Company K/S) og 2954 (ROADRUNNERCARGO APS). Alle er Plus-lejere med standardhandling "scan" og uden valgt handling. Plus bruger "næste torsdag", og da i dag *er* torsdag, tælles de med.
+Årsagen er lejerens automatisering: Svartstrand ApS har ingen standardhandling for breve (`default_mail_action` er tom). Databasetriggeren, der sætter handlingen ved registrering, gør følgende:
 
-**"Send" = 8**
-- 6 reelle: nr. 3627, 3625, 3622, 3617, 3615 (breve) og 3597 (pakke)
-- 2 arkiverede breve med handlingen "send": nr. 3187 (SHINEPRO APS) og 2984 (TRUE CONTRACTORS APS)
+- Pakker: hvis lejeren ikke har valgt noget, bruges "Forsendelse" (send) automatisk.
+- Breve: hvis lejeren ikke har valgt noget, sættes **ingen** handling — brevet bliver liggende som `ny`.
 
-Begge afvigelser er altså gamle, arkiverede forsendelser, der stadig tælles med.
+Til sammenligning har 3617 og 3615 handlingen `send` og er derfor med på listen.
+
+Dette rammer bredt: 68 ud af 245 aktive lejere har ingen standardhandling for breve.
 
 ## Ændring
 
-I `src/pages/OperatorDashboard.tsx`:
+Gør "Forsendelse" til den reelle standard for breve, på linje med pakker og med det, brugerfladen allerede kommunikerer.
 
-1. Alle `countFilter`-funktioner på kortene får som første betingelse, at forsendelsen ikke er færdigbehandlet — genbrug af den eksisterende `isUnprocessed(item)` (udelukker status `arkiveret`, `sendt_med_dao`, `sendt_med_postnord`, `sendt_retur`, samt `chosen_action = "afhentet"` og forsendelser der allerede har en scan-fil).
-2. Kortene uden `countFilter` ("Ikke tildelt" og "Læg på kontoret") får samme behandling, så alle seks tal er konsistente.
-3. Listefiltrene (`filter`) røres ikke — når man klikker på et kort, kan operatøren fortsat se historikken, inkl. afsendte/arkiverede.
+1. Migration: opdater `apply_tenant_default_action` så breve falder tilbage til `send`, når lejeren ikke har valgt en standardhandling — med samme tier-regel som i dag (Lite bliver til `standard_forsendelse`, øvrige `send`). Adfærd for `scan` og `afhentning` er uændret.
+2. Samme migration: sæt handlingen på eksisterende ubehandlede breve uden valgt handling (status `ny`, ingen scan-fil, lejer uden standardhandling), så bl.a. 3618 kommer med på sendelisten.
 
-Efter ændringen vil kortene vise **1** for "Åben og scan" og **6** for "Send".
+## Teknisk note
 
-## Bemærkning
+Kun triggerfunktionen og et engangs-`UPDATE` på `mail_items` ændres. Ingen frontend-ændringer er nødvendige — `ShippingPrepPage` bruger `chosen_action` og lejerens standardhandling, som begge bliver korrekte efter ændringen.
 
-Bagvedliggende data er ikke forkerte — de 8 gamle arkiverede forsendelser er reelt afsluttede. Der er derfor ingen databaseændring i denne opgave.
+## Alternativ
+
+Hvis du hellere vil undgå automatik, kan vi i stedet blot udfylde `default_mail_action = 'send'` på de 68 lejere, der mangler den. Så gælder ændringen kun fremadrettet for nye breve.
