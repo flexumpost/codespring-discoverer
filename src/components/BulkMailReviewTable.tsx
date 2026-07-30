@@ -85,7 +85,13 @@ export function BulkMailReviewTable({ items, tenants, onUpdateItem, onRemoveItem
                     ))}
                   </SelectContent>
                 </Select>
+                {(tenants.find((t) => t.id === item.tenantId)?.tenant_types as any)?.name === "Retur til afsender" && (
+                  <p className="mt-1 w-40 text-xs font-medium text-destructive">
+                    Sendes retur til afsender
+                  </p>
+                )}
               </TableCell>
+
               <TableCell>
                 <Select value={item.mailType} onValueChange={(val) => onUpdateItem(idx, { mailType: val as MailType })}>
                   <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
