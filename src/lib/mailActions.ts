@@ -144,9 +144,17 @@ function makeCard(
   const action = actionValue(kind, tier, mailType);
   if (!action) return null;
   const price = priceFor(kind, tier, mailType, t);
+  const isPackage = mailType === "pakke";
+  /** Package-specific copy with fallback to the generic (letter) text. */
+  const tk = (path: string): string =>
+    isPackage
+      ? t(`chooseActionPackage.${path}`, { defaultValue: t(`chooseAction.${path}`) })
+      : t(`chooseAction.${path}`);
   const dateText = opts.date && opts.datePrefix
     ? `${opts.datePrefix} ${formatI18nDate(opts.date, t)}`
     : undefined;
+
+
 
   switch (kind) {
     case "standard_scan":
@@ -169,11 +177,11 @@ function makeCard(
     case "standard_send":
       return {
         key: kind, action, price,
-        title: t("chooseAction.standardSend.title"),
-        description: t("chooseAction.standardSend.desc"),
+        title: tk("standardSend.title"),
+        description: tk("standardSend.desc"),
         dateText,
         color: COLOR_SEND, icon: Send,
-        ctaLabel: t("chooseAction.standardSend.cta"),
+        ctaLabel: tk("standardSend.cta"),
       };
     case "fast_send":
       return {
@@ -187,11 +195,11 @@ function makeCard(
     case "standard_pickup":
       return {
         key: kind, action, price,
-        title: t("chooseAction.standardPickup.title"),
-        description: t("chooseAction.standardPickup.desc"),
-        dateText,
-        color: COLOR_PICKUP, icon: Hand,
-        ctaLabel: t("chooseAction.standardPickup.cta"),
+        title: tk("standardPickup.title"),
+        description: tk("standardPickup.desc"),
+        dateText: isPackage ? undefined : dateText,
+        color: COLOR_PICKUP, icon: isPackage ? CalendarIcon : Hand,
+        ctaLabel: tk("standardPickup.cta"),
       };
     case "fast_pickup":
       return {
@@ -204,10 +212,10 @@ function makeCard(
     case "destroy":
       return {
         key: kind, action, price,
-        title: t("chooseAction.destroy.title"),
-        description: t("chooseAction.destroy.desc"),
+        title: tk("destroy.title"),
+        description: tk("destroy.desc"),
         color: COLOR_DESTROY, icon: Trash2, destructive: true,
-        ctaLabel: t("chooseAction.destroy.cta"),
+        ctaLabel: tk("destroy.cta"),
       };
   }
   return null;

@@ -772,6 +772,24 @@
     "officeStandard": "Læg på kontoret (standard)",
     "shipmentDestroyed": "Forsendelse destrueret"
   },
+  "chooseActionPackage": {
+    "standardSend": {
+      "title": "Forsendelse",
+      "desc": "Pakken sendes (+ porto) på først kommende forsendelsesdag.",
+      "datePrefix": "Sendes",
+      "cta": "Send pakken"
+    },
+    "standardPickup": {
+      "title": "Afhentning",
+      "desc": "Book et afhentningstidspunkt for at hente din pakke",
+      "cta": "Book afhentning"
+    },
+    "destroy": {
+      "title": "Destruktion",
+      "desc": "Pakken bliver destrueret. Handlingen kan ikke fortrydes.",
+      "cta": "Destruer pakken"
+    }
+  },
   "chooseAction": {
     "standardScan": {
       "title": "Standard scan",
