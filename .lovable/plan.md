@@ -1,27 +1,25 @@
 ## Hvorfor mangler brev 3618?
 
-Brev 3618 (Svartstrand ApS, Standard) har status `ny` og **ingen valgt handling**. Listen "Send breve og pakker" viser kun forsendelser med en handling (valgt af lejeren eller sat automatisk), så 3618 falder udenfor.
+Brev 3618 (Svartstrand ApS, Standard) har status `ny` og **ingen valgt handling**. Listen "Send breve og pakker" viser kun forsendelser med en handling, så 3618 falder udenfor.
 
-Årsagen er lejerens automatisering: Svartstrand ApS har ingen standardhandling for breve (`default_mail_action` er tom). Databasetriggeren, der sætter handlingen ved registrering, gør følgende:
+Årsagen er automatikken ved registrering:
 
-- Pakker: hvis lejeren ikke har valgt noget, bruges "Forsendelse" (send) automatisk.
-- Breve: hvis lejeren ikke har valgt noget, sættes **ingen** handling — brevet bliver liggende som `ny`.
+- Pakker: falder automatisk tilbage til "Forsendelse", hvis lejeren ikke har valgt en standardhandling.
+- Breve: har ingen fallback — hvis lejeren ikke har valgt en standardhandling, får brevet slet ingen handling.
 
-Til sammenligning har 3617 og 3615 handlingen `send` og er derfor med på listen.
+Svartstrand ApS har ingen standardhandling for breve. 68 ud af 245 aktive lejere er i samme situation.
 
-Dette rammer bredt: 68 ud af 245 aktive lejere har ingen standardhandling for breve.
+## Ændring: Forsendelse som standard for alt
 
-## Ændring
+Standardhandlingen for både breve og pakker bliver altid **Forsendelse på næste gratis forsendelsesdag**, medmindre lejeren aktivt vælger noget andet.
 
-Gør "Forsendelse" til den reelle standard for breve, på linje med pakker og med det, brugerfladen allerede kommunikerer.
+1. Opdater databasefunktionen `apply_tenant_default_action`, så breve uden lejer-valgt standardhandling falder tilbage til forsendelse — med den eksisterende tier-regel: Lite får `standard_forsendelse` (1. torsdag i måneden = gratis dag), Standard og Plus får `send`. Pakker er uændrede.
+2. Sæt handlingen på eksisterende ubehandlede breve, der mangler den: status `ny`, ingen valgt handling, ingen scan-fil, tildelt en lejer. Samme tier-regel. Brev 3618 kommer dermed med på sendelisten.
 
-1. Migration: opdater `apply_tenant_default_action` så breve falder tilbage til `send`, når lejeren ikke har valgt en standardhandling — med samme tier-regel som i dag (Lite bliver til `standard_forsendelse`, øvrige `send`). Adfærd for `scan` og `afhentning` er uændret.
-2. Samme migration: sæt handlingen på eksisterende ubehandlede breve uden valgt handling (status `ny`, ingen scan-fil, lejer uden standardhandling), så bl.a. 3618 kommer med på sendelisten.
+Lejerens egne valg (scan, afhentning m.m.) og lejerens egen standardhandling i Automatisering respekteres fortsat og overskrives ikke.
 
-## Teknisk note
+## Teknisk
 
-Kun triggerfunktionen og et engangs-`UPDATE` på `mail_items` ændres. Ingen frontend-ændringer er nødvendige — `ShippingPrepPage` bruger `chosen_action` og lejerens standardhandling, som begge bliver korrekte efter ændringen.
-
-## Alternativ
-
-Hvis du hellere vil undgå automatik, kan vi i stedet blot udfylde `default_mail_action = 'send'` på de 68 lejere, der mangler den. Så gælder ændringen kun fremadrettet for nye breve.
+- Migration: `CREATE OR REPLACE FUNCTION public.apply_tenant_default_action()` — fjern det tidlige `RETURN NEW`, når `default_mail_action` er tom, og sæt i stedet `_default_action := 'send'` for breve.
+- Data-opdatering: `UPDATE public.mail_items` for de berørte breve, som også sætter status til `afventer_handling`.
+- Ingen frontend-ændringer nødvendige — `ShippingPrepPage` og operatør-dashboardet læser `chosen_action`.
