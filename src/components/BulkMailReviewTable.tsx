@@ -23,7 +23,7 @@ export type BulkItem = {
 
 interface BulkMailReviewTableProps {
   items: BulkItem[];
-  tenants: { id: string; company_name: string }[];
+  tenants: { id: string; company_name: string; tenant_types?: { name: string } | null }[];
   onUpdateItem: (index: number, updates: Partial<BulkItem>) => void;
   onRemoveItem: (index: number) => void;
 }
