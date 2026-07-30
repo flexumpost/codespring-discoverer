@@ -1387,13 +1387,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           const id = actionDialogItem.id;
           setActionDialogItem(null);
           if (card.action === "__archive__") {
-            const completed =
-              actionDialogItem.status === "sendt_med_dao" ||
-              actionDialogItem.status === "sendt_med_postnord" ||
-              actionDialogItem.status === "sendt_retur" ||
-              !!actionDialogItem.scan_url ||
-              actionDialogItem.chosen_action === "afhentet" ||
-              actionDialogItem.chosen_action === "destruer";
+            const completed = isMailCompleted(actionDialogItem);
+
             if (completed) archiveMutation.mutate(id);
             else setArchiveBlockedOpen(true);
           } else if (card.action === "__reactivate__") {
