@@ -1374,6 +1374,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 setPickupDialogItem(null);
                 setPickupDate(undefined);
                 setPickupHour(undefined);
+                setPickupDateLocked(false);
               }}
             >
               {t("common.cancel")}
