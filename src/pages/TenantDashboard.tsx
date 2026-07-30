@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
-import { buildActionCards } from "@/lib/mailActions";
+import { buildActionCards, isMailCompleted } from "@/lib/mailActions";
 import type { Database } from "@/integrations/supabase/types";
 import type { TFunction } from "i18next";
 
