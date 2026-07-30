@@ -7,16 +7,19 @@ Handlingskortene i dialogen bruger i dag de samme tekster for breve og pakker, s
 Kun for `mail_type = "pakke"` — breve beholder deres nuværende tekster uændret.
 
 Afhentning:
+
 - Titel: "Afhentning" (i stedet for "Standard afhentning")
 - Beskrivelse: "Book et afhentningstidspunkt for at hente din pakke"
 - Knap: "Book afhentning"
 - Ingen dato-linje på kortet, da pakker ikke er bundet til en fast dag
 
 Destruktion:
+
 - Beskrivelse: "Pakken bliver destrueret. Handlingen kan ikke fortrydes."
-- Knap: "Makulér pakken"
+- Knap: "Destruer pakken"
 
 Forsendelse:
+
 - Beskrivelse tilrettet så der står "Pakken sendes ..." i stedet for "Brevet sendes ..."
 
 Annullér valg / arkivér / genaktivér: neutrale tekster, ændres ikke.
