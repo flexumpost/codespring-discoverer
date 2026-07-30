@@ -523,10 +523,13 @@ const OperatorDashboard = () => {
     };
   }, []);
 
-  const counts = CARD_FILTERS.map((cf) => ({
-    ...cf,
-    count: mailItems.filter(cf.countFilter ?? cf.filter).length,
-  }));
+  const counts = CARD_FILTERS.map((cf) => {
+    const fn = cf.countFilter ?? cf.filter;
+    return {
+      ...cf,
+      count: mailItems.filter((item) => isUnprocessed(item) && fn(item)).length,
+    };
+  });
 
   const activeFilter = CARD_FILTERS.find((cf) => cf.title === selectedCard);
   const cardFiltered = activeFilter ? mailItems.filter(activeFilter.filter) : mailItems;
