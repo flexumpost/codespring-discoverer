@@ -40,7 +40,26 @@ export function formatI18nDate(date: Date, t: TFunction): string {
   return the ? `${day} ${the} ${d}. ${month}` : `${day} ${d}. ${month}`;
 }
 
+/* ── Completion state ── */
+
+/** True when a mail item has been fully handled (sent, scanned, picked up or destroyed) and may be archived. */
+export function isMailCompleted(item: {
+  chosen_action: string | null;
+  scan_url: string | null;
+  status: string;
+}): boolean {
+  return (
+    item.status === "sendt_med_dao" ||
+    item.status === "sendt_med_postnord" ||
+    item.status === "sendt_retur" ||
+    !!item.scan_url ||
+    item.chosen_action === "afhentet" ||
+    item.chosen_action === "destruer"
+  );
+}
+
 /* ── Action card builder ── */
+
 
 type Tier = "Lite" | "Standard" | "Plus" | string | undefined;
 
