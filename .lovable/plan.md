@@ -1,29 +1,27 @@
-## Mål
+## Status: jo, spærringen er lagt ind
 
-Når flere breve/pakker afhentes af samme lejer samme dag, skal OfficeRnD kun tillægges **ét** afhentningsgebyr (fx 30 kr. for Standard) i stedet for ét pr. brev.
+Kontrolleret i både kode og database:
 
-## Ændring
+- **Handlingsdialogen** (`src/pages/TenantDashboard.tsx`, linje 1392-1401): "Arkivér" udføres kun hvis forsendelsen er sendt (DAO/PostNord/retur), scannet, afhentet eller destrueret. Ellers vises spærre-boksen "Kan ikke arkiveres endnu".
+- **Kortlogikken** (`src/lib/mailActions.ts`): arkiv-kortet tilbydes overhovedet kun for sendte/afhentede/scannede forsendelser.
+- **Databasen**: lejere kan slet ikke ændre `status` — hverken via adgangsreglen på `mail_items` eller triggeren `enforce_tenant_mail_item_immutability`. Et forsøg afvises på serveren.
 
-Kun `supabase/functions/sync-officernd-charge/index.ts` (den funktion trigger-en `notify_officernd_on_archive` kalder pr. arkiveret afhentning).
+De 6 arkiverede breve uden behandling (nr. 3246, 3247, 3254, 3255, 3261, 2954) blev alle arkiveret af lejeren **den 20. maj 2026**, altså før spærringen blev indført. Efter den dato er alle arkiveringer i loggen foretaget af operatøren (rico@flexum.dk).
 
-Lige inden hovedgebyret oprettes i OfficeRnD, indsæt en check:
+## To ting der stadig bør rettes
 
-1. Beregn den effektive handling; hvis det er `"afhentning"` (dvs. `chosen_action` var `"afhentet"` eller `"afhentning"`), slå op i `officernd_sync_log`:
-   - Find rækker hvor `charge_id` matcher et afhentnings-gebyr for **samme lejer**, **samme dato** (dansk kalenderdag), og status er `"confirmed"` eller `"pending_confirmation"`.
-   - Join via `mail_items.tenant_id`.
-   - Filtrer på `plan_name = "Brev/pakke afhentning (<tier>)"` (feltet findes allerede i log-tabellen).
-2. Hvis en sådan række findes: spring hovedgebyret over — indsæt i stedet en log-linje med `status = "skipped_grouped_pickup"`, `charge_id = "skipped_grouped_pickup"`, `amount_text = "0 kr. (samlet afhentning)"`. Porto-delen springes ikke over (afhentning har ingen porto alligevel).
-3. Ellers: fortsæt uændret og opret gebyret som i dag.
+**1. Uoverensstemmelse i detalje-dialogen**
 
-Ingen ændring i:
-- `sync-officernd-charge-batch` (bruges kun til forsendelse; ingen afhentning her).
-- Scanning-fakturering (forbliver pr. brev jf. bekræftelse).
-- DB-trigger, RLS, priser, UI, pris-tekster.
+I den gamle detalje-dialog (linje 867-871) bruges en anden "færdig"-definition end i handlingsdialogen: den mangler `sendt_retur`, `afhentet` og `destruer`. Den er dermed *strengere* end nødvendigt — en lejer kan ikke arkivere et returneret eller afhentet brev, selvom det er færdigbehandlet.
 
-## Tekniske detaljer
+Rettelse: udtræk "er færdigbehandlet"-tjekket til én fælles hjælpefunktion i `src/lib/mailActions.ts` (fx `isMailCompleted(item)`) og brug den begge steder, så reglen kun findes ét sted.
 
-- "Samme dag" bestemmes af `created_at::date` på log-rækkerne i tidszonen `Europe/Copenhagen` (`(created_at AT TIME ZONE 'Europe/Copenhagen')::date`).
-- Query udføres via supabase-js: hent kandidat-logs for i dag med `plan_name ILIKE 'Brev/pakke afhentning%'` og `status IN ('confirmed','pending_confirmation')`, joinet med `mail_items!inner(tenant_id)` filtreret på lejerens `tenant_id`.
-- Idempotens: hvis samme mail_item allerede har en `confirmed`/`pending_confirmation`-linje, springes den allerede over øverst i funktionen — den eksisterende guard bevares.
-- Log-status `"skipped_grouped_pickup"` er nyt, men `status` er en fri `text`-kolonne, så ingen migration nødvendig.
-- Efter kodeændring: deploy edge-funktionen og test med `curl_edge_functions` på en tenant med to nyligt afhentede breve i test-miljøet hvis muligt; ellers bekræft ved næste rigtige afhentning at kun én charge oprettes i OfficeRnD.
+**2. De gamle fejl-arkiverede breve**
+
+De 6 breve står stadig som arkiverede uden at være behandlet, og de forstyrrer operatørens tælling. Forslag: reaktivér dem (sæt status tilbage til `afventer_handling`) så de kan behandles normalt — eller lad dem ligge, hvis de reelt er afsluttet fysisk. Dette kræver din beslutning.
+
+## Teknisk omfang
+
+- `src/lib/mailActions.ts`: ny eksporteret `isMailCompleted(item)`.
+- `src/pages/TenantDashboard.tsx`: begge steder (`isCompleted` og `__archive__`-grenen) bruger den nye funktion.
+- Ingen ændringer i databasen er nødvendige — serverbeskyttelsen er allerede på plads.

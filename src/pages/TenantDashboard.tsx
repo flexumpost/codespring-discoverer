@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
-import { buildActionCards } from "@/lib/mailActions";
+import { buildActionCards, isMailCompleted } from "@/lib/mailActions";
 import type { Database } from "@/integrations/supabase/types";
 import type { TFunction } from "i18next";
 
@@ -864,11 +864,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     }
   };
 
-  const isCompleted =
-    !!selectedItem &&
-    (selectedItem.status === "sendt_med_dao" ||
-      selectedItem.status === "sendt_med_postnord" ||
-      !!selectedItem.scan_url);
+  const isCompleted = !!selectedItem && isMailCompleted(selectedItem);
+
   const canArchive = !!selectedItem && selectedItem.status !== "arkiveret";
 
   const totalActive = stats.ny + stats.afventer_scanning + stats.ulaest + stats.laest;
@@ -1390,13 +1387,8 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           const id = actionDialogItem.id;
           setActionDialogItem(null);
           if (card.action === "__archive__") {
-            const completed =
-              actionDialogItem.status === "sendt_med_dao" ||
-              actionDialogItem.status === "sendt_med_postnord" ||
-              actionDialogItem.status === "sendt_retur" ||
-              !!actionDialogItem.scan_url ||
-              actionDialogItem.chosen_action === "afhentet" ||
-              actionDialogItem.chosen_action === "destruer";
+            const completed = isMailCompleted(actionDialogItem);
+
             if (completed) archiveMutation.mutate(id);
             else setArchiveBlockedOpen(true);
           } else if (card.action === "__reactivate__") {
