@@ -791,12 +791,20 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       if (action === "afhentning" && tenantTypeName === "Standard") {
         const mailItem = mailItems?.find(i => i.id === id);
         if (mailItem?.mail_type !== "pakke") {
+          // Standard-lejere har fast afhentningsdag (næste torsdag),
+          // men skal stadig vælge et tidsrum.
           const nextThurs = getNextThursday();
           nextThurs.setHours(0, 0, 0, 0);
-          choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
+          setPickupDate(nextThurs);
+          setPickupHour(undefined);
+          setPickupDateLocked(true);
+          setPickupDialogItem(id);
           return;
         }
       }
+      setPickupDate(undefined);
+      setPickupHour(undefined);
+      setPickupDateLocked(false);
       setPickupDialogItem(id);
     } else if (action === "destruer") {
       setConfirmDestroy(id);
