@@ -1313,6 +1313,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             setPickupDialogItem(null);
             setPickupDate(undefined);
             setPickupHour(undefined);
+            setPickupDateLocked(false);
           }
         }}
       >
@@ -1320,24 +1321,37 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           <DialogHeader>
             <DialogTitle>{t("tenantDashboard.pickupDialogTitle")}</DialogTitle>
             <DialogDescription>
-              {t("tenantDashboard.pickupDialogDesc")}
+              {pickupDateLocked
+                ? t("tenantDashboard.pickupDialogDescLocked")
+                : t("tenantDashboard.pickupDialogDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Calendar
-              mode="single"
-              selected={pickupDate}
-              onSelect={(date) => {
-                setPickupDate(date);
-                setPickupHour(undefined);
-              }}
-              disabled={(date) => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                return date < today || isWeekend(date);
-              }}
-              className="p-3 pointer-events-auto"
-            />
+            {pickupDateLocked ? (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">
+                  {pickupDate ? formatI18nDate(pickupDate, t) : ""}
+                </p>
+                <p className="text-muted-foreground">
+                  {t("tenantDashboard.pickupLockedHint")}
+                </p>
+              </div>
+            ) : (
+              <Calendar
+                mode="single"
+                selected={pickupDate}
+                onSelect={(date) => {
+                  setPickupDate(date);
+                  setPickupHour(undefined);
+                }}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today || isWeekend(date);
+                }}
+                className="p-3 pointer-events-auto"
+              />
+            )}
             {pickupDate && (
               <Select value={pickupHour} onValueChange={setPickupHour}>
                 <SelectTrigger>
