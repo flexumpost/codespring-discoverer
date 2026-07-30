@@ -831,6 +831,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       setPickupDialogItem(null);
       setPickupDate(undefined);
       setPickupHour(undefined);
+      setPickupDateLocked(false);
       toast.success(t("tenantDashboard.pickupOrdered"));
     },
     onError: () => {
