@@ -320,7 +320,8 @@ function formatPickupDisplay(pickupDateStr: string | null, notes: string | null,
   const at = t("dates.at");
   const hour = date.getHours();
   if (hour === 0) {
-    return the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+    const base = the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+    return `${base} (${t("tenantDashboard.pickupTimeMissing")})`;
   }
   const prefix = the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
   return `${prefix} ${at} ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
