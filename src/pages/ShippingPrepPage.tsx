@@ -231,7 +231,13 @@ export default function ShippingPrepPage() {
 
       if (error) throw error;
 
-      return (data ?? []).map((item: any) => ({
+      // Lejere der ikke længere er kunder (retur til afsender) og naboer
+      // skal aldrig med på afsendelseslisten.
+      const hiddenTypes = ["Retur til afsender", "Nabo"];
+
+      return (data ?? [])
+        .filter((item: any) => !hiddenTypes.includes(item.tenants?.tenant_types?.name))
+        .map((item: any) => ({
         id: item.id,
         stamp_number: item.stamp_number,
         mail_type: item.mail_type,
