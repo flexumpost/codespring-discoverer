@@ -1,27 +1,27 @@
-## Status: jo, spærringen er lagt ind
+## Årsagen er den samme for begge tal
 
-Kontrolleret i både kode og database:
+Tællerne på kortene i operatør-dashboardet ser ikke på **status** — de tæller også forsendelser, der for længst er arkiveret.
 
-- **Handlingsdialogen** (`src/pages/TenantDashboard.tsx`, linje 1392-1401): "Arkivér" udføres kun hvis forsendelsen er sendt (DAO/PostNord/retur), scannet, afhentet eller destrueret. Ellers vises spærre-boksen "Kan ikke arkiveres endnu".
-- **Kortlogikken** (`src/lib/mailActions.ts`): arkiv-kortet tilbydes overhovedet kun for sendte/afhentede/scannede forsendelser.
-- **Databasen**: lejere kan slet ikke ændre `status` — hverken via adgangsreglen på `mail_items` eller triggeren `enforce_tenant_mail_item_immutability`. Et forsøg afvises på serveren.
+**"Åben og scan" = 7**
+- 1 reel: nr. 3620 (ROADRUNNERCARGO APS, "Scan nu")
+- 6 arkiverede breve uden scan-fil: nr. 3261, 3255, 3254, 3247, 3246 (Management Company K/S) og 2954 (ROADRUNNERCARGO APS). Alle er Plus-lejere med standardhandling "scan" og uden valgt handling. Plus bruger "næste torsdag", og da i dag *er* torsdag, tælles de med.
 
-De 6 arkiverede breve uden behandling (nr. 3246, 3247, 3254, 3255, 3261, 2954) blev alle arkiveret af lejeren **den 20. maj 2026**, altså før spærringen blev indført. Efter den dato er alle arkiveringer i loggen foretaget af operatøren (rico@flexum.dk).
+**"Send" = 8**
+- 6 reelle: nr. 3627, 3625, 3622, 3617, 3615 (breve) og 3597 (pakke)
+- 2 arkiverede breve med handlingen "send": nr. 3187 (SHINEPRO APS) og 2984 (TRUE CONTRACTORS APS)
 
-## To ting der stadig bør rettes
+Begge afvigelser er altså gamle, arkiverede forsendelser, der stadig tælles med.
 
-**1. Uoverensstemmelse i detalje-dialogen**
+## Ændring
 
-I den gamle detalje-dialog (linje 867-871) bruges en anden "færdig"-definition end i handlingsdialogen: den mangler `sendt_retur`, `afhentet` og `destruer`. Den er dermed *strengere* end nødvendigt — en lejer kan ikke arkivere et returneret eller afhentet brev, selvom det er færdigbehandlet.
+I `src/pages/OperatorDashboard.tsx`:
 
-Rettelse: udtræk "er færdigbehandlet"-tjekket til én fælles hjælpefunktion i `src/lib/mailActions.ts` (fx `isMailCompleted(item)`) og brug den begge steder, så reglen kun findes ét sted.
+1. Alle `countFilter`-funktioner på kortene får som første betingelse, at forsendelsen ikke er færdigbehandlet — genbrug af den eksisterende `isUnprocessed(item)` (udelukker status `arkiveret`, `sendt_med_dao`, `sendt_med_postnord`, `sendt_retur`, samt `chosen_action = "afhentet"` og forsendelser der allerede har en scan-fil).
+2. Kortene uden `countFilter` ("Ikke tildelt" og "Læg på kontoret") får samme behandling, så alle seks tal er konsistente.
+3. Listefiltrene (`filter`) røres ikke — når man klikker på et kort, kan operatøren fortsat se historikken, inkl. afsendte/arkiverede.
 
-**2. De gamle fejl-arkiverede breve**
+Efter ændringen vil kortene vise **1** for "Åben og scan" og **6** for "Send".
 
-De 6 breve står stadig som arkiverede uden at være behandlet, og de forstyrrer operatørens tælling. Forslag: reaktivér dem (sæt status tilbage til `afventer_handling`) så de kan behandles normalt — eller lad dem ligge, hvis de reelt er afsluttet fysisk. Dette kræver din beslutning.
+## Bemærkning
 
-## Teknisk omfang
-
-- `src/lib/mailActions.ts`: ny eksporteret `isMailCompleted(item)`.
-- `src/pages/TenantDashboard.tsx`: begge steder (`isCompleted` og `__archive__`-grenen) bruger den nye funktion.
-- Ingen ændringer i databasen er nødvendige — serverbeskyttelsen er allerede på plads.
+Bagvedliggende data er ikke forkerte — de 8 gamle arkiverede forsendelser er reelt afsluttede. Der er derfor ingen databaseændring i denne opgave.
