@@ -320,7 +320,8 @@ function formatPickupDisplay(pickupDateStr: string | null, notes: string | null,
   const at = t("dates.at");
   const hour = date.getHours();
   if (hour === 0) {
-    return the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+    const base = the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
+    return `${base} (${t("tenantDashboard.pickupTimeMissing")})`;
   }
   const prefix = the ? `${dayName} ${the} ${d}. ${month}` : `${dayName} ${d}. ${month}`;
   return `${prefix} ${at} ${hour.toString().padStart(2, "0")}:00-${(hour + 1).toString().padStart(2, "0")}:00`;
@@ -592,6 +593,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [pickupDialogItem, setPickupDialogItem] = useState<string | null>(null);
   const [pickupDate, setPickupDate] = useState<Date | undefined>();
   const [pickupHour, setPickupHour] = useState<string | undefined>();
+  const [pickupDateLocked, setPickupDateLocked] = useState(false);
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
@@ -789,12 +791,20 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       if (action === "afhentning" && tenantTypeName === "Standard") {
         const mailItem = mailItems?.find(i => i.id === id);
         if (mailItem?.mail_type !== "pakke") {
+          // Standard-lejere har fast afhentningsdag (næste torsdag),
+          // men skal stadig vælge et tidsrum.
           const nextThurs = getNextThursday();
           nextThurs.setHours(0, 0, 0, 0);
-          choosePickup.mutate({ id, pickupIso: nextThurs.toISOString() });
+          setPickupDate(nextThurs);
+          setPickupHour(undefined);
+          setPickupDateLocked(true);
+          setPickupDialogItem(id);
           return;
         }
       }
+      setPickupDate(undefined);
+      setPickupHour(undefined);
+      setPickupDateLocked(false);
       setPickupDialogItem(id);
     } else if (action === "destruer") {
       setConfirmDestroy(id);
@@ -821,6 +831,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       setPickupDialogItem(null);
       setPickupDate(undefined);
       setPickupHour(undefined);
+      setPickupDateLocked(false);
       toast.success(t("tenantDashboard.pickupOrdered"));
     },
     onError: () => {
@@ -1303,6 +1314,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             setPickupDialogItem(null);
             setPickupDate(undefined);
             setPickupHour(undefined);
+            setPickupDateLocked(false);
           }
         }}
       >
@@ -1310,24 +1322,37 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           <DialogHeader>
             <DialogTitle>{t("tenantDashboard.pickupDialogTitle")}</DialogTitle>
             <DialogDescription>
-              {t("tenantDashboard.pickupDialogDesc")}
+              {pickupDateLocked
+                ? t("tenantDashboard.pickupDialogDescLocked")
+                : t("tenantDashboard.pickupDialogDesc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Calendar
-              mode="single"
-              selected={pickupDate}
-              onSelect={(date) => {
-                setPickupDate(date);
-                setPickupHour(undefined);
-              }}
-              disabled={(date) => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                return date < today || isWeekend(date);
-              }}
-              className="p-3 pointer-events-auto"
-            />
+            {pickupDateLocked ? (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                <p className="font-medium">
+                  {pickupDate ? formatI18nDate(pickupDate, t) : ""}
+                </p>
+                <p className="text-muted-foreground">
+                  {t("tenantDashboard.pickupLockedHint")}
+                </p>
+              </div>
+            ) : (
+              <Calendar
+                mode="single"
+                selected={pickupDate}
+                onSelect={(date) => {
+                  setPickupDate(date);
+                  setPickupHour(undefined);
+                }}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  return date < today || isWeekend(date);
+                }}
+                className="p-3 pointer-events-auto"
+              />
+            )}
             {pickupDate && (
               <Select value={pickupHour} onValueChange={setPickupHour}>
                 <SelectTrigger>
@@ -1350,6 +1375,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 setPickupDialogItem(null);
                 setPickupDate(undefined);
                 setPickupHour(undefined);
+                setPickupDateLocked(false);
               }}
             >
               {t("common.cancel")}
