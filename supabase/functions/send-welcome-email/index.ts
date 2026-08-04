@@ -90,12 +90,26 @@ Deno.serve(async (req) => {
     }
 
     // Get tenants
-    const { data: tenants } = await supabaseAdmin
+    const { data: tenants, error: tenantsErr } = await supabaseAdmin
       .from("tenants")
-      .select("id, company_name, contact_name, contact_email")
+      .select("id, company_name, contact_first_name, contact_last_name, contact_email")
       .in("id", tenant_ids);
 
+    if (tenantsErr) {
+      return new Response(
+        JSON.stringify({ error: `Could not load tenants: ${tenantsErr.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const results: { id: string; status: string; error?: string }[] = [];
+
+    const foundIds = new Set((tenants ?? []).map((t) => t.id));
+    for (const id of tenant_ids) {
+      if (!foundIds.has(id)) {
+        results.push({ id, status: "skipped", error: "tenant not found" });
+      }
+    }
 
     for (const tenant of tenants ?? []) {
       if (!tenant.contact_email) {
@@ -103,7 +117,11 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const name = escapeHtml(tenant.contact_name || tenant.company_name);
+      const fullName = [tenant.contact_first_name, tenant.contact_last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      const name = escapeHtml(fullName || tenant.company_name);
       const companyNameEscaped = escapeHtml(tenant.company_name);
       const subject = template.subject
         .replace(/\{\{company_name\}\}/g, companyNameEscaped)
