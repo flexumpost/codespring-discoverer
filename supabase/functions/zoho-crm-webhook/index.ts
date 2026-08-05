@@ -192,7 +192,33 @@ Deno.serve(async (req) => {
 
     // Package solution fields
     const packageSolution = body.package_solution || null;
-    const solutionShort = body.solution_short || null;
+    const solutionShort =
+      body.solution_short ||
+      body["Løsning_kort"] ||
+      body["losning_kort"] ||
+      body["Losning_kort"] ||
+      null;
+
+    // Customer status ("Kunde status") — exact field name from Zoho unknown, accept aliases
+    const rawStatus =
+      body.kunde_status ??
+      body.Kunde_status ??
+      body.Kunde_Status ??
+      body.customer_status ??
+      body.Customer_Status ??
+      body.status ??
+      body.Status ??
+      null;
+
+    const normalizedStatus = typeof rawStatus === "string"
+      ? rawStatus.trim().toLowerCase()
+      : null;
+
+    const isActiveStatus = normalizedStatus === "aktiv adresseservice";
+    const isEndedStatus = normalizedStatus === "ophørt samarbejde" ||
+      normalizedStatus === "ophort samarbejde";
+
+    console.log("Zoho customer status:", { rawStatus, normalizedStatus, isActiveStatus, isEndedStatus });
 
     if (!companyName) {
       console.error("Missing company/account name in payload");
@@ -205,26 +231,89 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Create tenant ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Look up tenant type by package solution name, fallback to "Lite"
-    let tenantTypeId: string | null = null;
+    // Find existing tenant by company name (case-insensitive)
+    const { data: existingTenants } = await adminClient
+      .from("tenants")
+      .select("id, contact_email, welcome_email_sent_at, is_active")
+      .ilike("company_name", companyName)
+      .limit(1);
+    const existingTenant = existingTenants?.[0] ?? null;
 
-    if (packageSolution) {
+    // --- Ended cooperation: switch to "Retur til afsender" and deactivate ---
+    if (isEndedStatus) {
+      if (!existingTenant) {
+        console.log("No tenant found for ended cooperation:", companyName);
+        return new Response(
+          JSON.stringify({ success: true, message: "No tenant found", company_name: companyName }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { data: returType } = await adminClient
+        .from("tenant_types")
+        .select("id")
+        .eq("name", "Retur til afsender")
+        .maybeSingle();
+
+      if (!returType) {
+        console.error("Tenant type 'Retur til afsender' not found");
+        return new Response(
+          JSON.stringify({ error: "Tenant type 'Retur til afsender' not found" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error: deactivateError } = await adminClient
+        .from("tenants")
+        .update({ tenant_type_id: returType.id, is_active: false })
+        .eq("id", existingTenant.id);
+
+      if (deactivateError) {
+        console.error("Failed to deactivate tenant:", deactivateError);
+        return new Response(
+          JSON.stringify({ error: "Failed to update tenant", detail: deactivateError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("Tenant set to 'Retur til afsender' and deactivated:", existingTenant.id);
+      return new Response(
+        JSON.stringify({ success: true, tenant_id: existingTenant.id, action: "ended" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Any other known-but-unhandled status: no-op
+    if (normalizedStatus && !isActiveStatus) {
+      console.log("Ignoring unhandled customer status:", rawStatus);
+      return new Response(
+        JSON.stringify({ success: true, message: "Status ignored", status: rawStatus }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Active address service (or legacy payload without status): create/update tenant ---
+
+    // Look up tenant type by "Løsning kort", fallback to package_solution, then "Lite"
+    let tenantTypeId: string | null = null;
+    const solutionName = solutionShort || packageSolution;
+
+    if (solutionName) {
       const { data: matchedType } = await adminClient
         .from("tenant_types")
         .select("id")
-        .eq("name", packageSolution)
+        .ilike("name", solutionName)
         .maybeSingle();
 
       if (matchedType) {
         tenantTypeId = matchedType.id;
-        console.log(`Matched tenant type '${packageSolution}':`, tenantTypeId);
+        console.log(`Matched tenant type '${solutionName}':`, tenantTypeId);
       } else {
-        console.log(`No tenant type matching '${packageSolution}', falling back to Lite`);
+        console.log(`No tenant type matching '${solutionName}', falling back to Lite`);
       }
     }
 
@@ -248,31 +337,6 @@ Deno.serve(async (req) => {
       tenantTypeId = liteType.id;
     }
 
-    // Check for duplicate (same company name + contact email)
-    if (contactEmail) {
-      const { data: existing } = await adminClient
-        .from("tenants")
-        .select("id")
-        .eq("company_name", companyName)
-        .eq("contact_email", contactEmail)
-        .maybeSingle();
-
-      if (existing) {
-        console.log("Tenant already exists, skipping:", existing.id);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Tenant already exists",
-            tenant_id: existing.id,
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-    }
-
     // Determine if we have a complete shipping address
     const hasShippingAddress =
       shippingRecipient?.trim() &&
@@ -281,65 +345,104 @@ Deno.serve(async (req) => {
       shippingCity?.trim() &&
       shippingCountry?.trim();
 
-    const { data: tenant, error: insertError } = await adminClient
-      .from("tenants")
-      .insert({
-        company_name: companyName,
-        contact_email: contactEmail || null,
-        contact_first_name: contactFirstName || null,
-        contact_last_name: contactLastName || null,
-        tenant_type_id: tenantTypeId,
-        is_active: true,
-        default_mail_action: "send",
-        shipping_recipient: shippingRecipient,
-        shipping_co: shippingCo,
-        shipping_address: shippingAddress,
-        shipping_address_2: shippingAddress2,
-        shipping_zip: shippingZip,
-        shipping_city: shippingCity,
-        shipping_state: shippingState,
-        shipping_country: shippingCountry,
-        shipping_confirmed: !!hasShippingAddress,
-      })
-      .select("id")
-      .single();
+    const tenantFields: Record<string, unknown> = {
+      company_name: companyName,
+      contact_email: contactEmail || null,
+      contact_first_name: contactFirstName || null,
+      contact_last_name: contactLastName || null,
+      tenant_type_id: tenantTypeId,
+      is_active: true,
+      default_mail_action: "send",
+      shipping_recipient: shippingRecipient,
+      shipping_co: shippingCo,
+      shipping_address: shippingAddress,
+      shipping_address_2: shippingAddress2,
+      shipping_zip: shippingZip,
+      shipping_city: shippingCity,
+      shipping_state: shippingState,
+      shipping_country: shippingCountry,
+      shipping_confirmed: !!hasShippingAddress,
+    };
 
-    if (insertError) {
-      console.error("Failed to create tenant:", insertError);
-      return new Response(
-        JSON.stringify({ error: "Failed to create tenant", detail: insertError.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    let tenantId: string;
+    let welcomeAlreadySent = false;
+
+    if (existingTenant) {
+      // Don't wipe an existing shipping address with empty Zoho values
+      if (!hasShippingAddress) {
+        for (const key of [
+          "shipping_recipient", "shipping_co", "shipping_address", "shipping_address_2",
+          "shipping_zip", "shipping_city", "shipping_state", "shipping_country",
+          "shipping_confirmed",
+        ]) {
+          delete tenantFields[key];
         }
-      );
+      }
+      if (!contactEmail) delete tenantFields.contact_email;
+
+      const { error: updateError } = await adminClient
+        .from("tenants")
+        .update(tenantFields)
+        .eq("id", existingTenant.id);
+
+      if (updateError) {
+        console.error("Failed to update tenant:", updateError);
+        return new Response(
+          JSON.stringify({ error: "Failed to update tenant", detail: updateError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      tenantId = existingTenant.id;
+      welcomeAlreadySent = !!existingTenant.welcome_email_sent_at;
+      console.log("Tenant updated from Zoho:", tenantId);
+    } else {
+      const { data: tenant, error: insertError } = await adminClient
+        .from("tenants")
+        .insert(tenantFields)
+        .select("id")
+        .single();
+
+      if (insertError) {
+        console.error("Failed to create tenant:", insertError);
+        return new Response(
+          JSON.stringify({ error: "Failed to create tenant", detail: insertError.message }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      tenantId = tenant.id;
+      console.log("Tenant created successfully:", tenantId, {
+        solution_short: solutionShort,
+        package_solution: packageSolution,
+        tenant_type_id: tenantTypeId,
+        shipping_confirmed: !!hasShippingAddress,
+      });
     }
 
-    console.log("Tenant created successfully:", tenant.id, {
-      package_solution: packageSolution,
-      solution_short: solutionShort,
-      tenant_type_id: tenantTypeId,
-      shipping_confirmed: !!hasShippingAddress,
-      default_mail_action: "send",
-    });
-
-    // Send welcome email if contact email is provided
-    if (contactEmail) {
+    // Send welcome email if contact email is provided and not sent before
+    const emailForWelcome = contactEmail || existingTenant?.contact_email || null;
+    if (emailForWelcome && !welcomeAlreadySent) {
       const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
-      await sendWelcomeEmail(adminClient, tenant.id, contactEmail, contactName, companyName);
+      await sendWelcomeEmail(adminClient, tenantId, emailForWelcome, contactName, companyName);
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        tenant_id: tenant.id,
+        tenant_id: tenantId,
         company_name: companyName,
+        action: existingTenant ? "updated" : "created",
       }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
+
   } catch (err) {
     console.error("Zoho webhook error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
