@@ -10,15 +10,23 @@ Maj (`wondermaj@hotmail.com`) blev oprettet 4. august kl. 06:48 som inviteret br
 
 Der er ingen invitationsmail i loggen — faktisk er der ikke sendt en eneste "invite"-mail siden 28. juli.
 
+## Hvad "Gensend invitation" gør i dag
+
+Knappen tjekker, om lejeren allerede har en brugerkonto:
+
+- **Har lejeren en konto** (som Maj har): der sendes en "Nulstil din adgangskode"-mail med et rå engangslink direkte til login-serveren.
+- **Har lejeren ingen konto endnu**: der sendes en system-invitation.
+
 ## Tre årsager
 
-1. **Velkomstmailen indeholder ingen "Sæt din adgangskode"-knap.** Knappen vises kun, hvis der følger et adgangskode-link med, men den knap i lejer-oversigten sender aldrig et link med. Derfor får Maj kun en tekst med et login-link — og hun har ingen adgangskode at logge ind med. Login-linket i velkomstmailen peger desuden på det gamle midlertidige domæne i stedet for post.flexum.dk.
+1. **Engangslinket bliver "brugt op" af Hotmail.** Maj får nulstil-mailen, og den indeholder et engangslink. Outlook/Hotmails sikkerhedsscanner åbner automatisk links i indgående mails — dermed er linket forbrugt, inden Maj selv klikker, og hun ser "linket er udløbet". Det er præcis samme problem, vi tidligere så hos en anden Hotmail-bruger. Den to-trins-bekræftelse, vi lagde ind på siden, hjælper ikke her, fordi forbruget sker hos login-serveren, før appen overhovedet åbnes.
 
-2. **Nulstil-mailen bliver "brugt op" af Hotmail.** Den mail indeholder et rå engangslink direkte til login-serveren. Outlook/Hotmails sikkerhedsscanner åbner links automatisk, og dermed er engangslinket forbrugt, inden Maj selv klikker — hun ser "linket er udløbet". Det er præcis samme problem, vi tidligere så hos en anden Hotmail-bruger. Den to-trins-bekræftelse, vi lagde ind på siden, hjælper ikke her, fordi forbruget sker hos login-serveren, før appen overhovedet åbnes.
+2. **Velkomstmailen indeholder ingen "Sæt din adgangskode"-knap.** Knappen vises kun, hvis der følger et adgangskode-link med, men lejer-oversigten sender aldrig et link med. Maj fik derfor kun en tekst med et login-link — og hun har ingen adgangskode at logge ind med. Login-linket peger desuden på det gamle midlertidige domæne i stedet for post.flexum.dk.
 
-3. **Selve system-invitationen blev aldrig sendt.** Invitationen fra 4. august 06:48 gav ingen mail og ingen fejl i loggen. Den kanal (auth-invitationer) har ikke leveret siden 28. juli, så "send invitation" ser ud til at lykkes uden at der sker noget.
+3. **Den anden gren af knappen (system-invitation) sender ikke noget.** Invitationen fra 4. august 06:48 gav hverken mail eller fejl i loggen, og der er ikke sendt en eneste invitationsmail siden 28. juli. Knappen ser altså ud til at lykkes, uden at der sker noget.
 
 Vi har allerede en robust løsning i systemet: de 24-timers onboarding-links, som bruges i "ny post"-mails. De kan ikke ødelægges af mailscannere, fordi linket først indløses, når brugeren aktivt klikker "Fortsæt" inde i appen. Den mekanisme skal bruges alle steder.
+
 
 ## Løsning
 
