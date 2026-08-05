@@ -716,6 +716,62 @@ export type Database = {
         }
         Relationships: []
       }
+      zoho_webhook_logs: {
+        Row: {
+          address_transfer_status: string | null
+          company_name: string | null
+          contact_email: string | null
+          error_message: string | null
+          id: string
+          payload: Json | null
+          raw_status: string | null
+          received_at: string
+          resolved_action: string
+          success: boolean
+          tenant_id: string | null
+          tenant_type_name: string | null
+          welcome_email_status: string | null
+        }
+        Insert: {
+          address_transfer_status?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          raw_status?: string | null
+          received_at?: string
+          resolved_action: string
+          success?: boolean
+          tenant_id?: string | null
+          tenant_type_name?: string | null
+          welcome_email_status?: string | null
+        }
+        Update: {
+          address_transfer_status?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          raw_status?: string | null
+          received_at?: string
+          resolved_action?: string
+          success?: boolean
+          tenant_id?: string | null
+          tenant_type_name?: string | null
+          welcome_email_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zoho_webhook_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
