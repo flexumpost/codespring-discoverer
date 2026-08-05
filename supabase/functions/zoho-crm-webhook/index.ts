@@ -12,6 +12,44 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+type LogEntry = {
+  company_name?: string | null;
+  contact_email?: string | null;
+  raw_status?: string | null;
+  resolved_action: string;
+  tenant_id?: string | null;
+  tenant_type_name?: string | null;
+  address_transfer_status?: string | null;
+  welcome_email_status?: string | null;
+  success?: boolean;
+  error_message?: string | null;
+  payload?: unknown;
+};
+
+async function logWebhookEvent(
+  adminClient: ReturnType<typeof createClient> | null,
+  entry: LogEntry,
+) {
+  try {
+    if (!adminClient) return;
+    await adminClient.from("zoho_webhook_logs").insert({
+      company_name: entry.company_name ?? null,
+      contact_email: entry.contact_email ?? null,
+      raw_status: entry.raw_status ?? null,
+      resolved_action: entry.resolved_action,
+      tenant_id: entry.tenant_id ?? null,
+      tenant_type_name: entry.tenant_type_name ?? null,
+      address_transfer_status: entry.address_transfer_status ?? null,
+      welcome_email_status: entry.welcome_email_status ?? null,
+      success: entry.success ?? true,
+      error_message: entry.error_message ?? null,
+      payload: entry.payload ?? null,
+    });
+  } catch (e) {
+    console.error("Failed to log zoho webhook event:", e);
+  }
+}
+
 async function sendWelcomeEmail(
   adminClient: ReturnType<typeof createClient>,
   tenantId: string,
@@ -22,7 +60,7 @@ async function sendWelcomeEmail(
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured, skipping welcome email");
-    return;
+    return { ok: false, error: "RESEND_API_KEY not configured" };
   }
 
   try {
@@ -35,7 +73,7 @@ async function sendWelcomeEmail(
 
     if (!template) {
       console.error("Welcome email template not found (slug: welcome)");
-      return;
+      return { ok: false, error: "Welcome email template not found" };
     }
 
     const name = escapeHtml(contactName || companyName);
@@ -105,6 +143,7 @@ async function sendWelcomeEmail(
       .eq("id", tenantId);
 
     console.log("Welcome email sent to", contactEmail);
+    return { ok: true, error: null as string | null };
   } catch (e) {
     console.error("Failed to send welcome email:", e);
 
@@ -115,6 +154,7 @@ async function sendWelcomeEmail(
       error_message: String(e),
       metadata: { tenant_id: tenantId, provider: "resend", source: "zoho-webhook" },
     });
+    return { ok: false, error: String(e) };
   }
 }
 
@@ -220,8 +260,21 @@ Deno.serve(async (req) => {
 
     console.log("Zoho customer status:", { rawStatus, normalizedStatus, isActiveStatus, isEndedStatus });
 
+    const supabaseUrlEarly = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const logClient = createClient(supabaseUrlEarly, serviceRoleKeyEarly);
+
     if (!companyName) {
       console.error("Missing company/account name in payload");
+      await logWebhookEvent(logClient, {
+        company_name: null,
+        contact_email: contactEmail,
+        raw_status: rawStatus,
+        resolved_action: "afvist",
+        success: false,
+        error_message: "Mangler firmanavn (account_name) i payload",
+        payload: body,
+      });
       return new Response(
         JSON.stringify({ error: "company_name or account_name required" }),
         {
@@ -231,9 +284,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const adminClient = logClient;
 
     // Find existing tenant by company name (case-insensitive)
     const { data: existingTenants } = await adminClient
@@ -247,6 +298,11 @@ Deno.serve(async (req) => {
     if (isEndedStatus) {
       if (!existingTenant) {
         console.log("No tenant found for ended cooperation:", companyName);
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "ophoert_samarbejde", success: false,
+          error_message: "Ingen lejer fundet med dette firmanavn", payload: body,
+        });
         return new Response(
           JSON.stringify({ success: true, message: "No tenant found", company_name: companyName }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -261,6 +317,11 @@ Deno.serve(async (req) => {
 
       if (!returType) {
         console.error("Tenant type 'Retur til afsender' not found");
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "ophoert_samarbejde", tenant_id: existingTenant.id, success: false,
+          error_message: "Lejertypen 'Retur til afsender' findes ikke", payload: body,
+        });
         return new Response(
           JSON.stringify({ error: "Tenant type 'Retur til afsender' not found" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -274,6 +335,12 @@ Deno.serve(async (req) => {
 
       if (deactivateError) {
         console.error("Failed to deactivate tenant:", deactivateError);
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "ophoert_samarbejde", tenant_id: existingTenant.id,
+          tenant_type_name: "Retur til afsender", success: false,
+          error_message: deactivateError.message, payload: body,
+        });
         return new Response(
           JSON.stringify({ error: "Failed to update tenant", detail: deactivateError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -281,6 +348,13 @@ Deno.serve(async (req) => {
       }
 
       console.log("Tenant set to 'Retur til afsender' and deactivated:", existingTenant.id);
+      await logWebhookEvent(adminClient, {
+        company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+        resolved_action: "ophoert_samarbejde", tenant_id: existingTenant.id,
+        tenant_type_name: "Retur til afsender",
+        address_transfer_status: "ikke_relevant", welcome_email_status: "ikke_relevant",
+        success: true, payload: body,
+      });
       return new Response(
         JSON.stringify({ success: true, tenant_id: existingTenant.id, action: "ended" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -290,6 +364,12 @@ Deno.serve(async (req) => {
     // Any other known-but-unhandled status: no-op
     if (normalizedStatus && !isActiveStatus) {
       console.log("Ignoring unhandled customer status:", rawStatus);
+      await logWebhookEvent(adminClient, {
+        company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+        resolved_action: "ignoreret", tenant_id: existingTenant?.id ?? null,
+        address_transfer_status: "ikke_relevant", welcome_email_status: "ikke_relevant",
+        success: true, payload: body,
+      });
       return new Response(
         JSON.stringify({ success: true, message: "Status ignored", status: rawStatus }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -300,6 +380,7 @@ Deno.serve(async (req) => {
 
     // Look up tenant type by "Løsning kort", fallback to package_solution, then "Lite"
     let tenantTypeId: string | null = null;
+    let resolvedTypeName: string | null = null;
     const solutionName = solutionShort || packageSolution;
 
     if (solutionName) {
@@ -311,6 +392,7 @@ Deno.serve(async (req) => {
 
       if (matchedType) {
         tenantTypeId = matchedType.id;
+        resolvedTypeName = solutionName;
         console.log(`Matched tenant type '${solutionName}':`, tenantTypeId);
       } else {
         console.log(`No tenant type matching '${solutionName}', falling back to Lite`);
@@ -326,6 +408,11 @@ Deno.serve(async (req) => {
 
       if (typeError || !liteType) {
         console.error("Could not find default tenant type 'Lite':", typeError);
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "aktiv_adresseservice", tenant_id: existingTenant?.id ?? null,
+          success: false, error_message: "Standard lejertype 'Lite' ikke fundet", payload: body,
+        });
         return new Response(
           JSON.stringify({ error: "Default tenant type not found" }),
           {
@@ -335,6 +422,7 @@ Deno.serve(async (req) => {
         );
       }
       tenantTypeId = liteType.id;
+      resolvedTypeName = "Lite";
     }
 
     // Determine if we have a complete shipping address
@@ -387,6 +475,13 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error("Failed to update tenant:", updateError);
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "aktiv_adresseservice", tenant_id: existingTenant.id,
+          tenant_type_name: resolvedTypeName, address_transfer_status: "fejlet",
+          welcome_email_status: "ikke_sendt", success: false,
+          error_message: updateError.message, payload: body,
+        });
         return new Response(
           JSON.stringify({ error: "Failed to update tenant", detail: updateError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -405,6 +500,12 @@ Deno.serve(async (req) => {
 
       if (insertError) {
         console.error("Failed to create tenant:", insertError);
+        await logWebhookEvent(adminClient, {
+          company_name: companyName, contact_email: contactEmail, raw_status: rawStatus,
+          resolved_action: "aktiv_adresseservice", tenant_type_name: resolvedTypeName,
+          address_transfer_status: "fejlet", welcome_email_status: "ikke_sendt",
+          success: false, error_message: insertError.message, payload: body,
+        });
         return new Response(
           JSON.stringify({ error: "Failed to create tenant", detail: insertError.message }),
           {
@@ -425,10 +526,32 @@ Deno.serve(async (req) => {
 
     // Send welcome email if contact email is provided and not sent before
     const emailForWelcome = contactEmail || existingTenant?.contact_email || null;
+    let welcomeStatus = "ikke_relevant";
+    let welcomeError: string | null = null;
     if (emailForWelcome && !welcomeAlreadySent) {
       const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
-      await sendWelcomeEmail(adminClient, tenantId, emailForWelcome, contactName, companyName);
+      const res = await sendWelcomeEmail(adminClient, tenantId, emailForWelcome, contactName, companyName);
+      welcomeStatus = res?.ok ? "sendt" : "fejlet";
+      welcomeError = res?.ok ? null : (res?.error ?? "Ukendt fejl");
+    } else if (emailForWelcome && welcomeAlreadySent) {
+      welcomeStatus = "allerede_sendt";
+    } else {
+      welcomeStatus = "ingen_email";
     }
+
+    await logWebhookEvent(adminClient, {
+      company_name: companyName,
+      contact_email: emailForWelcome,
+      raw_status: rawStatus,
+      resolved_action: existingTenant ? "opdateret" : "oprettet",
+      tenant_id: tenantId,
+      tenant_type_name: resolvedTypeName,
+      address_transfer_status: hasShippingAddress ? "overfoert" : "mangler_data",
+      welcome_email_status: welcomeStatus,
+      success: welcomeStatus !== "fejlet",
+      error_message: welcomeError,
+      payload: body,
+    });
 
     return new Response(
       JSON.stringify({
