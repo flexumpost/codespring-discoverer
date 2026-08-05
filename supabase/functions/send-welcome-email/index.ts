@@ -138,9 +138,25 @@ Deno.serve(async (req) => {
         .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
         .join("");
 
-      // Use recovery link if provided, otherwise fall back to login URL
-      const recoveryLink = recovery_links?.[tenant.id] || null;
-      const loginUrl = "https://codespring-discoverer.lovable.app/login";
+      // Use provided recovery link, otherwise create a custom 24h onboarding link.
+      // Mail scanners prefetch links, so raw one-time auth links get consumed before
+      // the tenant clicks — the onboarding token is only consumed from inside the app.
+      let recoveryLink: string | null = recovery_links?.[tenant.id] || null;
+      if (!recoveryLink) {
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const { data: tokenRow, error: tokenError } = await supabaseAdmin
+          .from("onboarding_tokens")
+          .insert({ email: tenant.contact_email, expires_at: expiresAt })
+          .select("token")
+          .single();
+        if (tokenError || !tokenRow?.token) {
+          console.error("Failed to create onboarding token:", tokenError);
+        } else {
+          recoveryLink = `https://post.flexum.dk/set-password?onboarding_token=${tokenRow.token}`;
+        }
+      }
+      const loginUrl = "https://post.flexum.dk/login";
+
 
       try {
         // Render branded React Email template
