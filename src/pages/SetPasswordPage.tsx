@@ -22,6 +22,7 @@ const SetPasswordPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [linkExpired, setLinkExpired] = useState(false);
+  const [technicalError, setTechnicalError] = useState(false);
   const [pending, setPending] = useState<PendingToken | null>(null);
   const [confirming, setConfirming] = useState(false);
   const { toast } = useToast();
@@ -80,27 +81,42 @@ const SetPasswordPage = () => {
 
   const handleConfirm = async () => {
     if (!pending) return;
+    const tokenToComplete = pending.kind === "onboarding" ? pending.token : null;
     setConfirming(true);
+    setTechnicalError(false);
     try {
       if (pending.kind === "onboarding") {
         const { data, error } = await supabase.functions.invoke("consume-onboarding-token", {
           body: { token: pending.token },
         });
-        if (error || !data?.hashed_token || !data?.email) {
-          console.error("Failed to consume onboarding token:", error, data);
+        if (data?.error === "token_used" || data?.error === "token_expired" || data?.error === "invalid_token") {
           setLinkExpired(true);
+          setPending(null);
+          return;
+        }
+        if (error || !data?.hashed_token) {
+          console.error("Failed to consume onboarding token:", error, data);
+          setTechnicalError(true);
           return;
         }
         const { error: verifyErr } = await supabase.auth.verifyOtp({
-          email: data.email,
-          token: data.hashed_token,
-          type: data.type === "magiclink" ? "magiclink" : "recovery",
+          token_hash: data.hashed_token,
+          type: data.type === "recovery" ? "recovery" : "magiclink",
         });
         if (verifyErr) {
           console.error("verifyOtp failed:", verifyErr);
-          setLinkExpired(true);
+          setTechnicalError(true);
         } else {
+          const { error: completeError } = await supabase.functions.invoke("consume-onboarding-token", {
+            body: { token: tokenToComplete, action: "complete" },
+          });
+          if (completeError) {
+            console.error("Failed to complete onboarding token:", completeError);
+            setTechnicalError(true);
+            return;
+          }
           setIsReady(true);
+          setPending(null);
         }
       } else if (pending.kind === "pkce") {
         const { error } = await supabase.auth.exchangeCodeForSession(pending.code);
@@ -124,10 +140,9 @@ const SetPasswordPage = () => {
       }
     } catch (e) {
       console.error("Confirm failed:", e);
-      setLinkExpired(true);
+      setTechnicalError(true);
     } finally {
       setConfirming(false);
-      setPending(null);
     }
   };
 
@@ -207,9 +222,16 @@ const SetPasswordPage = () => {
               </Button>
             </form>
           ) : pending ? (
-            <Button className="w-full" onClick={handleConfirm} disabled={confirming}>
-              {confirming ? t("common.pleaseWait") : t("setPassword.confirmButton")}
-            </Button>
+            <div className="space-y-4">
+              {technicalError && (
+                <p className="text-center text-sm text-destructive">
+                  Der opstod en teknisk fejl. Linket er stadig gyldigt, så prøv igen.
+                </p>
+              )}
+              <Button className="w-full" onClick={handleConfirm} disabled={confirming}>
+                {confirming ? t("common.pleaseWait") : t("setPassword.confirmButton")}
+              </Button>
+            </div>
           ) : (
             <p className="text-center text-muted-foreground">{t("common.loading")}</p>
           )}
