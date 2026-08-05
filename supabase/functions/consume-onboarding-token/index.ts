@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { token } = await req.json();
+    const { token, action = "exchange" } = await req.json();
     if (!token || typeof token !== "string") {
       return new Response(JSON.stringify({ error: "Missing token" }), {
         status: 400,
@@ -23,6 +23,59 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    if (action === "complete") {
+      const authHeader = req.headers.get("Authorization");
+      const accessToken = authHeader?.startsWith("Bearer ")
+        ? authHeader.slice("Bearer ".length)
+        : null;
+
+      if (!accessToken) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: claimsData, error: claimsError } = await supabaseAdmin.auth.getClaims(accessToken);
+      const authenticatedEmail = typeof claimsData?.claims?.email === "string"
+        ? claimsData.claims.email.toLowerCase()
+        : null;
+
+      if (claimsError || !authenticatedEmail) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: completedRow, error: completeError } = await supabaseAdmin
+        .from("onboarding_tokens")
+        .update({ used_at: new Date().toISOString() })
+        .eq("token", token)
+        .is("used_at", null)
+        .ilike("email", authenticatedEmail)
+        .select("token")
+        .maybeSingle();
+
+      if (completeError || !completedRow) {
+        return new Response(JSON.stringify({ error: "completion_failed" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action !== "exchange") {
+      return new Response(JSON.stringify({ error: "invalid_action" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: row, error: selErr } = await supabaseAdmin
       .from("onboarding_tokens")
@@ -64,12 +117,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Mark token consumed
-    await supabaseAdmin
-      .from("onboarding_tokens")
-      .update({ used_at: new Date().toISOString() })
-      .eq("token", token);
 
     // Parse hashed_token + verification type from action_link (verify endpoint)
     // action_link example: https://<proj>.supabase.co/auth/v1/verify?token=...&type=magiclink&redirect_to=...
