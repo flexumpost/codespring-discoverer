@@ -12,6 +12,44 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+type LogEntry = {
+  company_name?: string | null;
+  contact_email?: string | null;
+  raw_status?: string | null;
+  resolved_action: string;
+  tenant_id?: string | null;
+  tenant_type_name?: string | null;
+  address_transfer_status?: string | null;
+  welcome_email_status?: string | null;
+  success?: boolean;
+  error_message?: string | null;
+  payload?: unknown;
+};
+
+async function logWebhookEvent(
+  adminClient: ReturnType<typeof createClient> | null,
+  entry: LogEntry,
+) {
+  try {
+    if (!adminClient) return;
+    await adminClient.from("zoho_webhook_logs").insert({
+      company_name: entry.company_name ?? null,
+      contact_email: entry.contact_email ?? null,
+      raw_status: entry.raw_status ?? null,
+      resolved_action: entry.resolved_action,
+      tenant_id: entry.tenant_id ?? null,
+      tenant_type_name: entry.tenant_type_name ?? null,
+      address_transfer_status: entry.address_transfer_status ?? null,
+      welcome_email_status: entry.welcome_email_status ?? null,
+      success: entry.success ?? true,
+      error_message: entry.error_message ?? null,
+      payload: entry.payload ?? null,
+    });
+  } catch (e) {
+    console.error("Failed to log zoho webhook event:", e);
+  }
+}
+
 async function sendWelcomeEmail(
   adminClient: ReturnType<typeof createClient>,
   tenantId: string,
@@ -22,7 +60,7 @@ async function sendWelcomeEmail(
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
     console.error("RESEND_API_KEY not configured, skipping welcome email");
-    return;
+    return { ok: false, error: "RESEND_API_KEY not configured" };
   }
 
   try {
@@ -35,7 +73,7 @@ async function sendWelcomeEmail(
 
     if (!template) {
       console.error("Welcome email template not found (slug: welcome)");
-      return;
+      return { ok: false, error: "Welcome email template not found" };
     }
 
     const name = escapeHtml(contactName || companyName);
@@ -105,6 +143,7 @@ async function sendWelcomeEmail(
       .eq("id", tenantId);
 
     console.log("Welcome email sent to", contactEmail);
+    return { ok: true, error: null as string | null };
   } catch (e) {
     console.error("Failed to send welcome email:", e);
 
@@ -115,6 +154,7 @@ async function sendWelcomeEmail(
       error_message: String(e),
       metadata: { tenant_id: tenantId, provider: "resend", source: "zoho-webhook" },
     });
+    return { ok: false, error: String(e) };
   }
 }
 
