@@ -72,19 +72,29 @@ const ResendInviteButton = ({ tenant }: { tenant: ResendInviteTenant }) => {
         if (res.error) throw res.error;
         if (res.data?.error) throw new Error(res.data.error);
       } else {
-        // No user yet — send branded invite (invite.tsx via auth-email-hook)
+        // No user yet — create the account silently, then send the welcome email
+        // (that channel is logged and uses a scanner-safe 24h onboarding link)
         const res = await supabase.functions.invoke("create-tenant-user", {
           body: {
             tenant_ids: [tenant.id],
             email: tenant.contact_email,
             first_name: tenant.contact_first_name ?? "",
             last_name: tenant.contact_last_name ?? "",
-            mode: "invite",
+            mode: "invite_silent",
           },
         });
         if (res.error) throw res.error;
         if (res.data?.error) throw new Error(res.data.error);
+
+        const mail = await supabase.functions.invoke("send-welcome-email", {
+          body: { tenant_ids: [tenant.id] },
+        });
+        if (mail.error) throw mail.error;
+        if (mail.data?.error) throw new Error(mail.data.error);
+        const failed = (mail.data?.results ?? []).find((r: any) => r.status !== "sent");
+        if (failed) throw new Error(failed.error || "Kunne ikke sende mailen");
       }
+
       toast.success(t("tenantDetail.invitationResent"));
     } catch (err: any) {
       const msg = err.message?.includes("401") || err.message?.includes("Unauthorized")

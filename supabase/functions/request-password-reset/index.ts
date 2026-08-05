@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Generate recovery link server-side
+    // Only send if a user actually exists for this email (no enumeration in response)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email: cleanEmail,
@@ -71,7 +71,26 @@ Deno.serve(async (req) => {
       })
     }
 
-    const confirmationUrl = linkData.properties.action_link
+    // Use a custom 24h onboarding token instead of the raw one-time auth link.
+    // Mail scanners (Outlook/Hotmail) prefetch links and would otherwise consume
+    // the one-time token before the user clicks it.
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from('onboarding_tokens')
+      .insert({ email: cleanEmail, expires_at: expiresAt })
+      .select('token')
+      .single()
+
+    if (tokenError || !tokenRow?.token) {
+      console.error('Failed to create onboarding token:', tokenError)
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const confirmationUrl = `https://post.flexum.dk/set-password?onboarding_token=${tokenRow.token}`
+
 
     // Render email template
     const html = await renderAsync(
