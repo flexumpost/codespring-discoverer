@@ -534,6 +534,8 @@
     "changeActionDesc": "Change the chosen action for this shipment",
     "changeToScan": "Change to scanning",
     "changeToPickup": "Change to pickup",
+    "changeToFreePickup": "Change to free pickup (standard day)",
+    "changeToPaidPickup": "Change to pickup another day (fee)",
     "actionChanged": "Action changed"
   },
   "shippingGuard": {

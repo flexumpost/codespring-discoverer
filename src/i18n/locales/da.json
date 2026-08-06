@@ -534,6 +534,8 @@
     "changeActionDesc": "Ændr den valgte handling for denne forsendelse",
     "changeToScan": "Ændr til scanning",
     "changeToPickup": "Ændr til afhentning",
+    "changeToFreePickup": "Ændr til gratis afhentning (standarddag)",
+    "changeToPaidPickup": "Ændr til afhentning anden dag (gebyr)",
     "actionChanged": "Handling ændret"
   },
   "shippingGuard": {
