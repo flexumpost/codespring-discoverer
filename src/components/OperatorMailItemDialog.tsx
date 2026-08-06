@@ -397,7 +397,10 @@ export function OperatorMailItemDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="scan">{t("operatorMailItem.changeToScan")}</SelectItem>
-                    <SelectItem value="afhentning">{t("operatorMailItem.changeToPickup")}</SelectItem>
+                    {item.mail_type !== "pakke" && (
+                      <SelectItem value="gratis_afhentning">{t("operatorMailItem.changeToFreePickup")}</SelectItem>
+                    )}
+                    <SelectItem value="afhentning">{t("operatorMailItem.changeToPaidPickup")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button size="sm" disabled={!changeAction} onClick={() => setShowChangeActionConfirm(true)}>
