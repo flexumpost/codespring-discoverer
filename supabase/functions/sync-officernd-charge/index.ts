@@ -15,6 +15,19 @@ const corsHeaders = {
 
 // Returnerer [start, end) ISO-strenge der dækker "i dag" i Europe/Copenhagen,
 // beregnet i UTC. Håndterer sommertid (+01:00 / +02:00).
+/** True hvis datoen er lejerens standard-afhentningsdag (Lite: 1. torsdag i mdr., Standard/Plus: torsdag). */
+function isStandardPickupDay(tier: string | null, when: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Copenhagen",
+    year: "numeric", month: "2-digit", day: "2-digit", weekday: "short",
+  }).formatToParts(when);
+  const day = Number(parts.find(p => p.type === "day")!.value);
+  const weekday = parts.find(p => p.type === "weekday")!.value;
+  if (weekday !== "Thu") return false;
+  if (tier === "Lite") return day <= 7;
+  return true;
+}
+
 function copenhagenDayBoundsUtc(): [string, string] {
   const now = new Date();
   const dParts = new Intl.DateTimeFormat("en-CA", {
@@ -226,7 +239,7 @@ Deno.serve(async (req) => {
     // Fetch mail item with tenant info
     const { data: item, error: itemErr } = await supabase
       .from("mail_items")
-      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, tenants(company_name, contact_email, billed_by_email, billed_by_company, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
+      .select("id, mail_type, chosen_action, tenant_id, porto_option, stamp_number, pickup_date, tenants(company_name, contact_email, billed_by_email, billed_by_company, default_mail_action, default_package_action, tenant_type_id, tenant_types(name))")
       .eq("id", mailItemId)
       .single();
     if (itemErr || !item) throw new Error(`Mail item not found: ${itemErr?.message}`);
@@ -261,7 +274,19 @@ Deno.serve(async (req) => {
     const tierName = tenant.tenant_types?.name ?? null;
     const defaultAction = item.mail_type === "pakke" ? tenant.default_package_action : tenant.default_mail_action;
 
-    const { amountKr, amountText } = calculateFee(item.mail_type, item.chosen_action, defaultAction, tierName);
+    let { amountKr, amountText } = calculateFee(item.mail_type, item.chosen_action, defaultAction, tierName);
+
+    // Gratis afhentning: breve afhentet på lejerens standard-afhentningsdag koster 0 kr.,
+    // også når handlingen er registreret manuelt som "afhentning"/"afhentet".
+    const isPickupAction = item.chosen_action === "afhentning" || item.chosen_action === "afhentet";
+    if (item.mail_type !== "pakke" && isPickupAction && amountKr > 0) {
+      const when = (item as any).pickup_date ? new Date((item as any).pickup_date) : new Date();
+      if (isStandardPickupDay(tierName, when)) {
+        console.log(`Afhentning på standarddag (${tierName}) — gebyr sat til 0 kr. for ${mailItemId}`);
+        amountKr = 0;
+        amountText = "0 kr.";
+      }
+    }
 
     // Consolidér afhentningsgebyr: ét gebyr pr. lejer pr. dag (Europe/Copenhagen).
     // Hvis en anden afhentning allerede er faktureret i dag for samme lejer, spring
