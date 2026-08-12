@@ -220,6 +220,17 @@ Deno.serve(async (req) => {
       body.Last_Name ||
       "";
 
+    const contactPhone =
+      body.contact_phone ||
+      body.Contact_Phone ||
+      body.phone ||
+      body.Phone ||
+      body.mobile ||
+      body.Mobile ||
+      null;
+
+
+
     // Shipping address fields
     const shippingRecipient = body.shipping_recipient || null;
     const shippingCo = body.shipping_co || null;
