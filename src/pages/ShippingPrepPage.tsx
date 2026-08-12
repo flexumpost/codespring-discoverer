@@ -260,6 +260,8 @@ export default function ShippingPrepPage() {
         shipping_city: item.tenants?.shipping_city ?? null,
         shipping_state: item.tenants?.shipping_state ?? null,
         shipping_country: item.tenants?.shipping_country ?? null,
+        contact_email: item.tenants?.contact_email ?? null,
+        contact_phone: item.tenants?.contact_phone ?? null,
       })) as MailItemWithTenant[];
     },
   });
