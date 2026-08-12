@@ -756,7 +756,7 @@ export default function ShippingPrepPage() {
                                       <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
                                     </>
                                   ) : (
-                                    <SelectItem value="" disabled>Kun Danmark understøttet</SelectItem>
+                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Kun Danmark understøttet</div>
                                   )}
                                 </SelectContent>
                               </Select>
