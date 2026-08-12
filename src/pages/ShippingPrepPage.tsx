@@ -698,17 +698,22 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress2!)} />
                           </p>
                         )}
-                        {(group.shippingZip || group.shippingCity) && (() => {
+                        {group.shippingZip && (() => {
                           const cc = getCountryCode(group.shippingCountry);
-                          const parts = [cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ");
-                          const copyText = [cc, group.shippingZip, group.shippingCity].filter(Boolean).join(" ");
+                          const zipLabel = [cc, "-", group.shippingZip].filter(Boolean).join(" ").replace("  ", " ");
                           return (
                             <p className="flex items-center gap-1.5">
-                              {parts}
-                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(copyText)} />
+                              {zipLabel}
+                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingZip!)} />
                             </p>
                           );
                         })()}
+                        {group.shippingCity && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingCity}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCity!)} />
+                          </p>
+                        )}
                         {group.shippingState && (
                           <p className="flex items-center gap-1.5">
                             {group.shippingState}
@@ -719,6 +724,18 @@ export default function ShippingPrepPage() {
                           <p className="flex items-center gap-1.5">
                             {group.shippingCountry}
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCountry!)} />
+                          </p>
+                        )}
+                        {tab === "pakke" && group.contactEmail && (
+                          <p className="flex items-center gap-1.5">
+                            {group.contactEmail}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.contactEmail!)} />
+                          </p>
+                        )}
+                        {tab === "pakke" && group.contactPhone && (
+                          <p className="flex items-center gap-1.5">
+                            {group.contactPhone}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.contactPhone!)} />
                           </p>
                         )}
                       </div>
