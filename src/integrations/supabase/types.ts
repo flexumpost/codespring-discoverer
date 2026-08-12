@@ -609,6 +609,7 @@ export type Database = {
           contact_email: string | null
           contact_first_name: string | null
           contact_last_name: string | null
+          contact_phone: string | null
           created_at: string
           default_mail_action: string | null
           default_package_action: string | null
@@ -637,6 +638,7 @@ export type Database = {
           contact_email?: string | null
           contact_first_name?: string | null
           contact_last_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
@@ -665,6 +667,7 @@ export type Database = {
           contact_email?: string | null
           contact_first_name?: string | null
           contact_last_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           default_mail_action?: string | null
           default_package_action?: string | null
