@@ -220,6 +220,17 @@ Deno.serve(async (req) => {
       body.Last_Name ||
       "";
 
+    const contactPhone =
+      body.contact_phone ||
+      body.Contact_Phone ||
+      body.phone ||
+      body.Phone ||
+      body.mobile ||
+      body.Mobile ||
+      null;
+
+
+
     // Shipping address fields
     const shippingRecipient = body.shipping_recipient || null;
     const shippingCo = body.shipping_co || null;
@@ -438,6 +449,8 @@ Deno.serve(async (req) => {
       contact_email: contactEmail || null,
       contact_first_name: contactFirstName || null,
       contact_last_name: contactLastName || null,
+      contact_phone: contactPhone,
+
       tenant_type_id: tenantTypeId,
       is_active: true,
       default_mail_action: "send",
@@ -467,6 +480,8 @@ Deno.serve(async (req) => {
         }
       }
       if (!contactEmail) delete tenantFields.contact_email;
+      if (!contactPhone) delete tenantFields.contact_phone;
+
 
       const { error: updateError } = await adminClient
         .from("tenants")

@@ -110,6 +110,8 @@ type MailItemWithTenant = {
   shipping_city: string | null;
   shipping_state: string | null;
   shipping_country: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
 };
 
 function getShippingFee(item: MailItemWithTenant): string {
@@ -225,7 +227,7 @@ export default function ShippingPrepPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mail_items")
-        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, has_unpaid_invoice, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_address_2, shipping_zip, shipping_city, shipping_state, shipping_country)")
+        .select("id, stamp_number, mail_type, status, chosen_action, tenant_id, photo_url, tenants(company_name, has_unpaid_invoice, default_mail_action, default_package_action, tenant_type_id, tenant_types(name), shipping_recipient, shipping_co, shipping_address, shipping_address_2, shipping_zip, shipping_city, shipping_state, shipping_country, contact_email, contact_phone)")
         .not("tenant_id", "is", null)
         .in("status", ["ny", "afventer_handling", "ulaest", "laest"]);
 
@@ -258,6 +260,8 @@ export default function ShippingPrepPage() {
         shipping_city: item.tenants?.shipping_city ?? null,
         shipping_state: item.tenants?.shipping_state ?? null,
         shipping_country: item.tenants?.shipping_country ?? null,
+        contact_email: item.tenants?.contact_email ?? null,
+        contact_phone: item.tenants?.contact_phone ?? null,
       })) as MailItemWithTenant[];
     },
   });
@@ -446,7 +450,7 @@ export default function ShippingPrepPage() {
   }, [items, selectedDate, tab]);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingAddress2: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; items: MailItemWithTenant[] }>();
+    const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingAddress2: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; contactEmail: string | null; contactPhone: string | null; items: MailItemWithTenant[] }>();
     for (const item of filteredItems) {
       const addrKey = [item.shipping_address ?? "", item.shipping_zip ?? "", item.shipping_city ?? ""].join("|").toLowerCase().trim();
       if (!map.has(addrKey)) {
@@ -461,6 +465,8 @@ export default function ShippingPrepPage() {
           shippingCity: item.shipping_city,
           shippingState: item.shipping_state,
           shippingCountry: item.shipping_country,
+          contactEmail: item.contact_email,
+          contactPhone: item.contact_phone,
           items: [],
         });
       }
@@ -692,17 +698,22 @@ export default function ShippingPrepPage() {
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingAddress2!)} />
                           </p>
                         )}
-                        {(group.shippingZip || group.shippingCity) && (() => {
+                        {group.shippingZip && (() => {
                           const cc = getCountryCode(group.shippingCountry);
-                          const parts = [cc, "-", group.shippingZip, group.shippingCity].filter(Boolean).join(" ").replace("  ", " ");
-                          const copyText = [cc, group.shippingZip, group.shippingCity].filter(Boolean).join(" ");
+                          const zipLabel = [cc, "-", group.shippingZip].filter(Boolean).join(" ").replace("  ", " ");
                           return (
                             <p className="flex items-center gap-1.5">
-                              {parts}
-                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(copyText)} />
+                              {zipLabel}
+                              <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingZip!)} />
                             </p>
                           );
                         })()}
+                        {group.shippingCity && (
+                          <p className="flex items-center gap-1.5">
+                            {group.shippingCity}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCity!)} />
+                          </p>
+                        )}
                         {group.shippingState && (
                           <p className="flex items-center gap-1.5">
                             {group.shippingState}
@@ -713,6 +724,18 @@ export default function ShippingPrepPage() {
                           <p className="flex items-center gap-1.5">
                             {group.shippingCountry}
                             <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.shippingCountry!)} />
+                          </p>
+                        )}
+                        {tab === "pakke" && group.contactEmail && (
+                          <p className="flex items-center gap-1.5">
+                            {group.contactEmail}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.contactEmail!)} />
+                          </p>
+                        )}
+                        {tab === "pakke" && group.contactPhone && (
+                          <p className="flex items-center gap-1.5">
+                            {group.contactPhone}
+                            <Copy className="h-3 w-3 hover:text-foreground cursor-pointer shrink-0" onClick={() => copyToClipboard(group.contactPhone!)} />
                           </p>
                         )}
                       </div>
