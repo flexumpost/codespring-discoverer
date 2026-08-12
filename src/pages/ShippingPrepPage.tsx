@@ -110,6 +110,8 @@ type MailItemWithTenant = {
   shipping_city: string | null;
   shipping_state: string | null;
   shipping_country: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
 };
 
 function getShippingFee(item: MailItemWithTenant): string {
