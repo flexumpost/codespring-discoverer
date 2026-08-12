@@ -449,6 +449,8 @@ Deno.serve(async (req) => {
       contact_email: contactEmail || null,
       contact_first_name: contactFirstName || null,
       contact_last_name: contactLastName || null,
+      contact_phone: contactPhone,
+
       tenant_type_id: tenantTypeId,
       is_active: true,
       default_mail_action: "send",
