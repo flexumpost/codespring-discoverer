@@ -480,6 +480,8 @@ Deno.serve(async (req) => {
         }
       }
       if (!contactEmail) delete tenantFields.contact_email;
+      if (!contactPhone) delete tenantFields.contact_phone;
+
 
       const { error: updateError } = await adminClient
         .from("tenants")
