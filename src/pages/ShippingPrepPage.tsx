@@ -744,7 +744,9 @@ export default function ShippingPrepPage() {
                       {group.items
                         .sort((a, b) => (a.stamp_number ?? 0) - (b.stamp_number ?? 0))
                         .map((item) => {
-                          const isDk = !item.shipping_country || item.shipping_country.toLowerCase().trim() === "danmark" || item.shipping_country.toLowerCase().trim() === "denmark" || item.shipping_country.toLowerCase().trim() === "dk";
+                          const country = (item.shipping_country ?? "").toLowerCase().trim();
+                          const isDk = !country || country === "danmark" || country === "denmark" || country === "dk";
+                          const isSe = country === "sverige" || country === "sweden" || country === "se";
                           return (
                           <div
                             key={item.id}
@@ -778,8 +780,17 @@ export default function ShippingPrepPage() {
                                       <SelectItem value="dk_pakke_10_15">DK 10-15 kg (133,60 kr.)</SelectItem>
                                       <SelectItem value="dk_pakke_15_20">DK 15-20 kg (141,60 kr.)</SelectItem>
                                     </>
+                                  ) : isSe ? (
+                                    <>
+                                      <SelectItem value="se_pakke_0_1">SE 0-1 kg (175,00 kr.)</SelectItem>
+                                      <SelectItem value="se_pakke_1_2">SE 1-2 kg (175,00 kr.)</SelectItem>
+                                      <SelectItem value="se_pakke_2_5">SE 2-5 kg (311,00 kr.)</SelectItem>
+                                      <SelectItem value="se_pakke_5_10">SE 5-10 kg (503,00 kr.)</SelectItem>
+                                      <SelectItem value="se_pakke_10_15">SE 10-15 kg (598,00 kr.)</SelectItem>
+                                      <SelectItem value="se_pakke_15_20">SE 15-20 kg (773,00 kr.)</SelectItem>
+                                    </>
                                   ) : (
-                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Kun Danmark understøttet</div>
+                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Kun Danmark og Sverige understøttet</div>
                                   )}
                                 </SelectContent>
                               </Select>

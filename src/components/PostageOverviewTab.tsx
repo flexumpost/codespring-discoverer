@@ -24,10 +24,16 @@ const POSTAGE_PRICES: Record<string, number> = {
   dk_pakke_5_10: 101.6,
   dk_pakke_10_15: 133.6,
   dk_pakke_15_20: 141.6,
+  se_pakke_0_1: 175.0,
+  se_pakke_1_2: 175.0,
+  se_pakke_2_5: 311.0,
+  se_pakke_5_10: 503.0,
+  se_pakke_10_15: 598.0,
+  se_pakke_15_20: 773.0,
 };
 
 const LETTER_OPTIONS = ["dk_0_100", "dk_100_250", "udland_0_100", "udland_100_250"];
-const PACKAGE_OPTIONS = ["dk_pakke_0_1", "dk_pakke_1_2", "dk_pakke_2_5", "dk_pakke_5_10", "dk_pakke_10_15", "dk_pakke_15_20"];
+const PACKAGE_OPTIONS = ["dk_pakke_0_1", "dk_pakke_1_2", "dk_pakke_2_5", "dk_pakke_5_10", "dk_pakke_10_15", "dk_pakke_15_20", "se_pakke_0_1", "se_pakke_1_2", "se_pakke_2_5", "se_pakke_5_10", "se_pakke_10_15", "se_pakke_15_20"];
 
 const LABEL_MAP: Record<string, string> = {
   dk_0_100: "Danmark 0-100g",
@@ -40,6 +46,12 @@ const LABEL_MAP: Record<string, string> = {
   dk_pakke_5_10: "Danmark 5-10 kg",
   dk_pakke_10_15: "Danmark 10-15 kg",
   dk_pakke_15_20: "Danmark 15-20 kg",
+  se_pakke_0_1: "Sverige 0-1 kg",
+  se_pakke_1_2: "Sverige 1-2 kg",
+  se_pakke_2_5: "Sverige 2-5 kg",
+  se_pakke_5_10: "Sverige 5-10 kg",
+  se_pakke_10_15: "Sverige 10-15 kg",
+  se_pakke_15_20: "Sverige 15-20 kg",
 };
 
 const TIERS = ["Lite", "Standard", "Plus"];
