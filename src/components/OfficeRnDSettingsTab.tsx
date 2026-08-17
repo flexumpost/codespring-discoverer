@@ -118,6 +118,10 @@ export function OfficeRnDSettingsTab() {
 
       <TestConnectionCard />
 
+      <InvoiceFlagCard />
+
+
+
 
       <Card>
         <CardHeader>
