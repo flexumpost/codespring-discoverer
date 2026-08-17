@@ -1,4 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  getInvoice,
+  getMemberById,
+  getOfficeRndToken,
+  invoiceMemberId,
+  invoiceRefId,
+  normalizeInvoiceStatus,
+  v2Base,
+  type OfficeRndInvoice,
+} from "../_shared/officernd.ts";
+import {
+  recomputeTenantFlag,
+  resolveTenantIdsForEmail,
+  upsertInvoice,
+} from "../_shared/invoice-flag.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
