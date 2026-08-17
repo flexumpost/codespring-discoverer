@@ -3,6 +3,7 @@ import {
   getInvoice,
   getMemberById,
   getOfficeRndToken,
+  INVOICE_SCOPE,
   invoiceMemberId,
   invoiceRefId,
   normalizeInvoiceStatus,
@@ -209,7 +210,7 @@ async function handleInvoiceEvent(
 
   if (clientId && clientSecret && orgSlug) {
     try {
-      const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug });
+      const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
       const apiBase = v2Base(orgSlug);
       const full = await getInvoice(apiBase, token, invoiceId);
       if (full) {

@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   getOfficeRndToken,
   findMembersByEmail,
+  INVOICE_SCOPE,
   listInvoices,
   invoiceRefId,
   invoiceMemberId,
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
       throw new Error("Missing OfficeRnD credentials");
     }
 
-    const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug });
+    const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
     const apiBase = v2Base(orgSlug);
 
     let q = supabase
