@@ -44,18 +44,23 @@ const TOKEN_SCOPES = [
   "flex.billing.checkout.create",
   "flex.community.members.read",
   "flex.billing.plans.read",
-  "flex.billing.invoices.read",
 ].join(" ");
 
+/** Extra scope needed for the invoice automation only. */
+export const INVOICE_SCOPE = "flex.billing.invoices.read";
 
 export function v2Base(orgSlug: string): string {
   return `https://app.officernd.com/api/v2/organizations/${orgSlug}`;
 }
 
-export async function getOfficeRndToken(cfg: OfficeRndConfig): Promise<string> {
+export async function getOfficeRndToken(
+  cfg: OfficeRndConfig,
+  extraScopes: string[] = [],
+): Promise<string> {
+  const scope = [TOKEN_SCOPES, ...extraScopes].filter(Boolean).join(" ");
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    scope: TOKEN_SCOPES,
+    scope,
     client_id: cfg.clientId,
     client_secret: cfg.clientSecret,
   });
@@ -66,11 +71,17 @@ export async function getOfficeRndToken(cfg: OfficeRndConfig): Promise<string> {
   });
   if (!res.ok) {
     const txt = await res.text();
+    // Fall back to the base scopes when the extra scope is not granted on the app.
+    if (extraScopes.length > 0) {
+      console.warn(`OfficeRnD token with extra scopes failed [${res.status}]: ${txt} — retrying without them`);
+      return getOfficeRndToken(cfg, []);
+    }
     throw new Error(`OfficeRnD auth failed [${res.status}]: ${txt}`);
   }
   const data = await res.json();
   return data.access_token as string;
 }
+
 
 // v2 list endpoints return { results, cursorNext, cursorPrev } — normalize to array.
 function extractList(json: any): any[] {
