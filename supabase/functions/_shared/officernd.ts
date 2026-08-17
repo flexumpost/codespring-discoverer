@@ -49,6 +49,15 @@ const TOKEN_SCOPES = [
 /** Extra scope needed for the invoice automation only. */
 export const INVOICE_SCOPE = "flex.billing.invoices.read";
 
+export function v1Base(orgSlug: string): string {
+  return `https://app.officernd.com/api/v1/organizations/${orgSlug}`;
+}
+
+/** Invoices are not exposed on the v2 API — derive the v1 base from a v2 one. */
+export function invoiceBase(apiBase: string): string {
+  return apiBase.replace("/api/v2/", "/api/v1/");
+}
+
 export function v2Base(orgSlug: string): string {
   return `https://app.officernd.com/api/v2/organizations/${orgSlug}`;
 }
@@ -303,7 +312,7 @@ export async function getInvoice(
   token: string,
   invoiceId: string
 ): Promise<OfficeRndInvoice | null> {
-  const res = await fetch(`${apiBase}/invoices/${invoiceId}`, {
+  const res = await fetch(`${invoiceBase(apiBase)}/invoices/${invoiceId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
@@ -334,7 +343,7 @@ export async function listInvoices(
     qs.set("limit", String(params.limit ?? 100));
     if (cursor) qs.set("cursorNext", cursor);
 
-    const res = await fetch(`${apiBase}/invoices?${qs.toString()}`, {
+    const res = await fetch(`${invoiceBase(apiBase)}/invoices?${qs.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
