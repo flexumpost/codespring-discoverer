@@ -66,6 +66,23 @@ Deno.serve(async (req) => {
     const fee = payload.data?.object || payload.data || payload;
     const feeId = fee._id || fee.id;
 
+    // --- Invoice events: drive the automatic "Ubetalt faktura" flag ---------
+    const eventName = String(
+      payload.event || payload.eventType || payload.type || payload.data?.eventType || "",
+    ).toLowerCase();
+    const looksLikeInvoice =
+      eventName.includes("invoice") ||
+      (!!fee?.status && (fee?.invoiceNumber || fee?.number || fee?.dueDate));
+
+    if (looksLikeInvoice && feeId) {
+      const result = await handleInvoiceEvent(supabase, fee as OfficeRndInvoice, eventName);
+      return new Response(JSON.stringify({ success: true, kind: "invoice", ...result }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
+
     if (!feeId) {
       console.error("No fee ID in webhook payload");
       return new Response(JSON.stringify({ error: "No fee ID in payload" }), {
