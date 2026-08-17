@@ -274,3 +274,114 @@ function TestConnectionCard() {
   );
 }
 
+
+function InvoiceFlagCard() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: logs = [], isLoading } = useQuery({
+    queryKey: ["officernd-invoice-log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("officernd_invoice_log" as any)
+        .select("*, tenants(company_name)")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data as any as Array<{
+        id: string;
+        tenant_id: string | null;
+        invoice_id: string | null;
+        old_status: string | null;
+        new_status: string | null;
+        has_unpaid_invoice: boolean | null;
+        source: string | null;
+        note: string | null;
+        created_at: string;
+        tenants: { company_name: string } | null;
+      }>;
+    },
+  });
+
+  const reconcile = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("sync-officernd-invoices", { body: {} });
+      if (error) throw error;
+      return data as { checked?: number; changed?: number; unresolved?: number; error?: string };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["officernd-invoice-log"] });
+      queryClient.invalidateQueries({ queryKey: ["tenants"] });
+      toast({
+        title: "Afstemning gennemført",
+        description: `Kontrolleret: ${data?.checked ?? 0} · Ændret: ${data?.changed ?? 0} · Uden match: ${data?.unresolved ?? 0}`,
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Afstemning fejlede", description: err?.message ?? String(err), variant: "destructive" });
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Ubetalte fakturaer</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Lejere markeres automatisk med “Ubetalt faktura”, når OfficeRnD melder en
+          faktura som fejlet eller forfalden — og markeringen fjernes igen, når
+          fakturaen betales. Afstemning kører automatisk hver nat.
+        </p>
+        <Button onClick={() => reconcile.mutate()} disabled={reconcile.isPending} size="sm">
+          {reconcile.isPending ? "Afstemmer..." : "Afstem nu"}
+        </Button>
+
+        {isLoading ? (
+          <p className="text-muted-foreground text-sm">Indlæser...</p>
+        ) : logs.length === 0 ? (
+          <p className="text-muted-foreground text-sm">Ingen faktura-hændelser endnu.</p>
+        ) : (
+          <div className="overflow-auto max-h-96">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tidspunkt</TableHead>
+                  <TableHead>Lejer</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Markering</TableHead>
+                  <TableHead>Kilde</TableHead>
+                  <TableHead>Note</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {format(new Date(log.created_at), "dd/MM/yy HH:mm")}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-40 truncate">
+                      {log.tenants?.company_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {log.old_status ?? "—"} → {log.new_status ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={log.has_unpaid_invoice ? "destructive" : "default"}>
+                        {log.has_unpaid_invoice ? "Ubetalt" : "OK"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">{log.source ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-48 truncate">
+                      {log.note ?? ""}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
