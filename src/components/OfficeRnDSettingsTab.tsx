@@ -333,6 +333,12 @@ function InvoiceFlagCard() {
           faktura som fejlet eller forfalden — og markeringen fjernes igen, når
           fakturaen betales. Afstemning kører automatisk hver nat.
         </p>
+        <p className="text-xs text-muted-foreground">
+          Bemærk: webhooks fra OfficeRnD opdaterer markeringen med det samme. Den
+          natlige afstemning via API kræver desuden, at API-appen i OfficeRnD har
+          læseadgang til fakturaer — indtil den er slået til, springes afstemningen
+          over uden at ændre noget.
+        </p>
         <Button onClick={() => reconcile.mutate()} disabled={reconcile.isPending} size="sm">
           {reconcile.isPending ? "Afstemmer..." : "Afstem nu"}
         </Button>
