@@ -46,14 +46,30 @@ const TOKEN_SCOPES = [
   "flex.billing.plans.read",
 ].join(" ");
 
+/** Extra scope needed for the invoice automation only. */
+export const INVOICE_SCOPE = "flex.billing.invoices.read";
+
+export function v1Base(orgSlug: string): string {
+  return `https://app.officernd.com/api/v1/organizations/${orgSlug}`;
+}
+
+/** Invoices are not exposed on the v2 API — derive the v1 base from a v2 one. */
+export function invoiceBase(apiBase: string): string {
+  return apiBase.replace("/api/v2/", "/api/v1/");
+}
+
 export function v2Base(orgSlug: string): string {
   return `https://app.officernd.com/api/v2/organizations/${orgSlug}`;
 }
 
-export async function getOfficeRndToken(cfg: OfficeRndConfig): Promise<string> {
+export async function getOfficeRndToken(
+  cfg: OfficeRndConfig,
+  extraScopes: string[] = [],
+): Promise<string> {
+  const scope = [TOKEN_SCOPES, ...extraScopes].filter(Boolean).join(" ");
   const body = new URLSearchParams({
     grant_type: "client_credentials",
-    scope: TOKEN_SCOPES,
+    scope,
     client_id: cfg.clientId,
     client_secret: cfg.clientSecret,
   });
@@ -64,11 +80,17 @@ export async function getOfficeRndToken(cfg: OfficeRndConfig): Promise<string> {
   });
   if (!res.ok) {
     const txt = await res.text();
+    // Fall back to the base scopes when the extra scope is not granted on the app.
+    if (extraScopes.length > 0) {
+      console.warn(`OfficeRnD token with extra scopes failed [${res.status}]: ${txt} — retrying without them`);
+      return getOfficeRndToken(cfg, []);
+    }
     throw new Error(`OfficeRnD auth failed [${res.status}]: ${txt}`);
   }
   const data = await res.json();
   return data.access_token as string;
 }
+
 
 // v2 list endpoints return { results, cursorNext, cursorPrev } — normalize to array.
 function extractList(json: any): any[] {
@@ -244,4 +266,113 @@ export async function createFee(
   }
 
   return { id: feeId, planType: "OneOff", raw };
+}
+
+// ---------------------------------------------------------------------------
+// Invoices (v2) — used by the "Ubetalt faktura" automation.
+// Requires the flex.billing.invoices.read scope on the OfficeRnD app.
+// ---------------------------------------------------------------------------
+
+export interface OfficeRndInvoice {
+  _id?: string;
+  id?: string;
+  status?: string;
+  member?: string | { _id?: string; email?: string };
+  team?: string | { _id?: string };
+  total?: number;
+  amount?: number;
+  dueDate?: string;
+  [k: string]: unknown;
+}
+
+/** Statuses that mean "the tenant owes money". */
+export const UNPAID_INVOICE_STATUSES = ["failed", "overdue", "past_due", "pastdue"];
+
+export function normalizeInvoiceStatus(status: unknown): string {
+  return String(status ?? "").trim().toLowerCase();
+}
+
+export function isUnpaidInvoiceStatus(status: unknown): boolean {
+  return UNPAID_INVOICE_STATUSES.includes(normalizeInvoiceStatus(status));
+}
+
+export function invoiceRefId(inv: OfficeRndInvoice | null | undefined): string | null {
+  if (!inv) return null;
+  return (inv._id ?? inv.id ?? null) as string | null;
+}
+
+export function invoiceMemberId(inv: OfficeRndInvoice): string | null {
+  const m = inv.member as any;
+  if (!m) return null;
+  return typeof m === "string" ? m : (m._id ?? m.id ?? null);
+}
+
+export async function getInvoice(
+  apiBase: string,
+  token: string,
+  invoiceId: string
+): Promise<OfficeRndInvoice | null> {
+  const res = await fetch(`${invoiceBase(apiBase)}/invoices/${invoiceId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    console.warn(`OfficeRnD GET /invoices/${invoiceId} -> ${res.status}: ${txt}`);
+    return null;
+  }
+  const json = await res.json();
+  const list = extractList(json);
+  if (list.length > 0 && !json?._id && !json?.id) return list[0] as OfficeRndInvoice;
+  return json as OfficeRndInvoice;
+}
+
+/** List invoices, optionally filtered by member id. Follows cursor pagination. */
+export async function listInvoices(
+  apiBase: string,
+  token: string,
+  params: { member?: string; status?: string; limit?: number } = {}
+): Promise<OfficeRndInvoice[]> {
+  const out: OfficeRndInvoice[] = [];
+  const maxPages = 20;
+  let cursor: string | null = null;
+
+  for (let page = 0; page < maxPages; page++) {
+    const qs = new URLSearchParams();
+    if (params.member) qs.set("member", params.member);
+    if (params.status) qs.set("status", params.status);
+    qs.set("limit", String(params.limit ?? 100));
+    if (cursor) qs.set("cursorNext", cursor);
+
+    const res = await fetch(`${invoiceBase(apiBase)}/invoices?${qs.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`OfficeRnD GET /invoices failed [${res.status}]: ${txt}`);
+    }
+    const json = await res.json();
+    out.push(...(extractList(json) as OfficeRndInvoice[]));
+    cursor = json?.cursorNext ?? null;
+    if (!cursor) break;
+  }
+  return out;
+}
+
+export async function getMemberById(
+  apiBase: string,
+  token: string,
+  memberId: string
+): Promise<OfficeRndMember | null> {
+  const res = await fetch(`${apiBase}/members/${memberId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    console.warn(`OfficeRnD GET /members/${memberId} -> ${res.status}: ${txt}`);
+    return null;
+  }
+  const json = await res.json();
+  const list = extractList(json);
+  if (list.length > 0 && !json?._id) return list[0] as OfficeRndMember;
+  return json as OfficeRndMember;
 }

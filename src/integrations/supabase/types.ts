@@ -332,6 +332,103 @@ export type Database = {
           },
         ]
       }
+      officernd_invoice_log: {
+        Row: {
+          created_at: string
+          flag_after: boolean | null
+          flag_before: boolean | null
+          id: string
+          invoice_id: string | null
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          source: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          flag_after?: boolean | null
+          flag_before?: boolean | null
+          id?: string
+          invoice_id?: string | null
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          source?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          flag_after?: boolean | null
+          flag_before?: boolean | null
+          id?: string
+          invoice_id?: string | null
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          source?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "officernd_invoice_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      officernd_invoices: {
+        Row: {
+          amount: number | null
+          created_at: string
+          due_date: string | null
+          id: string
+          invoice_id: string
+          member_email: string | null
+          member_id: string | null
+          raw: Json | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_id: string
+          member_email?: string | null
+          member_id?: string | null
+          raw?: Json | null
+          status: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          invoice_id?: string
+          member_email?: string | null
+          member_id?: string | null
+          raw?: Json | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "officernd_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       officernd_settings: {
         Row: {
           enabled: boolean
