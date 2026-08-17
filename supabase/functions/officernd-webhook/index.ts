@@ -180,3 +180,78 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+/**
+ * Handle an OfficeRnD invoice event: store the invoice, resolve the tenant and
+ * recompute the "Ubetalt faktura" flag.
+ */
+async function handleInvoiceEvent(
+  supabase: any,
+  invoiceIn: OfficeRndInvoice,
+  eventName: string,
+): Promise<Record<string, unknown>> {
+  const invoiceId = invoiceRefId(invoiceIn)!;
+  let invoice = invoiceIn;
+  let memberEmail: string | null =
+    (typeof invoiceIn.member === "object" ? (invoiceIn.member as any)?.email : null) ?? null;
+
+  // Enrich from the API when possible (webhook payloads are often partial).
+  const clientId = Deno.env.get("OFFICERND_CLIENT_ID");
+  const clientSecret = Deno.env.get("OFFICERND_CLIENT_SECRET");
+  const { data: settings } = await supabase
+    .from("officernd_settings")
+    .select("enabled, org_slug")
+    .eq("id", 1)
+    .maybeSingle();
+  const orgSlug = settings?.org_slug || Deno.env.get("OFFICERND_ORG_SLUG");
+
+  let memberId = invoiceMemberId(invoiceIn);
+
+  if (clientId && clientSecret && orgSlug) {
+    try {
+      const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug });
+      const apiBase = v2Base(orgSlug);
+      const full = await getInvoice(apiBase, token, invoiceId);
+      if (full) {
+        invoice = full;
+        memberId = invoiceMemberId(full) ?? memberId;
+      }
+      if (!memberEmail && memberId) {
+        const member = await getMemberById(apiBase, token, memberId);
+        memberEmail = (member?.email as string) ?? null;
+      }
+    } catch (e) {
+      console.warn("Invoice enrichment failed:", e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  const status = normalizeInvoiceStatus(invoice.status ?? eventName.split(".").pop());
+  const tenantIds = await resolveTenantIdsForEmail(supabase, memberEmail);
+  const tenantId = tenantIds[0] ?? null;
+
+  const oldStatus = await upsertInvoice(supabase, {
+    invoiceId,
+    tenantId,
+    memberId,
+    memberEmail,
+    status,
+    amount: (invoice.total ?? invoice.amount ?? null) as number | null,
+    dueDate: invoice.dueDate ? String(invoice.dueDate).slice(0, 10) : null,
+    raw: invoice,
+  });
+
+  if (!tenantId) {
+    console.warn(`Invoice ${invoiceId}: no tenant matched for ${memberEmail ?? "unknown e-mail"}`);
+    return { invoice_id: invoiceId, status, matched_tenant: false };
+  }
+
+  const flag = await recomputeTenantFlag(supabase, tenantId, {
+    invoiceId,
+    oldStatus,
+    newStatus: status,
+    source: "webhook",
+    note: eventName || null,
+  });
+
+  return { invoice_id: invoiceId, status, tenant_id: tenantId, has_unpaid_invoice: flag };
+}
