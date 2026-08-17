@@ -44,7 +44,9 @@ const TOKEN_SCOPES = [
   "flex.billing.checkout.create",
   "flex.community.members.read",
   "flex.billing.plans.read",
+  "flex.billing.invoices.read",
 ].join(" ");
+
 
 export function v2Base(orgSlug: string): string {
   return `https://app.officernd.com/api/v2/organizations/${orgSlug}`;
