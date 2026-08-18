@@ -378,11 +378,13 @@ export async function getMemberById(
 }
 
 // ---------------------------------------------------------------------------
-// Teams — invoices are often issued to a team (company) rather than a member.
+// Teams / Companies — invoices are often issued to a team (company) rather
+// than a member. OfficeRnD exposes these as "companies" in OAuth scopes and
+// may use either /teams or /companies as the API path depending on version.
 // ---------------------------------------------------------------------------
 
-/** Extra scope needed to look up teams for team invoices. */
-export const TEAM_SCOPE = "flex.community.teams.read";
+/** Extra scope needed to look up teams/companies for team invoices. */
+export const TEAM_SCOPE = "flex.community.companies.read";
 
 export interface OfficeRndTeam {
   _id?: string;
@@ -400,29 +402,32 @@ export function invoiceTeamId(inv: OfficeRndInvoice): string | null {
   return typeof t === "string" ? t : (t._id ?? t.id ?? null);
 }
 
-/** Look up a team. Tries v2 first, falls back to v1 (same as invoices). */
+/** Look up a team/company. Tries /companies then /teams, v2 then v1. */
 export async function getTeamById(
   apiBase: string,
   token: string,
   teamId: string,
 ): Promise<OfficeRndTeam | null> {
   const bases = [apiBase, invoiceBase(apiBase)];
+  const endpoints = ["companies", "teams"];
   for (const base of bases) {
-    try {
-      const res = await fetch(`${base}/teams/${teamId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const txt = await res.text();
-        console.warn(`OfficeRnD GET ${base}/teams/${teamId} -> ${res.status}: ${txt}`);
-        continue;
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(`${base}/${endpoint}/${teamId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const txt = await res.text();
+          console.warn(`OfficeRnD GET ${base}/${endpoint}/${teamId} -> ${res.status}: ${txt}`);
+          continue;
+        }
+        const json = await res.json();
+        const list = extractList(json);
+        if (list.length > 0 && !json?._id && !json?.id) return list[0] as OfficeRndTeam;
+        return json as OfficeRndTeam;
+      } catch (e) {
+        console.warn(`OfficeRnD ${endpoint} lookup threw:`, e instanceof Error ? e.message : String(e));
       }
-      const json = await res.json();
-      const list = extractList(json);
-      if (list.length > 0 && !json?._id && !json?.id) return list[0] as OfficeRndTeam;
-      return json as OfficeRndTeam;
-    } catch (e) {
-      console.warn(`OfficeRnD team lookup threw:`, e instanceof Error ? e.message : String(e));
     }
   }
   return null;
