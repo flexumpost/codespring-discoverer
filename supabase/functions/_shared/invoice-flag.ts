@@ -2,9 +2,12 @@
 // invoice status. Used by officernd-webhook and sync-officernd-invoices.
 
 import {
+  getTeamById,
   isUnpaidInvoiceStatus,
   normalizeInvoiceStatus,
+  teamEmails,
   type OfficeRndInvoice,
+  type OfficeRndTeam,
 } from "./officernd.ts";
 
 type Supa = any;
@@ -66,6 +69,52 @@ export async function resolveTenantIdsForEmail(
   return ids;
 }
 
+/** Match a tenant by company name (used for OfficeRnD team invoices). */
+export async function resolveTenantIdsByCompanyName(
+  supabase: Supa,
+  name: string | null | undefined,
+): Promise<string[]> {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return [];
+  const { data } = await supabase
+    .from("tenants")
+    .select("id, company_name")
+    .ilike("company_name", trimmed);
+  return ((data ?? []) as any[]).map((r) => r.id);
+}
+
+/**
+ * Resolve the tenant for an invoice. Invoices issued to a team (company) have
+ * no member, so fall back to the team's e-mails and finally its name.
+ */
+export async function resolveTenantIdsForInvoice(
+  supabase: Supa,
+  args: {
+    memberEmail: string | null;
+    teamId: string | null;
+    apiBase?: string | null;
+    token?: string | null;
+  },
+): Promise<{ tenantIds: string[]; team: OfficeRndTeam | null; matchedBy: string | null }> {
+  const byMember = await resolveTenantIdsForEmail(supabase, args.memberEmail);
+  if (byMember.length > 0) return { tenantIds: byMember, team: null, matchedBy: "member_email" };
+
+  let team: OfficeRndTeam | null = null;
+  if (args.teamId && args.apiBase && args.token) {
+    team = await getTeamById(args.apiBase, args.token, args.teamId);
+  }
+
+  for (const email of teamEmails(team)) {
+    const ids = await resolveTenantIdsForEmail(supabase, email);
+    if (ids.length > 0) return { tenantIds: ids, team, matchedBy: "team_email" };
+  }
+
+  const byName = await resolveTenantIdsByCompanyName(supabase, team?.name as string | undefined);
+  if (byName.length > 0) return { tenantIds: byName, team, matchedBy: "team_name" };
+
+  return { tenantIds: [], team, matchedBy: null };
+}
+
 /** Store/refresh one invoice row. Returns the previous stored status (if any). */
 export async function upsertInvoice(
   supabase: Supa,
@@ -74,6 +123,7 @@ export async function upsertInvoice(
     tenantId: string | null;
     memberId: string | null;
     memberEmail: string | null;
+    teamId?: string | null;
     status: string;
     amount: number | null;
     dueDate: string | null;
@@ -91,6 +141,7 @@ export async function upsertInvoice(
     tenant_id: args.tenantId,
     member_id: args.memberId,
     member_email: args.memberEmail,
+    team_id: args.teamId ?? null,
     status: normalizeInvoiceStatus(args.status),
     amount: args.amount,
     due_date: args.dueDate,

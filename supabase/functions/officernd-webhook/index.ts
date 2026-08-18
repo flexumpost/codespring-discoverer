@@ -6,13 +6,15 @@ import {
   INVOICE_SCOPE,
   invoiceMemberId,
   invoiceRefId,
+  invoiceTeamId,
   normalizeInvoiceStatus,
+  TEAM_SCOPE,
   v2Base,
   type OfficeRndInvoice,
 } from "../_shared/officernd.ts";
 import {
   recomputeTenantFlag,
-  resolveTenantIdsForEmail,
+  resolveTenantIdsForInvoice,
   upsertInvoice,
 } from "../_shared/invoice-flag.ts";
 
@@ -207,11 +209,16 @@ async function handleInvoiceEvent(
   const orgSlug = settings?.org_slug || Deno.env.get("OFFICERND_ORG_SLUG");
 
   let memberId = invoiceMemberId(invoiceIn);
+  let apiBase: string | null = null;
+  let token: string | null = null;
 
   if (clientId && clientSecret && orgSlug) {
     try {
-      const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
-      const apiBase = v2Base(orgSlug);
+      token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [
+        INVOICE_SCOPE,
+        TEAM_SCOPE,
+      ]);
+      apiBase = v2Base(orgSlug);
       const full = await getInvoice(apiBase, token, invoiceId);
       if (full) {
         invoice = full;
@@ -223,11 +230,31 @@ async function handleInvoiceEvent(
       }
     } catch (e) {
       console.warn("Invoice enrichment failed:", e instanceof Error ? e.message : String(e));
+      // Retry without the team scope in case the app lacks it.
+      if (!token) {
+        try {
+          token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
+          apiBase = v2Base(orgSlug);
+          const full = await getInvoice(apiBase, token, invoiceId);
+          if (full) {
+            invoice = full;
+            memberId = invoiceMemberId(full) ?? memberId;
+          }
+        } catch (e2) {
+          console.warn("Invoice enrichment retry failed:", e2 instanceof Error ? e2.message : String(e2));
+        }
+      }
     }
   }
 
   const status = normalizeInvoiceStatus(invoice.status ?? eventName.split(".").pop());
-  const tenantIds = await resolveTenantIdsForEmail(supabase, memberEmail);
+  const teamId = invoiceTeamId(invoice) ?? invoiceTeamId(invoiceIn);
+  const { tenantIds, matchedBy } = await resolveTenantIdsForInvoice(supabase, {
+    memberEmail,
+    teamId,
+    apiBase,
+    token,
+  });
   const tenantId = tenantIds[0] ?? null;
 
   const oldStatus = await upsertInvoice(supabase, {
@@ -235,6 +262,7 @@ async function handleInvoiceEvent(
     tenantId,
     memberId,
     memberEmail,
+    teamId,
     status,
     amount: (invoice.total ?? invoice.amount ?? null) as number | null,
     dueDate: invoice.dueDate ? String(invoice.dueDate).slice(0, 10) : null,
@@ -242,7 +270,9 @@ async function handleInvoiceEvent(
   });
 
   if (!tenantId) {
-    console.warn(`Invoice ${invoiceId}: no tenant matched for ${memberEmail ?? "unknown e-mail"}`);
+    console.warn(
+      `Invoice ${invoiceId}: no tenant matched (member=${memberEmail ?? "-"}, team=${teamId ?? "-"})`,
+    );
     return { invoice_id: invoiceId, status, matched_tenant: false };
   }
 
@@ -251,7 +281,7 @@ async function handleInvoiceEvent(
     oldStatus,
     newStatus: status,
     source: "webhook",
-    note: eventName || null,
+    note: [eventName || null, matchedBy ? `match: ${matchedBy}` : null].filter(Boolean).join(" · ") || null,
   });
 
   return { invoice_id: invoiceId, status, tenant_id: tenantId, has_unpaid_invoice: flag };

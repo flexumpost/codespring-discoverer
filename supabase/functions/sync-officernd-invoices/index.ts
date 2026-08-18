@@ -9,10 +9,16 @@ import {
   listInvoices,
   invoiceRefId,
   invoiceMemberId,
+  invoiceTeamId,
   normalizeInvoiceStatus,
+  TEAM_SCOPE,
   v2Base,
 } from "../_shared/officernd.ts";
-import { recomputeTenantFlag, upsertInvoice } from "../_shared/invoice-flag.ts";
+import {
+  recomputeTenantFlag,
+  resolveTenantIdsForInvoice,
+  upsertInvoice,
+} from "../_shared/invoice-flag.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +61,15 @@ Deno.serve(async (req) => {
       throw new Error("Missing OfficeRnD credentials");
     }
 
-    const token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
+    let token: string;
+    try {
+      token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [
+        INVOICE_SCOPE,
+        TEAM_SCOPE,
+      ]);
+    } catch {
+      token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
+    }
     const apiBase = v2Base(orgSlug);
 
     let q = supabase
@@ -134,6 +148,7 @@ Deno.serve(async (req) => {
             tenantId: tenant.id,
             memberId: invoiceMemberId(inv) ?? memberId,
             memberEmail: email,
+            teamId: invoiceTeamId(inv),
             status: normalizeInvoiceStatus(inv.status),
             amount: (inv.total ?? inv.amount ?? null) as number | null,
             dueDate: inv.dueDate ? String(inv.dueDate).slice(0, 10) : null,
@@ -163,9 +178,91 @@ Deno.serve(async (req) => {
       if (before !== after) changed++;
     }
 
+    // --- Re-resolve invoices that could not be linked to a tenant earlier ----
+    const { data: orphans } = await supabase
+      .from("officernd_invoices")
+      .select("id, invoice_id, member_email, team_id, status, raw")
+      .is("tenant_id", null)
+      .limit(200);
+
+    let relinked = 0;
+    const touchedTenants = new Set<string>();
+
+    // Fallback index: OfficeRnD team id -> tenant, built from each tenant's
+    // members (their `team` field). Used when the app lacks the teams scope.
+    let teamIndex: Map<string, string> | null = null;
+    const buildTeamIndex = async (): Promise<Map<string, string>> => {
+      const index = new Map<string, string>();
+      const { data: all } = await supabase
+        .from("tenants")
+        .select("id, contact_email, billed_by_email")
+        .eq("is_active", true)
+        .limit(200);
+      for (const t of (all ?? []) as any[]) {
+        const mail = t.billed_by_email || t.contact_email;
+        if (!mail) continue;
+        try {
+          const ms = await findMembersByEmail(apiBase, token, mail);
+          for (const m of ms) {
+            const raw: unknown[] = [
+              (m as any).team,
+              ...(Array.isArray((m as any).teams) ? (m as any).teams : []),
+            ];
+            for (const r of raw) {
+              const tid = typeof r === "string" ? r : (r as any)?._id ?? (r as any)?.id;
+              if (tid && !index.has(tid)) index.set(tid, t.id);
+            }
+          }
+        } catch {
+          // ignore lookup failures for the index
+        }
+      }
+      return index;
+    };
+
+    for (const row of (orphans ?? []) as any[]) {
+      const teamId = row.team_id ?? invoiceTeamId((row.raw ?? {}) as any);
+      const { tenantIds } = await resolveTenantIdsForInvoice(supabase, {
+        memberEmail: row.member_email ?? null,
+        teamId,
+        apiBase,
+        token,
+      });
+      let tenantId = tenantIds[0] ?? null;
+
+      if (!tenantId && teamId) {
+        if (!teamIndex) teamIndex = await buildTeamIndex();
+        tenantId = teamIndex.get(teamId) ?? null;
+        if (!tenantId) {
+          console.warn(`No tenant found for OfficeRnD team ${teamId} (invoice ${row.invoice_id})`);
+        }
+      }
+
+      // Always persist the team id so future events can match faster.
+      if (teamId && !row.team_id) {
+        await supabase.from("officernd_invoices").update({ team_id: teamId }).eq("id", row.id);
+      }
+      if (!tenantId) continue;
+      await supabase
+        .from("officernd_invoices")
+        .update({ tenant_id: tenantId, team_id: teamId ?? null })
+        .eq("id", row.id);
+      relinked++;
+      touchedTenants.add(tenantId);
+    }
+
+
+    for (const tenantId of touchedTenants) {
+      await recomputeTenantFlag(supabase, tenantId, {
+        source: "reconcile",
+        note: "Faktura koblet til lejer via team",
+      });
+    }
+
+    console.log(`Relinked ${relinked} orphan invoice(s)`);
     console.log(`Invoice reconciliation done: checked=${checked}, changed=${changed}, unresolved=${unresolved}`);
     return new Response(
-      JSON.stringify({ success: true, checked, changed, unresolved }),
+      JSON.stringify({ success: true, checked, changed, unresolved, relinked }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

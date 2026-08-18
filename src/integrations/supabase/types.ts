@@ -390,6 +390,7 @@ export type Database = {
           member_id: string | null
           raw: Json | null
           status: string
+          team_id: string | null
           tenant_id: string | null
           updated_at: string
         }
@@ -403,6 +404,7 @@ export type Database = {
           member_id?: string | null
           raw?: Json | null
           status: string
+          team_id?: string | null
           tenant_id?: string | null
           updated_at?: string
         }
@@ -416,6 +418,7 @@ export type Database = {
           member_id?: string | null
           raw?: Json | null
           status?: string
+          team_id?: string | null
           tenant_id?: string | null
           updated_at?: string
         }

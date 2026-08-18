@@ -303,18 +303,37 @@ function InvoiceFlagCard() {
     },
   });
 
+  const { data: unlinkedCount = 0 } = useQuery({
+    queryKey: ["officernd-invoices-unlinked"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("officernd_invoices" as any)
+        .select("id", { count: "exact", head: true })
+        .is("tenant_id", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   const reconcile = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("sync-officernd-invoices", { body: {} });
       if (error) throw error;
-      return data as { checked?: number; changed?: number; unresolved?: number; error?: string };
+      return data as {
+        checked?: number;
+        changed?: number;
+        unresolved?: number;
+        relinked?: number;
+        error?: string;
+      };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["officernd-invoice-log"] });
+      queryClient.invalidateQueries({ queryKey: ["officernd-invoices-unlinked"] });
       queryClient.invalidateQueries({ queryKey: ["tenants"] });
       toast({
         title: "Afstemning gennemført",
-        description: `Kontrolleret: ${data?.checked ?? 0} · Ændret: ${data?.changed ?? 0} · Uden match: ${data?.unresolved ?? 0}`,
+        description: `Kontrolleret: ${data?.checked ?? 0} · Ændret: ${data?.changed ?? 0} · Koblet til lejer: ${data?.relinked ?? 0} · Uden match: ${data?.unresolved ?? 0}`,
       });
     },
     onError: (err: any) => {
@@ -339,6 +358,12 @@ function InvoiceFlagCard() {
           læseadgang til fakturaer — indtil den er slået til, springes afstemningen
           over uden at ændre noget.
         </p>
+        {unlinkedCount > 0 && (
+          <p className="text-sm text-destructive">
+            {unlinkedCount} faktura(er) kunne ikke kobles til en lejer og påvirker derfor
+            ingen markering. Kør “Afstem nu” for at forsøge igen.
+          </p>
+        )}
         <Button onClick={() => reconcile.mutate()} disabled={reconcile.isPending} size="sm">
           {reconcile.isPending ? "Afstemmer..." : "Afstem nu"}
         </Button>
