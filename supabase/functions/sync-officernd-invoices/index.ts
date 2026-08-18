@@ -204,8 +204,14 @@ Deno.serve(async (req) => {
         try {
           const ms = await findMembersByEmail(apiBase, token, mail);
           for (const m of ms) {
-            const tid = typeof m.team === "string" ? m.team : (m.team as any)?._id;
-            if (tid && !index.has(tid)) index.set(tid, t.id);
+            const raw: unknown[] = [
+              (m as any).team,
+              ...(Array.isArray((m as any).teams) ? (m as any).teams : []),
+            ];
+            for (const r of raw) {
+              const tid = typeof r === "string" ? r : (r as any)?._id ?? (r as any)?.id;
+              if (tid && !index.has(tid)) index.set(tid, t.id);
+            }
           }
         } catch {
           // ignore lookup failures for the index
@@ -227,6 +233,9 @@ Deno.serve(async (req) => {
       if (!tenantId && teamId) {
         if (!teamIndex) teamIndex = await buildTeamIndex();
         tenantId = teamIndex.get(teamId) ?? null;
+        if (!tenantId) {
+          console.warn(`No tenant found for OfficeRnD team ${teamId} (invoice ${row.invoice_id})`);
+        }
       }
 
       // Always persist the team id so future events can match faster.
