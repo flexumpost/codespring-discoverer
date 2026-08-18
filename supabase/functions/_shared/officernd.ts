@@ -376,3 +376,70 @@ export async function getMemberById(
   if (list.length > 0 && !json?._id) return list[0] as OfficeRndMember;
   return json as OfficeRndMember;
 }
+
+// ---------------------------------------------------------------------------
+// Teams — invoices are often issued to a team (company) rather than a member.
+// ---------------------------------------------------------------------------
+
+/** Extra scope needed to look up teams for team invoices. */
+export const TEAM_SCOPE = "flex.community.teams.read";
+
+export interface OfficeRndTeam {
+  _id?: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  billingEmail?: string;
+  primaryMember?: string | { _id?: string; email?: string };
+  [k: string]: unknown;
+}
+
+export function invoiceTeamId(inv: OfficeRndInvoice): string | null {
+  const t = inv.team as any;
+  if (!t) return null;
+  return typeof t === "string" ? t : (t._id ?? t.id ?? null);
+}
+
+/** Look up a team. Tries v2 first, falls back to v1 (same as invoices). */
+export async function getTeamById(
+  apiBase: string,
+  token: string,
+  teamId: string,
+): Promise<OfficeRndTeam | null> {
+  const bases = [apiBase, invoiceBase(apiBase)];
+  for (const base of bases) {
+    try {
+      const res = await fetch(`${base}/teams/${teamId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn(`OfficeRnD GET ${base}/teams/${teamId} -> ${res.status}: ${txt}`);
+        continue;
+      }
+      const json = await res.json();
+      const list = extractList(json);
+      if (list.length > 0 && !json?._id && !json?.id) return list[0] as OfficeRndTeam;
+      return json as OfficeRndTeam;
+    } catch (e) {
+      console.warn(`OfficeRnD team lookup threw:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+  return null;
+}
+
+/** E-mails worth trying when routing a team invoice to a tenant. */
+export function teamEmails(team: OfficeRndTeam | null | undefined): string[] {
+  if (!team) return [];
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === "string" && v.includes("@") && !out.includes(v.toLowerCase())) {
+      out.push(v.toLowerCase());
+    }
+  };
+  push(team.billingEmail);
+  push(team.email);
+  const pm = team.primaryMember as any;
+  if (pm && typeof pm === "object") push(pm.email);
+  return out;
+}
