@@ -188,6 +188,32 @@ Deno.serve(async (req) => {
     let relinked = 0;
     const touchedTenants = new Set<string>();
 
+    // Fallback index: OfficeRnD team id -> tenant, built from each tenant's
+    // members (their `team` field). Used when the app lacks the teams scope.
+    let teamIndex: Map<string, string> | null = null;
+    const buildTeamIndex = async (): Promise<Map<string, string>> => {
+      const index = new Map<string, string>();
+      const { data: all } = await supabase
+        .from("tenants")
+        .select("id, contact_email, billed_by_email")
+        .eq("is_active", true)
+        .limit(200);
+      for (const t of (all ?? []) as any[]) {
+        const mail = t.billed_by_email || t.contact_email;
+        if (!mail) continue;
+        try {
+          const ms = await findMembersByEmail(apiBase, token, mail);
+          for (const m of ms) {
+            const tid = typeof m.team === "string" ? m.team : (m.team as any)?._id;
+            if (tid && !index.has(tid)) index.set(tid, t.id);
+          }
+        } catch {
+          // ignore lookup failures for the index
+        }
+      }
+      return index;
+    };
+
     for (const row of (orphans ?? []) as any[]) {
       const teamId = row.team_id ?? invoiceTeamId((row.raw ?? {}) as any);
       const { tenantIds } = await resolveTenantIdsForInvoice(supabase, {
@@ -196,7 +222,17 @@ Deno.serve(async (req) => {
         apiBase,
         token,
       });
-      const tenantId = tenantIds[0] ?? null;
+      let tenantId = tenantIds[0] ?? null;
+
+      if (!tenantId && teamId) {
+        if (!teamIndex) teamIndex = await buildTeamIndex();
+        tenantId = teamIndex.get(teamId) ?? null;
+      }
+
+      // Always persist the team id so future events can match faster.
+      if (teamId && !row.team_id) {
+        await supabase.from("officernd_invoices").update({ team_id: teamId }).eq("id", row.id);
+      }
       if (!tenantId) continue;
       await supabase
         .from("officernd_invoices")
@@ -205,6 +241,7 @@ Deno.serve(async (req) => {
       relinked++;
       touchedTenants.add(tenantId);
     }
+
 
     for (const tenantId of touchedTenants) {
       await recomputeTenantFlag(supabase, tenantId, {
