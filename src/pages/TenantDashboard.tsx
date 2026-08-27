@@ -648,6 +648,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [pickupDate, setPickupDate] = useState<Date | undefined>();
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [pickupDateLocked, setPickupDateLocked] = useState(false);
+  const [pickupAction, setPickupAction] = useState<string>("afhentning");
   const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
@@ -841,12 +842,13 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   });
 
   const handleAction = (id: string, action: string) => {
-    if (action === "afhentning" || action === "anden_afhentningsdag") {
-      if (action === "afhentning" && tenantTypeName === "Standard") {
+    if (action === "afhentning" || action === "anden_afhentningsdag" || action === "gratis_afhentning") {
+      const isStandardPickup = action === "afhentning" || action === "gratis_afhentning";
+      setPickupAction(action);
+      if (isStandardPickup && (tenantTypeName === "Standard" || action === "gratis_afhentning")) {
         const mailItem = mailItems?.find(i => i.id === id);
         if (mailItem?.mail_type !== "pakke") {
-          // Standard-lejere har fast afhentningsdag (næste torsdag),
-          // men skal stadig vælge et tidsrum.
+          // Faste afhentningsdage (næste torsdag), men der skal stadig vælges et tidsrum.
           const nextThurs = getNextThursday();
           nextThurs.setHours(0, 0, 0, 0);
           // I den begrænsede periode (ferie) er den faste torsdag måske ikke
@@ -877,7 +879,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       const { error } = await supabase
         .from("mail_items")
         .update({
-          chosen_action: "afhentning",
+          chosen_action: pickupAction,
           status: "afventer_handling" as MailStatus,
           pickup_date: pickupIso,
         })
