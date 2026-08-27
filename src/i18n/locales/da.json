@@ -189,6 +189,7 @@
     "confirmDestroyDesc": "Er du sikker på at du vil destruere denne forsendelse? Denne handling kan ikke ændres efterfølgende. Forsendelsen vil blive destrueret af operatøren og kan ikke genskabes.",
     "pickupDialogTitle": "Vælg afhentningstidspunkt",
     "pickupDialogDesc": "Vælg dato og tidsrum for afhentning.",
+    "pickupLimitedHoursNotice": "Bemærk: I perioden 31. august – 27. september har vi ferie, og afhentning er kun mulig på udvalgte dage og tider.",
     "pickupDialogDescLocked": "Din faste afhentningsdag er valgt. Vælg et tidsrum.",
     "pickupLockedHint": "Ønsker du en anden dag, vælg \"Anden afhentningsdag\" (gebyr).",
     "pickupTimeMissing": "tidspunkt mangler",
