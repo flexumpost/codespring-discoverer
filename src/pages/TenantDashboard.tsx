@@ -849,11 +849,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
           // men skal stadig vælge et tidsrum.
           const nextThurs = getNextThursday();
           nextThurs.setHours(0, 0, 0, 0);
-          setPickupDate(nextThurs);
-          setPickupHour(undefined);
-          setPickupDateLocked(true);
-          setPickupDialogItem(id);
-          return;
+          // I den begrænsede periode (ferie) er den faste torsdag måske ikke
+          // en gyldig afhentningsdag — lad da lejeren vælge blandt de åbne dage.
+          const thursdayBlocked = isInSpecialPeriod(nextThurs) && !getSpecialWindow(nextThurs);
+          if (!thursdayBlocked) {
+            setPickupDate(nextThurs);
+            setPickupHour(undefined);
+            setPickupDateLocked(true);
+            setPickupDialogItem(id);
+            return;
+          }
         }
       }
       setPickupDate(undefined);
