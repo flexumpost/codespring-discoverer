@@ -464,6 +464,12 @@ function getStatusDisplay(
 const SPECIAL_PICKUP_PERIOD = { from: "2026-08-31", to: "2026-09-27" } as const;
 const SPECIAL_PICKUP_WINDOWS: { date: string; start: number; end: number }[] = [
   { date: "2026-09-02", start: 15.5, end: 19.5 },
+  { date: "2026-09-03", start: 16.0, end: 20.0 },
+  { date: "2026-09-07", start: 16.0, end: 20.0 },
+  { date: "2026-09-09", start: 16.0, end: 20.0 },
+  { date: "2026-09-10", start: 16.0, end: 20.0 },
+  { date: "2026-09-14", start: 16.0, end: 20.0 },
+  { date: "2026-09-15", start: 16.0, end: 20.0 },
 ];
 
 function formatDateKey(date: Date): string {
