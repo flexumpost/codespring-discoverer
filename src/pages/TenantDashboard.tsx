@@ -1396,7 +1396,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  return date < today || isWeekend(date);
+                  if (date < today || isWeekend(date)) return true;
+                  // During the special restricted period only configured dates are bookable
+                  if (isInSpecialPeriod(date)) return !getSpecialWindow(date);
+                  return false;
                 }}
                 className="p-3 pointer-events-auto"
               />
