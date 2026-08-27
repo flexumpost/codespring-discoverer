@@ -456,8 +456,56 @@ function getStatusDisplay(
   return [statusLabels[item.status as MailStatus] ?? item.status];
 }
 
+/**
+ * Special pickup windows that override the normal calendar during a limited
+ * period (e.g. vacation). During the restriction period, ONLY these dates and
+ * time slots can be booked. `start`/`end` are hours (decimals allowed).
+ */
+const SPECIAL_PICKUP_PERIOD = { from: "2026-08-31", to: "2026-09-27" } as const;
+const SPECIAL_PICKUP_WINDOWS: { date: string; start: number; end: number }[] = [
+  { date: "2026-09-02", start: 15.5, end: 19.5 },
+];
+
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+}
+
+function getSpecialWindow(date: Date) {
+  const key = formatDateKey(date);
+  if (key < SPECIAL_PICKUP_PERIOD.from || key > SPECIAL_PICKUP_PERIOD.to) return null;
+  return SPECIAL_PICKUP_WINDOWS.find((w) => w.date === key) ?? null;
+}
+
+function isInSpecialPeriod(date: Date): boolean {
+  const key = formatDateKey(date);
+  return key >= SPECIAL_PICKUP_PERIOD.from && key <= SPECIAL_PICKUP_PERIOD.to;
+}
+
+function formatHour(h: number): string {
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return `${hh.toString().padStart(2, "0")}:${mm.toString().padStart(2, "0")}`;
+}
+
 function getPickupHours(date: Date | undefined): string[] {
   if (!date) return [];
+
+  // Special restricted period: only the configured windows
+  if (isInSpecialPeriod(date)) {
+    const window = getSpecialWindow(date);
+    if (!window) return [];
+    const now = new Date();
+    const isToday = formatDateKey(date) === formatDateKey(now);
+    const minStart = isToday
+      ? Math.max(window.start, (now.getTime() + 2 * 60 * 60 * 1000 - new Date(now).setHours(0, 0, 0, 0)) / 3600000)
+      : window.start;
+    const slots: string[] = [];
+    for (let h = window.start; h + 1 <= window.end; h += 1) {
+      if (h >= minStart) slots.push(`${formatHour(h)}-${formatHour(h + 1)}`);
+    }
+    return slots;
+  }
+
   const day = date.getDay();
   const maxHour = day === 5 ? 14 : 16;
 
@@ -1328,6 +1376,11 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {isInSpecialPeriod(new Date()) && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                {t("tenantDashboard.pickupLimitedHoursNotice")}
+              </div>
+            )}
             {pickupDateLocked ? (
               <div className="rounded-md border bg-muted/40 p-3 text-sm">
                 <p className="font-medium">
@@ -1348,7 +1401,10 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  return date < today || isWeekend(date);
+                  if (date < today || isWeekend(date)) return true;
+                  // During the special restricted period only configured dates are bookable
+                  if (isInSpecialPeriod(date)) return !getSpecialWindow(date);
+                  return false;
                 }}
                 className="p-3 pointer-events-auto"
               />

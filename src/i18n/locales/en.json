@@ -189,6 +189,7 @@
     "confirmDestroyDesc": "Are you sure you want to destroy this shipment? This action cannot be changed afterwards. The shipment will be destroyed by the operator and cannot be recovered.",
     "pickupDialogTitle": "Select pickup time",
     "pickupDialogDesc": "Choose a date and time slot for pickup.",
+    "pickupLimitedHoursNotice": "Please note: We are on vacation from August 31 to September 27, and pickup is only possible on selected days and times.",
     "pickupDialogDescLocked": "Your fixed pickup day is selected. Choose a time slot.",
     "pickupLockedHint": "Need another day? Choose \"Other pickup day\" (fee applies).",
     "pickupTimeMissing": "time missing",
