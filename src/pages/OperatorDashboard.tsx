@@ -191,6 +191,8 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
     return pickupText ? `${t("statusDisplay.pickupOrdered")} ${pickupText}` : t("statusDisplay.pickupOrdered");
   }
   if (action === "gratis_afhentning") {
+    const pickupText = formatPickupDisplay(item, t);
+    if (pickupText) return `${t("statusDisplay.freePickup")} ${pickupText}`;
     const nextDate = getShippingDate("Lite", "brev");
     return `${t("statusDisplay.freePickup")} ${formatI18nDate(nextDate, t)}`;
   }
@@ -436,6 +438,7 @@ const OperatorDashboard = () => {
       filter: (item: MailItem) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
       countFilter: (item: MailItem) => {
         if (item.chosen_action === "gratis_afhentning") {
+          if (item.pickup_date) return isTodayDate(new Date(item.pickup_date));
           return isTodayDate(getShippingDate("Lite", "brev"));
         }
         if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
