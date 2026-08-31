@@ -191,6 +191,8 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
     return pickupText ? `${t("statusDisplay.pickupOrdered")} ${pickupText}` : t("statusDisplay.pickupOrdered");
   }
   if (action === "gratis_afhentning") {
+    const pickupText = formatPickupDisplay(item, t);
+    if (pickupText) return `${t("statusDisplay.freePickup")} ${pickupText}`;
     const nextDate = getShippingDate("Lite", "brev");
     return `${t("statusDisplay.freePickup")} ${formatI18nDate(nextDate, t)}`;
   }
