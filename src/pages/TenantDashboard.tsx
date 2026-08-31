@@ -409,6 +409,8 @@ function getStatusDisplay(
     return [t("statusDisplay.pickupOrdered"), pickupText ?? undefined];
   }
   if (item.chosen_action === "gratis_afhentning") {
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
+    if (pickupText) return [t("statusDisplay.pickedUpAt"), pickupText];
     const nextDate = getFirstThursdayOfMonth();
     return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
   }
