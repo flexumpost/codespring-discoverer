@@ -438,6 +438,7 @@ const OperatorDashboard = () => {
       filter: (item: MailItem) => item.chosen_action === "afhentning" || item.chosen_action === "gratis_afhentning",
       countFilter: (item: MailItem) => {
         if (item.chosen_action === "gratis_afhentning") {
+          if (item.pickup_date) return isTodayDate(new Date(item.pickup_date));
           return isTodayDate(getShippingDate("Lite", "brev"));
         }
         if (item.chosen_action !== "afhentning" || !item.pickup_date) return false;
