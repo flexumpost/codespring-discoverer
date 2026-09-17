@@ -620,13 +620,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send welcome email if contact email is provided and not sent before
+    // Ensure the contact has a login account, then send welcome email with set-password link
     const emailForWelcome = contactEmail || existingTenant?.contact_email || null;
     let welcomeStatus = "ikke_relevant";
     let welcomeError: string | null = null;
+    let onboardingUrl: string | null = null;
+    let userError: string | null = null;
+
+    if (emailForWelcome) {
+      const userRes = await ensureTenantUser(
+        adminClient,
+        tenantId,
+        emailForWelcome,
+        contactFirstName || "",
+        contactLastName || "",
+      );
+      onboardingUrl = userRes.onboardingUrl;
+      userError = userRes.error;
+    }
+
     if (emailForWelcome && !welcomeAlreadySent) {
       const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
-      const res = await sendWelcomeEmail(adminClient, tenantId, emailForWelcome, contactName, companyName);
+      const res = await sendWelcomeEmail(
+        adminClient, tenantId, emailForWelcome, contactName, companyName, onboardingUrl,
+      );
       welcomeStatus = res?.ok ? "sendt" : "fejlet";
       welcomeError = res?.ok ? null : (res?.error ?? "Ukendt fejl");
     } else if (emailForWelcome && welcomeAlreadySent) {
@@ -634,6 +651,13 @@ Deno.serve(async (req) => {
     } else {
       welcomeStatus = "ingen_email";
     }
+
+    if (userError) {
+      welcomeStatus = "fejlet";
+      welcomeError = [welcomeError, `Brugeroprettelse fejlede: ${userError}`]
+        .filter(Boolean).join(" | ");
+    }
+
 
     await logWebhookEvent(adminClient, {
       company_name: companyName,
