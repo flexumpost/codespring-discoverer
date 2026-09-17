@@ -50,12 +50,93 @@ async function logWebhookEvent(
   }
 }
 
+// Ensure an auth user exists for the tenant contact, link it to the tenant,
+// and return a 24h onboarding link so the welcome email can set a password.
+async function ensureTenantUser(
+  adminClient: ReturnType<typeof createClient>,
+  tenantId: string,
+  email: string,
+  firstName: string,
+  lastName: string,
+): Promise<{ userId: string | null; onboardingUrl: string | null; error: string | null }> {
+  try {
+    const normalized = email.trim().toLowerCase();
+
+    // Look for an existing auth user with this email
+    let userId: string | null = null;
+    const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (listError) throw listError;
+    const existing = listData?.users?.find(
+      (u: { email?: string | null }) => (u.email ?? "").toLowerCase() === normalized,
+    );
+
+    if (existing) {
+      userId = existing.id;
+    } else {
+      const randomPassword = crypto.randomUUID() + crypto.randomUUID();
+      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+        email: normalized,
+        password: randomPassword,
+        email_confirm: true,
+        user_metadata: { first_name: firstName || "", last_name: lastName || "" },
+      });
+      if (createError) throw createError;
+      userId = created.user.id;
+
+      const { error: roleError } = await adminClient
+        .from("user_roles")
+        .insert({ user_id: userId, role: "tenant" });
+      if (roleError) console.error("Failed to assign tenant role:", roleError);
+    }
+
+    if (userId) {
+      const { data: link } = await adminClient
+        .from("tenant_users")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!link) {
+        await adminClient.from("tenant_users").insert({ tenant_id: tenantId, user_id: userId });
+      }
+      await adminClient
+        .from("tenants")
+        .update({ user_id: userId })
+        .eq("id", tenantId)
+        .is("user_id", null);
+    }
+
+    // Create onboarding token (24h) for the set-password flow
+    let onboardingUrl: string | null = null;
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { data: tokenRow, error: tokenError } = await adminClient
+      .from("onboarding_tokens")
+      .insert({ email: normalized, expires_at: expiresAt })
+      .select("token")
+      .single();
+    if (tokenError || !tokenRow?.token) {
+      console.error("Failed to create onboarding token:", tokenError);
+    } else {
+      onboardingUrl = `https://post.flexum.dk/set-password?onboarding_token=${tokenRow.token}`;
+    }
+
+    return { userId, onboardingUrl, error: null };
+  } catch (e) {
+    console.error("ensureTenantUser failed:", e);
+    return { userId: null, onboardingUrl: null, error: String(e) };
+  }
+}
+
 async function sendWelcomeEmail(
   adminClient: ReturnType<typeof createClient>,
   tenantId: string,
   contactEmail: string,
   contactName: string,
   companyName: string,
+  recoveryLink: string | null = null,
 ) {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
@@ -92,7 +173,7 @@ async function sendWelcomeEmail(
       .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
       .join("");
 
-    const loginUrl = "https://codespring-discoverer.lovable.app/login";
+    const loginUrl = "https://post.flexum.dk/login";
 
     const html = await renderAsync(
       WelcomeEmail({
@@ -100,7 +181,7 @@ async function sendWelcomeEmail(
         subject,
         bodyHtml,
         loginUrl,
-        recoveryLink: null,
+        recoveryLink,
       })
     );
 
@@ -539,13 +620,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Send welcome email if contact email is provided and not sent before
+    // Ensure the contact has a login account, then send welcome email with set-password link
     const emailForWelcome = contactEmail || existingTenant?.contact_email || null;
     let welcomeStatus = "ikke_relevant";
     let welcomeError: string | null = null;
+    let onboardingUrl: string | null = null;
+    let userError: string | null = null;
+
+    if (emailForWelcome) {
+      const userRes = await ensureTenantUser(
+        adminClient,
+        tenantId,
+        emailForWelcome,
+        contactFirstName || "",
+        contactLastName || "",
+      );
+      onboardingUrl = userRes.onboardingUrl;
+      userError = userRes.error;
+    }
+
     if (emailForWelcome && !welcomeAlreadySent) {
       const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
-      const res = await sendWelcomeEmail(adminClient, tenantId, emailForWelcome, contactName, companyName);
+      const res = await sendWelcomeEmail(
+        adminClient, tenantId, emailForWelcome, contactName, companyName, onboardingUrl,
+      );
       welcomeStatus = res?.ok ? "sendt" : "fejlet";
       welcomeError = res?.ok ? null : (res?.error ?? "Ukendt fejl");
     } else if (emailForWelcome && welcomeAlreadySent) {
@@ -553,6 +651,13 @@ Deno.serve(async (req) => {
     } else {
       welcomeStatus = "ingen_email";
     }
+
+    if (userError) {
+      welcomeStatus = "fejlet";
+      welcomeError = [welcomeError, `Brugeroprettelse fejlede: ${userError}`]
+        .filter(Boolean).join(" | ");
+    }
+
 
     await logWebhookEvent(adminClient, {
       company_name: companyName,
