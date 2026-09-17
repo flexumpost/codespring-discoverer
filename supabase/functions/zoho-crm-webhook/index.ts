@@ -173,7 +173,7 @@ async function sendWelcomeEmail(
       .map((p: string) => `<p style="font-size:14px;color:hsl(215.4,16.3%,46.9%);line-height:1.6;margin:0 0 12px">${p.trim()}</p>`)
       .join("");
 
-    const loginUrl = "https://codespring-discoverer.lovable.app/login";
+    const loginUrl = "https://post.flexum.dk/login";
 
     const html = await renderAsync(
       WelcomeEmail({
@@ -181,7 +181,7 @@ async function sendWelcomeEmail(
         subject,
         bodyHtml,
         loginUrl,
-        recoveryLink: null,
+        recoveryLink,
       })
     );
 
