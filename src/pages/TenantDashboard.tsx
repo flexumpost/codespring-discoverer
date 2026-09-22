@@ -472,6 +472,8 @@ const SPECIAL_PICKUP_WINDOWS: { date: string; start: number; end: number }[] = [
   { date: "2026-09-10", start: 16.0, end: 20.0 },
   { date: "2026-09-14", start: 16.0, end: 20.0 },
   { date: "2026-09-15", start: 16.0, end: 20.0 },
+  { date: "2026-09-23", start: 16.0, end: 20.0 },
+  { date: "2026-09-24", start: 16.0, end: 20.0 },
 ];
 
 function formatDateKey(date: Date): string {
