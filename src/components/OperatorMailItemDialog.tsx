@@ -73,10 +73,7 @@ export function OperatorMailItemDialog({
 
   const handleReactivate = async () => {
     setReactivating(true);
-    const { error } = await supabase
-      .from("mail_items")
-      .update({ status: "afventer_handling" as any, chosen_action: null })
-      .eq("id", item.id);
+    const { error } = await (supabase.rpc as any)("restore_archived_mail_item", { _id: item.id });
     setReactivating(false);
     if (error) {
       toast.error(t("operatorMailItem.couldNotReactivate"));

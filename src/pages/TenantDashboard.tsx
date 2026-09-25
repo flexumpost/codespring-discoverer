@@ -828,10 +828,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const reactivateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("mail_items")
-        .update({ status: "afventer_handling" as MailStatus, chosen_action: null })
-        .eq("id", id);
+      const { error } = await (supabase.rpc as any)("restore_archived_mail_item", { _id: id });
       if (error) throw error;
     },
     onSuccess: () => {
