@@ -809,10 +809,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const archiveMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("mail_items")
-        .update({ status: "arkiveret" as MailStatus })
-        .eq("id", id);
+      const { error } = await (supabase.rpc as any)("archive_mail_item", { _id: id });
       if (error) throw error;
     },
     onSuccess: () => {
