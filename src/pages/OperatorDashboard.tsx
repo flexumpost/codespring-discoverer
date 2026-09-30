@@ -18,6 +18,7 @@ import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
+import { baseTier, hasMondayAndThursday, getNextMondayOrThursday } from "@/lib/tiers";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,9 @@ function getTenantTypeBadgeClass(name: string): string {
     case "lite": return "bg-blue-100 text-blue-800 border-blue-200";
     case "standard": return "bg-green-100 text-green-800 border-green-200";
     case "plus": return "bg-[#00aaeb]/15 text-[#006d9e] border-[#00aaeb]/30";
+    case "essential": return "bg-violet-100 text-violet-800 border-violet-200";
+    case "professional": return "bg-rose-100 text-rose-800 border-rose-200";
+    case "executive": return "bg-slate-800 text-slate-50 border-slate-700";
     case "fastlejer": return "bg-amber-100 text-amber-800 border-amber-200";
     case "nabo": return "bg-cyan-100 text-cyan-800 border-cyan-200";
     case "retur til afsender": return "bg-red-100 text-red-800 border-red-200";
@@ -63,6 +67,9 @@ function getShippingDate(tenantTypeName: string | undefined, mailType: string): 
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+  if (mailType !== "pakke" && hasMondayAndThursday(tenantTypeName)) {
+    return getNextMondayOrThursday();
+  }
   if (mailType === "pakke" || (tenantTypeName ?? "").toLowerCase() !== "lite") {
     return getNextThursday();
   }
@@ -183,7 +190,8 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
     return `${t("statusDisplay.shouldSend")} ${formatI18nDate(shipDate, t)}`;
   }
   if (action === "send" || action === "under_forsendelse") {
-    const shipDate = getNextThursday();
+    const rawType = item.tenants?.tenant_types?.name;
+    const shipDate = item.mail_type !== "pakke" && hasMondayAndThursday(rawType) ? getNextMondayOrThursday() : getNextThursday();
     return `${t("statusDisplay.shouldSend")} ${formatI18nDate(shipDate, t)}`;
   }
   if (action === "afhentning") {
@@ -228,7 +236,7 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
         const readLabel = item.status === "laest" ? t("statusDisplay.read") : t("statusDisplay.unread");
         return t("statusDisplay.scannedRead", { status: readLabel });
       }
-      const tenantType = item.tenants?.tenant_types?.name;
+      const tenantType = baseTier(item.tenants?.tenant_types?.name);
       if (tenantType === "Standard") {
         const scanDate = getShippingDate("Standard", "brev");
         return `${t("statusDisplay.standardScan")} ${formatI18nDate(scanDate, t)}`;
@@ -271,7 +279,7 @@ const ACTION_TO_FEE_KEY: Record<string, string> = {
 function getItemFee(item: MailItem, pricing: Record<string, Record<string, Record<string, string>>>): string {
   if (!item.chosen_action) {
     if (!item.tenant_id) return "—";
-    const tier = item.tenants?.tenant_types?.name;
+    const tier = baseTier(item.tenants?.tenant_types?.name);
     const defAction = item.mail_type === "pakke"
       ? item.tenants?.default_package_action
       : item.tenants?.default_mail_action;
@@ -299,7 +307,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   }
   if (item.chosen_action === "standard_forsendelse") {
     if (item.mail_type === "pakke") {
-      const tier = item.tenants?.tenant_types?.name;
+      const tier = baseTier(item.tenants?.tenant_types?.name);
       if (tier === "Plus") return "10 kr. + porto";
       if (tier === "Standard") return "30 kr. + porto";
       return "50 kr. + porto";
@@ -308,12 +316,12 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
   }
   if (item.chosen_action === "standard_scan") return "0 kr.";
   if (item.chosen_action === "gratis_afhentning") return "0 kr.";
-  const tier = item.tenants?.tenant_types?.name;
+  const tier = baseTier(item.tenants?.tenant_types?.name);
   if (!tier) return "—";
 
   if (item.mail_type === "pakke") {
     if (item.chosen_action === "destruer") return "0 kr.";
-    const tier2 = item.tenants?.tenant_types?.name;
+    const tier2 = baseTier(item.tenants?.tenant_types?.name);
     if (item.chosen_action === "afhentning") {
       if (tier2 === "Plus") return "10 kr.";
       if (tier2 === "Standard") return "30 kr.";
@@ -548,7 +556,7 @@ const OperatorDashboard = () => {
   const getProcessingDate = (item: MailItem): Date => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tier = item.tenants?.tenant_types?.name;
+    const tier = baseTier(item.tenants?.tenant_types?.name);
     const action = item.chosen_action
       ?? (item.mail_type === "pakke"
         ? item.tenants?.default_package_action
