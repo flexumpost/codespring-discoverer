@@ -151,7 +151,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
       `}</style>
       {groups.map((group, idx) => {
         const cc = getCountryCode(group.shippingCountry);
-        const isPlus = group.companies.some((c) => c.typeName === "Plus");
+        const isPlus = group.companies.some((c) => lettersPortoIncluded(c.typeName));
         const showP = isDanmark(group.shippingCountry) && isPlus;
 
         return (

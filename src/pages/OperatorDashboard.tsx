@@ -238,7 +238,7 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
       }
       const tenantType = baseTier(item.tenants?.tenant_types?.name);
       if (tenantType === "Standard") {
-        const scanDate = getShippingDate("Standard", "brev");
+        const scanDate = getShippingDate(item.tenants?.tenant_types?.name, "brev");
         return `${t("statusDisplay.standardScan")} ${formatI18nDate(scanDate, t)}`;
       }
       const received = new Date(item.received_at);
