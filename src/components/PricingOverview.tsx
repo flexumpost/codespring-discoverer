@@ -1,26 +1,15 @@
 import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { useState, useEffect } from "react";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { useTranslation } from "react-i18next";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { supabase } from "@/integrations/supabase/client";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Button } from "@/components/ui/button";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Label } from "@/components/ui/label";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { Save } from "lucide-react";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { toast } from "sonner";
-import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { ReactNode } from "react";
 
 function renderForklaring(text: string): ReactNode {
