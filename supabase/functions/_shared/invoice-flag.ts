@@ -94,14 +94,16 @@ export async function resolveTenantIdsForInvoice(
     teamId: string | null;
     apiBase?: string | null;
     token?: string | null;
+    /** Token with only the companies scope — combined-scope tokens get 401 on /companies. */
+    teamToken?: string | null;
   },
 ): Promise<{ tenantIds: string[]; team: OfficeRndTeam | null; matchedBy: string | null }> {
   const byMember = await resolveTenantIdsForEmail(supabase, args.memberEmail);
   if (byMember.length > 0) return { tenantIds: byMember, team: null, matchedBy: "member_email" };
 
   let team: OfficeRndTeam | null = null;
-  if (args.teamId && args.apiBase && args.token) {
-    team = await getTeamById(args.apiBase, args.token, args.teamId);
+  if (args.teamId && args.apiBase && (args.teamToken || args.token)) {
+    team = await getTeamById(args.apiBase, (args.teamToken || args.token)!, args.teamId);
   }
 
   for (const email of teamEmails(team)) {

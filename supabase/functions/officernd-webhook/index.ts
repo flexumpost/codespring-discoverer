@@ -254,6 +254,7 @@ async function handleInvoiceEvent(
     teamId,
     apiBase,
     token,
+    teamToken: clientId && clientSecret && orgSlug ? (await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [TEAM_SCOPE]).catch(() => null)) : null,
   });
   const tenantId = tenantIds[0] ?? null;
 
