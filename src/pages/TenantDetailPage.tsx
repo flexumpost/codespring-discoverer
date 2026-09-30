@@ -161,7 +161,7 @@ const TenantDetailPage = () => {
     },
   });
 
-  const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
+  const TYPE_ORDER = ["Fastlejer", "Essential", "Professional", "Executive", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
 
   const { data: tenantTypes = [] } = useQuery({
     queryKey: ["tenant-types"],
