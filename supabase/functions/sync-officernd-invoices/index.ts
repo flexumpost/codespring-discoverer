@@ -71,6 +71,7 @@ Deno.serve(async (req) => {
       token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
     }
     const apiBase = v2Base(orgSlug);
+    const teamToken = (await getOfficeRndToken({ clientId: clientId!, clientSecret: clientSecret!, orgSlug }, [TEAM_SCOPE]).catch(() => null));
 
     let q = supabase
       .from("tenants")
@@ -227,6 +228,7 @@ Deno.serve(async (req) => {
         teamId,
         apiBase,
         token,
+        teamToken,
       });
       let tenantId = tenantIds[0] ?? null;
 
