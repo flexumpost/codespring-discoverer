@@ -66,6 +66,15 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
   useEffect(() => { setMailAction(tenant?.default_mail_action ?? ""); }, [tenant?.id, tenant?.default_mail_action]);
 
+  const mailMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("tenants").update({ default_mail_action: mailAction } as any).eq("id", tenant!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-tenants"] }); toast.success(t("pricing.mailActionSaved")); },
+    onError: () => toast.error(t("pricing.couldNotSave")),
+  });
+
   if (!tenantTypeName || !["Lite", "Standard", "Plus", ...NEW_TIERS].includes(tenantTypeName as any)) return null;
 
   const mail = pricing?.mail?.[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[baseTier(tenantTypeName)];
@@ -76,14 +85,6 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
     { value: "scan", label: t("actions.scanning") },
   ];
 
-  const mailMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("tenants").update({ default_mail_action: mailAction } as any).eq("id", tenant!.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["my-tenants"] }); toast.success(t("pricing.mailActionSaved")); },
-    onError: () => toast.error(t("pricing.couldNotSave")),
-  });
 
   return (
     <Card>
