@@ -1,3 +1,4 @@
+import { NEW_TIERS, baseTier } from "@/lib/tiers";
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -65,9 +66,9 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
   useEffect(() => { setMailAction(tenant?.default_mail_action ?? ""); }, [tenant?.id, tenant?.default_mail_action]);
 
-  if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
+  if (!tenantTypeName || !["Lite", "Standard", "Plus", ...NEW_TIERS].includes(tenantTypeName as any)) return null;
 
-  const mail = pricing?.mail?.[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName];
+  const mail = pricing?.mail?.[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[tenantTypeName] ?? MAIL_PRICING_DEFAULTS[baseTier(tenantTypeName)];
   const mailChanged = tenant && mailAction !== (tenant.default_mail_action ?? "");
 
   const MAIL_ACTIONS = [
@@ -119,9 +120,9 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
     }
   }, [tenant?.id, tenant?.default_package_action]);
 
-  if (!tenantTypeName || !["Lite", "Standard", "Plus"].includes(tenantTypeName)) return null;
+  if (!tenantTypeName || !["Lite", "Standard", "Plus", ...NEW_TIERS].includes(tenantTypeName as any)) return null;
 
-  const pkg = pricing?.pkg?.[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName];
+  const pkg = pricing?.pkg?.[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[tenantTypeName] ?? PACKAGE_PRICING_DEFAULTS[baseTier(tenantTypeName)];
 
   return (
     <Card>

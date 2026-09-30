@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import flexumLogo from "@/assets/flexum-logo-print.png";
 import daoPorto from "@/assets/dao-porto.png";
+import { lettersPortoIncluded } from "@/lib/tiers";
 
 type EnvelopeGroup = {
   addressKey: string;
@@ -151,7 +152,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
       `}</style>
       {groups.map((group, idx) => {
         const cc = getCountryCode(group.shippingCountry);
-        const isPlus = group.companies.some((c) => c.typeName === "Plus");
+        const isPlus = group.companies.some((c) => lettersPortoIncluded(c.typeName));
         const showP = isDanmark(group.shippingCountry) && isPlus;
 
         return (

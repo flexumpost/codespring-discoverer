@@ -21,12 +21,15 @@ const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
   Standard: "bg-green-100 text-green-800 border-green-200",
   Plus: "bg-[#00aaeb]/20 text-[#006d9e] border-[#00aaeb]/40",
+  Essential: "bg-violet-100 text-violet-800 border-violet-200",
+  Professional: "bg-rose-100 text-rose-800 border-rose-200",
+  Executive: "bg-slate-800 text-slate-50 border-slate-700",
   Fastlejer: "bg-amber-100 text-amber-800 border-amber-200",
   Nabo: "bg-cyan-100 text-cyan-800 border-cyan-200",
   "Retur til afsender": "bg-red-100 text-red-800 border-red-200",
 };
 
-const TYPE_ORDER = ["Fastlejer", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
+const TYPE_ORDER = ["Fastlejer", "Essential", "Professional", "Executive", "Lite", "Standard", "Plus", "Retur til afsender", "Nabo"];
 
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
@@ -191,7 +194,7 @@ const TenantsPage = () => {
   const canSubmit = companyName.trim() && tenantTypeId;
 
   const typeCounts = useMemo(() => {
-    const counts = { Lite: 0, Standard: 0, Plus: 0 };
+    const counts = { Essential: 0, Professional: 0, Executive: 0, Lite: 0, Standard: 0, Plus: 0 };
     tenants.forEach(t => {
       const name = t.tenant_types?.name;
       if (name && name in counts) counts[name as keyof typeof counts]++;
@@ -267,8 +270,8 @@ const TenantsPage = () => {
       </div>
 
       <div className="flex items-center gap-3 mb-[10px]">
-        {(["Lite", "Standard", "Plus"] as const).map((type) => {
-          const total = typeCounts.Lite + typeCounts.Standard + typeCounts.Plus;
+        {(["Essential", "Professional", "Executive", "Lite", "Standard", "Plus"] as const).filter((type) => type in typeCounts && (typeCounts[type] > 0 || ["Essential", "Professional", "Executive"].includes(type))).map((type) => {
+          const total = Object.values(typeCounts).reduce((a, b) => a + b, 0);
           const pct = total > 0 ? Math.round((typeCounts[type] / total) * 100) : 0;
           return (
             <Badge key={type} variant="outline" className={`${TYPE_COLORS[type]} text-xs`}>

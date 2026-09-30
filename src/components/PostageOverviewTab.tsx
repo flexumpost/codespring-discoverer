@@ -54,7 +54,7 @@ const LABEL_MAP: Record<string, string> = {
   se_pakke_15_20: "Sverige 15-20 kg",
 };
 
-const TIERS = ["Lite", "Standard", "Plus"];
+const TIERS = ["Essential", "Professional", "Executive", "Lite", "Standard", "Plus"];
 
 export function PostageOverviewTab() {
   const { t } = useTranslation();
@@ -84,7 +84,7 @@ export function PostageOverviewTab() {
     const map: Record<string, Record<string, number>> = {};
     const allOptions = [...LETTER_OPTIONS, ...PACKAGE_OPTIONS];
     for (const opt of allOptions) {
-      map[opt] = { Lite: 0, Standard: 0, Plus: 0 };
+      map[opt] = Object.fromEntries(TIERS.map((t) => [t, 0])) as Record<string, number>;
     }
     if (!items) return map;
     for (const item of items) {
@@ -101,7 +101,7 @@ export function PostageOverviewTab() {
   const renderSection = (title: string, options: string[]) => {
     let totalCount = 0;
     let totalAmount = 0;
-    const tierTotals: Record<string, number> = { Lite: 0, Standard: 0, Plus: 0 };
+    const tierTotals: Record<string, number> = Object.fromEntries(TIERS.map((t) => [t, 0])) as Record<string, number>;
 
     return (
       <div className="space-y-2">
@@ -121,7 +121,7 @@ export function PostageOverviewTab() {
             </TableHeader>
             <TableBody>
               {options.map((opt) => {
-                const row = aggregated[opt] || { Lite: 0, Standard: 0, Plus: 0 };
+                const row = aggregated[opt] || Object.fromEntries(TIERS.map((t) => [t, 0])) as Record<string, number>;
                 const rowTotal = TIERS.reduce((s, t) => s + (row[t] || 0), 0);
                 const price = POSTAGE_PRICES[opt] || 0;
                 const rowAmount = rowTotal * price;

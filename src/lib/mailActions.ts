@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { ScanLine, Send, Hand, Trash2, Archive, Undo2, Zap, Calendar as CalendarIcon } from "lucide-react";
 import type { ActionCard } from "@/components/ChooseActionDialog";
+import { getNextFreeDay } from "@/lib/tiers";
 
 /* ── Date helpers (kept here so both TenantDashboard and the action dialog use the same source) ── */
 
@@ -71,6 +72,8 @@ interface BuildCardsInput {
     mail_type: string;
   };
   tier: Tier;
+  /** Original tenant type name (before mapping to base tier), used for free-day rules. */
+  rawTier?: string | null;
   t: TFunction;
 }
 
@@ -255,7 +258,8 @@ function specialCancel(t: TFunction): ActionCard {
 }
 
 /** Returns the cards to show in the "Vælg handling" dialog for a given mail item. */
-export function buildActionCards({ item, tier, t }: BuildCardsInput): ActionCard[] {
+export function buildActionCards({ item, tier, rawTier, t }: BuildCardsInput): ActionCard[] {
+  const nextFree = () => getNextFreeDay(rawTier ?? tier, item.mail_type);
   const isLetter = item.mail_type !== "pakke";
   const isArchived = item.status === "arkiveret";
   const isSent =
@@ -291,7 +295,7 @@ export function buildActionCards({ item, tier, t }: BuildCardsInput): ActionCard
     const cards = compact(
       makeCard("standard_send", tier, "pakke", t, {
         datePrefix: t("statusDisplay.sentLatest"),
-        date: getNextThursday(),
+        date: nextFree(),
       }),
       makeCard("standard_pickup", tier, "pakke", t),
       makeCard("destroy", tier, "pakke", t),
@@ -313,11 +317,11 @@ export function buildActionCards({ item, tier, t }: BuildCardsInput): ActionCard
       }),
       makeCard("fast_send", tier, "brev", t, {
         datePrefix: t("chooseAction.fastSend.datePrefix"),
-        date: getNextThursday(),
+        date: nextFree(),
       }),
       makeCard("standard_pickup", tier, "brev", t, {
         datePrefix: t("chooseAction.standardPickup.datePrefix"),
-        date: tier === "Lite" ? getFirstThursdayOfMonth() : getNextThursday(),
+        date: tier === "Lite" ? getFirstThursdayOfMonth() : nextFree(),
       }),
       makeCard("fast_pickup", tier, "brev", t),
       makeCard("destroy", tier, "brev", t),
@@ -329,7 +333,7 @@ export function buildActionCards({ item, tier, t }: BuildCardsInput): ActionCard
   const cards = compact(
     makeCard("standard_scan", tier, "brev", t, {
       datePrefix: t("chooseAction.standardScan.datePrefix"),
-      date: tier === "Lite" ? getFirstThursdayOfMonth() : getNextThursday(),
+      date: tier === "Lite" ? getFirstThursdayOfMonth() : nextFree(),
     }),
     makeCard("scan_now", tier, "brev", t),
     makeCard("standard_send", tier, "brev", t, {
@@ -338,11 +342,11 @@ export function buildActionCards({ item, tier, t }: BuildCardsInput): ActionCard
     }),
     makeCard("fast_send", tier, "brev", t, {
       datePrefix: t("chooseAction.fastSend.datePrefix"),
-      date: getNextThursday(),
+      date: nextFree(),
     }),
     makeCard("standard_pickup", tier, "brev", t, {
       datePrefix: t("chooseAction.standardPickup.datePrefix"),
-      date: tier === "Lite" ? getFirstThursdayOfMonth() : getNextThursday(),
+      date: tier === "Lite" ? getFirstThursdayOfMonth() : nextFree(),
     }),
     makeCard("fast_pickup", tier, "brev", t),
     makeCard("destroy", tier, "brev", t),

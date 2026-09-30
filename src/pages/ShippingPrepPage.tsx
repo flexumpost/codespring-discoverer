@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { baseTier, lettersPortoIncluded, hasMondayAndThursday, getNextMondayOrThursday } from "@/lib/tiers";
 import { format, nextThursday, isThursday, startOfDay } from "date-fns";
 import { da, enGB } from "date-fns/locale";
 import { CalendarIcon, Package, Mail, Send, CheckCircle, Copy, Printer } from "lucide-react";
@@ -47,6 +48,9 @@ function getNextShippingDateForItem(tenantTypeName: string, mailType: string): D
   const now = new Date();
   const today = startOfDay(now);
 
+  if (mailType !== "pakke" && hasMondayAndThursday(tenantTypeName)) {
+    return startOfDay(getNextMondayOrThursday(today));
+  }
   if (mailType === "pakke" || tenantTypeName.toLowerCase() !== "lite") {
     const dayOfWeek = today.getDay();
     const daysUntil = (4 - dayOfWeek + 7) % 7;
@@ -115,7 +119,7 @@ type MailItemWithTenant = {
 };
 
 function getShippingFee(item: MailItemWithTenant): string {
-  const tier = item.tenant_type_name;
+  const tier = baseTier(item.tenant_type_name);
   const defaultAction = item.mail_type === "pakke"
     ? item.default_package_action
     : item.default_mail_action;
@@ -396,7 +400,7 @@ export default function ShippingPrepPage() {
       for (const id of ids) {
         const group = grouped.find((g) => g.items.some((i) => i.id === id));
         if (!group) continue;
-        const hasNonPlus = group.companies.some((c) => c.typeName !== "Plus");
+        const hasNonPlus = group.companies.some((c) => !lettersPortoIncluded(c.typeName));
         if (!hasNonPlus) continue;
         if (!portoSelections[group.addressKey]) {
           toast({
@@ -629,7 +633,7 @@ export default function ShippingPrepPage() {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           {tab === "brev" && (() => {
-                            const hasNonPlus = group.companies.some((c) => c.typeName !== "Plus");
+                            const hasNonPlus = group.companies.some((c) => !lettersPortoIncluded(c.typeName));
                             if (!hasNonPlus) return null;
                             const isDk = !group.shippingCountry || group.shippingCountry.toLowerCase().trim() === "danmark" || group.shippingCountry.toLowerCase().trim() === "denmark" || group.shippingCountry.toLowerCase().trim() === "dk";
                             return (

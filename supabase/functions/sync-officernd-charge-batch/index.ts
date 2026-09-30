@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { baseTier, lettersPortoIncluded } from "../_shared/tiers.ts";
 import {
   createFee,
   findItemByName,
@@ -153,6 +154,7 @@ interface ItemData {
   tenant_id: string;
   contact_email: string;
   tier_name: string;
+  raw_tier_name: string;
   default_action: string | null;
   billed_by_email: string | null;
   tenant_company_name: string | null;
@@ -216,7 +218,8 @@ Deno.serve(async (req) => {
       stamp_number: item.stamp_number,
       tenant_id: item.tenant_id,
       contact_email: item.tenants?.contact_email ?? null,
-      tier_name: item.tenants?.tenant_types?.name ?? "Lite",
+      tier_name: baseTier(item.tenants?.tenant_types?.name ?? "Lite") ?? "Lite",
+      raw_tier_name: item.tenants?.tenant_types?.name ?? "Lite",
       default_action: item.mail_type === "pakke"
         ? item.tenants?.default_package_action
         : item.tenants?.default_mail_action,
@@ -230,7 +233,7 @@ Deno.serve(async (req) => {
     const missingPortoItems = items.filter((it) => {
       if (it.chosen_action !== "under_forsendelse") return false;
       if (it.porto_option && it.porto_option !== "none") return false;
-      if (it.mail_type !== "pakke" && it.tier_name === "Plus") return false;
+      if (it.mail_type !== "pakke" && lettersPortoIncluded(it.raw_tier_name)) return false;
       return true;
     });
 
@@ -478,7 +481,7 @@ Deno.serve(async (req) => {
         const portoInfo = PORTO_MAP[portoOption];
         if (!portoInfo) continue;
         const isPackagePorto = (portoOption.startsWith("dk_pakke_") || portoOption.startsWith("se_pakke_"));
-        if (!it.tier_name || (!isPackagePorto && it.tier_name === "Plus")) continue;
+        if (!it.tier_name || (!isPackagePorto && lettersPortoIncluded(it.raw_tier_name))) continue;
 
         if (isPackagePorto) {
           packagePortoItems.push(it);

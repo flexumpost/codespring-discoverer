@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
 
-const TIERS = ["Lite", "Standard", "Plus"] as const;
+const TIERS = ["Essential", "Professional", "Executive", "Lite", "Standard", "Plus"] as const;
 
 const MAIL_FIELDS = [
   { key: "forklaring", label: "forklaring", textarea: true },
