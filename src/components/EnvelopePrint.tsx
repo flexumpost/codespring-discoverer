@@ -2,6 +2,7 @@ import { useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import flexumLogo from "@/assets/flexum-logo-print.png";
 import daoPorto from "@/assets/dao-porto.png";
+import { lettersPortoIncluded } from "@/lib/tiers";
 
 type EnvelopeGroup = {
   addressKey: string;
