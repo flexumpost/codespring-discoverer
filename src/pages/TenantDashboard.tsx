@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards, isMailCompleted } from "@/lib/mailActions";
+import { baseTier, getNextFreeDay } from "@/lib/tiers";
 import type { Database } from "@/integrations/supabase/types";
 import type { TFunction } from "i18next";
 
@@ -354,7 +355,8 @@ function getStatusDisplay(
   tenantTypeName: string | undefined,
   t: TFunction,
   defaultMailAction?: string | null,
-  defaultPackageAction?: string | null
+  defaultPackageAction?: string | null,
+  rawTier?: string | null
 ): [string, string?] {
   if (item.chosen_action === "afhentet" && item.status === "arkiveret") {
     const d = new Date((item as any).updated_at ?? Date.now());
@@ -396,11 +398,11 @@ function getStatusDisplay(
     return [t("statusDisplay.sentOn"), formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "standard_scan") {
-    const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextThursday();
+    const nextDate = tenantTypeName === "Lite" ? getFirstThursdayOfMonth() : getNextFreeDay(rawTier, item.mail_type);
     return [t("statusDisplay.scanScheduled"), formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "send") {
-    const nextDate = getNextThursday();
+    const nextDate = tenantTypeName === "Lite" ? getNextThursday() : getNextFreeDay(rawTier, item.mail_type);
     const label = item.mail_type === "pakke" ? t("statusDisplay.sentLatest") : t("statusDisplay.sentOn");
     return [label, formatI18nDate(nextDate, t)];
   }
@@ -425,7 +427,7 @@ function getStatusDisplay(
     : defaultMailAction;
 
   if (effectiveAction === "send" || (!effectiveAction && ["Lite", "Standard", "Plus"].includes(tenantTypeName ?? ""))) {
-    const nextDate = getNextShippingDate(tenantTypeName, item.mail_type);
+    const nextDate = tenantTypeName === "Lite" ? getNextShippingDate(tenantTypeName, item.mail_type) : getNextFreeDay(rawTier, item.mail_type);
     const label = item.mail_type === "pakke" ? t("statusDisplay.sentLatest") : t("statusDisplay.sentOn");
     return [label, formatI18nDate(nextDate, t)];
   }
@@ -678,7 +680,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   const allowedActions: string[] =
     (selectedTenant?.tenant_types as any)?.allowed_actions as string[] ?? [];
-  const tenantTypeName: string | undefined = (selectedTenant?.tenant_types as any)?.name;
+  const rawTenantTypeName: string | undefined = (selectedTenant?.tenant_types as any)?.name;
+  // New solutions (Essential/Professional/Executive) follow the rules of a base tier
+  const tenantTypeName: string | undefined = baseTier(rawTenantTypeName);
 
   const { data: stats = { ny: 0, afventer_scanning: 0, ulaest: 0, laest: 0, arkiveret: 0 } } = useQuery({
     queryKey: ["tenant-stats", selectedTenantId],
@@ -1097,7 +1101,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 </TableCell>
                 <TableCell>
                   {(() => {
-                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                    const [line1, line2] = getStatusDisplay(item, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action, rawTenantTypeName);
                     const rejectedReason = (item as any).action_rejected_reason;
                     const rejectionBadge = rejectedReason ? (
                       <TooltipProvider>
@@ -1232,7 +1236,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                   <div>
                     <span className="text-muted-foreground">{t("common.status")}</span>
                     {(() => {
-                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action);
+                      const [line1, line2] = getStatusDisplay(selectedItem, tenantTypeName, t, selectedTenant?.default_mail_action, selectedTenant?.default_package_action, rawTenantTypeName);
                       return (
                         <div>
                           <Badge variant="outline">{line1}</Badge>
@@ -1474,7 +1478,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         onOpenChange={(o) => { if (!o) setActionDialogItem(null); }}
         title={t("tenantDashboard.selectAction")}
         description={actionDialogItem ? `${actionDialogItem.mail_type === "pakke" ? t("common.package") : t("common.letter")}${actionDialogItem.stamp_number ? ` · ${t("operatorDashboard.stampNumber")} ${actionDialogItem.stamp_number}` : ""}` : undefined}
-        cards={actionDialogItem ? buildActionCards({ item: actionDialogItem, tier: tenantTypeName, t }) : []}
+        cards={actionDialogItem ? buildActionCards({ item: actionDialogItem, tier: tenantTypeName, rawTier: rawTenantTypeName, t }) : []}
         onSelect={(card) => {
           if (!actionDialogItem) return;
           const id = actionDialogItem.id;
