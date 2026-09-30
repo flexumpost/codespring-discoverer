@@ -6,6 +6,8 @@ import {
   findItemByName,
   findMembersByEmail,
   getOfficeRndToken,
+  INVOICE_SCOPE,
+  TEAM_SCOPE,
   v2Base,
 } from "../_shared/officernd.ts";
 
@@ -85,6 +87,22 @@ Deno.serve(async (req) => {
     push({ step: "OAuth token (v2)", ok: true, detail: `length ${ornToken.length}` });
 
     const apiBase = v2Base(orgSlug);
+
+    // Team (company) lookup — used to link team invoices to tenants
+    if (body.team_id) {
+      for (const scopes of [[INVOICE_SCOPE, TEAM_SCOPE], [TEAM_SCOPE]]) {
+        try {
+          const tk = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, scopes);
+          for (const url of [`${apiBase}/companies/${body.team_id}`, `${apiBase}/teams/${body.team_id}`]) {
+            const r = await fetch(url, { headers: { Authorization: `Bearer ${tk}` } });
+            push({ step: `Team ${scopes.join("+")} ${url.split("/").slice(-2).join("/")}`, ok: r.ok, detail: `${r.status}: ${(await r.text()).slice(0, 400)}` });
+          }
+        } catch (e) {
+          push({ step: `Token ${scopes.join("+")}`, ok: false, detail: String(e).slice(0, 400) });
+        }
+      }
+    }
+
 
     // 2. Member lookup (only if email provided)
     if (testEmail) {
