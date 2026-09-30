@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { baseTier, hasMondayAndThursday, lettersPortoIncluded } from "../_shared/tiers.ts";
 import {
   createFee,
   findItemByName,
@@ -23,8 +24,9 @@ function isStandardPickupDay(tier: string | null, when: Date): boolean {
   }).formatToParts(when);
   const day = Number(parts.find(p => p.type === "day")!.value);
   const weekday = parts.find(p => p.type === "weekday")!.value;
+  if (weekday === "Mon" && hasMondayAndThursday(tier)) return true;
   if (weekday !== "Thu") return false;
-  if (tier === "Lite") return day <= 7;
+  if (baseTier(tier) === "Lite") return day <= 7;
   return true;
 }
 
@@ -277,7 +279,9 @@ Deno.serve(async (req) => {
     }
     if (candidateEmails.length === 0) throw new Error("Tenant has no contact_email");
 
-    const tierName = tenant.tenant_types?.name ?? null;
+    const rawTierName = tenant.tenant_types?.name ?? null;
+    // New solutions follow the fee rules of their base tier
+    const tierName = baseTier(rawTierName);
     const defaultAction = item.mail_type === "pakke" ? tenant.default_package_action : tenant.default_mail_action;
 
     let { amountKr, amountText } = calculateFee(item.mail_type, item.chosen_action, defaultAction, tierName);
@@ -287,7 +291,7 @@ Deno.serve(async (req) => {
     const isPickupAction = item.chosen_action === "afhentning" || item.chosen_action === "afhentet";
     if (item.mail_type !== "pakke" && isPickupAction && amountKr > 0) {
       const when = (item as any).pickup_date ? new Date((item as any).pickup_date) : new Date();
-      if (isStandardPickupDay(tierName, when)) {
+      if (isStandardPickupDay(rawTierName, when)) {
         console.log(`Afhentning på standarddag (${tierName}) — gebyr sat til 0 kr. for ${mailItemId}`);
         amountKr = 0;
         amountText = "0 kr.";
@@ -427,7 +431,7 @@ Deno.serve(async (req) => {
     const portoInfo = portoOption ? PORTO_MAP[portoOption] : null;
 
     const isPackagePorto = portoOption ? (portoOption.startsWith("dk_pakke_") || portoOption.startsWith("se_pakke_")) : false;
-    if (portoInfo && tierName && (isPackagePorto || tierName !== "Plus")) {
+    if (portoInfo && tierName && (isPackagePorto || !lettersPortoIncluded(rawTierName))) {
       console.log(`Creating porto charge: ${portoInfo.planName} (${portoInfo.amountKr} kr.)`);
 
       const portoLogRes = await supabase
