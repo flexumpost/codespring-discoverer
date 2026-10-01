@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards, isMailCompleted } from "@/lib/mailActions";
-import { baseTier, getNextFreeDay } from "@/lib/tiers";
+import { baseTier, getNextFreeDay, hasMondayAndThursday, lettersPortoIncluded } from "@/lib/tiers";
 import type { Database } from "@/integrations/supabase/types";
 import type { TFunction } from "i18next";
 
@@ -147,7 +147,8 @@ function parsePickupDate(pickupDate: string | null, notes: string | null): Date 
 }
 
 /** Check if a pickup date falls on a "free Thursday" for the given tier */
-function isFreeTorsdag(date: Date, tenantTypeName: string | undefined): boolean {
+function isFreeTorsdag(date: Date, tenantTypeName: string | undefined, rawTier?: string | null): boolean {
+  if (date.getDay() === 1 && hasMondayAndThursday(rawTier)) return true;
   if (date.getDay() !== 4) return false;
   if (tenantTypeName === "Standard") return true;
   if (tenantTypeName === "Lite") {
@@ -168,8 +169,10 @@ function getItemFee(
   defaultAction: string | null,
   pickupDateStr: string | null,
   notes: string | null,
-  t: TFunction
+  t: TFunction,
+  rawTier?: string | null
 ): string {
+  const portoIncl = lettersPortoIncluded(rawTier);
   const kr = (n: number) => t("tenantDashboard.krUnit", { count: n });
   const krPorto = (n: number) => `${n} kr. + porto`;
 
@@ -192,12 +195,12 @@ function getItemFee(
     !(chosenAction === "send" && defaultAction === "send" && tenantTypeName === "Lite"))) {
     if (chosenAction === "afhentning" && tenantTypeName !== "Plus") {
       const pd = parsePickupDate(pickupDateStr, notes);
-      if (pd && !isFreeTorsdag(pd, tenantTypeName)) {
+      if (pd && !isFreeTorsdag(pd, tenantTypeName, rawTier)) {
         return tenantTypeName === "Standard" ? "30 kr." : "50 kr.";
       }
     }
     if ((chosenAction || defaultAction) === "send") {
-      if (tenantTypeName === "Plus") return "0 kr.";
+      if (tenantTypeName === "Plus" || portoIncl) return "0 kr.";
       return "0 kr. + porto";
     }
     return "0 kr.";
@@ -211,19 +214,19 @@ function getItemFee(
   const extraPrice = tenantTypeName === "Lite" ? "50 kr." : "30 kr.";
   if (chosenAction === "scan") return extraPrice;
   if (chosenAction === "send") {
-    if (tenantTypeName === "Standard") return "0 kr. + porto";
+    if (tenantTypeName === "Standard") return portoIncl ? "0 kr." : "0 kr. + porto";
     return extraPrice + " + porto";
   }
   if (chosenAction === "afhentning") {
     const pd = parsePickupDate(pickupDateStr, notes);
-    if (pd && isFreeTorsdag(pd, tenantTypeName)) return "0 kr.";
+    if (pd && isFreeTorsdag(pd, tenantTypeName, rawTier)) return "0 kr.";
     return tenantTypeName === "Standard" ? "30 kr." : extraPrice;
   }
   return "—";
 }
 
 /** Returns the price label for an action in the dropdown */
-function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string): string {
+function getActionPrice(action: string, tenantTypeName: string | undefined, mailType?: string, rawTier?: string | null): string {
   if (action === "destruer") return "0 kr.";
   if (mailType === "pakke" && (tenantTypeName === "Lite" || tenantTypeName === "Standard" || tenantTypeName === "Plus")) {
     const prices: Record<string, { fee: string; feePorto: string }> = {
@@ -250,7 +253,7 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
   if (tenantTypeName === "Standard") {
     if (action === "scan") return "30 kr.";
     if (action === "standard_scan") return "0 kr.";
-    if (action === "send") return "0 kr. + porto";
+    if (action === "send") return lettersPortoIncluded(rawTier) ? "0 kr." : "0 kr. + porto";
     if (action === "afhentning") return "0 kr.";
     if (action === "anden_afhentningsdag") return "30 kr.";
   }
@@ -407,11 +410,11 @@ function getStatusDisplay(
     return [label, formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "afhentning") {
-    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t, rawTenantTypeName);
     return [t("statusDisplay.pickupOrdered"), pickupText ?? undefined];
   }
   if (item.chosen_action === "gratis_afhentning") {
-    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t, rawTenantTypeName);
     if (pickupText) return [t("statusDisplay.pickedUpAt"), pickupText];
     const nextDate = getFirstThursdayOfMonth();
     return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
@@ -1159,7 +1162,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     const defaultAction = item.mail_type === "pakke"
                       ? selectedTenant?.default_package_action
                       : selectedTenant?.default_mail_action;
-                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes, t);
+                    const fee = getItemFee(tenantTypeName, item.mail_type, item.chosen_action, defaultAction, (item as any).pickup_date ?? null, item.notes, t, rawTenantTypeName);
                     return <span className={cn("text-sm", fee === "—" || fee === "0 kr." ? "text-muted-foreground" : "font-medium")}>{fee}</span>;
                   })()}
                 </TableCell>

@@ -18,7 +18,7 @@ import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
-import { baseTier, hasMondayAndThursday, getNextMondayOrThursday } from "@/lib/tiers";
+import { baseTier, hasMondayAndThursday, getNextMondayOrThursday, lettersPortoIncluded } from "@/lib/tiers";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -300,7 +300,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
       return "—";
     }
     if (defAction === "send" || defAction === "forsendelse") {
-      if (tier === "Lite" || tier === "Standard") return "0 kr. + porto";
+      if ((tier === "Lite" || tier === "Standard") && !lettersPortoIncluded(item.tenants?.tenant_types?.name)) return "0 kr. + porto";
       return "0 kr.";
     }
     return "0 kr.";
@@ -344,7 +344,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
               return pd.getDate() === firstThurs.getDate()
                 && pd.getMonth() === firstThurs.getMonth();
             })()
-          : pd.getDay() === 4;
+          : (pd.getDay() === 4 || (pd.getDay() === 1 && hasMondayAndThursday(item.tenants?.tenant_types?.name)));
         if (!isFreeDay) {
           return tier === "Standard" ? "30 kr." : "50 kr.";
         }
@@ -352,7 +352,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     }
     if (item.chosen_action === "send" || item.chosen_action === "forsendelse") {
       // Standard-forsendelsesdag (gratis) for Lite og Standard – kun porto
-      if (tier === "Lite" || tier === "Standard") return "0 kr. + porto";
+      if ((tier === "Lite" || tier === "Standard") && !lettersPortoIncluded(item.tenants?.tenant_types?.name)) return "0 kr. + porto";
       return "0 kr.";
     }
     if (item.chosen_action === "scan") {
@@ -373,7 +373,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
             return pd.getDate() === firstThurs.getDate()
               && pd.getMonth() === firstThurs.getMonth();
           })()
-        : pd.getDay() === 4;
+        : (pd.getDay() === 4 || (pd.getDay() === 1 && hasMondayAndThursday(item.tenants?.tenant_types?.name)));
       if (isFreeDay) return "0 kr.";
     }
   }
