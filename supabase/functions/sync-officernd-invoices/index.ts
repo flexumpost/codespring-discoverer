@@ -92,7 +92,18 @@ Deno.serve(async (req) => {
     let unresolved = 0;
 
     for (const tenant of (tenants ?? []) as any[]) {
-      const email: string | null = tenant.billed_by_email || tenant.contact_email || null;
+      // Tenants billed by another company follow the payer's invoices.
+      if (tenant.billed_by_email || tenant.billed_by_company) {
+        const before = !!tenant.has_unpaid_invoice;
+        const after = await recomputeTenantFlag(supabase, tenant.id, {
+          source: "reconcile",
+          note: "Følger betalende virksomhed",
+        }, 1);
+        checked++;
+        if (before !== after) changed++;
+        continue;
+      }
+      const email: string | null = tenant.contact_email || null;
       if (!email) {
         unresolved++;
         continue;
