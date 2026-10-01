@@ -212,6 +212,11 @@ Deno.serve(async (req) => {
 
     let html: string;
 
+    let loginEmail: string = tenant.contact_email;
+    if (tenant.user_id) {
+      const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("id", tenant.user_id).maybeSingle();
+      if (prof?.email) loginEmail = prof.email;
+    }
     if (effectiveIsNew && tenant.user_id) {
       // Generate a custom onboarding token valid for 24 hours
       const origin = "https://post.flexum.dk";
@@ -220,7 +225,7 @@ Deno.serve(async (req) => {
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const { data: tokenRow, error: tokenError } = await supabaseAdmin
         .from("onboarding_tokens")
-        .insert({ email: tenant.contact_email, expires_at: expiresAt })
+        .insert({ email: loginEmail, expires_at: expiresAt })
         .select("token")
         .single();
 
@@ -294,7 +299,7 @@ Deno.serve(async (req) => {
 
     const { res: resendRes, body: resendBody } = await sendViaResend({
       from: "Flexum Coworking <kontakt@flexum.dk>",
-      to: [test_recipient_email || tenant.contact_email],
+      to: [test_recipient_email || (effectiveIsNew ? loginEmail : tenant.contact_email)],
       subject: test_recipient_email ? `[TEST] ${subject}` : subject,
       html,
       text: plainText,
