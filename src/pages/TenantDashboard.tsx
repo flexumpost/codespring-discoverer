@@ -410,11 +410,11 @@ function getStatusDisplay(
     return [label, formatI18nDate(nextDate, t)];
   }
   if (item.chosen_action === "afhentning") {
-    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t, rawTenantTypeName);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
     return [t("statusDisplay.pickupOrdered"), pickupText ?? undefined];
   }
   if (item.chosen_action === "gratis_afhentning") {
-    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t, rawTenantTypeName);
+    const pickupText = formatPickupDisplay((item as any).pickup_date ?? null, item.notes, t);
     if (pickupText) return [t("statusDisplay.pickedUpAt"), pickupText];
     const nextDate = getFirstThursdayOfMonth();
     return [t("statusDisplay.pickedUpAt"), formatI18nDate(nextDate, t)];
