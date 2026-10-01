@@ -210,10 +210,32 @@ Deno.serve(async (req) => {
     if (itemsErr) throw new Error(`Failed to fetch items: ${itemsErr.message}`);
     if (!rawItems?.length) throw new Error("No items found");
 
+    // Safety net: letters whose action was "standard_forsendelse" right before
+    // dispatch are free standard shipments, even if overwritten to under_forsendelse.
+    const overwrittenIds = rawItems
+      .filter((i: any) => i.chosen_action === "under_forsendelse" && i.mail_type !== "pakke")
+      .map((i: any) => i.id);
+    const wasStandard = new Set<string>();
+    if (overwrittenIds.length > 0) {
+      const { data: logs } = await supabase
+        .from("mail_item_logs")
+        .select("mail_item_id, old_value, created_at")
+        .in("mail_item_id", overwrittenIds)
+        .eq("action", "action_chosen")
+        .eq("new_value", "under_forsendelse")
+        .order("created_at", { ascending: false });
+      const seen = new Set<string>();
+      for (const l of (logs ?? []) as any[]) {
+        if (seen.has(l.mail_item_id)) continue;
+        seen.add(l.mail_item_id);
+        if (l.old_value === "standard_forsendelse") wasStandard.add(l.mail_item_id);
+      }
+    }
+
     const items: ItemData[] = rawItems.map((item: any) => ({
       id: item.id,
       mail_type: item.mail_type,
-      chosen_action: item.chosen_action,
+      chosen_action: wasStandard.has(item.id) ? "standard_forsendelse" : item.chosen_action,
       porto_option: item.porto_option,
       stamp_number: item.stamp_number,
       tenant_id: item.tenant_id,
@@ -227,11 +249,11 @@ Deno.serve(async (req) => {
       tenant_company_name: item.tenants?.company_name ?? null,
     }));
 
-    // Defensive guard: detect under_forsendelse items missing porto.
+    // Defensive guard: detect shipped items missing porto.
     // Plus-tier letters are exempt (porto included in subscription); all
-    // other under_forsendelse rows must have porto_option set.
+    // other shipped rows must have porto_option set.
     const missingPortoItems = items.filter((it) => {
-      if (it.chosen_action !== "under_forsendelse") return false;
+      if (it.chosen_action !== "under_forsendelse" && it.chosen_action !== "standard_forsendelse") return false;
       if (it.porto_option && it.porto_option !== "none") return false;
       if (it.mail_type !== "pakke" && lettersPortoIncluded(it.raw_tier_name)) return false;
       return true;

@@ -284,6 +284,22 @@ Deno.serve(async (req) => {
     const tierName = baseTier(rawTierName);
     const defaultAction = item.mail_type === "pakke" ? tenant.default_package_action : tenant.default_mail_action;
 
+    // Safety net: a letter that was "standard_forsendelse" right before dispatch is a free standard shipment.
+    if (item.chosen_action === "under_forsendelse" && item.mail_type !== "pakke") {
+      const { data: lastLog } = await supabase
+        .from("mail_item_logs")
+        .select("old_value")
+        .eq("mail_item_id", item.id)
+        .eq("action", "action_chosen")
+        .eq("new_value", "under_forsendelse")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if ((lastLog as any)?.old_value === "standard_forsendelse") {
+        (item as any).chosen_action = "standard_forsendelse";
+      }
+    }
+
     let { amountKr, amountText } = calculateFee(item.mail_type, item.chosen_action, defaultAction, tierName);
 
     // Gratis afhentning: breve afhentet på lejerens standard-afhentningsdag koster 0 kr.,
