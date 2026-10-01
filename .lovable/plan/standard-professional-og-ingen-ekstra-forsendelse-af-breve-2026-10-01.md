@@ -3,20 +3,18 @@
 ## Hvad der ændres
 
 1. **Standard får samme betingelser som Professional**
-   - Scanning: gratis mandag og torsdag
-   - Afhentning: gratis mandag og torsdag (begge dage markeret som gratis i lejerens bookingkalender)
-   - Forsendelse af breve: mandag og torsdag, porto inkluderet (der vælges og opkræves ikke porto)
-   - Pakker: uændret (sendes løbende, 30 kr. + porto)
-   - Gælder alle 91 eksisterende Standard-lejere med det samme.
-
+  - Scanning: gratis mandag og torsdag
+  - Afhentning: gratis mandag og torsdag (begge dage markeret som gratis i lejerens bookingkalender)
+  - Forsendelse af breve: mandag og torsdag, porto inkluderet (der vælges og opkræves ikke porto)
+  - Pakker: uændret (sendes løbende, 30 kr. + porto)
+  - Gælder alle 91 eksisterende Standard-lejere med det samme.
 2. **"Ekstra forsendelse" af breve fjernes for alle løsninger**
-   - Breve sendes kun mandag og torsdag, så muligheden vises ikke længere for lejeren, og der overføres aldrig et gebyr for den til OfficeRnD.
-   - De eneste ekstra handlinger er **ekstra scanning** og **ekstra afhentning**.
-
+  - Breve sendes kun mandag og torsdag, så muligheden vises ikke længere for lejeren, og der overføres aldrig et gebyr for den til OfficeRnD.
+  - De eneste ekstra handlinger er **ekstra scanning** og **ekstra afhentning**.
+  - Lite kan stadig have ekstra forsendelse, da der kun sendes én gang pr måned.
+  - Essential kan også have ekstra forsendelse, da breve sendes gratis sendes torsdag, men mandag vælges mod gebyr
 3. **Executive og Plus: ekstra scanning og afhentning er altid gratis** (0 kr. alle hverdage) — tjekkes og rettes, hvor det ikke allerede er tilfældet.
-
 4. **Professional og Standard: mandags-afhentning bliver gratis i både kalender og OfficeRnD** (lukker det tidligere åbne punkt).
-
 5. **Tekster under "Priser og betingelser"** for Standard opdateres til de nye betingelser.
 
 ## Technical details

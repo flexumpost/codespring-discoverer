@@ -24,7 +24,7 @@ export function baseTier<T extends string | undefined | null>(name: T): T {
 }
 
 /** Tiers whose free letter handling days are Monday + Thursday. */
-const MON_THU_TIERS = new Set(["Professional", "Executive"]);
+const MON_THU_TIERS = new Set(["Standard", "Professional", "Executive"]);
 
 export function hasMondayAndThursday(name: string | undefined | null): boolean {
   return !!name && MON_THU_TIERS.has(name);
@@ -32,7 +32,7 @@ export function hasMondayAndThursday(name: string | undefined | null): boolean {
 
 /** Letters are shipped with porto included (no porto charged / no porto selection). */
 export function lettersPortoIncluded(name: string | undefined | null): boolean {
-  return name === "Plus" || name === "Professional" || name === "Executive";
+  return name === "Plus" || name === "Standard" || name === "Professional" || name === "Executive";
 }
 
 /** Address must be written "c/o Flexum Coworking". */
