@@ -288,11 +288,23 @@ export default function ShippingPrepPage() {
               .eq("id", id);
           }
         }
-        const { error } = await supabase
-          .from("mail_items")
-          .update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" as const })
-          .in("id", ids);
-        if (error) throw error;
+        // Keep "standard_forsendelse" (free standard shipment) so no extra fee is charged.
+        const stdIds = ids.filter((id) => items.find((i) => i.id === id)?.chosen_action === "standard_forsendelse");
+        const otherIds = ids.filter((id) => !stdIds.includes(id));
+        if (stdIds.length > 0) {
+          const { error } = await supabase
+            .from("mail_items")
+            .update({ status: "sendt_med_dao" as const })
+            .in("id", stdIds);
+          if (error) throw error;
+        }
+        if (otherIds.length > 0) {
+          const { error } = await supabase
+            .from("mail_items")
+            .update({ chosen_action: "under_forsendelse", status: "sendt_med_dao" as const })
+            .in("id", otherIds);
+          if (error) throw error;
+        }
         for (const id of ids) {
           const item = items.find((i) => i.id === id);
           if (item) sentItems.push({ id, tenant_id: item.tenant_id, mail_type: item.mail_type, stamp_number: item.stamp_number, tracking_number: null });
@@ -301,10 +313,11 @@ export default function ShippingPrepPage() {
         for (const id of ids) {
           const tn = trackingNumbers[id] || null;
           const porto = portoSelections[id] || null;
+          const keepStd = items.find((i) => i.id === id)?.chosen_action === "standard_forsendelse";
           const { error } = await supabase
             .from("mail_items")
             .update({
-              chosen_action: "under_forsendelse",
+              chosen_action: keepStd ? "standard_forsendelse" : "under_forsendelse",
               status: "sendt_med_postnord" as const,
               tracking_number: tn,
               ...(porto ? { porto_option: porto } : {}),
