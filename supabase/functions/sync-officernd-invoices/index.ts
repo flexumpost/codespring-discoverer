@@ -173,7 +173,8 @@ Deno.serve(async (req) => {
       const { data: stored } = await supabase
         .from("officernd_invoices")
         .select("id, invoice_id")
-        .eq("tenant_id", tenant.id);
+        .eq("tenant_id", tenant.id)
+        .is("team_id", null); // team invoices are not listed per member — never drop them here
       const stale = ((stored ?? []) as any[])
         .filter((r) => !seen.includes(r.invoice_id))
         .map((r) => r.id);
