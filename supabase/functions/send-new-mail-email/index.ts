@@ -299,7 +299,7 @@ Deno.serve(async (req) => {
 
     const { res: resendRes, body: resendBody } = await sendViaResend({
       from: "Flexum Coworking <kontakt@flexum.dk>",
-      to: [test_recipient_email || tenant.contact_email],
+      to: [test_recipient_email || (effectiveIsNew ? loginEmail : tenant.contact_email)],
       subject: test_recipient_email ? `[TEST] ${subject}` : subject,
       html,
       text: plainText,
