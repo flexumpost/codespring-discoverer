@@ -92,8 +92,14 @@ Deno.serve(async (req) => {
     // Get tenants
     const { data: tenants, error: tenantsErr } = await supabaseAdmin
       .from("tenants")
-      .select("id, company_name, contact_first_name, contact_last_name, contact_email")
+      .select("id, company_name, contact_first_name, contact_last_name, contact_email, user_id")
       .in("id", tenant_ids);
+    // Links must target the e-mail of the login account, not a (possibly different) contact e-mail.
+    for (const t of (tenants ?? []) as any[]) {
+      if (!t.user_id) continue;
+      const { data: prof } = await supabaseAdmin.from("profiles").select("email").eq("id", t.user_id).maybeSingle();
+      if (prof?.email) t.contact_email = prof.email;
+    }
 
     if (tenantsErr) {
       return new Response(
