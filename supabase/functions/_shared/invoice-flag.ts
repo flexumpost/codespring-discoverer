@@ -173,21 +173,27 @@ export async function recomputeTenantFlag(
     source: string;
     note?: string | null;
   },
+  _depth = 0,
 ): Promise<boolean> {
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("id, company_name, contact_email, billed_by_email, billed_by_company, has_unpaid_invoice")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (!tenant) return false;
+
+  // A tenant billed by another company shares that payer's invoices.
+  const payerIds = await findPayerTenantIds(supabase, tenant);
+  const invoiceTenantIds = [tenantId, ...payerIds];
+
   const { data: rows } = await supabase
     .from("officernd_invoices")
     .select("status")
-    .eq("tenant_id", tenantId);
+    .in("tenant_id", invoiceTenantIds);
 
   const shouldFlag = ((rows ?? []) as any[]).some((r) => isUnpaidInvoiceStatus(r.status));
 
-  const { data: tenant } = await supabase
-    .from("tenants")
-    .select("has_unpaid_invoice")
-    .eq("id", tenantId)
-    .maybeSingle();
-
-  const before = !!tenant?.has_unpaid_invoice;
+  const before = !!tenant.has_unpaid_invoice;
 
   if (before !== shouldFlag) {
     await supabase
@@ -205,9 +211,49 @@ export async function recomputeTenantFlag(
       flag_before: before,
       flag_after: shouldFlag,
       source: ctx.source,
-      note: ctx.note ?? null,
+      note: ctx.note ?? (payerIds.length && _depth > 0 ? "Følger betalende virksomhed" : null),
     });
   }
 
+  // Propagate to tenants that are billed by this tenant (e.g. holding companies).
+  if (_depth === 0) {
+    for (const depId of await findDependentTenantIds(supabase, tenant)) {
+      await recomputeTenantFlag(supabase, depId, { source: ctx.source, note: `Betales af ${tenant.company_name}` }, 1);
+    }
+  }
+
   return shouldFlag;
+}
+
+/** Tenants that pay for this tenant (billed_by_email / billed_by_company). */
+async function findPayerTenantIds(supabase: Supa, t: any): Promise<string[]> {
+  const ids = new Set<string>();
+  if (t.billed_by_email) {
+    const { data } = await supabase.from("tenants").select("id")
+      .ilike("contact_email", String(t.billed_by_email).trim()).is("billed_by_email", null);
+    for (const r of (data ?? []) as any[]) if (r.id !== t.id) ids.add(r.id);
+  }
+  if (t.billed_by_company) {
+    const { data } = await supabase.from("tenants").select("id")
+      .ilike("company_name", String(t.billed_by_company).trim());
+    for (const r of (data ?? []) as any[]) if (r.id !== t.id) ids.add(r.id);
+  }
+  return [...ids];
+}
+
+/** Tenants billed by this tenant. */
+async function findDependentTenantIds(supabase: Supa, t: any): Promise<string[]> {
+  if (t.billed_by_email || t.billed_by_company) return [];
+  const ids = new Set<string>();
+  if (t.contact_email) {
+    const { data } = await supabase.from("tenants").select("id")
+      .ilike("billed_by_email", String(t.contact_email).trim());
+    for (const r of (data ?? []) as any[]) if (r.id !== t.id) ids.add(r.id);
+  }
+  if (t.company_name) {
+    const { data } = await supabase.from("tenants").select("id")
+      .ilike("billed_by_company", String(t.company_name).trim());
+    for (const r of (data ?? []) as any[]) if (r.id !== t.id) ids.add(r.id);
+  }
+  return [...ids];
 }
