@@ -1419,8 +1419,16 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
+                  // Pakker: maks 2 uger frem. Breve: maks 3 måneder frem.
+                  const bookingItem = pickupDialogItem
+                    ? mailItems?.find((i: any) => i.id === pickupDialogItem)
+                    : undefined;
                   const maxDate = new Date(today);
-                  maxDate.setDate(maxDate.getDate() + 28); // max 4 uger frem
+                  if (bookingItem?.mail_type === "pakke") {
+                    maxDate.setDate(maxDate.getDate() + 14);
+                  } else {
+                    maxDate.setMonth(maxDate.getMonth() + 3);
+                  }
                   if (date < today || date > maxDate || isWeekend(date)) return true;
                   // During the special restricted period only configured dates are bookable
                   if (isInSpecialPeriod(date)) return !getSpecialWindow(date);
