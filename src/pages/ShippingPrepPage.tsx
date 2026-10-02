@@ -764,6 +764,7 @@ export default function ShippingPrepPage() {
                           const country = (item.shipping_country ?? "").toLowerCase().trim();
                           const isDk = !country || country === "danmark" || country === "denmark" || country === "dk";
                           const isSe = country === "sverige" || country === "sweden" || country === "se";
+                          const isPl = country === "polen" || country === "poland" || country === "polska" || country === "pl";
                           return (
                           <div
                             key={item.id}
@@ -806,8 +807,15 @@ export default function ShippingPrepPage() {
                                       <SelectItem value="se_pakke_10_15">SE 10-15 kg (598,00 kr.)</SelectItem>
                                       <SelectItem value="se_pakke_15_20">SE 15-20 kg (773,00 kr.)</SelectItem>
                                     </>
+                                  ) : isPl ? (
+                                    <>
+                                      <SelectItem value="pl_pakke_0_1">PL 0-1 kg (175,00 kr.)</SelectItem>
+                                      <SelectItem value="pl_pakke_1_2">PL 1-2 kg (175,00 kr.)</SelectItem>
+                                      <SelectItem value="pl_pakke_2_5">PL 2-5 kg (311,00 kr.)</SelectItem>
+                                      <SelectItem value="pl_pakke_5_10">PL 5-10 kg (503,00 kr.)</SelectItem>
+                                    </>
                                   ) : (
-                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Kun Danmark og Sverige understøttet</div>
+                                     <div className="px-2 py-1.5 text-xs text-muted-foreground">Kun Danmark, Sverige og Polen understøttet</div>
                                   )}
                                 </SelectContent>
                               </Select>

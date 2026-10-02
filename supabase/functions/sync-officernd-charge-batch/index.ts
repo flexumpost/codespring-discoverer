@@ -116,6 +116,10 @@ const PORTO_MAP: Record<string, { planName: string; amountKr: number }> = {
   se_pakke_5_10: { planName: 'Pakke porto Sverige (5 - 10 kg.) á kr. 503,00', amountKr: 503.00 },
   se_pakke_10_15: { planName: 'Pakke porto Sverige (10 - 15 kg.) á kr. 598,00', amountKr: 598.00 },
   se_pakke_15_20: { planName: 'Pakke porto Sverige (15 - 20 kg.) á kr. 773,00', amountKr: 773.00 },
+  pl_pakke_0_1: { planName: 'Pakke porto Polen (0 - 1 kg.) á kr. 175,00', amountKr: 175.00 },
+  pl_pakke_1_2: { planName: 'Pakke porto Polen (1 - 2 kg.) á kr. 175,00', amountKr: 175.00 },
+  pl_pakke_2_5: { planName: 'Pakke porto Polen (2 - 5 kg.) á kr. 311,00', amountKr: 311.00 },
+  pl_pakke_5_10: { planName: 'Pakke porto Polen (5 - 10 kg.) á kr. 503,00', amountKr: 503.00 },
 };
 
 function getPlanName(
@@ -502,7 +506,7 @@ Deno.serve(async (req) => {
         if (!portoOption) continue;
         const portoInfo = PORTO_MAP[portoOption];
         if (!portoInfo) continue;
-        const isPackagePorto = (portoOption.startsWith("dk_pakke_") || portoOption.startsWith("se_pakke_"));
+        const isPackagePorto = (portoOption.startsWith("dk_pakke_") || portoOption.startsWith("se_pakke_") || portoOption.startsWith("pl_pakke_"));
         if (!it.tier_name || (!isPackagePorto && lettersPortoIncluded(it.raw_tier_name))) continue;
 
         if (isPackagePorto) {
