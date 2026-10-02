@@ -1419,7 +1419,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  if (date < today || isWeekend(date)) return true;
+                  const maxDate = new Date(today);
+                  maxDate.setDate(maxDate.getDate() + 28); // max 4 uger frem
+                  if (date < today || date > maxDate || isWeekend(date)) return true;
                   // During the special restricted period only configured dates are bookable
                   if (isInSpecialPeriod(date)) return !getSpecialWindow(date);
                   return false;
