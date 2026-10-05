@@ -413,9 +413,9 @@ const TenantDetailPage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-users", id] });
-      toast.success(t("settings.recipientDeleted", "Postmodtager slettet"));
+      toast.success(t("settings.recipientDeleted", "Notifikationsmodtager slettet"));
     },
-    onError: (err: any) => toast.error(err.message || t("settings.couldNotDeleteRecipient", "Kunne ikke slette postmodtager")),
+    onError: (err: any) => toast.error(err.message || t("settings.couldNotDeleteRecipient", "Kunne ikke slette notifikationsmodtager")),
   });
 
   const typeName = (tenant?.tenant_types as any)?.name as string | undefined;
@@ -760,7 +760,7 @@ const TenantDetailPage = () => {
             </Card>
             )}
 
-            {/* Postmodtagere */}
+            {/* Notifikationsmodtagere */}
             {tuError && (
               <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
@@ -797,9 +797,9 @@ const TenantDetailPage = () => {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>{t("settings.deleteRecipientTitle", "Slet postmodtager")}</AlertDialogTitle>
+                                  <AlertDialogTitle>{t("settings.deleteRecipientTitle", "Slet notifikationsmodtager")}</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {t("settings.deleteRecipientConfirm", "Er du sikker på, at du vil slette denne postmodtager? Handlingen kan ikke fortrydes.")}
+                                    {t("settings.deleteRecipientConfirm", "Er du sikker på, at du vil slette denne notifikationsmodtager? Handlingen kan ikke fortrydes.")}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>

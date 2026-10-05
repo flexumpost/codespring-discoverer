@@ -312,7 +312,9 @@
     "couldNotUpdateAssignment": "Kunne ikke opdatere tilknytning",
     "recipientDeleted": "Notifikationsmodtager slettet",
     "couldNotDeleteRecipient": "Kunne ikke slette notifikationsmodtager",
-    "couldNotFetchRecipients": "Kunne ikke hente notifikationsmodtagere."
+    "couldNotFetchRecipients": "Kunne ikke hente notifikationsmodtagere.",
+    "deleteRecipientTitle": "Slet notifikationsmodtager",
+    "deleteRecipientConfirm": "Er du sikker på, at du vil slette denne notifikationsmodtager? Handlingen kan ikke fortrydes."
   },
   "shipping": {
     "title": "Forsendelsesadresse",

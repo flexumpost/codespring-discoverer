@@ -312,7 +312,9 @@
     "couldNotUpdateAssignment": "Could not update assignment",
     "recipientDeleted": "Notification recipient deleted",
     "couldNotDeleteRecipient": "Could not delete notification recipient",
-    "couldNotFetchRecipients": "Could not fetch notification recipients."
+    "couldNotFetchRecipients": "Could not fetch notification recipients.",
+    "deleteRecipientTitle": "Delete notification recipient",
+    "deleteRecipientConfirm": "Are you sure you want to delete this notification recipient? This action cannot be undone."
   },
   "shipping": {
     "title": "Shipping address",
