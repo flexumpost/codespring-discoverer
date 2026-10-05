@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards, isMailCompleted } from "@/lib/mailActions";
-import { baseTier, getNextFreeDay, hasMondayAndThursday, lettersPortoIncluded } from "@/lib/tiers";
+import { baseTier, getNextFreeDay, hasMondayAndThursday, lettersPortoIncluded, isFreeScanDay } from "@/lib/tiers";
 import type { Database } from "@/integrations/supabase/types";
 import type { TFunction } from "i18next";
 
@@ -244,14 +244,14 @@ function getActionPrice(action: string, tenantTypeName: string | undefined, mail
   }
   if (tenantTypeName === "Lite") {
     if (action === "gratis_afhentning") return "0 kr.";
-    if (action === "scan") return "50 kr.";
+    if (action === "scan") return isFreeScanDay(rawTier ?? tenantTypeName) ? "0 kr." : "50 kr.";
     if (action === "standard_scan") return "0 kr.";
     if (action === "send") return "50 kr. + porto";
     if (action === "standard_forsendelse") return "0 kr. + porto";
     if (action === "afhentning" || action === "anden_afhentningsdag") return "50 kr.";
   }
   if (tenantTypeName === "Standard") {
-    if (action === "scan") return "30 kr.";
+    if (action === "scan") return isFreeScanDay(rawTier ?? tenantTypeName) ? "0 kr." : "30 kr.";
     if (action === "standard_scan") return "0 kr.";
     if (action === "send") return lettersPortoIncluded(rawTier) ? "0 kr." : "0 kr. + porto";
     if (action === "afhentning") return "0 kr.";

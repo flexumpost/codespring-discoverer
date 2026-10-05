@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { baseTier, hasMondayAndThursday, lettersPortoIncluded } from "../_shared/tiers.ts";
+import { baseTier, hasMondayAndThursday, isFreeScanDay, lettersPortoIncluded } from "../_shared/tiers.ts";
 import {
   createFee,
   findItemByName,
@@ -316,6 +316,13 @@ Deno.serve(async (req) => {
         amountKr = 0;
         amountText = "0 kr.";
       }
+    }
+
+    // Gratis scanning: breve scannet på lejerens gratis dag (fx mandag/torsdag for Standard) koster 0 kr.
+    if (item.mail_type !== "pakke" && item.chosen_action === "scan" && amountKr > 0 && isFreeScanDay(rawTierName, new Date())) {
+      console.log(`Scanning på gratis dag (${rawTierName}) — gebyr sat til 0 kr. for ${mailItemId}`);
+      amountKr = 0;
+      amountText = "0 kr.";
     }
 
     // Consolidér afhentningsgebyr: ét gebyr pr. lejer pr. dag (Europe/Copenhagen).

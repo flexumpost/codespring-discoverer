@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import { ScanLine, Send, Hand, Trash2, Archive, Undo2, Zap, Calendar as CalendarIcon } from "lucide-react";
 import type { ActionCard } from "@/components/ChooseActionDialog";
-import { getNextFreeDay, lettersPortoIncluded } from "@/lib/tiers";
+import { getNextFreeDay, lettersPortoIncluded, isFreeScanDay } from "@/lib/tiers";
 
 /* ── Date helpers (kept here so both TenantDashboard and the action dialog use the same source) ── */
 
@@ -352,6 +352,9 @@ export function buildActionCards({ item, tier, rawTier, t }: BuildCardsInput): A
     makeCard("destroy", tier, "brev", t),
   );
 
+  if (item.mail_type !== "pakke" && isFreeScanDay(rawTier ?? tier)) {
+    cards.forEach((c) => { if (c && c.action === "scan") c.price = "0 kr."; });
+  }
   if (hasPendingChoice) {
     const filtered = cards.filter((c) => c.action !== item.chosen_action);
     return [...filtered, specialCancel(t)];
