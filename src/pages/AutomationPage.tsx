@@ -25,13 +25,16 @@ const AutomationPage = () => {
       ) : !selectedTenant ? (
         <p className="text-muted-foreground">{t("settings.noTenantProfile")}</p>
       ) : (
-        <div className="max-w-xl">
+        <div className="max-w-5xl">
           <AutomationCard
             tenantId={selectedTenant.id}
             currentMailAction={(selectedTenant as any).default_mail_action ?? null}
  currentPackageAction={(selectedTenant as any).default_package_action ?? null}
  currentMailPickupHour={(selectedTenant as any).default_mail_pickup_hour ?? null}
  currentPackagePickupHour={(selectedTenant as any).default_package_pickup_hour ?? null}
+ currentMailPickupWeekday={(selectedTenant as any).default_mail_pickup_weekday ?? 4}
+ currentPackagePickupWeekday={(selectedTenant as any).default_package_pickup_weekday ?? 4}
+ tenantTypeName={(selectedTenant as any).tenant_types?.name ?? null}
           />
         </div>
       )}

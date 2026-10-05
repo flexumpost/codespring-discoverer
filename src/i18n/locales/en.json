@@ -894,7 +894,11 @@
     "pickupHelp": "New letters are set to pickup on the next free pickup day in your fixed time slot. You'll get an email with the day and time.",
     "pickupNote": "Pickup can always be booked on the individual letter or package on the dashboard, where you choose a time.",
     "packageShipmentHelp": "New packages are set to shipment on the next shipping day.",
-    "packagePickupHelp": "New packages are set to pickup on the next weekday in your fixed time slot. You'll get an email with the day and time.",
+    "packagePickupHelp": "New packages are set to pickup on the next selected free pickup day in your fixed time slot. You'll get an email with the day and time.",
+    "pickupDayLabel": "Fixed pickup day",
+    "pickupDayPlaceholder": "Choose day",
+    "monday": "Monday",
+    "thursday": "Thursday",
     "pickupTimeLabel": "Fixed pickup time slot",
     "pickupTimePlaceholder": "Choose time slot",
     "pickupTimeNote": "The time can always be changed on the individual item in your dashboard."

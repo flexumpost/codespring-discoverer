@@ -71,7 +71,7 @@ const TenantViewPage = () => {
           </TabsContent>
 
           <TabsContent value="automation">
-            <div className="max-w-xl">
+            <div className="max-w-5xl">
               {tenant && (
                 <AutomationCard
                   tenantId={id}
@@ -79,6 +79,9 @@ const TenantViewPage = () => {
  currentPackageAction={(tenant as any).default_package_action ?? null}
  currentMailPickupHour={(tenant as any).default_mail_pickup_hour ?? null}
  currentPackagePickupHour={(tenant as any).default_package_pickup_hour ?? null}
+ currentMailPickupWeekday={(tenant as any).default_mail_pickup_weekday ?? 4}
+ currentPackagePickupWeekday={(tenant as any).default_package_pickup_weekday ?? 4}
+ tenantTypeName={typeName}
                   invalidateKeys={invalidate}
                 />
               )}
