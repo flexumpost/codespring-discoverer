@@ -498,9 +498,17 @@ const TenantDetailPage = () => {
       ) : !tenant ? (
         <p className="text-muted-foreground">{t("tenantDetail.tenantNotFound")}.</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Column 1: Company + Contact + Shipping + Postmodtagere */}
-          <div className="space-y-6">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">{t("tenantDetail.tabOverview", "Oversigt")}</TabsTrigger>
+            <TabsTrigger value="contact">{t("tenantDetail.tabContact", "Kontakt & brugere")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tenantDetail.tabAddresses", "Adresser")}</TabsTrigger>
+            <TabsTrigger value="pricing">{t("tenantDetail.tabPricing", "Priser & handling")}</TabsTrigger>
+            <TabsTrigger value="billing">{t("tenantDetail.tabBilling", "Fakturering")}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.company")}</CardTitle>
