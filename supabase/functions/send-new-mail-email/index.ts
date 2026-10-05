@@ -65,7 +65,29 @@ Deno.serve(async (req) => {
       .eq("role", "operator")
       .maybeSingle();
 
-    if (!roleCheck) {
+    let isOperator = !!roleCheck;
+    if (!isOperator) {
+      // Tenant callers may only trigger notifications for their own tenant
+      const { data: ownedTenant } = await supabaseAdmin
+        .from("tenants")
+        .select("id")
+        .eq("id", tenant_id)
+        .eq("user_id", callerId)
+        .maybeSingle();
+      if (ownedTenant) {
+        isOperator = true;
+      } else {
+        const { data: linkedTenant } = await supabaseAdmin
+          .from("tenant_users")
+          .select("id")
+          .eq("tenant_id", tenant_id)
+          .eq("user_id", callerId)
+          .maybeSingle();
+        if (linkedTenant) isOperator = true;
+      }
+    }
+
+    if (!isOperator) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: corsHeaders,
