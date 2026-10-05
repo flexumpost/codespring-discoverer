@@ -29,6 +29,9 @@ const AutomationPage = () => {
           <AutomationCard
             tenantId={selectedTenant.id}
             currentMailAction={(selectedTenant as any).default_mail_action ?? null}
+ currentPackageAction={(selectedTenant as any).default_package_action ?? null}
+ currentMailPickupHour={(selectedTenant as any).default_mail_pickup_hour ?? null}
+ currentPackagePickupHour={(selectedTenant as any).default_package_pickup_hour ?? null}
           />
         </div>
       )}

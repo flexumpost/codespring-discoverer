@@ -75,7 +75,10 @@ const TenantViewPage = () => {
               {tenant && (
                 <AutomationCard
                   tenantId={id}
-                  currentMailAction={tenant.default_mail_action ?? null}
+                  currentMailAction={(tenant as any).default_mail_action ?? null}
+ currentPackageAction={(tenant as any).default_package_action ?? null}
+ currentMailPickupHour={(tenant as any).default_mail_pickup_hour ?? null}
+ currentPackagePickupHour={(tenant as any).default_package_pickup_hour ?? null}
                   invalidateKeys={invalidate}
                 />
               )}

@@ -879,7 +879,7 @@
   },
   "automation": {
     "title": "Automatisering",
-    "description": "Vælg hvad der som standard skal ske med nye breve. Du kan altid vælge en anden handling på det enkelte brev.",
+    "description": "Vælg hvad der som standard skal ske med nye breve og pakker. Du kan altid vælge en anden handling på den enkelte forsendelse.",
     "mailLabel": "Standard handling for breve",
     "packageLabel": "Standard handling for pakker",
     "packageLocked": "Forsendelse (kan ikke ændres for pakker)",
@@ -887,12 +887,17 @@
     "couldNotSave": "Kunne ikke gemme automatisering",
     "save": "Gem",
     "shipment": "Forsendelse",
-    "shipmentHelp": "Nye breve sættes til forsendelse på din standard forsendelsesdag — gratis.",
+    "shipmentHelp": "Nye breve sættes til forsendelse på først kommende gratis forsendelsesdag.",
     "scanning": "Scanning",
-    "scanningHelp": "Nye breve sættes til scanning på din standard scanningsdag — gratis.",
+    "scanningHelp": "Nye breve scannes på først kommende gratis scanningsdag.",
     "pickup": "Afhentning",
-    "pickupHelp": "Nye breve sættes til afhentning på din standard afhentningsdag — gratis.",
-    "pickupNote": "Afhentning kan altid bookes på det enkelte brev eller den enkelte pakke på forsiden, hvor du selv vælger tidspunkt."
+    "pickupHelp": "Nye breve sættes til afhentning på først kommende gratis afhentningsdag i dit faste tidsrum. Du får en e-mail med dag og tidspunkt.",
+    "pickupNote": "Afhentning kan altid bookes på det enkelte brev eller den enkelte pakke på forsiden, hvor du selv vælger tidspunkt.",
+    "packageShipmentHelp": "Nye pakker sættes til forsendelse på først kommende forsendelsesdag.",
+    "packagePickupHelp": "Nye pakker sættes til afhentning på først kommende hverdag i dit faste tidsrum. Du får en e-mail med dag og tidspunkt.",
+    "pickupTimeLabel": "Fast tidsrum for afhentning",
+    "pickupTimePlaceholder": "Vælg tidsrum",
+    "pickupTimeNote": "Tidspunktet kan altid ændres på den enkelte forsendelse i dit dashboard."
   },
   "languageToggle": {
     "da": "DA",
