@@ -50,7 +50,7 @@ export function PartnerGroupAddresses({ tenantId, ownerId }: { tenantId: string;
   const { data, isLoading } = usePartnerGroup(tenantId, ownerId);
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold">Forsendelsesadresser (samarbejdspartner)</h3>
+      <h3 className="text-lg font-semibold">Forsendelsesadresse (samarbejdspartner)</h3>
       {isLoading ? (
         <Skeleton className="h-40" />
       ) : (

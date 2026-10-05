@@ -70,11 +70,11 @@
     "tenants": "Lejere",
     "settings": "Indstillinger",
     "information": "Information",
-    "shippingAddress": "Forsendelsesadresser",
+    "shippingAddress": "Forsendelsesadresse",
     "automation": "Automatisering",
     "signOut": "Log ud",
     "flexumPost": "Flexum Post",
-    "partnerAddresses": "Forsendelsesadresser"
+    "partnerAddresses": "Forsendelsesadresse"
   },
   "greeting": {
     "morning": "Godmorgen",
@@ -937,7 +937,7 @@
     "saved": "Gemt"
   },
   "partnerAddresses": {
-    "title": "Forsendelsesadresser",
+    "title": "Forsendelsesadresse",
     "description": "Se og ret forsendelsesadressen for alle dine firmaer ét sted.",
     "missing": "Mangler adresse",
     "unconfirmed": "Ikke bekræftet",
