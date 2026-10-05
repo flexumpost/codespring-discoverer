@@ -758,6 +758,7 @@ const TenantDetailPage = () => {
                 </Button>
               </CardContent>
             </Card>
+            )}
 
             {/* Postmodtagere */}
             {tuError && (
