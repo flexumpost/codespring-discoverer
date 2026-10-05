@@ -26,7 +26,7 @@ const FIELDS = [
 ] as const;
 const REQUIRED = ["shipping_recipient", "shipping_address", "shipping_zip", "shipping_city", "shipping_country"];
 
-export function AddressCard({ tenant }: { tenant: any }) {
+export function AddressCard({ tenant, applyToIds, title }: { tenant: any; applyToIds?: string[]; title?: string }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [values, setValues] = useState<Record<string, string>>(
@@ -40,10 +40,11 @@ export function AddressCard({ tenant }: { tenant: any }) {
     setSaving(true);
     const payload: Record<string, any> = { shipping_confirmed: true };
     for (const [k] of FIELDS) payload[k] = values[k].trim() || (REQUIRED.includes(k) ? values[k] : null);
-    const { error } = await supabase.from("tenants").update(payload as any).eq("id", tenant.id);
+    const ids = applyToIds?.length ? applyToIds : [tenant.id];
+    const { error } = await supabase.from("tenants").update(payload as any).in("id", ids);
     setSaving(false);
     if (error) return toast.error(error.message);
-    notifyAddressChange(tenant.id);
+    ids.forEach((id) => notifyAddressChange(id));
     qc.invalidateQueries({ queryKey: ["my-tenants"] });
     qc.invalidateQueries({ queryKey: ["partner-group"] });
     toast.success(t("partnerAddresses.saved", { name: tenant.company_name }));
@@ -52,7 +53,7 @@ export function AddressCard({ tenant }: { tenant: any }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle className="text-base">{tenant.company_name}</CardTitle>
+        <CardTitle className="text-base">{title ?? tenant.company_name}</CardTitle>
         {!complete ? (
           <Badge variant="destructive">{t("partnerAddresses.missing")}</Badge>
         ) : !tenant.shipping_confirmed ? (
@@ -79,7 +80,9 @@ export function AddressCard({ tenant }: { tenant: any }) {
 
 export default function PartnerAddressesPage() {
   const { t } = useTranslation();
-  const { tenants, isLoading } = useTenants();
+  const { tenants, selectedTenant, isLoading } = useTenants();
+  const isPartner = tenants.some((x: any) => x.is_partner);
+  const base: any = selectedTenant ?? tenants[0];
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -89,6 +92,14 @@ export default function PartnerAddressesPage() {
         </div>
         {isLoading ? (
           <Skeleton className="h-40" />
+        ) : !isPartner && base ? (
+          <div className="max-w-2xl">
+            <AddressCard
+              tenant={base}
+              applyToIds={tenants.map((x: any) => x.id)}
+              title={tenants.length > 1 ? tenants.map((x: any) => x.company_name).join(", ") : undefined}
+            />
+          </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
             {tenants.map((x: any) => <AddressCard key={x.id} tenant={x} />)}
