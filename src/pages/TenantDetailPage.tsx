@@ -820,29 +820,23 @@ const TenantDetailPage = () => {
               </Card>
             )}
           </div>
+          </TabsContent>
 
-          {/* Column 2: Mail pricing + automation */}
-          <div className="space-y-6">
-            <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
-            <AutomationCard
-              tenantId={(tenant as any).id}
-              currentMailAction={(tenant as any).default_mail_action ?? null}
-              showPackages={false}
-              invalidateKeys={[["tenant-detail", id]]}
-            />
-            <PartnerToggleCard
-              tenantId={(tenant as any).id}
-              isPartner={!!(tenant as any).is_partner}
-              invalidateKey={["tenant-detail", id]}
-            />
-            {(tenant as any).is_partner && (
-              <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
-            )}
+          <TabsContent value="pricing">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+              <AutomationCard
+                tenantId={(tenant as any).id}
+                currentMailAction={(tenant as any).default_mail_action ?? null}
+                showPackages={false}
+                invalidateKeys={[["tenant-detail", id]]}
+              />
+            </div>
+            <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
           </div>
-
-          {/* Column 3: Package pricing */}
-          <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
-        </div>
+          </TabsContent>
+        </Tabs>
       )}
     </AppLayout>
   );
