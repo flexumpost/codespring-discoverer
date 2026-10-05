@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
