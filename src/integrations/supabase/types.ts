@@ -716,6 +716,7 @@ export type Database = {
           has_unpaid_invoice: boolean
           id: string
           is_active: boolean
+          is_partner: boolean
           shipping_address: string | null
           shipping_address_2: string | null
           shipping_city: string | null
@@ -745,6 +746,7 @@ export type Database = {
           has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
+          is_partner?: boolean
           shipping_address?: string | null
           shipping_address_2?: string | null
           shipping_city?: string | null
@@ -774,6 +776,7 @@ export type Database = {
           has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
+          is_partner?: boolean
           shipping_address?: string | null
           shipping_address_2?: string | null
           shipping_city?: string | null

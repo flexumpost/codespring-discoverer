@@ -72,7 +72,8 @@
     "shippingAddress": "Shipping address",
     "automation": "Automation",
     "signOut": "Sign out",
-    "flexumPost": "Flexum Post"
+    "flexumPost": "Flexum Post",
+    "partnerAddresses": "Shipping addresses"
   },
   "greeting": {
     "morning": "Good morning",
@@ -734,8 +735,29 @@
     }
   },
   "dates": {
-    "days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
-    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "days": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ],
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ],
     "at": "at",
     "the": ""
   },
@@ -892,5 +914,20 @@
     "empty": "No sent items in the period.",
     "unknownTenant": "Unknown tenant",
     "note": "Only items with a selected weight are included. Amounts are excl. VAT. Packages are always paid by the tenant."
+  },
+  "partner": {
+    "title": "Partner",
+    "label": "Partner (manages several tenants)",
+    "description": "Gives the tenant one page where the addresses of all their companies can be viewed and edited.",
+    "saved": "Saved"
+  },
+  "partnerAddresses": {
+    "title": "Shipping addresses",
+    "description": "View and edit the shipping address for all your companies in one place.",
+    "missing": "Missing address",
+    "unconfirmed": "Not confirmed",
+    "save": "Save address",
+    "saved": "Address for {{name}} saved",
+    "notAvailable": "This page is not available for your account."
   }
 }

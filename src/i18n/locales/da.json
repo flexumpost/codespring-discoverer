@@ -72,7 +72,8 @@
     "shippingAddress": "Forsendelsesadresse",
     "automation": "Automatisering",
     "signOut": "Log ud",
-    "flexumPost": "Flexum Post"
+    "flexumPost": "Flexum Post",
+    "partnerAddresses": "Forsendelsesadresser"
   },
   "greeting": {
     "morning": "Godmorgen",
@@ -734,8 +735,29 @@
     }
   },
   "dates": {
-    "days": ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"],
-    "months": ["januar", "februar", "marts", "april", "maj", "juni", "juli", "august", "september", "oktober", "november", "december"],
+    "days": [
+      "Søndag",
+      "Mandag",
+      "Tirsdag",
+      "Onsdag",
+      "Torsdag",
+      "Fredag",
+      "Lørdag"
+    ],
+    "months": [
+      "januar",
+      "februar",
+      "marts",
+      "april",
+      "maj",
+      "juni",
+      "juli",
+      "august",
+      "september",
+      "oktober",
+      "november",
+      "december"
+    ],
     "at": "kl.",
     "the": "den"
   },
@@ -892,5 +914,20 @@
     "empty": "Ingen sendte forsendelser i perioden.",
     "unknownTenant": "Ukendt lejer",
     "note": "Kun forsendelser hvor vægten er valgt, er med. Beløb er ekskl. moms. Pakker betales altid af lejeren."
+  },
+  "partner": {
+    "title": "Samarbejdspartner",
+    "label": "Samarbejdspartner (håndterer flere lejere)",
+    "description": "Giver lejeren en samlet side, hvor adresserne for alle deres firmaer kan ses og rettes.",
+    "saved": "Gemt"
+  },
+  "partnerAddresses": {
+    "title": "Forsendelsesadresser",
+    "description": "Se og ret forsendelsesadressen for alle dine firmaer ét sted.",
+    "missing": "Mangler adresse",
+    "unconfirmed": "Ikke bekræftet",
+    "save": "Gem adresse",
+    "saved": "Adressen for {{name}} er gemt",
+    "notAvailable": "Denne side er ikke tilgængelig for din konto."
   }
 }
