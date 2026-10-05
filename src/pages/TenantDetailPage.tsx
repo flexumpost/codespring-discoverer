@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TYPE_COLORS: Record<string, string> = {
   Lite: "bg-blue-100 text-blue-800 border-blue-200",
@@ -497,9 +498,17 @@ const TenantDetailPage = () => {
       ) : !tenant ? (
         <p className="text-muted-foreground">{t("tenantDetail.tenantNotFound")}.</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Column 1: Company + Contact + Shipping + Postmodtagere */}
-          <div className="space-y-6">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="overview">{t("tenantDetail.tabOverview", "Oversigt")}</TabsTrigger>
+            <TabsTrigger value="contact">{t("tenantDetail.tabContact", "Kontakt & brugere")}</TabsTrigger>
+            <TabsTrigger value="addresses">{t("tenantDetail.tabAddresses", "Adresser")}</TabsTrigger>
+            <TabsTrigger value="pricing">{t("tenantDetail.tabPricing", "Priser & handling")}</TabsTrigger>
+            <TabsTrigger value="billing">{t("tenantDetail.tabBilling", "Fakturering")}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.company")}</CardTitle>
@@ -610,7 +619,11 @@ const TenantDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
+          <TabsContent value="contact">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.contactInfo")}</CardTitle>
@@ -645,7 +658,11 @@ const TenantDetailPage = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
+          <TabsContent value="billing">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Betales af</CardTitle>
@@ -682,8 +699,19 @@ const TenantDetailPage = () => {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
-
+          <TabsContent value="addresses">
+          <div className="space-y-6 max-w-2xl">
+            <PartnerToggleCard
+              tenantId={(tenant as any).id}
+              isPartner={!!(tenant as any).is_partner}
+              invalidateKey={["tenant-detail", id]}
+            />
+            {(tenant as any).is_partner && (
+              <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
+            )}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
@@ -792,29 +820,23 @@ const TenantDetailPage = () => {
               </Card>
             )}
           </div>
+          </TabsContent>
 
-          {/* Column 2: Mail pricing + automation */}
-          <div className="space-y-6">
-            <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
-            <AutomationCard
-              tenantId={(tenant as any).id}
-              currentMailAction={(tenant as any).default_mail_action ?? null}
-              showPackages={false}
-              invalidateKeys={[["tenant-detail", id]]}
-            />
-            <PartnerToggleCard
-              tenantId={(tenant as any).id}
-              isPartner={!!(tenant as any).is_partner}
-              invalidateKey={["tenant-detail", id]}
-            />
-            {(tenant as any).is_partner && (
-              <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
-            )}
+          <TabsContent value="pricing">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <MailPricingCard tenantTypeName={typeName} tenant={tenant as any} />
+              <AutomationCard
+                tenantId={(tenant as any).id}
+                currentMailAction={(tenant as any).default_mail_action ?? null}
+                showPackages={false}
+                invalidateKeys={[["tenant-detail", id]]}
+              />
+            </div>
+            <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
           </div>
-
-          {/* Column 3: Package pricing */}
-          <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
-        </div>
+          </TabsContent>
+        </Tabs>
       )}
     </AppLayout>
   );
