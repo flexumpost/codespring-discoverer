@@ -8,6 +8,7 @@ import { EmailLogTab } from "@/components/EmailLogTab";
 import { LoginLogTab } from "@/components/LoginLogTab";
 import { OfficeRnDSettingsTab } from "@/components/OfficeRnDSettingsTab";
 import { PostageOverviewTab } from "@/components/PostageOverviewTab";
+import { ConsumptionTab } from "@/components/ConsumptionTab";
 import { ZohoWebhookLogTab } from "@/components/ZohoWebhookLogTab";
 
 export function OperatorSettingsTabs() {
@@ -24,6 +25,7 @@ export function OperatorSettingsTabs() {
         <TabsTrigger value="officernd">OfficeRnD</TabsTrigger>
         <TabsTrigger value="zoho">Zoho-log</TabsTrigger>
         <TabsTrigger value="postage">{t("operatorSettings.postage", "Porto")}</TabsTrigger>
+        <TabsTrigger value="consumption">{t("operatorSettings.consumption", "Forbrug pr. lejer")}</TabsTrigger>
       </TabsList>
       <TabsContent value="operators"><OperatorsList /></TabsContent>
       <TabsContent value="pricing"><PricingSettingsEditor /></TabsContent>
@@ -34,6 +36,7 @@ export function OperatorSettingsTabs() {
       <TabsContent value="officernd"><OfficeRnDSettingsTab /></TabsContent>
       <TabsContent value="zoho"><ZohoWebhookLogTab /></TabsContent>
       <TabsContent value="postage"><PostageOverviewTab /></TabsContent>
+      <TabsContent value="consumption"><ConsumptionTab /></TabsContent>
     </Tabs>
   );
 }
