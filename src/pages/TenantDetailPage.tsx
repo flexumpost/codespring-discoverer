@@ -712,6 +712,7 @@ const TenantDetailPage = () => {
             {(tenant as any).is_partner && (
               <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
             )}
+            {!(tenant as any).is_partner && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
