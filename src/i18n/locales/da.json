@@ -663,7 +663,8 @@
     "calendar": "Kalender",
     "templates": "Templates",
     "emailLog": "Email Log",
-    "loginLog": "Login Log"
+    "loginLog": "Login Log",
+    "consumption": "Forbrug pr. lejer"
   },
   "scanUpload": {
     "title": "Upload scanning",
@@ -880,5 +881,16 @@
     "to": "Til",
     "letters": "Breve",
     "packages": "Pakker"
+  },
+  "consumption": {
+    "tenant": "Lejer",
+    "tier": "Løsning",
+    "letters": "Breve",
+    "packages": "Pakker",
+    "paidByTenant": "Betalt af lejer",
+    "paidByUs": "Betalt af os",
+    "empty": "Ingen sendte forsendelser i perioden.",
+    "unknownTenant": "Ukendt lejer",
+    "note": "Kun forsendelser hvor vægten er valgt, er med. Beløb er ekskl. moms. Pakker betales altid af lejeren."
   }
 }

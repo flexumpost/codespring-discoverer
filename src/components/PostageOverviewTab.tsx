@@ -13,62 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter,
 } from "@/components/ui/table";
 
-const POSTAGE_PRICES: Record<string, number> = {
-  dk_0_100: 18.4,
-  dk_100_250: 36.8,
-  dk_250_500: 54.0,
-  dk_500_1500: 72.0,
-  plus_0_100: 28.0,
-  plus_100_250: 46.0,
-  udland_0_100: 46.0,
-  udland_100_250: 92.0,
-  dk_pakke_0_1: 48.0,
-  dk_pakke_1_2: 57.6,
-  dk_pakke_2_5: 77.6,
-  dk_pakke_5_10: 101.6,
-  dk_pakke_10_15: 133.6,
-  dk_pakke_15_20: 141.6,
-  se_pakke_0_1: 175.0,
-  se_pakke_1_2: 175.0,
-  se_pakke_2_5: 311.0,
-  se_pakke_5_10: 503.0,
-  se_pakke_10_15: 598.0,
-  se_pakke_15_20: 773.0,
-  pl_pakke_0_1: 175.0,
-  pl_pakke_1_2: 175.0,
-  pl_pakke_2_5: 311.0,
-  pl_pakke_5_10: 503.0,
-};
-
-const LETTER_OPTIONS = ["dk_0_100", "dk_100_250", "dk_250_500", "dk_500_1500", "plus_0_100", "plus_100_250", "udland_0_100", "udland_100_250"];
-const PACKAGE_OPTIONS = ["dk_pakke_0_1", "dk_pakke_1_2", "dk_pakke_2_5", "dk_pakke_5_10", "dk_pakke_10_15", "dk_pakke_15_20", "se_pakke_0_1", "se_pakke_1_2", "se_pakke_2_5", "se_pakke_5_10", "se_pakke_10_15", "se_pakke_15_20", "pl_pakke_0_1", "pl_pakke_1_2", "pl_pakke_2_5", "pl_pakke_5_10"];
-
-const LABEL_MAP: Record<string, string> = {
-  dk_0_100: "Danmark 0-100g",
-  dk_100_250: "Danmark 100-250g",
-  dk_250_500: "Danmark 250-500g",
-  dk_500_1500: "Danmark 500-1500g",
-  plus_0_100: "PLUS-brev 0-100g",
-  plus_100_250: "PLUS-brev 100-250g",
-  udland_0_100: "Udland 0-100g",
-  udland_100_250: "Udland 100-250g",
-  dk_pakke_0_1: "Danmark 0-1 kg",
-  dk_pakke_1_2: "Danmark 1-2 kg",
-  dk_pakke_2_5: "Danmark 2-5 kg",
-  dk_pakke_5_10: "Danmark 5-10 kg",
-  dk_pakke_10_15: "Danmark 10-15 kg",
-  dk_pakke_15_20: "Danmark 15-20 kg",
-  se_pakke_0_1: "Sverige 0-1 kg",
-  se_pakke_1_2: "Sverige 1-2 kg",
-  se_pakke_2_5: "Sverige 2-5 kg",
-  se_pakke_5_10: "Sverige 5-10 kg",
-  se_pakke_10_15: "Sverige 10-15 kg",
-  se_pakke_15_20: "Sverige 15-20 kg",
-  pl_pakke_0_1: "Polen 0-1 kg",
-  pl_pakke_1_2: "Polen 1-2 kg",
-  pl_pakke_2_5: "Polen 2-5 kg",
-  pl_pakke_5_10: "Polen 5-10 kg",
-};
+import { POSTAGE_PRICES, LETTER_OPTIONS, PACKAGE_OPTIONS, PORTO_LABELS as LABEL_MAP } from "@/lib/porto";
 
 const TIERS = ["Essential", "Professional", "Executive", "Lite", "Standard", "Plus"];
 

@@ -663,7 +663,8 @@
     "calendar": "Calendar",
     "templates": "Templates",
     "emailLog": "Email Log",
-    "loginLog": "Login Log"
+    "loginLog": "Login Log",
+    "consumption": "Consumption per tenant"
   },
   "scanUpload": {
     "title": "Upload scan",
@@ -880,5 +881,16 @@
     "to": "To",
     "letters": "Letters",
     "packages": "Packages"
+  },
+  "consumption": {
+    "tenant": "Tenant",
+    "tier": "Plan",
+    "letters": "Letters",
+    "packages": "Packages",
+    "paidByTenant": "Paid by tenant",
+    "paidByUs": "Paid by us",
+    "empty": "No sent items in the period.",
+    "unknownTenant": "Unknown tenant",
+    "note": "Only items with a selected weight are included. Amounts are excl. VAT. Packages are always paid by the tenant."
   }
 }
