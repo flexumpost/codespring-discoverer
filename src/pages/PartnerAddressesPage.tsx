@@ -1,3 +1,4 @@
+import { notifyAddressChange } from "@/lib/notifyAddressChange";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +43,7 @@ export function AddressCard({ tenant }: { tenant: any }) {
     const { error } = await supabase.from("tenants").update(payload as any).eq("id", tenant.id);
     setSaving(false);
     if (error) return toast.error(error.message);
+    notifyAddressChange(tenant.id);
     qc.invalidateQueries({ queryKey: ["my-tenants"] });
     qc.invalidateQueries({ queryKey: ["partner-group"] });
     toast.success(t("partnerAddresses.saved", { name: tenant.company_name }));

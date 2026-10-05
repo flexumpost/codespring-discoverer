@@ -17,21 +17,33 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
-  if (token !== SERVICE_ROLE_KEY) return json({ error: "Unauthorized" }, 401);
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+  const caller = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: claims, error: claimsErr } = await caller.auth.getClaims(authHeader.replace("Bearer ", ""));
+  const userId = claims?.claims?.sub as string | undefined;
+  if (claimsErr || !userId) return json({ error: "Unauthorized" }, 401);
 
   let tenantId: string | undefined;
-  let byTenant = true;
   try {
-    const b = await req.json();
-    tenantId = b?.tenant_id;
-    if (b?.by_tenant === false) byTenant = false;
+    tenantId = (await req.json())?.tenant_id;
   } catch { /* ignore */ }
-  if (!tenantId || typeof tenantId !== "string") return json({ error: "tenant_id required" }, 400);
+  if (!tenantId || typeof tenantId !== "string" || !/^[0-9a-f-]{36}$/i.test(tenantId)) {
+    return json({ error: "tenant_id required" }, 400);
+  }
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, SERVICE_ROLE_KEY);
+  const { data: roleRow } = await admin.from("user_roles").select("role").eq("user_id", userId).eq("role", "operator").maybeSingle();
+  const isOperator = !!roleRow;
+  const byTenant = !isOperator;
   const { data: t } = await admin.from("tenants").select("*").eq("id", tenantId).maybeSingle();
   if (!t) return json({ error: "Not found" }, 404);
+  if (!isOperator && t.user_id !== userId) {
+    const { data: link } = await admin.from("tenant_users").select("id").eq("tenant_id", tenantId).eq("user_id", userId).maybeSingle();
+    if (!link) return json({ error: "Forbidden" }, 403);
+  }
 
   // 1) Update Zoho CRM account
   let zohoStatus = "ikke opdateret";

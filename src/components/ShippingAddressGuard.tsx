@@ -1,3 +1,4 @@
+import { notifyAddressChange } from "@/lib/notifyAddressChange";
 import { useState, ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -123,6 +124,7 @@ export function ShippingAddressGuard({ children }: Props) {
       if (!verify?.shipping_confirmed) {
         throw new Error(t("shippingGuard.updateNotSaved"));
       }
+      notifyAddressChange(tenant.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });

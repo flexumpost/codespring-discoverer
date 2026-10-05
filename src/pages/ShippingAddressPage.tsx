@@ -1,3 +1,4 @@
+import { notifyAddressChange } from "@/lib/notifyAddressChange";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -87,6 +88,7 @@ const ShippingAddressPage = () => {
         } as any)
         .eq("id", selectedTenant!.id);
       if (error) throw error;
+      notifyAddressChange(selectedTenant!.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
