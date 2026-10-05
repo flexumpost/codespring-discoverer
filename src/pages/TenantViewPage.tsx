@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Eye, LayoutDashboard, Building2, Zap, Info } from "lucide-react";
 import TenantDashboard from "./TenantDashboard";
 import { AddressCard } from "./PartnerAddressesPage";
-import { PartnerGroupAddresses } from "@/components/PartnerGroupAddresses";
+import { PartnerGroupAddresses, PartnerGroupAutomation } from "@/components/PartnerGroupAddresses";
 import { AutomationCard } from "@/components/AutomationCard";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { TenantContactPersons } from "@/components/TenantContactPersons";
@@ -71,6 +71,9 @@ const TenantViewPage = () => {
           </TabsContent>
 
           <TabsContent value="automation">
+            {tenant?.is_partner ? (
+              <PartnerGroupAutomation tenantId={id} ownerId={tenant.user_id ?? null} />
+            ) : (
             <div className="max-w-5xl">
               {tenant && (
                 <AutomationCard
@@ -86,6 +89,7 @@ const TenantViewPage = () => {
                 />
               )}
             </div>
+            )}
           </TabsContent>
 
           <TabsContent value="information">
