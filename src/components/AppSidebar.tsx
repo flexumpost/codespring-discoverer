@@ -1,4 +1,4 @@
-import { Users, Settings, LayoutDashboard, LogOut, MapPin, Package, Zap, Building2 } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,13 +21,11 @@ export function AppSidebar() {
     { title: t("nav.settings"), url: "/settings", icon: Settings },
   ];
 
-  const isPartner = tenants.some((x: any) => x.is_partner);
   const tenantItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
-    { title: t("nav.shippingAddress"), url: "/shipping-address", icon: MapPin },
-    ...(isPartner ? [{ title: t("nav.partnerAddresses"), url: "/partner-addresses", icon: Building2 }] : []),
+    { title: t("nav.partnerAddresses"), url: "/partner-addresses", icon: Building2 },
     { title: t("nav.automation"), url: "/automation", icon: Zap },
-    { title: t("nav.settings"), url: "/settings", icon: Settings },
+    { title: t("nav.information"), url: "/settings", icon: Info },
   ];
 
   const items = role === "operator" ? operatorItems : tenantItems;

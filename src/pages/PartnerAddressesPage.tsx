@@ -89,8 +89,6 @@ export default function PartnerAddressesPage() {
         </div>
         {isLoading ? (
           <Skeleton className="h-40" />
-        ) : !isPartner ? (
-          <p className="text-muted-foreground">{t("partnerAddresses.notAvailable")}</p>
         ) : (
           tenants.map((x: any) => <AddressCard key={x.id} tenant={x} />)
         )}

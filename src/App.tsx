@@ -12,7 +12,6 @@ import BulkUploadPage from "./pages/BulkUploadPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AutomationPage from "./pages/AutomationPage";
-import ShippingAddressPage from "./pages/ShippingAddressPage";
 import PartnerAddressesPage from "./pages/PartnerAddressesPage";
 import TenantsPage from "./pages/TenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
@@ -62,11 +61,7 @@ const AppRoutes = () => (
     />
     <Route
       path="/shipping-address"
-      element={
-        <ProtectedRoute>
-          <ShippingAddressPage />
-        </ProtectedRoute>
-      }
+      element={<Navigate to="/partner-addresses" replace />}
     />
     <Route
       path="/partner-addresses"

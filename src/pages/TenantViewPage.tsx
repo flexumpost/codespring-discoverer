@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Eye, LayoutDashboard, MapPin, Building2, Zap, Settings } from "lucide-react";
+import { ArrowLeft, Eye, LayoutDashboard, Building2, Zap, Info } from "lucide-react";
 import TenantDashboard from "./TenantDashboard";
 import { AddressCard } from "./PartnerAddressesPage";
 import { PartnerGroupAddresses } from "@/components/PartnerGroupAddresses";
 import { AutomationCard } from "@/components/AutomationCard";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
+import { TenantContactPersons } from "@/components/TenantContactPersons";
 
 const TenantViewPage = () => {
   const { t } = useTranslation();
@@ -52,27 +53,22 @@ const TenantViewPage = () => {
         <Tabs defaultValue="dashboard">
           <TabsList className="mb-4 flex-wrap h-auto">
             <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />{t("nav.dashboard")}</TabsTrigger>
-            <TabsTrigger value="address"><MapPin className="mr-2 h-4 w-4" />{t("nav.shippingAddress")}</TabsTrigger>
-            {tenant?.is_partner && (
-              <TabsTrigger value="partner"><Building2 className="mr-2 h-4 w-4" />{t("nav.partnerAddresses")}</TabsTrigger>
-            )}
+            <TabsTrigger value="addresses"><Building2 className="mr-2 h-4 w-4" />{t("nav.partnerAddresses")}</TabsTrigger>
             <TabsTrigger value="automation"><Zap className="mr-2 h-4 w-4" />{t("nav.automation")}</TabsTrigger>
-            <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4" />{t("nav.settings")}</TabsTrigger>
+            <TabsTrigger value="information"><Info className="mr-2 h-4 w-4" />{t("nav.information")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
             <TenantDashboard overrideTenantId={id} />
           </TabsContent>
 
-          <TabsContent value="address">
-            <div className="max-w-xl">{tenant && <AddressCard tenant={tenant} />}</div>
-          </TabsContent>
-
-          {tenant?.is_partner && (
-            <TabsContent value="partner">
+          <TabsContent value="addresses">
+            {tenant?.is_partner ? (
               <PartnerGroupAddresses tenantId={id} ownerId={tenant.user_id ?? null} />
-            </TabsContent>
-          )}
+            ) : (
+              <div className="max-w-xl">{tenant && <AddressCard tenant={tenant} />}</div>
+            )}
+          </TabsContent>
 
           <TabsContent value="automation">
             <div className="max-w-xl">
@@ -86,10 +82,11 @@ const TenantViewPage = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="settings">
+          <TabsContent value="information">
             {tenant && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <Card>
                   <CardHeader><CardTitle className="text-base">{t("settings.company")}</CardTitle></CardHeader>
                   <CardContent className="space-y-3">
                     <div>
@@ -111,9 +108,13 @@ const TenantViewPage = () => {
                       <p className="font-medium">{tenant.contact_email || "—"}</p>
                     </div>
                   </CardContent>
-                </Card>
-                <MailPricingCard tenantTypeName={typeName} tenant={tenant} />
-                <PackagePricingCard tenantTypeName={typeName} tenant={tenant} />
+                  </Card>
+                  <MailPricingCard tenantTypeName={typeName} tenant={tenant} />
+                  <PackagePricingCard tenantTypeName={typeName} tenant={tenant} />
+                </div>
+                <div className="max-w-2xl">
+                  <TenantContactPersons tenantId={id} ownerId={tenant.user_id ?? null} />
+                </div>
               </div>
             )}
           </TabsContent>
