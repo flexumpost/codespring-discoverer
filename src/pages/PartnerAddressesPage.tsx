@@ -25,7 +25,7 @@ const FIELDS = [
 ] as const;
 const REQUIRED = ["shipping_recipient", "shipping_address", "shipping_zip", "shipping_city", "shipping_country"];
 
-function AddressCard({ tenant }: { tenant: any }) {
+export function AddressCard({ tenant }: { tenant: any }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [values, setValues] = useState<Record<string, string>>(
@@ -43,6 +43,7 @@ function AddressCard({ tenant }: { tenant: any }) {
     setSaving(false);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["my-tenants"] });
+    qc.invalidateQueries({ queryKey: ["partner-group"] });
     toast.success(t("partnerAddresses.saved", { name: tenant.company_name }));
   };
 
