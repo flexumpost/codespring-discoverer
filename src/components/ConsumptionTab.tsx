@@ -15,7 +15,7 @@ import {
 import { POSTAGE_PRICES } from "@/lib/porto";
 import { lettersPortoIncluded } from "@/lib/tiers";
 
-const SENT_STATUSES = ["sendt_med_dao", "sendt_med_postnord"];
+const SENT_STATUSES = ["sendt_med_dao", "sendt_med_postnord"] as const;
 
 interface ConsumptionRow {
   tenantId: string;
