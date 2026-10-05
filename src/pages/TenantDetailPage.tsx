@@ -619,7 +619,11 @@ const TenantDetailPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
+          <TabsContent value="contact">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.contactInfo")}</CardTitle>
