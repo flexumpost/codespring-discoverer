@@ -113,7 +113,15 @@ const TenantViewPage = () => {
                   <PackagePricingCard tenantTypeName={typeName} tenant={tenant} />
                 </div>
                 <div className="max-w-2xl">
-                  <TenantContactPersons tenantId={id} ownerId={tenant.user_id ?? null} />
+                  <TenantContactPersons
+                    tenantId={id}
+                    ownerId={tenant.user_id ?? null}
+                    primaryContact={{
+                      firstName: tenant.contact_first_name ?? null,
+                      lastName: tenant.contact_last_name ?? null,
+                      email: tenant.contact_email ?? null,
+                    }}
+                  />
                 </div>
               </div>
             )}

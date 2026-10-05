@@ -10,7 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
-export function TenantContactPersons({ tenantId, ownerId }: { tenantId: string; ownerId: string | null }) {
+type PrimaryContact = {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+};
+
+export function TenantContactPersons({
+  tenantId,
+  ownerId,
+  primaryContact,
+}: {
+  tenantId: string;
+  ownerId: string | null;
+  primaryContact: PrimaryContact;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -90,6 +104,17 @@ export function TenantContactPersons({ tenantId, ownerId }: { tenantId: string; 
         </CardHeader>
         <CardContent className="space-y-3">
           {error && <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>}
+          {ownerId && !recipients.some((recipient) => recipient.user_id === ownerId) && (
+            <div className="flex items-center gap-3 rounded-md border p-3">
+              <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {[primaryContact.firstName, primaryContact.lastName].filter(Boolean).join(" ") || "—"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{primaryContact.email || "—"}</p>
+              </div>
+            </div>
+          )}
           {recipients.map((recipient) => {
             const profile = recipient.profile;
             const isOwner = recipient.user_id === ownerId;
