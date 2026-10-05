@@ -186,16 +186,19 @@ Deno.serve(async (req) => {
 
     // Auto-scheduled pickup (default action = afhentning) → dedicated email
     let pickupLabel = "";
-    if (!effectiveIsNew && !template_slug && stampList.length === 1) {
-      const { data: pItem } = await supabaseAdmin
+    const pickupActions = ["afhentning", "gratis_afhentning", "anden_afhentningsdag", "standard_afhentning"];
+    if (!effectiveIsNew && !template_slug && (stampList.length === 1 || mail_item_id)) {
+      let pItemQuery = supabaseAdmin
         .from("mail_items")
         .select("chosen_action, pickup_date")
-        .eq("tenant_id", tenant_id)
-        .eq("stamp_number", Number(stampList[0]))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (pItem?.pickup_date && (pItem.chosen_action === "afhentning" || pItem.chosen_action === "gratis_afhentning")) {
+        .eq("tenant_id", tenant_id);
+      if (mail_item_id) {
+        pItemQuery = pItemQuery.eq("id", mail_item_id);
+      } else {
+        pItemQuery = pItemQuery.eq("stamp_number", Number(stampList[0])).order("created_at", { ascending: false }).limit(1);
+      }
+      const { data: pItem } = await pItemQuery.maybeSingle();
+      if (pItem?.pickup_date && pickupActions.includes(pItem.chosen_action)) {
         const d = new Date(pItem.pickup_date);
         const fmt = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", weekday: "long", day: "numeric", month: "long" }).format(d);
         const hour = Number(new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", hour: "2-digit", hour12: false }).format(d));
