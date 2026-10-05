@@ -890,6 +890,19 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
         })
         .eq("id", id);
       if (error) throw error;
+
+      // Send confirmation email with day and time of the booked pickup
+      const item = mailItems.find((i: any) => i.id === id);
+      supabase.functions
+        .invoke("send-new-mail-email", {
+          body: {
+            tenant_id: selectedTenantId,
+            mail_type: item?.mail_type ?? "brev",
+            mail_item_id: id,
+            is_new_tenant: false,
+          },
+        })
+        .catch(() => {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-mail"] });

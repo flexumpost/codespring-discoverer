@@ -65,14 +65,36 @@ Deno.serve(async (req) => {
       .eq("role", "operator")
       .maybeSingle();
 
-    if (!roleCheck) {
+    let isOperator = !!roleCheck;
+    if (!isOperator) {
+      // Tenant callers may only trigger notifications for their own tenant
+      const { data: ownedTenant } = await supabaseAdmin
+        .from("tenants")
+        .select("id")
+        .eq("id", tenant_id)
+        .eq("user_id", callerId)
+        .maybeSingle();
+      if (ownedTenant) {
+        isOperator = true;
+      } else {
+        const { data: linkedTenant } = await supabaseAdmin
+          .from("tenant_users")
+          .select("id")
+          .eq("tenant_id", tenant_id)
+          .eq("user_id", callerId)
+          .maybeSingle();
+        if (linkedTenant) isOperator = true;
+      }
+    }
+
+    if (!isOperator) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: corsHeaders,
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers } = await req.json();
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers, mail_item_id } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),
@@ -164,16 +186,19 @@ Deno.serve(async (req) => {
 
     // Auto-scheduled pickup (default action = afhentning) → dedicated email
     let pickupLabel = "";
-    if (!effectiveIsNew && !template_slug && stampList.length === 1) {
-      const { data: pItem } = await supabaseAdmin
+    const pickupActions = ["afhentning", "gratis_afhentning", "anden_afhentningsdag", "standard_afhentning"];
+    if (!effectiveIsNew && !template_slug && (stampList.length === 1 || mail_item_id)) {
+      let pItemQuery = supabaseAdmin
         .from("mail_items")
         .select("chosen_action, pickup_date")
-        .eq("tenant_id", tenant_id)
-        .eq("stamp_number", Number(stampList[0]))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (pItem?.pickup_date && (pItem.chosen_action === "afhentning" || pItem.chosen_action === "gratis_afhentning")) {
+        .eq("tenant_id", tenant_id);
+      if (mail_item_id) {
+        pItemQuery = pItemQuery.eq("id", mail_item_id);
+      } else {
+        pItemQuery = pItemQuery.eq("stamp_number", Number(stampList[0])).order("created_at", { ascending: false }).limit(1);
+      }
+      const { data: pItem } = await pItemQuery.maybeSingle();
+      if (pItem?.pickup_date && pickupActions.includes(pItem.chosen_action)) {
         const d = new Date(pItem.pickup_date);
         const fmt = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", weekday: "long", day: "numeric", month: "long" }).format(d);
         const hour = Number(new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", hour: "2-digit", hour12: false }).format(d));
@@ -210,14 +235,16 @@ Deno.serve(async (req) => {
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
-      .replace(/\{\{tracking_number\}\}/g, trackingLabel);
+      .replace(/\{\{tracking_number\}\}/g, trackingLabel)
+      .replace(/\{\{pickup_date\}\}/g, pickupLabel);
 
     const bodyRaw = template.body
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
-      .replace(/\{\{tracking_number\}\}/g, trackingLabel);
+      .replace(/\{\{tracking_number\}\}/g, trackingLabel)
+      .replace(/\{\{pickup_date\}\}/g, pickupLabel);
 
     const slug_is_list_eligible = slug === "new_shipment" || slug === "welcome_shipment";
 
