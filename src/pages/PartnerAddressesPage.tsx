@@ -78,8 +78,6 @@ export function AddressCard({ tenant }: { tenant: any }) {
 export default function PartnerAddressesPage() {
   const { t } = useTranslation();
   const { tenants, isLoading } = useTenants();
-  const isPartner = tenants.some((x: any) => x.is_partner);
-
   return (
     <AppLayout>
       <div className="space-y-6 max-w-4xl">
@@ -89,8 +87,6 @@ export default function PartnerAddressesPage() {
         </div>
         {isLoading ? (
           <Skeleton className="h-40" />
-        ) : !isPartner ? (
-          <p className="text-muted-foreground">{t("partnerAddresses.notAvailable")}</p>
         ) : (
           tenants.map((x: any) => <AddressCard key={x.id} tenant={x} />)
         )}
