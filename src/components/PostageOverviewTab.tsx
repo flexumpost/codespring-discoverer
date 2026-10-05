@@ -16,6 +16,10 @@ import {
 const POSTAGE_PRICES: Record<string, number> = {
   dk_0_100: 18.4,
   dk_100_250: 36.8,
+  dk_250_500: 54.0,
+  dk_500_1500: 72.0,
+  plus_0_100: 28.0,
+  plus_100_250: 46.0,
   udland_0_100: 46.0,
   udland_100_250: 92.0,
   dk_pakke_0_1: 48.0,
@@ -36,12 +40,16 @@ const POSTAGE_PRICES: Record<string, number> = {
   pl_pakke_5_10: 503.0,
 };
 
-const LETTER_OPTIONS = ["dk_0_100", "dk_100_250", "udland_0_100", "udland_100_250"];
+const LETTER_OPTIONS = ["dk_0_100", "dk_100_250", "dk_250_500", "dk_500_1500", "plus_0_100", "plus_100_250", "udland_0_100", "udland_100_250"];
 const PACKAGE_OPTIONS = ["dk_pakke_0_1", "dk_pakke_1_2", "dk_pakke_2_5", "dk_pakke_5_10", "dk_pakke_10_15", "dk_pakke_15_20", "se_pakke_0_1", "se_pakke_1_2", "se_pakke_2_5", "se_pakke_5_10", "se_pakke_10_15", "se_pakke_15_20", "pl_pakke_0_1", "pl_pakke_1_2", "pl_pakke_2_5", "pl_pakke_5_10"];
 
 const LABEL_MAP: Record<string, string> = {
   dk_0_100: "Danmark 0-100g",
   dk_100_250: "Danmark 100-250g",
+  dk_250_500: "Danmark 250-500g",
+  dk_500_1500: "Danmark 500-1500g",
+  plus_0_100: "PLUS-brev 0-100g",
+  plus_100_250: "PLUS-brev 100-250g",
   udland_0_100: "Udland 0-100g",
   udland_100_250: "Udland 100-250g",
   dk_pakke_0_1: "Danmark 0-1 kg",
