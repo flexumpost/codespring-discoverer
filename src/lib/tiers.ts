@@ -72,3 +72,11 @@ export function isFreeWeekday(name: string | undefined | null, date: Date): bool
   if (hasMondayAndThursday(name)) return dow === 1 || dow === 4;
   return dow === 4;
 }
+
+/** True if an extra letter scan done on `date` is free for this (raw) tier. */
+export function isFreeScanDay(name: string | undefined | null, date: Date = new Date()): boolean {
+  const base = baseTier(name);
+  if (base === "Plus") return true;
+  if (base === "Lite") return date.getDay() === 4 && date.getDate() <= 7;
+  return isFreeWeekday(name, date);
+}

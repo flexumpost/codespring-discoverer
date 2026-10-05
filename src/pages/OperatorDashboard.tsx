@@ -18,7 +18,7 @@ import { MailItemLogSheet } from "@/components/MailItemLogSheet";
 import { OperatorMailItemDialog } from "@/components/OperatorMailItemDialog";
 import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
-import { baseTier, hasMondayAndThursday, getNextMondayOrThursday, lettersPortoIncluded } from "@/lib/tiers";
+import { baseTier, hasMondayAndThursday, getNextMondayOrThursday, lettersPortoIncluded, isFreeScanDay } from "@/lib/tiers";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -356,7 +356,7 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
       return "0 kr.";
     }
     if (item.chosen_action === "scan") {
-      if (tier === "Plus") return "0 kr.";
+      if (tier === "Plus" || isFreeScanDay(item.tenants?.tenant_types?.name)) return "0 kr.";
       if (tier === "Standard") return "30 kr.";
       return "50 kr.";
     }
@@ -383,6 +383,8 @@ function getItemFee(item: MailItem, pricing: Record<string, Record<string, Recor
     if (tier === "Standard") return "0 kr. + porto";
     return "0 kr.";
   }
+
+  if (item.chosen_action === "scan" && isFreeScanDay(item.tenants?.tenant_types?.name)) return "0 kr.";
 
   const feeKey = ACTION_TO_FEE_KEY[item.chosen_action];
   if (!feeKey) return "—";

@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 import { ScanLine, Send, Hand, Trash2, Archive, Undo2, Zap, Calendar as CalendarIcon } from "lucide-react";
 import type { ActionCard } from "@/components/ChooseActionDialog";
-import { getNextFreeDay, lettersPortoIncluded } from "@/lib/tiers";
+import { getNextFreeDay, lettersPortoIncluded, isFreeScanDay } from "@/lib/tiers";
 
 /* ── Date helpers (kept here so both TenantDashboard and the action dialog use the same source) ── */
 
@@ -98,7 +98,8 @@ function actionValue(kind: string, tier: Tier, mailType: string): string | null 
   return null;
 }
 
-function priceFor(kind: string, tier: Tier, mailType: string, t: TFunction): string {
+function priceFor(kind: string, tier: Tier, mailType: string, t: TFunction, rawTier?: string | null): string {
+  if (kind === "scan_now" && mailType !== "pakke" && isFreeScanDay(rawTier ?? tier)) return "0 kr.";
   if (kind === "destroy") return "0 kr.";
   if (mailType === "pakke") {
     const prices: Record<string, { fee: string; feePorto: string }> = {
@@ -146,7 +147,7 @@ function makeCard(
 ): ActionCard | null {
   const action = actionValue(kind, tier, mailType);
   if (!action) return null;
-  const price = priceFor(kind, tier, mailType, t);
+  const price = priceFor(kind, tier, mailType, t, (arguments as any)[4]);
   const isPackage = mailType === "pakke";
   /** Package-specific copy with fallback to the generic (letter) text. */
   const tk = (path: string): string =>

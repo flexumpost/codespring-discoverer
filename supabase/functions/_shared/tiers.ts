@@ -18,3 +18,15 @@ export function hasMondayAndThursday(name: string | null | undefined): boolean {
 export function lettersPortoIncluded(name: string | null | undefined): boolean {
   return name === "Plus" || name === "Standard" || name === "Professional" || name === "Executive";
 }
+
+/** True if a letter scan performed at `when` (Europe/Copenhagen) is free for this (raw) tier. */
+export function isFreeScanDay(name: string | null | undefined, when: Date = new Date()): boolean {
+  const base = baseTier(name);
+  if (base === "Plus") return true;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Copenhagen", day: "2-digit", weekday: "short" }).formatToParts(when);
+  const day = Number(parts.find(p => p.type === "day")!.value);
+  const wd = parts.find(p => p.type === "weekday")!.value;
+  if (base === "Lite") return wd === "Thu" && day <= 7;
+  if (wd === "Thu") return true;
+  return wd === "Mon" && hasMondayAndThursday(name);
+}
