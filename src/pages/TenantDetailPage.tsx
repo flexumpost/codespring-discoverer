@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { AutomationCard } from "@/components/AutomationCard";
+import { PartnerToggleCard } from "@/components/PartnerToggleCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -799,6 +800,11 @@ const TenantDetailPage = () => {
               currentMailAction={(tenant as any).default_mail_action ?? null}
               showPackages={false}
               invalidateKeys={[["tenant-detail", id]]}
+            />
+            <PartnerToggleCard
+              tenantId={(tenant as any).id}
+              isPartner={!!(tenant as any).is_partner}
+              invalidateKey={["tenant-detail", id]}
             />
           </div>
 

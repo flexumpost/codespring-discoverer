@@ -13,6 +13,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AutomationPage from "./pages/AutomationPage";
 import ShippingAddressPage from "./pages/ShippingAddressPage";
+import PartnerAddressesPage from "./pages/PartnerAddressesPage";
 import TenantsPage from "./pages/TenantsPage";
 import TenantDetailPage from "./pages/TenantDetailPage";
 import ShippingPrepPage from "./pages/ShippingPrepPage";
@@ -64,6 +65,14 @@ const AppRoutes = () => (
       element={
         <ProtectedRoute>
           <ShippingAddressPage />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/partner-addresses"
+      element={
+        <ProtectedRoute requiredRole="tenant">
+          <PartnerAddressesPage />
         </ProtectedRoute>
       }
     />
