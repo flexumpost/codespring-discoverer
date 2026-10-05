@@ -280,7 +280,8 @@
     "missingData": "Mangler data"
   },
   "tenantView": {
-    "tenantView": "Lejervisning"
+    "tenantView": "Lejervisning",
+    "viewingAs": "Du ser siden som {{name}}"
   },
   "settings": {
     "title": "Indstillinger",
@@ -887,7 +888,8 @@
     "scanning": "Scanning",
     "scanningHelp": "Nye breve sættes til scanning på din standard scanningsdag — gratis.",
     "pickup": "Afhentning",
-    "pickupHelp": "Nye breve sættes til afhentning på din standard afhentningsdag — gratis."
+    "pickupHelp": "Nye breve sættes til afhentning på din standard afhentningsdag — gratis.",
+    "pickupNote": "Afhentning kan altid bookes på det enkelte brev eller den enkelte pakke på forsiden, hvor du selv vælger tidspunkt."
   },
   "languageToggle": {
     "da": "DA",

@@ -1,26 +1,124 @@
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Eye, LayoutDashboard, MapPin, Building2, Zap, Settings } from "lucide-react";
 import TenantDashboard from "./TenantDashboard";
+import { AddressCard } from "./PartnerAddressesPage";
+import { PartnerGroupAddresses } from "@/components/PartnerGroupAddresses";
+import { AutomationCard } from "@/components/AutomationCard";
+import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 
 const TenantViewPage = () => {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { data: tenant } = useQuery({
+    queryKey: ["tenant-view", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("*, tenant_types(name)")
+        .eq("id", id!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const typeName = tenant?.tenant_types?.name as string | undefined;
+  const invalidate = [["tenant-view", id], ["tenant", id]];
+
   return (
     <AppLayout>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
         <Button variant="ghost" size="icon" onClick={() => navigate(`/tenants/${id}`)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h2 className="text-lg font-semibold text-muted-foreground">
-          {t("tenantView.tenantView")}
-        </h2>
+        <Eye className="h-4 w-4 text-primary" />
+        <p className="text-sm font-medium">
+          {t("tenantView.viewingAs", { name: tenant?.company_name ?? "…" })}
+        </p>
       </div>
-      {id && <TenantDashboard overrideTenantId={id} />}
+
+      {id && (
+        <Tabs defaultValue="dashboard">
+          <TabsList className="mb-4 flex-wrap h-auto">
+            <TabsTrigger value="dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />{t("nav.dashboard")}</TabsTrigger>
+            <TabsTrigger value="address"><MapPin className="mr-2 h-4 w-4" />{t("nav.shippingAddress")}</TabsTrigger>
+            {tenant?.is_partner && (
+              <TabsTrigger value="partner"><Building2 className="mr-2 h-4 w-4" />{t("nav.partnerAddresses")}</TabsTrigger>
+            )}
+            <TabsTrigger value="automation"><Zap className="mr-2 h-4 w-4" />{t("nav.automation")}</TabsTrigger>
+            <TabsTrigger value="settings"><Settings className="mr-2 h-4 w-4" />{t("nav.settings")}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dashboard">
+            <TenantDashboard overrideTenantId={id} />
+          </TabsContent>
+
+          <TabsContent value="address">
+            <div className="max-w-xl">{tenant && <AddressCard tenant={tenant} />}</div>
+          </TabsContent>
+
+          {tenant?.is_partner && (
+            <TabsContent value="partner">
+              <PartnerGroupAddresses tenantId={id} ownerId={tenant.user_id ?? null} />
+            </TabsContent>
+          )}
+
+          <TabsContent value="automation">
+            <div className="max-w-xl">
+              {tenant && (
+                <AutomationCard
+                  tenantId={id}
+                  currentMailAction={tenant.default_mail_action ?? null}
+                  invalidateKeys={invalidate}
+                />
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            {tenant && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader><CardTitle className="text-base">{t("settings.company")}</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">{t("settings.companyName")}</Label>
+                      <p className="font-medium">{tenant.company_name}</p>
+                    </div>
+                    {typeName && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">{t("settings.tenantType")}</Label>
+                        <p className="font-medium">{typeName}</p>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-muted-foreground text-xs">{t("settings.contactPerson")}</Label>
+                      <p className="font-medium">{[tenant.contact_first_name, tenant.contact_last_name].filter(Boolean).join(" ") || "—"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">{t("settings.contactEmail")}</Label>
+                      <p className="font-medium">{tenant.contact_email || "—"}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <MailPricingCard tenantTypeName={typeName} tenant={tenant} />
+                <PackagePricingCard tenantTypeName={typeName} tenant={tenant} />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </AppLayout>
   );
 };
