@@ -98,8 +98,7 @@ function actionValue(kind: string, tier: Tier, mailType: string): string | null 
   return null;
 }
 
-function priceFor(kind: string, tier: Tier, mailType: string, t: TFunction, rawTier?: string | null): string {
-  if (kind === "scan_now" && mailType !== "pakke" && isFreeScanDay(rawTier ?? tier)) return "0 kr.";
+function priceFor(kind: string, tier: Tier, mailType: string, t: TFunction): string {
   if (kind === "destroy") return "0 kr.";
   if (mailType === "pakke") {
     const prices: Record<string, { fee: string; feePorto: string }> = {
@@ -353,6 +352,9 @@ export function buildActionCards({ item, tier, rawTier, t }: BuildCardsInput): A
     makeCard("destroy", tier, "brev", t),
   );
 
+  if (item.mail_type !== "pakke" && isFreeScanDay(rawTier ?? tier)) {
+    cards.forEach((c) => { if (c && c.action === "scan") c.price = "0 kr."; });
+  }
   if (hasPendingChoice) {
     const filtered = cards.filter((c) => c.action !== item.chosen_action);
     return [...filtered, specialCancel(t)];
