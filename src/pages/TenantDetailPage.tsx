@@ -658,7 +658,11 @@ const TenantDetailPage = () => {
                 )}
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
+          <TabsContent value="billing">
+          <div className="space-y-6 max-w-2xl">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Betales af</CardTitle>
