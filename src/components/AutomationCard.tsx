@@ -13,6 +13,10 @@ import { toast } from "sonner";
 
 interface AutomationCardProps {
   tenantId: string;
+  /** Apply the same settings to all these tenants (defaults to [tenantId]) */
+  applyToTenantIds?: string[];
+  /** Optional heading (e.g. company name) shown above the boxes */
+  title?: string;
   currentMailAction: string | null;
   currentPackageAction?: string | null;
   currentMailPickupHour?: number | null;
@@ -89,7 +93,7 @@ function ActionGroup({
 export function AutomationCard({
   tenantId, currentMailAction, currentPackageAction, currentMailPickupHour, currentPackagePickupHour,
   currentMailPickupWeekday, currentPackagePickupWeekday, tenantTypeName,
-  showPackages = true, invalidateKeys,
+  showPackages = true, invalidateKeys, applyToTenantIds, title,
 }: AutomationCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -128,7 +132,7 @@ export function AutomationCard({
           default_mail_pickup_weekday: mail === "afhentning" ? mailWeekday : 4,
           default_package_pickup_weekday: pkg === "afhentning" ? pkgWeekday : 4,
         } as any)
-        .eq("id", tenantId);
+        .in("id", applyToTenantIds?.length ? applyToTenantIds : [tenantId]);
       if (error) throw error;
     },
     onSuccess: () => {
