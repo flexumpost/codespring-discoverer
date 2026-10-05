@@ -879,7 +879,7 @@
   },
   "automation": {
     "title": "Automation",
-    "description": "Choose what happens by default with new letters. You can always choose a different action for each individual letter.",
+    "description": "Choose what happens by default with new letters and packages. You can always choose a different action for each item.",
     "mailLabel": "Default action for letters",
     "packageLabel": "Default action for packages",
     "packageLocked": "Shipment (cannot be changed for packages)",
@@ -887,12 +887,17 @@
     "couldNotSave": "Could not save automation",
     "save": "Save",
     "shipment": "Shipment",
-    "shipmentHelp": "New letters are set to shipment on your standard shipping day — free.",
+    "shipmentHelp": "New letters are set to shipment on the next free shipping day.",
     "scanning": "Scanning",
-    "scanningHelp": "New letters are set to scanning on your standard scanning day — free.",
+    "scanningHelp": "New letters are scanned on the next free scanning day.",
     "pickup": "Pickup",
-    "pickupHelp": "New letters are set to pickup on your standard pickup day — free.",
-    "pickupNote": "Pickup can always be booked on the individual letter or package on the dashboard, where you choose a time."
+    "pickupHelp": "New letters are set to pickup on the next free pickup day in your fixed time slot. You'll get an email with the day and time.",
+    "pickupNote": "Pickup can always be booked on the individual letter or package on the dashboard, where you choose a time.",
+    "packageShipmentHelp": "New packages are set to shipment on the next shipping day.",
+    "packagePickupHelp": "New packages are set to pickup on the next weekday in your fixed time slot. You'll get an email with the day and time.",
+    "pickupTimeLabel": "Fixed pickup time slot",
+    "pickupTimePlaceholder": "Choose time slot",
+    "pickupTimeNote": "The time can always be changed on the individual item in your dashboard."
   },
   "languageToggle": {
     "da": "DA",

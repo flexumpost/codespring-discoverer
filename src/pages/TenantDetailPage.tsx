@@ -831,8 +831,10 @@ const TenantDetailPage = () => {
               <AutomationCard
                 tenantId={(tenant as any).id}
                 currentMailAction={(tenant as any).default_mail_action ?? null}
-                showPackages={false}
-                invalidateKeys={[["tenant-detail", id]]}
+ currentPackageAction={(tenant as any).default_package_action ?? null}
+ currentMailPickupHour={(tenant as any).default_mail_pickup_hour ?? null}
+ currentPackagePickupHour={(tenant as any).default_package_pickup_hour ?? null}
+                                invalidateKeys={[["tenant-detail", id]]}
               />
             </div>
             <PackagePricingCard tenantTypeName={typeName} tenant={tenant as any} />
