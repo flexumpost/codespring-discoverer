@@ -699,8 +699,19 @@ const TenantDetailPage = () => {
                 </Button>
               </CardContent>
             </Card>
+          </div>
+          </TabsContent>
 
-
+          <TabsContent value="addresses">
+          <div className="space-y-6 max-w-2xl">
+            <PartnerToggleCard
+              tenantId={(tenant as any).id}
+              isPartner={!!(tenant as any).is_partner}
+              invalidateKey={["tenant-detail", id]}
+            />
+            {(tenant as any).is_partner && (
+              <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
+            )}
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">{t("tenantDetail.shippingAddress")}</CardTitle>
