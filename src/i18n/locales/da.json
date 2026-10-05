@@ -878,6 +878,7 @@
     }
   },
   "automation": {
+    "sharedNote": "Indstillingerne gælder for alle dine virksomheder.",
     "title": "Automatisering",
     "description": "Vælg hvad der som standard skal ske med nye breve og pakker. Du kan altid vælge en anden handling på den enkelte forsendelse.",
     "mailLabel": "Standard handling for breve",

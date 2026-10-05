@@ -13,6 +13,10 @@ import { toast } from "sonner";
 
 interface AutomationCardProps {
   tenantId: string;
+  /** Apply the same settings to all these tenants (defaults to [tenantId]) */
+  applyToTenantIds?: string[];
+  /** Optional heading (e.g. company name) shown above the boxes */
+  title?: string;
   currentMailAction: string | null;
   currentPackageAction?: string | null;
   currentMailPickupHour?: number | null;
@@ -89,7 +93,7 @@ function ActionGroup({
 export function AutomationCard({
   tenantId, currentMailAction, currentPackageAction, currentMailPickupHour, currentPackagePickupHour,
   currentMailPickupWeekday, currentPackagePickupWeekday, tenantTypeName,
-  showPackages = true, invalidateKeys,
+  showPackages = true, invalidateKeys, applyToTenantIds, title,
 }: AutomationCardProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -128,7 +132,7 @@ export function AutomationCard({
           default_mail_pickup_weekday: mail === "afhentning" ? mailWeekday : 4,
           default_package_pickup_weekday: pkg === "afhentning" ? pkgWeekday : 4,
         } as any)
-        .eq("id", tenantId);
+        .in("id", applyToTenantIds?.length ? applyToTenantIds : [tenantId]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -152,8 +156,8 @@ export function AutomationCard({
   return (
     <div className="space-y-5">
       <div>
-        <h3 className="text-base font-semibold">{t("automation.title")}</h3>
-        <p className="mt-1 text-sm text-muted-foreground">{t("automation.description")}</p>
+        <h3 className="text-base font-semibold">{title ?? t("automation.title")}</h3>
+        {!title && <p className="mt-1 text-sm text-muted-foreground">{t("automation.description")}</p>}
       </div>
       <div className={`grid gap-5 ${showPackages ? "lg:grid-cols-2" : "grid-cols-1"}`}>
         <Card>
@@ -162,7 +166,7 @@ export function AutomationCard({
           </CardHeader>
           <CardContent>
           <ActionGroup
-            prefix="auto-mail" value={mail} onChange={setMail} hour={mailHour} onHour={setMailHour}
+            prefix={`auto-mail-${tenantId}`} value={mail} onChange={setMail} hour={mailHour} onHour={setMailHour}
             weekday={mailWeekday} onWeekday={setMailWeekday} allowMonday={allowMonday} t={t}
             options={[
               { value: "send", labelKey: "automation.shipment", helpKey: "automation.shipmentHelp" },
@@ -179,7 +183,7 @@ export function AutomationCard({
             </CardHeader>
             <CardContent>
             <ActionGroup
-              prefix="auto-pkg" value={pkg} onChange={setPkg} hour={pkgHour} onHour={setPkgHour}
+              prefix={`auto-pkg-${tenantId}`} value={pkg} onChange={setPkg} hour={pkgHour} onHour={setPkgHour}
               weekday={pkgWeekday} onWeekday={setPkgWeekday} allowMonday={allowMonday} t={t}
               options={[
                 { value: "send", labelKey: "automation.shipment", helpKey: "automation.packageShipmentHelp" },
