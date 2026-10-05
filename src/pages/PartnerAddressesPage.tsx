@@ -80,7 +80,7 @@ export default function PartnerAddressesPage() {
   const { tenants, isLoading } = useTenants();
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">{t("partnerAddresses.title")}</h1>
           <p className="text-muted-foreground">{t("partnerAddresses.description")}</p>
@@ -88,7 +88,9 @@ export default function PartnerAddressesPage() {
         {isLoading ? (
           <Skeleton className="h-40" />
         ) : (
-          tenants.map((x: any) => <AddressCard key={x.id} tenant={x} />)
+          <div className="grid gap-4 xl:grid-cols-2">
+            {tenants.map((x: any) => <AddressCard key={x.id} tenant={x} />)}
+          </div>
         )}
       </div>
     </AppLayout>

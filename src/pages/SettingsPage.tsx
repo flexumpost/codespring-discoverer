@@ -44,7 +44,7 @@ const SettingsPage = () => {
   const { tenants, selectedTenant, selectedTenantId, setSelectedTenantId, isLoading } = useTenants();
   const queryClient = useQueryClient();
 
-  // Dialog state for "Opret ny postmodtager"
+  // Dialog state for "Opret ny notifikationsmodtager"
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -155,7 +155,7 @@ const SettingsPage = () => {
     newEmail.trim().length > 0 &&
     selectedTenantIds.length > 0;
 
-  // Fetch linked tenant users (postmodtagere) — two-step to avoid PGRST200
+  // Fetch linked tenant users (notifikationsmodtagere) — two-step to avoid PGRST200
   const { data: tenantUsers, error: tuError } = useQuery({
     queryKey: ["tenant-users", selectedTenantId],
     enabled: !!selectedTenantId && role !== "operator",
@@ -282,7 +282,7 @@ const SettingsPage = () => {
               </CardContent>
             </Card>
 
-            {/* Postmodtagere */}
+            {/* Notifikationsmodtagere */}
             {tuError && (
               <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}
@@ -351,7 +351,7 @@ const SettingsPage = () => {
         </div>
       )}
 
-      {/* Dialog: Opret ny postmodtager */}
+      {/* Dialog: Opret ny notifikationsmodtager */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
