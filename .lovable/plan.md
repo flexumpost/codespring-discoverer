@@ -1,27 +1,31 @@
-# Automatisering for lejere — ret det valg der fejler
+# Fuld lejervisning for operatøren ("Vis som lejer")
 
-## Findings (verificeret i koden)
+## Hvad er problemet
 
-Lejere kan allerede vælge automatisering: menuen "Automatisering" (`/automation`) åbner `AutomationPage` med `AutomationCard`, hvor standardhandlingen for breve vælges (Forsendelse / Scanning / Afhentning). Databasen tillader opdateringen (RLS: "Tenants update own tenant"), og pakker er låst til Forsendelse.
+- Lejeren har menuen: Oversigt, Forsendelsesadresse, Forsendelsesadresser (kun samarbejdspartnere), Automatisering og Indstillinger.
+- "Vis som lejer" viser i dag kun lejerens forside (Oversigt) inde i operatørens egen menu. Du kan derfor ikke se Automatisering eller de andre lejersider og kan ikke vejlede lejeren.
+- Automatiseringen viser også "Afhentning" som valg, men systemet afviser det, når lejeren trykker Gem. Lejeren får så en fejl.
 
-**Men der er en fejl:** kortet viser "Afhentning" som mulighed, men en databasetrigger (`validate_tenant_default_actions`) afviser 'afhentning' som standardhandling — lejeren får derfor en rå fejl ("Afhentning kan ikke vælges som standardhandling...") når vedkommende trykker Gem. Samme kort bruges i operatørens lejer-side under fanen "Priser & handling", så fejlen findes begge steder.
+## Hvad der bygges
 
-## Ændringer
+1. **Lejerens menu i "Vis som lejer"**
+   - Øverst i lejervisningen kommer en menulinje, der svarer til lejerens egen menu: Oversigt, Forsendelsesadresse, Forsendelsesadresser (kun hvis lejeren er samarbejdspartner), Automatisering og Indstillinger. Navne og rækkefølge er de samme som hos lejeren.
+   - Hvert punkt viser den side, lejeren ser, med lejerens egne data.
+   - Et tydeligt bånd viser "Du ser siden som [firmanavn]", og der er en knap tilbage til lejerens side.
+   - Du kan rette ting her, fx standardhandlingen. Det svarer til at rette det på lejerens side under Lejere.
 
-1. **`src/components/AutomationCard.tsx`**
-   - Fjern "Afhentning" fra `OPTIONS` (den må ikke være standardhandling pr. jeres regel).
-   - Tilføj en kort hjælpetekst under valgene: "Afhentning kan altid vælges pr. enkelt brev/pakke i dashboardet, hvor du selv booker tidspunkt."
-   - Gem-knappen og øvrige logik uændret.
+2. **Automatisering rettes**
+   - "Afhentning" fjernes som standardvalg for breve. Kun Forsendelse og Scanning kan vælges.
+   - En kort tekst forklarer, at afhentning altid kan bookes på det enkelte brev eller den enkelte pakke.
 
-2. **i18n (`src/i18n/locales/da.json` + `en.json`)**
-   - Ny nøgle `automation.pickupNote` med teksten ovenfor (dansk + engelsk).
+## Tekniske detaljer
 
-## Ikke berørt
-
-- Lejerens menu, `/automation`-ruten, OperatorDashboard og gebyrlogik — ingen ændringer.
-- Pakkers låste standardhandling (Forsendelse) forbliver som tekst i kortet.
+- `TenantViewPage.tsx`: tilføj faner/undermenu og under-ruter `/tenants/:id/dashboard`, `/tenants/:id/view/shipping-address`, `/view/partner-addresses`, `/view/automation` og `/view/settings`, eller fane-state i siden. Hver fane får `overrideTenantId={id}`.
+- Lejersiderne (`ShippingAddressPage`, `PartnerAddressesPage`, `AutomationPage` og lejerdelen af `SettingsPage`) får en valgfri `overrideTenantId`-prop. Med den skjules `TenantSelector`/`AppLayout`, og data hentes for den angivne lejer. Operatøren har allerede læse- og skriveadgang via RLS.
+- Partnerfanen vises kun, når `tenant.is_partner` er sat. Den grupperer firmaer via ejerens bruger, ligesom i `PartnerGroupAddresses`.
+- `AutomationCard.tsx`: fjern `afhentning` fra `OPTIONS` og tilføj ny i18n-nøgle `automation.pickupNote` (da/en). Nye nøgler til båndet, `tenantView.viewingAs`.
 
 ## Verifikation
 
-- Byg fejlfri.
-- Playwright som lejer (mintet session): åbn `/automation`, bekræft kun Forsendelse og Scanning kan vælges, gem virker, og hjælpeteksten vises.
+- Playwright som operatør: åbn Radner → "Vis som lejer" og klik alle menupunkter igennem, inkl. Automatisering og Forsendelsesadresser. Tag skærmbilleder.
+- Gem en standardhandling uden fejl.
