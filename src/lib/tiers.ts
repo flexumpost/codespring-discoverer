@@ -5,6 +5,7 @@
  * existing base tier and add a few differences:
  *  - Essential    → Standard rules (free every Thursday, 30 kr. extras, porto added)
  *  - Professional → Standard rules + free Monday AND Thursday, porto included on letters
+ *  - Plus letters are shipped Monday + Thursday.
  *  - Executive    → Plus rules (everything free all weekdays, 10 kr. packages),
  *                   letters shipped Monday + Thursday, porto included
  */
@@ -24,7 +25,7 @@ export function baseTier<T extends string | undefined | null>(name: T): T {
 }
 
 /** Tiers whose free letter handling days are Monday + Thursday. */
-const MON_THU_TIERS = new Set(["Standard", "Professional", "Executive"]);
+const MON_THU_TIERS = new Set(["Plus", "Standard", "Professional", "Executive"]);
 
 export function hasMondayAndThursday(name: string | undefined | null): boolean {
   return !!name && MON_THU_TIERS.has(name);

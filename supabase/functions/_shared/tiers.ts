@@ -11,7 +11,7 @@ export function baseTier(name: string | null | undefined): string | null {
 }
 
 export function hasMondayAndThursday(name: string | null | undefined): boolean {
-  return name === "Standard" || name === "Professional" || name === "Executive";
+  return name === "Plus" || name === "Standard" || name === "Professional" || name === "Executive";
 }
 
 /** Letters shipped with porto included — no porto charged. */
