@@ -21,8 +21,11 @@ Deno.serve(async (req) => {
   if (token !== SERVICE_ROLE_KEY) return json({ error: "Unauthorized" }, 401);
 
   let tenantId: string | undefined;
+  let byTenant = true;
   try {
-    tenantId = (await req.json())?.tenant_id;
+    const b = await req.json();
+    tenantId = b?.tenant_id;
+    if (b?.by_tenant === false) byTenant = false;
   } catch { /* ignore */ }
   if (!tenantId || typeof tenantId !== "string") return json({ error: "tenant_id required" }, 400);
 
@@ -33,7 +36,7 @@ Deno.serve(async (req) => {
   // 1) Update Zoho CRM account
   let zohoStatus = "ikke opdateret";
   let zohoError: string | null = null;
-  try {
+  if (byTenant) try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const ZOHO = Deno.env.get("ZOHO_CRM_API_KEY");
     if (!LOVABLE_API_KEY || !ZOHO) throw new Error("Zoho CRM er ikke forbundet");
@@ -79,16 +82,58 @@ Deno.serve(async (req) => {
     console.error("Zoho address sync failed:", zohoError);
   }
 
-  // 2) Email operator
+  const lines = [
+    t.shipping_recipient, t.shipping_co ? `c/o ${t.shipping_co}` : null, t.shipping_address,
+    t.shipping_address_2, [t.shipping_zip, t.shipping_city].filter(Boolean).join(" "),
+    t.shipping_state, t.shipping_country,
+  ].filter((l) => l && String(l).trim()).map((l) => esc(String(l)));
+  const company = esc(t.company_name ?? "Ukendt lejer");
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+  async function send(to: string, subject: string, html: string, template: string) {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "Flexum Coworking <kontakt@flexum.dk>", to: [to], subject, html }),
+    });
+    const rb = await r.json().catch(() => ({}));
+    await admin.from("email_send_log").insert({
+      message_id: rb.id || crypto.randomUUID(),
+      template_name: template,
+      recipient_email: to,
+      status: r.ok ? "sent" : "failed",
+      error_message: r.ok ? null : JSON.stringify(rb),
+      metadata: { tenant_id: tenantId, by_tenant: byTenant, zoho_status: zohoStatus, zoho_error: zohoError },
+    });
+  }
+
+  // 2) Email tenant (always)
   try {
+    let to: string | null = null;
+    if (t.user_id) {
+      const { data: p } = await admin.from("profiles").select("email").eq("id", t.user_id).maybeSingle();
+      to = p?.email ?? null;
+    }
+    to = to || t.contact_email;
+    if (RESEND_API_KEY && to) {
+      const html = `
+        <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
+          <h2 style="color:#1a1a2e">Din forsendelsesadresse er ændret</h2>
+          <p>Forsendelsesadressen for <strong>${company}</strong> er blevet ændret. Fremover sender vi dine breve og pakker til denne adresse:</p>
+          <p style="padding:12px 16px;background:#f4f4f5;border-radius:6px">${lines.join("<br>")}</p>
+          <p>Er adressen forkert, kan du rette den i din digitale postkasse under "Forsendelsesadresser" eller kontakte os på kontakt@flexum.dk.</p>
+          <p>Venlig hilsen<br>Flexum Coworking</p>
+        </div>`;
+      await send(to, `Ny forsendelsesadresse for ${t.company_name}`, html, "address_change_tenant");
+    }
+  } catch (e) {
+    console.error("Tenant email failed:", e);
+  }
+
+  // 3) Email operator (only tenant-made changes)
+  if (byTenant) try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (RESEND_API_KEY) {
-      const lines = [
-        t.shipping_recipient, t.shipping_co ? `c/o ${t.shipping_co}` : null, t.shipping_address,
-        t.shipping_address_2, [t.shipping_zip, t.shipping_city].filter(Boolean).join(" "),
-        t.shipping_state, t.shipping_country,
-      ].filter((l) => l && String(l).trim()).map((l) => esc(String(l)));
-      const company = esc(t.company_name ?? "Ukendt lejer");
       const html = `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
           <h2 style="color:#1a1a2e">Ny forsendelsesadresse</h2>
@@ -96,25 +141,7 @@ Deno.serve(async (req) => {
           <p><strong>Ny adresse:</strong><br>${lines.join("<br>")}</p>
           <p><strong>Zoho CRM:</strong> ${zohoError ? `Ikke opdateret – ${esc(zohoError)}. Ret adressen manuelt i Zoho.` : "Adressen er opdateret på kontoen."}</p>
         </div>`;
-      const r = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "Flexum Coworking <kontakt@flexum.dk>",
-          to: ["kontakt@flexum.dk"],
-          subject: `Adresseændring: ${t.company_name}`,
-          html,
-        }),
-      });
-      const rb = await r.json().catch(() => ({}));
-      await admin.from("email_send_log").insert({
-        message_id: rb.id || crypto.randomUUID(),
-        template_name: "address_change_notification",
-        recipient_email: "kontakt@flexum.dk",
-        status: r.ok ? "sent" : "failed",
-        error_message: r.ok ? null : JSON.stringify(rb),
-        metadata: { tenant_id: tenantId, zoho_status: zohoStatus, zoho_error: zohoError },
-      });
+      await send("kontakt@flexum.dk", `Adresseændring: ${t.company_name}`, html, "address_change_notification");
     }
   } catch (e) {
     console.error("Operator email failed:", e);
