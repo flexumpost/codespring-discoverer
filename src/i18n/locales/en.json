@@ -280,7 +280,8 @@
     "missingData": "Missing data"
   },
   "tenantView": {
-    "tenantView": "Tenant view"
+    "tenantView": "Tenant view",
+    "viewingAs": "You are viewing the page as {{name}}"
   },
   "settings": {
     "title": "Settings",
@@ -887,7 +888,8 @@
     "scanning": "Scanning",
     "scanningHelp": "New letters are set to scanning on your standard scanning day — free.",
     "pickup": "Pickup",
-    "pickupHelp": "New letters are set to pickup on your standard pickup day — free."
+    "pickupHelp": "New letters are set to pickup on your standard pickup day — free.",
+    "pickupNote": "Pickup can always be booked on the individual letter or package on the dashboard, where you choose a time."
   },
   "languageToggle": {
     "da": "DA",

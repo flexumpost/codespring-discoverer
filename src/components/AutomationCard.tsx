@@ -20,7 +20,6 @@ interface AutomationCardProps {
 const OPTIONS: { value: string; labelKey: string; helpKey: string }[] = [
   { value: "send", labelKey: "automation.shipment", helpKey: "automation.shipmentHelp" },
   { value: "scan", labelKey: "automation.scanning", helpKey: "automation.scanningHelp" },
-  { value: "afhentning", labelKey: "automation.pickup", helpKey: "automation.pickupHelp" },
 ];
 
 export function AutomationCard({ tenantId, currentMailAction, showPackages = true, invalidateKeys }: AutomationCardProps) {
@@ -74,6 +73,7 @@ export function AutomationCard({ tenantId, currentMailAction, showPackages = tru
               </div>
             ))}
           </RadioGroup>
+          <p className="text-xs text-muted-foreground">{t("automation.pickupNote")}</p>
         </div>
         {showPackages && (
           <div className="space-y-2">
