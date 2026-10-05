@@ -235,7 +235,8 @@ Deno.serve(async (req) => {
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
       .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
-      .replace(/\{\{tracking_number\}\}/g, trackingLabel);
+      .replace(/\{\{tracking_number\}\}/g, trackingLabel)
+      .replace(/\{\{pickup_date\}\}/g, pickupLabel);
 
     const bodyRaw = template.body
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
