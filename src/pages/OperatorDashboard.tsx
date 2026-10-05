@@ -178,7 +178,7 @@ function getOperatorStatusDisplay(item: MailItem, t: (key: string, opts?: any) =
     }
     const tenantType = item.tenants?.tenant_types?.name;
     const scanDate = getShippingDate(tenantType ?? "Lite", "brev");
-    return `${t("statusDisplay.scanOrdered")} ${formatI18nDate(scanDate, t)}`;
+    return `${t("statusDisplay.freeScanOn")} ${formatI18nDate(scanDate, t)}`;
   }
   if (action === "standard_forsendelse") {
     const tenantType = item.tenants?.tenant_types?.name;
