@@ -713,8 +713,10 @@ export type Database = {
           created_at: string
           default_mail_action: string | null
           default_mail_pickup_hour: number | null
+          default_mail_pickup_weekday: number
           default_package_action: string | null
           default_package_pickup_hour: number | null
+          default_package_pickup_weekday: number
           has_unpaid_invoice: boolean
           id: string
           is_active: boolean
@@ -745,8 +747,10 @@ export type Database = {
           created_at?: string
           default_mail_action?: string | null
           default_mail_pickup_hour?: number | null
+          default_mail_pickup_weekday?: number
           default_package_action?: string | null
           default_package_pickup_hour?: number | null
+          default_package_pickup_weekday?: number
           has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
@@ -777,8 +781,10 @@ export type Database = {
           created_at?: string
           default_mail_action?: string | null
           default_mail_pickup_hour?: number | null
+          default_mail_pickup_weekday?: number
           default_package_action?: string | null
           default_package_pickup_hour?: number | null
+          default_package_pickup_weekday?: number
           has_unpaid_invoice?: boolean
           id?: string
           is_active?: boolean
@@ -952,10 +958,20 @@ export type Database = {
         Returns: number
       }
       my_tenant_ids: { Args: never; Returns: string[] }
-      next_default_pickup: {
-        Args: { _hour: number; _is_package: boolean; _tier: string }
-        Returns: string
-      }
+      next_default_pickup:
+        | {
+            Args: { _hour: number; _is_package: boolean; _tier: string }
+            Returns: string
+          }
+        | {
+            Args: {
+              _hour: number
+              _is_package: boolean
+              _tier: string
+              _weekday: number
+            }
+            Returns: string
+          }
       owned_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }

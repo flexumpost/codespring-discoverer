@@ -7,6 +7,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Mail, Package } from "lucide-react";
+import { hasMondayAndThursday } from "@/lib/tiers";
 import { toast } from "sonner";
 
 interface AutomationCardProps {
@@ -15,6 +17,9 @@ interface AutomationCardProps {
   currentPackageAction?: string | null;
   currentMailPickupHour?: number | null;
   currentPackagePickupHour?: number | null;
+  currentMailPickupWeekday?: number | null;
+  currentPackagePickupWeekday?: number | null;
+  tenantTypeName?: string | null;
   /** Hide the package section; defaults to true */
   showPackages?: boolean;
   invalidateKeys?: (string | undefined)[][];
@@ -25,7 +30,7 @@ const pad = (n: number) => n.toString().padStart(2, "0");
 const slot = (h: number) => `${pad(h)}:00-${pad(h + 1)}:00`;
 
 function ActionGroup({
-  prefix, value, onChange, options, hour, onHour, t,
+  prefix, value, onChange, options, hour, onHour, weekday, onWeekday, allowMonday, t,
 }: {
   prefix: string;
   value: string;
@@ -33,6 +38,9 @@ function ActionGroup({
   options: { value: string; labelKey: string; helpKey: string }[];
   hour: number | null;
   onHour: (h: number) => void;
+  weekday: number | null;
+  onWeekday: (weekday: number) => void;
+  allowMonday: boolean;
   t: (k: string) => string;
 }) {
   return (
@@ -49,14 +57,26 @@ function ActionGroup({
             </div>
           </div>
           {opt.value === "afhentning" && value === "afhentning" && (
-            <div className="mt-3 pl-6 space-y-1">
-              <Label className="text-xs">{t("automation.pickupTimeLabel")}</Label>
-              <Select value={hour != null ? String(hour) : ""} onValueChange={(v) => onHour(Number(v))}>
-                <SelectTrigger className="w-48"><SelectValue placeholder={t("automation.pickupTimePlaceholder")} /></SelectTrigger>
-                <SelectContent>
-                  {HOURS.map((h) => <SelectItem key={h} value={String(h)}>{slot(h)}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="mt-3 grid gap-3 pl-6 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">{t("automation.pickupDayLabel")}</Label>
+                <Select value={weekday != null ? String(weekday) : ""} onValueChange={(v) => onWeekday(Number(v))}>
+                  <SelectTrigger><SelectValue placeholder={t("automation.pickupDayPlaceholder")} /></SelectTrigger>
+                  <SelectContent>
+                    {allowMonday && <SelectItem value="1">{t("automation.monday")}</SelectItem>}
+                    <SelectItem value="4">{t("automation.thursday")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">{t("automation.pickupTimeLabel")}</Label>
+                <Select value={hour != null ? String(hour) : ""} onValueChange={(v) => onHour(Number(v))}>
+                  <SelectTrigger><SelectValue placeholder={t("automation.pickupTimePlaceholder")} /></SelectTrigger>
+                  <SelectContent>
+                    {HOURS.map((h) => <SelectItem key={h} value={String(h)}>{slot(h)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <p className="text-xs text-muted-foreground">{t("automation.pickupTimeNote")}</p>
             </div>
           )}
@@ -68,6 +88,7 @@ function ActionGroup({
 
 export function AutomationCard({
   tenantId, currentMailAction, currentPackageAction, currentMailPickupHour, currentPackagePickupHour,
+  currentMailPickupWeekday, currentPackagePickupWeekday, tenantTypeName,
   showPackages = true, invalidateKeys,
 }: AutomationCardProps) {
   const { t } = useTranslation();
@@ -78,11 +99,22 @@ export function AutomationCard({
   const [pkg, setPkg] = useState(initPkg);
   const [mailHour, setMailHour] = useState<number | null>(currentMailPickupHour ?? null);
   const [pkgHour, setPkgHour] = useState<number | null>(currentPackagePickupHour ?? null);
+  const [mailWeekday, setMailWeekday] = useState<number | null>(currentMailPickupWeekday ?? 4);
+  const [pkgWeekday, setPkgWeekday] = useState<number | null>(currentPackagePickupWeekday ?? 4);
+  const allowMonday = hasMondayAndThursday(tenantTypeName);
 
   useEffect(() => {
     setMail(initMail); setPkg(initPkg);
     setMailHour(currentMailPickupHour ?? null); setPkgHour(currentPackagePickupHour ?? null);
-  }, [initMail, initPkg, currentMailPickupHour, currentPackagePickupHour]);
+    setMailWeekday(currentMailPickupWeekday ?? 4); setPkgWeekday(currentPackagePickupWeekday ?? 4);
+  }, [initMail, initPkg, currentMailPickupHour, currentPackagePickupHour, currentMailPickupWeekday, currentPackagePickupWeekday]);
+
+  useEffect(() => {
+    if (!allowMonday) {
+      setMailWeekday(4);
+      setPkgWeekday(4);
+    }
+  }, [allowMonday]);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -93,6 +125,8 @@ export function AutomationCard({
           default_package_action: pkg,
           default_mail_pickup_hour: mail === "afhentning" ? mailHour : null,
           default_package_pickup_hour: pkg === "afhentning" ? pkgHour : null,
+          default_mail_pickup_weekday: mail === "afhentning" ? mailWeekday : 4,
+          default_package_pickup_weekday: pkg === "afhentning" ? pkgWeekday : 4,
         } as any)
         .eq("id", tenantId);
       if (error) throw error;
@@ -108,43 +142,57 @@ export function AutomationCard({
   const dirty =
     mail !== initMail || pkg !== initPkg ||
     (mail === "afhentning" && mailHour !== (currentMailPickupHour ?? null)) ||
-    (pkg === "afhentning" && pkgHour !== (currentPackagePickupHour ?? null));
-  const valid = (mail !== "afhentning" || mailHour != null) && (pkg !== "afhentning" || pkgHour != null);
+    (pkg === "afhentning" && pkgHour !== (currentPackagePickupHour ?? null)) ||
+    (mail === "afhentning" && mailWeekday !== (currentMailPickupWeekday ?? 4)) ||
+    (pkg === "afhentning" && pkgWeekday !== (currentPackagePickupWeekday ?? 4));
+  const valid =
+    (mail !== "afhentning" || (mailHour != null && mailWeekday != null)) &&
+    (pkg !== "afhentning" || (pkgHour != null && pkgWeekday != null));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{t("automation.title")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <p className="text-xs text-muted-foreground">{t("automation.description")}</p>
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">{t("automation.mailLabel")}</Label>
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-base font-semibold">{t("automation.title")}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{t("automation.description")}</p>
+      </div>
+      <div className={`grid gap-5 ${showPackages ? "lg:grid-cols-2" : "grid-cols-1"}`}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base"><Mail className="h-5 w-5 text-primary" />{t("automation.mailLabel")}</CardTitle>
+          </CardHeader>
+          <CardContent>
           <ActionGroup
-            prefix="auto-mail" value={mail} onChange={setMail} hour={mailHour} onHour={setMailHour} t={t}
+            prefix="auto-mail" value={mail} onChange={setMail} hour={mailHour} onHour={setMailHour}
+            weekday={mailWeekday} onWeekday={setMailWeekday} allowMonday={allowMonday} t={t}
             options={[
               { value: "send", labelKey: "automation.shipment", helpKey: "automation.shipmentHelp" },
               { value: "scan", labelKey: "automation.scanning", helpKey: "automation.scanningHelp" },
               { value: "afhentning", labelKey: "automation.pickup", helpKey: "automation.pickupHelp" },
             ]}
           />
-        </div>
+          </CardContent>
+        </Card>
         {showPackages && (
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">{t("automation.packageLabel")}</Label>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base"><Package className="h-5 w-5 text-primary" />{t("automation.packageLabel")}</CardTitle>
+            </CardHeader>
+            <CardContent>
             <ActionGroup
-              prefix="auto-pkg" value={pkg} onChange={setPkg} hour={pkgHour} onHour={setPkgHour} t={t}
+              prefix="auto-pkg" value={pkg} onChange={setPkg} hour={pkgHour} onHour={setPkgHour}
+              weekday={pkgWeekday} onWeekday={setPkgWeekday} allowMonday={allowMonday} t={t}
               options={[
                 { value: "send", labelKey: "automation.shipment", helpKey: "automation.packageShipmentHelp" },
                 { value: "afhentning", labelKey: "automation.pickup", helpKey: "automation.packagePickupHelp" },
               ]}
             />
-          </div>
+            </CardContent>
+          </Card>
         )}
-        <Button className="w-full" disabled={!dirty || !valid || save.isPending} onClick={() => save.mutate()}>
-          {save.isPending ? t("common.saving") : t("automation.save")}
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+      <Button className="w-full sm:w-auto" disabled={!dirty || !valid || save.isPending} onClick={() => save.mutate()}>
+        {save.isPending ? t("common.saving") : t("automation.save")}
+      </Button>
+    </div>
   );
 }

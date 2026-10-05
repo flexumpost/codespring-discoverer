@@ -894,7 +894,11 @@
     "pickupHelp": "Nye breve sættes til afhentning på først kommende gratis afhentningsdag i dit faste tidsrum. Du får en e-mail med dag og tidspunkt.",
     "pickupNote": "Afhentning kan altid bookes på det enkelte brev eller den enkelte pakke på forsiden, hvor du selv vælger tidspunkt.",
     "packageShipmentHelp": "Nye pakker sættes til forsendelse på først kommende forsendelsesdag.",
-    "packagePickupHelp": "Nye pakker sættes til afhentning på først kommende hverdag i dit faste tidsrum. Du får en e-mail med dag og tidspunkt.",
+    "packagePickupHelp": "Nye pakker sættes til afhentning på først kommende valgte gratis afhentningsdag i dit faste tidsrum. Du får en e-mail med dag og tidspunkt.",
+    "pickupDayLabel": "Fast afhentningsdag",
+    "pickupDayPlaceholder": "Vælg dag",
+    "monday": "Mandag",
+    "thursday": "Torsdag",
     "pickupTimeLabel": "Fast tidsrum for afhentning",
     "pickupTimePlaceholder": "Vælg tidsrum",
     "pickupTimeNote": "Tidspunktet kan altid ændres på den enkelte forsendelse i dit dashboard."
