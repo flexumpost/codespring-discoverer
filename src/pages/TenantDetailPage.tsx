@@ -1,3 +1,4 @@
+import { notifyAddressChange } from "@/lib/notifyAddressChange";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -355,6 +356,7 @@ const TenantDetailPage = () => {
         } as any)
         .eq("id", id!);
       if (error) throw error;
+      notifyAddressChange(id!);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });
