@@ -147,7 +147,7 @@ function makeCard(
 ): ActionCard | null {
   const action = actionValue(kind, tier, mailType);
   if (!action) return null;
-  const price = priceFor(kind, tier, mailType, t, (arguments as any)[4]);
+  const price = priceFor(kind, tier, mailType, t);
   const isPackage = mailType === "pakke";
   /** Package-specific copy with fallback to the generic (letter) text. */
   const tk = (path: string): string =>
