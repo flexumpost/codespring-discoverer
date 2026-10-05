@@ -19,6 +19,7 @@ import { da, enGB } from "date-fns/locale";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { AutomationCard } from "@/components/AutomationCard";
 import { PartnerToggleCard } from "@/components/PartnerToggleCard";
+import { PartnerGroupAddresses } from "@/components/PartnerGroupAddresses";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -806,6 +807,9 @@ const TenantDetailPage = () => {
               isPartner={!!(tenant as any).is_partner}
               invalidateKey={["tenant-detail", id]}
             />
+            {(tenant as any).is_partner && (
+              <PartnerGroupAddresses tenantId={(tenant as any).id} ownerId={(tenant as any).user_id ?? null} />
+            )}
           </div>
 
           {/* Column 3: Package pricing */}
