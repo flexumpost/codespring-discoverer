@@ -70,11 +70,11 @@
     "tenants": "Lejere",
     "settings": "Indstillinger",
     "information": "Information",
-    "shippingAddress": "Forsendelsesadresser",
+    "shippingAddress": "Forsendelsesadresse",
     "automation": "Automatisering",
     "signOut": "Log ud",
     "flexumPost": "Flexum Post",
-    "partnerAddresses": "Forsendelsesadresser"
+    "partnerAddresses": "Forsendelsesadresse"
   },
   "greeting": {
     "morning": "Godmorgen",

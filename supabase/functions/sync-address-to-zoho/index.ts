@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
           <h2 style="color:#1a1a2e">Din forsendelsesadresse er ændret</h2>
           <p>Forsendelsesadressen for <strong>${company}</strong> er blevet ændret. Fremover sender vi dine breve og pakker til denne adresse:</p>
           <p style="padding:12px 16px;background:#f4f4f5;border-radius:6px">${lines.join("<br>")}</p>
-          <p>Er adressen forkert, kan du rette den i din digitale postkasse under "Forsendelsesadresser" eller kontakte os på kontakt@flexum.dk.</p>
+          <p>Er adressen forkert, kan du rette den i din digitale postkasse under "Forsendelsesadresse" eller kontakte os på kontakt@flexum.dk.</p>
           <p>Venlig hilsen<br>Flexum Coworking</p>
         </div>`;
       await send(to, `Ny forsendelsesadresse for ${t.company_name}`, html, "address_change_tenant");
