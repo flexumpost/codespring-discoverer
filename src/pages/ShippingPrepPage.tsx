@@ -413,8 +413,6 @@ export default function ShippingPrepPage() {
       for (const id of ids) {
         const group = grouped.find((g) => g.items.some((i) => i.id === id));
         if (!group) continue;
-        const hasNonPlus = group.companies.some((c) => !lettersPortoIncluded(c.typeName));
-        if (!hasNonPlus) continue;
         if (!portoSelections[group.addressKey]) {
           toast({
             title: "Manglende porto",
@@ -646,8 +644,8 @@ export default function ShippingPrepPage() {
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           {tab === "brev" && (() => {
-                            const hasNonPlus = group.companies.some((c) => !lettersPortoIncluded(c.typeName));
-                            if (!hasNonPlus) return null;
+                            const allIncluded = group.companies.every((c) => lettersPortoIncluded(c.typeName));
+                            const isPlusBrev = allIncluded && group.companies.some((c) => baseTier(c.typeName) === "Plus");
                             const isDk = !group.shippingCountry || group.shippingCountry.toLowerCase().trim() === "danmark" || group.shippingCountry.toLowerCase().trim() === "denmark" || group.shippingCountry.toLowerCase().trim() === "dk";
                             return (
                               <Select
@@ -657,10 +655,15 @@ export default function ShippingPrepPage() {
                                 }
                               >
                                 <SelectTrigger className="w-[220px] h-8 text-xs">
-                                  <SelectValue placeholder="Vælg porto" />
+                                  <SelectValue placeholder={allIncluded ? "Vælg vægt (inkluderet – opkræves ikke)" : "Vælg porto"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {isDk ? (
+                                  {isDk && isPlusBrev ? (
+                                    <>
+                                      <SelectItem value="plus_0_100">PLUS-brev 0-100g (28,00 kr.) – opkræves ikke</SelectItem>
+                                      <SelectItem value="plus_100_250">PLUS-brev 100-250g (46,00 kr.) – opkræves ikke</SelectItem>
+                                    </>
+                                  ) : isDk ? (
                                     <>
                                        <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
                                       <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
