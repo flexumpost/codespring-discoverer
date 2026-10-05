@@ -2,7 +2,6 @@ import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
-import { useTenants } from "@/hooks/useTenants";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter,
@@ -12,7 +11,6 @@ import { Button } from "@/components/ui/button";
 export function AppSidebar() {
   const { t } = useTranslation();
   const { role, user, signOut } = useAuth();
-  const { tenants } = useTenants();
 
   const operatorItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },

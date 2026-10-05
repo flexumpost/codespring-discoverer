@@ -78,8 +78,6 @@ export function AddressCard({ tenant }: { tenant: any }) {
 export default function PartnerAddressesPage() {
   const { t } = useTranslation();
   const { tenants, isLoading } = useTenants();
-  const isPartner = tenants.some((x: any) => x.is_partner);
-
   return (
     <AppLayout>
       <div className="space-y-6 max-w-4xl">
