@@ -878,6 +878,7 @@
     }
   },
   "automation": {
+    "sharedNote": "The settings apply to all your companies.",
     "title": "Automation",
     "description": "Choose what happens by default with new letters and packages. You can always choose a different action for each item.",
     "mailLabel": "Default action for letters",
