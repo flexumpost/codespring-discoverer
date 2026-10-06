@@ -1,11 +1,15 @@
-# BBM Int. ApS: mailen om ny adresse
+# Zoho og e-mail til operatøren ved alle adresseændringer
 
-## Hvad der skete
-- Postkassen har ikke sendt nogen mail om BBM Int. ApS. I e-mail-loggen er der ingen adressemails om BBM. De eneste adressemails de seneste dage handler om "Care with you".
-- Mailen, du viser, er sendt fra rico@flexum.dk til kontakt@idealoffice.dk. Den har en anden overskrift og et andet udseende end postkassens mails. Postkassen sender altid fra kontakt@flexum.dk.
-- Den kommer derfor et andet sted fra, for eksempel en mail sendt fra din egen indbakke eller en automatisk mail fra Zoho.
-- Hos os har BBM stadig adressen Olga Millward, Ordrupvej 112B, 3tv, 2920 Charlottenlund. Den blev sidst ændret 5. oktober. Adressen i mailen, c/o Anders Rosendal, Lindegårdsvej 53, er aldrig blevet gemt hos os.
+## Hvad der ændres
+- Når en operatør ændrer en forsendelsesadresse, sker nu det samme som når lejeren gør det:
+  1. Adressen bliver opdateret på kontoen i Zoho CRM.
+  2. Der sendes en e-mail til kontakt@flexum.dk med den nye adresse. Mailen siger, om Zoho blev opdateret, eller hvorfor det ikke lykkedes.
+  3. Lejeren får sin bekræftelse, ligesom nu.
+- I operatørens mail står der også, om det var lejeren eller en operatør, der ændrede adressen.
+- Beskeden under notifikationer i appen kommer stadig kun, når lejeren selv ændrer adressen. Den skal ikke vise dig dine egne ændringer.
+- Når ændringen er lavet, sender jeg flowet igennem én gang for BBM Int. ApS. Så kan du se, om Zoho finder kontoen.
 
-## Forslag
-- Der skal ikke rettes noget i postkassen.
-- Hvis BBM rent faktisk skal have den nye adresse: skriv det, så sætter jeg den ind. Så får lejeren en bekræftelse, og Zoho bliver opdateret.
+## Teknisk
+- I `sync-address-to-zoho` fjernes kravet om `byTenant` for Zoho-opdateringen og operatørens mail. `by_tenant` bliver stadig gemt i loggen og vist i mailen som "Ændret af: lejer/operatør".
+- Funktionen deployes, og der kører én test for BBM (aeb38c77-…).
+- Reglen i AGENTS.md opdateres: Zoho og operatørens mail gælder alle ændringer, mens beskeden i appen kun gælder lejerens.
