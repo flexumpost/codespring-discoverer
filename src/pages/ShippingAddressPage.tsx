@@ -1,4 +1,5 @@
 import { notifyAddressChange } from "@/lib/notifyAddressChange";
+import { normalizeCo } from "@/lib/formatCo";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -77,7 +78,7 @@ const ShippingAddressPage = () => {
         .from("tenants")
         .update({
           shipping_recipient: shippingRecipient,
-          shipping_co: shippingCo || null,
+          shipping_co: normalizeCo(shippingCo),
           shipping_address: shippingAddress,
           shipping_address_2: shippingAddress2 || null,
           shipping_zip: shippingZip,
