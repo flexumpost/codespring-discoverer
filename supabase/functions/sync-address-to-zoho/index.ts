@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
   }
 
   const lines = [
-    t.shipping_recipient, t.shipping_co ? `c/o ${t.shipping_co}` : null, t.shipping_address,
+    t.shipping_recipient, t.shipping_co ? `c/o ${String(t.shipping_co).trim().replace(/^c\s*\/\s*o[:\s]*/i, "").trim()}` : null, t.shipping_address,
     t.shipping_address_2, [t.shipping_zip, t.shipping_city].filter(Boolean).join(" "),
     t.shipping_state, t.shipping_country,
   ].filter((l) => l && String(l).trim()).map((l) => esc(String(l)));
