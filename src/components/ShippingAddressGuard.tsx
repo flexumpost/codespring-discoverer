@@ -1,4 +1,5 @@
 import { notifyAddressChange } from "@/lib/notifyAddressChange";
+import { normalizeCo } from "@/lib/formatCo";
 import { useState, ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -104,7 +105,7 @@ export function ShippingAddressGuard({ children }: Props) {
         .from("tenants")
         .update({
           shipping_recipient: recipient,
-          shipping_co: co || null,
+          shipping_co: normalizeCo(co),
           shipping_address: address,
           shipping_address_2: address2 || null,
           shipping_zip: zip,

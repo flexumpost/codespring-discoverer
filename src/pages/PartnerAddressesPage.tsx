@@ -1,4 +1,5 @@
 import { notifyAddressChange } from "@/lib/notifyAddressChange";
+import { normalizeCo } from "@/lib/formatCo";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -40,6 +41,7 @@ export function AddressCard({ tenant, applyToIds, title }: { tenant: any; applyT
     setSaving(true);
     const payload: Record<string, any> = { shipping_confirmed: true };
     for (const [k] of FIELDS) payload[k] = values[k].trim() || (REQUIRED.includes(k) ? values[k] : null);
+    payload.shipping_co = normalizeCo(values.shipping_co);
     const ids = applyToIds?.length ? applyToIds : [tenant.id];
     const { error } = await supabase.from("tenants").update(payload as any).in("id", ids);
     setSaving(false);
