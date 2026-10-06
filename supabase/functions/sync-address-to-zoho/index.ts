@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
   // 1) Update Zoho CRM account
   let zohoStatus = "ikke opdateret";
   let zohoError: string | null = null;
-  if (byTenant) try {
+  try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const ZOHO = Deno.env.get("ZOHO_CRM_API_KEY");
     if (!LOVABLE_API_KEY || !ZOHO) throw new Error("Zoho CRM er ikke forbundet");
@@ -142,14 +142,15 @@ Deno.serve(async (req) => {
     console.error("Tenant email failed:", e);
   }
 
-  // 3) Email operator (only tenant-made changes)
-  if (byTenant) try {
+  // 3) Email operator (always)
+  try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (RESEND_API_KEY) {
       const html = `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
           <h2 style="color:#1a1a2e">Ny forsendelsesadresse</h2>
           <p><strong>Lejer:</strong> ${company}</p>
+          <p><strong>Ændret af:</strong> ${byTenant ? "lejer" : "operatør"}</p>
           <p><strong>Ny adresse:</strong><br>${lines.join("<br>")}</p>
           <p><strong>Zoho CRM:</strong> ${zohoError ? `Ikke opdateret – ${esc(zohoError)}. Ret adressen manuelt i Zoho.` : "Adressen er opdateret på kontoen."}</p>
         </div>`;
