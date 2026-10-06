@@ -346,7 +346,7 @@ const TenantDetailPage = () => {
         .from("tenants")
         .update({
           shipping_recipient: shippingRecipient,
-          shipping_co: shippingCo || null,
+          shipping_co: normalizeCo(shippingCo),
           shipping_address: shippingAddress,
           shipping_address_2: shippingAddress2 || null,
           shipping_zip: shippingZip,
