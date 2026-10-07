@@ -89,7 +89,7 @@ const ShippingAddressPage = () => {
         } as any)
         .eq("id", selectedTenant!.id);
       if (error) throw error;
-      notifyAddressChange(selectedTenant!.id);
+      notifyAddressChange(selectedTenant!.id, { firstSave: !(selectedTenant as any).shipping_address });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });

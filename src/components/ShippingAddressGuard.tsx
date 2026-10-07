@@ -125,7 +125,7 @@ export function ShippingAddressGuard({ children }: Props) {
       if (!verify?.shipping_confirmed) {
         throw new Error(t("shippingGuard.updateNotSaved"));
       }
-      notifyAddressChange(tenant.id);
+      notifyAddressChange(tenant.id, { firstSave: !tenant.shipping_address });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
