@@ -162,8 +162,13 @@ const TenantsPage = () => {
       return data;
     },
     onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
       toast.success(t("tenants.tenantCreated"));
+      if (data?.id) {
+        const { data: z } = await supabase.functions.invoke("fetch-address-from-zoho", { body: { tenant_id: data.id } });
+        if (z?.status === "fetched") toast.success("Forsendelsesadresse hentet fra Zoho CRM");
+        else if (z?.reason) toast.info(`Ingen adresse hentet fra Zoho: ${z.reason}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["all-tenants"] });
 
       const email = contactEmail.trim();
       if (email && data?.id) {
