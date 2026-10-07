@@ -27,8 +27,11 @@ Deno.serve(async (req) => {
   if (claimsErr || !userId) return json({ error: "Unauthorized" }, 401);
 
   let tenantId: string | undefined;
+  let firstSave = false;
   try {
-    tenantId = (await req.json())?.tenant_id;
+    const body = await req.json();
+    tenantId = body?.tenant_id;
+    firstSave = body?.first_save === true;
   } catch { /* ignore */ }
   if (!tenantId || typeof tenantId !== "string" || !/^[0-9a-f-]{36}$/i.test(tenantId)) {
     return json({ error: "tenant_id required" }, 400);
@@ -119,42 +122,45 @@ Deno.serve(async (req) => {
     });
   }
 
-  // 2) Email tenant (always)
-  try {
-    let to: string | null = null;
-    if (t.user_id) {
-      const { data: p } = await admin.from("profiles").select("email").eq("id", t.user_id).maybeSingle();
-      to = p?.email ?? null;
+  // 2) Email tenant — skipped on first address save (initial setup, not a change)
+  if (!firstSave) {
+    try {
+      let to: string | null = null;
+      if (t.user_id) {
+        const { data: p } = await admin.from("profiles").select("email").eq("id", t.user_id).maybeSingle();
+        to = p?.email ?? null;
+      }
+      to = to || t.contact_email;
+      if (RESEND_API_KEY && to) {
+        const html = `
+          <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
+            <h2 style="color:#1a1a2e">Din forsendelsesadresse er ændret</h2>
+            <p>Forsendelsesadressen for <strong>${company}</strong> er blevet ændret. Fremover sender vi dine breve og pakker til denne adresse:</p>
+            <p style="padding:12px 16px;background:#f4f4f5;border-radius:6px">${lines.join("<br>")}</p>
+            <p>Er adressen forkert, kan du rette den i din digitale postkasse under "Forsendelsesadresse" eller kontakte os på kontakt@flexum.dk.</p>
+            <p>Venlig hilsen<br>Flexum Coworking</p>
+          </div>`;
+        await send(to, `Ny forsendelsesadresse for ${t.company_name}`, html, "address_change_tenant");
+      }
+    } catch (e) {
+      console.error("Tenant email failed:", e);
     }
-    to = to || t.contact_email;
-    if (RESEND_API_KEY && to) {
-      const html = `
-        <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#1a1a2e">Din forsendelsesadresse er ændret</h2>
-          <p>Forsendelsesadressen for <strong>${company}</strong> er blevet ændret. Fremover sender vi dine breve og pakker til denne adresse:</p>
-          <p style="padding:12px 16px;background:#f4f4f5;border-radius:6px">${lines.join("<br>")}</p>
-          <p>Er adressen forkert, kan du rette den i din digitale postkasse under "Forsendelsesadresse" eller kontakte os på kontakt@flexum.dk.</p>
-          <p>Venlig hilsen<br>Flexum Coworking</p>
-        </div>`;
-      await send(to, `Ny forsendelsesadresse for ${t.company_name}`, html, "address_change_tenant");
-    }
-  } catch (e) {
-    console.error("Tenant email failed:", e);
   }
 
-  // 3) Email operator (always)
+  // 3) Email operator (always — carries the Zoho sync result)
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (RESEND_API_KEY) {
       const html = `
         <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-          <h2 style="color:#1a1a2e">Ny forsendelsesadresse</h2>
+          <h2 style="color:#1a1a2e">${firstSave ? "Forsendelsesadresse oprettet" : "Ny forsendelsesadresse"}</h2>
           <p><strong>Lejer:</strong> ${company}</p>
-          <p><strong>Ændret af:</strong> ${byTenant ? "lejer" : "operatør"}</p>
-          <p><strong>Ny adresse:</strong><br>${lines.join("<br>")}</p>
+          <p><strong>${firstSave ? "Oprettet" : "Ændret"} af:</strong> ${byTenant ? "lejer" : "operatør"}</p>
+          ${firstSave ? "<p><em>Første adresse på kontoen – lejeren har ikke fået besked.</em></p>" : ""}
+          <p><strong>Adresse:</strong><br>${lines.join("<br>")}</p>
           <p><strong>Zoho CRM:</strong> ${zohoError ? `Ikke opdateret – ${esc(zohoError)}. Ret adressen manuelt i Zoho.` : "Adressen er opdateret på kontoen."}</p>
         </div>`;
-      await send("kontakt@flexum.dk", `Adresseændring: ${t.company_name}`, html, "address_change_notification");
+      await send("kontakt@flexum.dk", `${firstSave ? "Adresse oprettet" : "Adresseændring"}: ${t.company_name}`, html, "address_change_notification");
     }
   } catch (e) {
     console.error("Operator email failed:", e);
