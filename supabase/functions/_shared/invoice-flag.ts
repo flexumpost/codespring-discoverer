@@ -188,10 +188,19 @@ export async function recomputeTenantFlag(
 
   const { data: rows } = await supabase
     .from("officernd_invoices")
-    .select("status")
+    .select("status, due_date")
     .in("tenant_id", invoiceTenantIds);
 
-  const shouldFlag = ((rows ?? []) as any[]).some((r) => isUnpaidInvoiceStatus(r.status));
+  // Pending (awaiting bank transfer) counts as unpaid from due date + 2 days (Copenhagen date).
+  const todayCph = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Copenhagen" }).format(new Date());
+  const isPendingOverdue = (r: any) => {
+    const s = String(r.status ?? "").trim().toLowerCase();
+    if (!["pending", "unpaid", "open", "awaiting_payment"].includes(s) || !r.due_date) return false;
+    const d = new Date(`${String(r.due_date).slice(0, 10)}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 2);
+    return todayCph >= d.toISOString().slice(0, 10);
+  };
+  const shouldFlag = ((rows ?? []) as any[]).some((r) => isUnpaidInvoiceStatus(r.status) || isPendingOverdue(r));
 
   const before = !!tenant.has_unpaid_invoice;
 
