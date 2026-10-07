@@ -357,7 +357,7 @@ const TenantDetailPage = () => {
         } as any)
         .eq("id", id!);
       if (error) throw error;
-      notifyAddressChange(id!);
+      notifyAddressChange(id!, { firstSave: !tenant?.shipping_address });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tenant-detail", id] });

@@ -46,7 +46,8 @@ export function AddressCard({ tenant, applyToIds, title }: { tenant: any; applyT
     const { error } = await supabase.from("tenants").update(payload as any).in("id", ids);
     setSaving(false);
     if (error) return toast.error(error.message);
-    ids.forEach((id) => notifyAddressChange(id));
+    const firstSave = !applyToIds?.length && !tenant.shipping_address;
+    ids.forEach((id) => notifyAddressChange(id, { firstSave }));
     qc.invalidateQueries({ queryKey: ["my-tenants"] });
     qc.invalidateQueries({ queryKey: ["partner-group"] });
     toast.success(t("partnerAddresses.saved", { name: tenant.company_name }));
