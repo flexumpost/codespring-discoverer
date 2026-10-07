@@ -128,6 +128,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         tenant_type_id: newTenantTypeId,
       }).select("id, company_name").single();
       if (error) throw error;
+      supabase.functions.invoke("fetch-address-from-zoho", { body: { tenant_id: data.id } }).catch(() => {});
 
       const email = newTenantEmail.trim();
       if (email && data?.id) {
