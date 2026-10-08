@@ -20,7 +20,9 @@
 11. **Information**: Priser, betingelser og notifikationsmodtagere.
 12. **Afslutning**: Du kan altid se rundvisningen igen under "Vis funktioner".
 
-Findes et element ikke på skærmen, springes trinnet over. Det gælder fx når der ikke er post endnu, eller når der kun er én virksomhed. På mobil åbner menuen sig selv ved menu-trinnene.
+**Eksempel-forsendelse:** Har lejeren endnu ikke fået post, vises et eksempelbrev i oversigten under rundvisningen. Det er tydeligt markeret "Eksempel", fx "Eksempel – Skattestyrelsen". Det gemmes ikke nogen steder, giver ingen e-mails eller gebyrer og forsvinder, når rundvisningen slutter. Knapperne på det gør ikke noget. De bruges kun til at vise, hvor man vælger handling. Har lejeren allerede post, bruges deres første rigtige forsendelse, og der vælges ikke noget for dem.
+
+Findes et element ikke på skærmen, springes trinnet over, fx "Vælg virksomhed" for lejere med kun én virksomhed. På mobil åbner menuen sig selv ved menu-trinnene.
 
 ## Tekniske detaljer
 - Add the `react-joyride` library. A new `TenantTour` component renders inside the tenant `AppLayout` and is controlled by a small context, so it can be started from the sidebar.
@@ -29,6 +31,7 @@ Findes et element ikke på skærmen, springes trinnet over. Det gælder fx når 
 - The sidebar item "Vis funktioner" (icon `Compass`) shows for tenants only. If the tenant is on another page, it navigates to `/` and then starts the tour.
 - Add i18n keys `tour.*` and `nav.showFeatures` to da.json and en.json.
 - Not shown in the operator's "Vis som lejer".
+- Demo shipment: while the tour is active and the tenant has no mail items, TenantDashboard prepends one client-side fake item (`id: "tour-demo"`, flagged `isDemo`) to the list it renders. It is never written to the database. Row clicks and actions are disabled for it, and it is removed when the tour ends.
 
 ## Kontrol
 - Test the tour in the browser as a tenant on desktop and mobile. Check that skipping works and that the tour does not start again by itself after it is finished.
