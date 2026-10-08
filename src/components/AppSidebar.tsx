@@ -1,7 +1,9 @@
-import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info, Compass } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useTour } from "@/hooks/useTour";
+import { useNavigate } from "react-router-dom";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarFooter,
@@ -11,6 +13,9 @@ import { Button } from "@/components/ui/button";
 export function AppSidebar() {
   const { t } = useTranslation();
   const { role, user, signOut } = useAuth();
+  const { start } = useTour();
+  const navigate = useNavigate();
+  const startTour = () => { navigate("/"); setTimeout(start, 400); };
 
   const operatorItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
@@ -21,9 +26,9 @@ export function AppSidebar() {
 
   const tenantItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
-    { title: t("nav.partnerAddresses"), url: "/partner-addresses", icon: Building2 },
-    { title: t("nav.automation"), url: "/automation", icon: Zap },
-    { title: t("nav.information"), url: "/settings", icon: Info },
+    { title: t("nav.partnerAddresses"), url: "/partner-addresses", icon: Building2, tour: "nav-address" },
+    { title: t("nav.automation"), url: "/automation", icon: Zap, tour: "nav-automation" },
+    { title: t("nav.information"), url: "/settings", icon: Info, tour: "nav-information" },
   ];
 
   const items = role === "operator" ? operatorItems : tenantItems;
@@ -38,7 +43,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.url}>
+                <SidebarMenuItem key={item.url} data-tour={(item as any).tour}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent/50" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
                       <item.icon className="mr-2 h-4 w-4" />
@@ -47,6 +52,14 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {role === "tenant" && (
+                <SidebarMenuItem data-tour="nav-tour">
+                  <SidebarMenuButton onClick={startTour} className="hover:bg-sidebar-accent/50">
+                    <Compass className="mr-2 h-4 w-4" />
+                    <span>{t("nav.showFeatures")}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

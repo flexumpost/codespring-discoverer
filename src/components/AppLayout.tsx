@@ -6,6 +6,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { EmailFailureAlert } from "@/components/EmailFailureAlert";
 import { useAuth } from "@/hooks/useAuth";
+import { TenantTour } from "@/components/TenantTour";
 import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -27,6 +28,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
+        <TenantTour />
         <main className="flex-1 min-w-0 flex flex-col">
           <header className="h-14 flex items-center border-b border-border px-3 sm:px-4 gap-2 sm:gap-0">
             <SidebarTrigger />
@@ -38,7 +40,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             )}
             <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
               <LanguageToggle />
-              <NotificationBell />
+              <div data-tour="notifications"><NotificationBell /></div>
             </div>
           </header>
           {isOperator && <EmailFailureAlert />}

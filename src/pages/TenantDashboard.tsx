@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenants } from "@/hooks/useTenants";
 import { TenantSelector } from "@/components/TenantSelector";
+import { useTour } from "@/hooks/useTour";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -728,6 +729,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     },
   });
 
+  const { running: tourRunning } = useTour();
   const { data: mailItems = [], isLoading } = useQuery({
     refetchInterval: 30000,
     queryKey: ["tenant-mail", activeFilter, selectedTenantId],
@@ -978,7 +980,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
     <div>
 
       {tenants.length > 1 && (
-        <div className="mb-6">
+        <div className="mb-6" data-tour="tenant-selector">
           <TenantSelector
             tenants={tenants}
             selectedTenantId={selectedTenantId}
@@ -1010,7 +1012,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       )}
 
       {/* Stats cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
+      <div data-tour="stats" className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 mb-8">
         {cards.map((card) => (
           <Card
             key={card.title}
@@ -1057,10 +1059,33 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
       {/* Mail table */}
       {isLoading ? (
         <p className="text-muted-foreground">{t("common.loading")}</p>
+      ) : filteredByType.length === 0 && tourRunning ? (
+        <Table data-tour="mail-list" className="min-w-[800px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("common.type")}</TableHead>
+              <TableHead>{t("tenantDashboard.sender")}</TableHead>
+              <TableHead>{t("common.status")}</TableHead>
+              <TableHead data-tour="mail-action">{t("common.actions")}</TableHead>
+              <TableHead data-tour="mail-scan">{t("common.scan")}</TableHead>
+              <TableHead>{t("common.received")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="pointer-events-none">
+              <TableCell><Badge variant="outline">{t("common.letter")}</Badge> <Badge variant="secondary">{t("tour.demoBadge")}</Badge></TableCell>
+              <TableCell>{t("tour.demoSender")}</TableCell>
+              <TableCell><Badge variant="outline">{t("tour.demoStatus")}</Badge></TableCell>
+              <TableCell><Button size="sm" variant="outline" tabIndex={-1}>{t("tour.demoChoose")}</Button></TableCell>
+              <TableCell>—</TableCell>
+              <TableCell>{new Date().toLocaleDateString(locale)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       ) : filteredByType.length === 0 ? (
         <p className="text-muted-foreground">{t("tenantDashboard.noMailFound")}</p>
       ) : (
-        <Table className="min-w-[800px]">
+        <Table data-tour="mail-list" className="min-w-[800px]">
           <TableHeader>
             <TableRow>
               <TableHead className="w-[60px]">{t("common.photo")}</TableHead>
@@ -1069,9 +1094,9 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <TableHead>{t("operatorDashboard.stampNumber")}</TableHead>
               <TableHead>{t("tenantDashboard.sender")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead>{t("common.actions")}</TableHead>
+              <TableHead data-tour="mail-action">{t("common.actions")}</TableHead>
               <TableHead>{t("common.fee")}</TableHead>
-              <TableHead>{t("common.scan")}</TableHead>
+              <TableHead data-tour="mail-scan">{t("common.scan")}</TableHead>
               <TableHead>{t("common.received")}</TableHead>
             </TableRow>
           </TableHeader>

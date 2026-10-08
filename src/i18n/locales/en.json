@@ -74,7 +74,8 @@
     "automation": "Automation",
     "signOut": "Sign out",
     "flexumPost": "Flexum Post",
-    "partnerAddresses": "Shipping addresses"
+    "partnerAddresses": "Shipping addresses",
+    "showFeatures": "Show features"
   },
   "greeting": {
     "morning": "Good morning",
@@ -944,5 +945,63 @@
     "save": "Save address",
     "saved": "Address for {{name}} saved",
     "notAvailable": "This page is not available for your account."
+  },
+  "tour": {
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "skip": "Skip",
+    "demoBadge": "Example",
+    "demoSender": "Example – Tax Agency",
+    "demoStatus": "Unread",
+    "demoChoose": "Choose action",
+    "welcome": {
+      "title": "Welcome to your digital mailbox",
+      "body": "Here is a quick look at the most important features. You can skip at any time."
+    },
+    "mail": {
+      "title": "Your mail",
+      "body": "All new letters and packages with photo, date and status."
+    },
+    "action": {
+      "title": "Choose action",
+      "body": "Tap a letter or package to choose shipping, scanning, pickup or destruction. Free days are marked."
+    },
+    "pickup": {
+      "title": "Book pickup",
+      "body": "Choose a day and time slot. You get an email confirmation and can change the time here."
+    },
+    "scan": {
+      "title": "Scanned letters",
+      "body": "Open and download scanned letters here. They are kept for 30 days."
+    },
+    "archive": {
+      "title": "Overview and archive",
+      "body": "Tap the cards to filter. Handled items can be archived and restored."
+    },
+    "company": {
+      "title": "Choose company",
+      "body": "If you have several companies, switch between them here."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "body": "The bell shows new messages about your mail."
+    },
+    "address": {
+      "title": "Shipping address",
+      "body": "Change your shipping address here. You get an email when it changes."
+    },
+    "automation": {
+      "title": "Automation",
+      "body": "Choose what happens automatically with new letters and packages."
+    },
+    "information": {
+      "title": "Information",
+      "body": "See prices, terms and notification recipients."
+    },
+    "done": {
+      "title": "That's it!",
+      "body": "You can see the tour again under \"Show features\"."
+    }
   }
 }
