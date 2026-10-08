@@ -965,11 +965,11 @@
     },
     "action": {
       "title": "Choose action",
-      "body": "Tap a letter or package to choose shipping, scanning, pickup or destruction. Free days are marked."
+      "body": "The \"Choose action\" button opens the options for a letter or package. We will show the choices using an example."
     },
     "pickup": {
       "title": "Book pickup",
-      "body": "Choose a day and time slot. You get an email confirmation and can change the time here."
+      "body": "This window shows how your mail can be handled, including pickup options. This is only an example — nothing is ordered during the tour."
     },
     "scan": {
       "title": "Scanned letters",
@@ -1002,6 +1002,35 @@
     "done": {
       "title": "That's it!",
       "body": "You can see the tour again under \"Show features\"."
+    },
+    "nextProgress": "Next (step {step} of {steps})",
+    "standardPickup": {
+      "title": "Standard pickup",
+      "body": "Choose pickup on your free pickup day and book a time slot. You receive an email confirmation and can change the time in your mailbox."
+    },
+    "fastPickup": {
+      "title": "Quick pickup",
+      "body": "To collect on another day, choose quick pickup and book a day and time slot. The price depends on your plan and is shown with the option."
+    },
+    "scanNow": {
+      "title": "Scan now",
+      "body": "Your letter is scanned within 24 hours on weekdays, without waiting for the next free scanning day. Any fee is shown with the option; scanning is always free for Plus and Executive."
+    },
+    "standardScan": {
+      "title": "Standard scanning",
+      "body": "Your letter is scanned for free on the next free scanning day for your plan. The date is shown here. Choose \"Scan now\" if you need it sooner."
+    },
+    "shipment": {
+      "title": "Standard shipment",
+      "body": "Your letter is sent to your shipping address on the next shipping day for your plan. Letters are dispatched on Mondays and Thursdays. Letter postage is included for Standard, Professional, Plus and Executive; otherwise postage is added. Packages have separate prices."
+    },
+    "destroy": {
+      "title": "Destruction",
+      "body": "The letter is shredded instead of being shipped, scanned or collected. An actual destruction order cannot be undone."
+    },
+    "cancel": {
+      "title": "Cancel choice",
+      "body": "If you have already chosen an action, you can remove it and choose again while the shipment is not yet handled or locked."
     }
   }
 }

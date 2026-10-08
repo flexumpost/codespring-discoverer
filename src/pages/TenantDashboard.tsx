@@ -1066,7 +1066,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <TableHead>{t("common.type")}</TableHead>
               <TableHead>{t("tenantDashboard.sender")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead data-tour="mail-action">{t("common.actions")}</TableHead>
+              <TableHead>{t("common.actions")}</TableHead>
               <TableHead data-tour="mail-scan">{t("common.scan")}</TableHead>
               <TableHead>{t("common.received")}</TableHead>
             </TableRow>
@@ -1076,7 +1076,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <TableCell><Badge variant="outline">{t("common.letter")}</Badge> <Badge variant="secondary">{t("tour.demoBadge")}</Badge></TableCell>
               <TableCell>{t("tour.demoSender")}</TableCell>
               <TableCell><Badge variant="outline">{t("tour.demoStatus")}</Badge></TableCell>
-              <TableCell><Button size="sm" variant="outline" tabIndex={-1}>{t("tour.demoChoose")}</Button></TableCell>
+              <TableCell><Button data-tour="mail-action" size="sm" variant="outline" tabIndex={-1}>{t("tour.demoChoose")}</Button></TableCell>
               <TableCell>—</TableCell>
               <TableCell>{new Date().toLocaleDateString(locale)}</TableCell>
             </TableRow>
@@ -1094,7 +1094,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
               <TableHead>{t("operatorDashboard.stampNumber")}</TableHead>
               <TableHead>{t("tenantDashboard.sender")}</TableHead>
               <TableHead>{t("common.status")}</TableHead>
-              <TableHead data-tour="mail-action">{t("common.actions")}</TableHead>
+              <TableHead>{t("common.actions")}</TableHead>
               <TableHead>{t("common.fee")}</TableHead>
               <TableHead data-tour="mail-scan">{t("common.scan")}</TableHead>
               <TableHead>{t("common.received")}</TableHead>
@@ -1189,6 +1189,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
                     size="sm"
                     variant="outline"
                     className="h-8 text-xs whitespace-nowrap"
+                    data-tour="mail-action"
                     onClick={() => setActionDialogItem(item)}
                     disabled={hasUnpaidInvoice}
                   >

@@ -965,11 +965,11 @@
     },
     "action": {
       "title": "Vælg handling",
-      "body": "Tryk på et brev eller en pakke for at vælge forsendelse, scanning, afhentning eller destruering. Gratis dage er markeret."
+      "body": "Knappen \"Vælg handling\" åbner dine muligheder for det enkelte brev eller den enkelte pakke. Nu viser vi valgene med et eksempel."
     },
     "pickup": {
       "title": "Book afhentning",
-      "body": "Vælg dag og tidsrum for afhentning. Du får en bekræftelse på e-mail, og tidspunktet kan ændres her."
+      "body": "Her vælger du, hvordan posten skal håndteres. Afhentningsmulighederne vises sammen med de øvrige valg. Dette er kun et eksempel — der bestilles ikke noget under rundvisningen."
     },
     "scan": {
       "title": "Scannede breve",
@@ -1002,6 +1002,35 @@
     "done": {
       "title": "Det var det!",
       "body": "Du kan altid se rundvisningen igen under \"Vis funktioner\"."
+    },
+    "nextProgress": "Næste (trin {step} af {steps})",
+    "standardPickup": {
+      "title": "Standard afhentning",
+      "body": "Vælg afhentning på din gratis afhentningsdag og book et tidsrum. Du får en bekræftelse på e-mail og kan ændre tidspunktet i postkassen."
+    },
+    "fastPickup": {
+      "title": "Hurtig afhentning",
+      "body": "Vil du hente på en anden dag, vælger du hurtig afhentning og booker dag og tidsrum. Prisen afhænger af din løsning og vises ved valget."
+    },
+    "scanNow": {
+      "title": "Scan nu",
+      "body": "Brevet scannes inden for 24 timer på hverdage. I modsætning til standard scanning venter du ikke til næste gratis scanningsdag. Eventuelt gebyr fremgår af valget; Plus og Executive har altid gratis scanning."
+    },
+    "standardScan": {
+      "title": "Standard scanning",
+      "body": "Brevet scannes gratis på først kommende gratis scanningsdag for din løsning. Datoen vises her. Vælg \"Scan nu\", hvis du vil have brevet scannet hurtigere."
+    },
+    "shipment": {
+      "title": "Standard forsendelse",
+      "body": "Brevet sendes til din forsendelsesadresse på din næste forsendelsesdag. Breve sendes mandag og torsdag efter din løsning. Porto er inkluderet for Standard, Professional, Plus og Executive; ellers tillægges porto. Pakker har særskilte priser."
+    },
+    "destroy": {
+      "title": "Destruktion",
+      "body": "Brevet makuleres i stedet for at blive sendt, scannet eller afhentet. En rigtig bestilling af destruktion kan ikke fortrydes."
+    },
+    "cancel": {
+      "title": "Annullér valg",
+      "body": "Har du allerede valgt en handling, kan du fjerne valget og vælge igen, så længe forsendelsen ikke er behandlet eller låst."
     }
   }
 }
