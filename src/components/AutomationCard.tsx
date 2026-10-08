@@ -159,7 +159,7 @@ export function AutomationCard({
         <h3 className="text-base font-semibold">{title ?? t("automation.title")}</h3>
         {!title && <p className="mt-1 text-sm text-muted-foreground">{t("automation.description")}</p>}
       </div>
-      <div className={`grid gap-5 ${showPackages ? "lg:grid-cols-2" : "grid-cols-1"}`}>
+      <div data-tour="automation-cards" className={`grid gap-5 ${showPackages ? "lg:grid-cols-2" : "grid-cols-1"}`}>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base"><Mail className="h-5 w-5 text-primary" />{t("automation.mailLabel")}</CardTitle>
