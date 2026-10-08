@@ -24,7 +24,7 @@ const AutomationPage = () => {
 
   return (
     <AppLayout>
-      <div className="mb-6">
+      <div className="mb-6" data-tour="automation-page">
         <h2 className="text-2xl font-bold">{t("nav.automation")}</h2>
         <p className="text-sm text-muted-foreground mt-1">
           {t("automation.description")}

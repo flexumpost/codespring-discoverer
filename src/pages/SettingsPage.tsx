@@ -336,6 +336,7 @@ const SettingsPage = () => {
               variant="outline"
               className="w-full"
               onClick={openDialog}
+              data-tour="recipients"
             >
               <Plus className="mr-2 h-4 w-4" />
               {t("settings.createMailRecipient")}
