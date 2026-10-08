@@ -117,6 +117,7 @@ export function TenantTour() {
       showProgress
       scrollToFirstStep
       callback={onCb}
+      floaterProps={{ styles: { floater: { zIndex: 10001 } } }}
       locale={{ back: t("tour.back"), next: t("tour.next"), nextLabelWithProgress: t("tour.nextProgress"), last: t("tour.finish"), skip: t("tour.skip"), close: t("tour.finish") }}
       styles={{ options: { primaryColor: "hsl(var(--primary))", zIndex: 10000 } }}
     />
