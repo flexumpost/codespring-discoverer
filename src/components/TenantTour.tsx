@@ -83,6 +83,7 @@ export function TenantTour() {
 
   const finish = async () => {
     stop();
+    if (pathname !== "/") navigate("/");
     if (isMobile) setOpenMobile(false);
     if (user) await supabase.from("profiles").update({ tour_completed_at: new Date().toISOString() } as any).eq("id", user.id);
   };

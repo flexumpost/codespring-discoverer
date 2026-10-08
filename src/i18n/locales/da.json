@@ -1031,6 +1031,14 @@
     "cancel": {
       "title": "Annullér valg",
       "body": "Har du allerede valgt en handling, kan du fjerne valget og vælge igen, så længe forsendelsen ikke er behandlet eller låst."
+    },
+    "automationPage": {
+      "title": "Automatisering af breve og pakker",
+      "body": "Her vælger du standard handling for nye breve og pakker: forsendelse, scanning eller afhentning. Vælger du afhentning, sætter du en fast dag og et fast tidsrum — nye forsendelser bookes automatisk, og du får en e-mail med dag og tidspunkt."
+    },
+    "informationPage": {
+      "title": "Information og notifikationsmodtagere",
+      "body": "Her ser du priser og betingelser for din løsning. Du kan også tilføje flere notifikationsmodtagere, så kolleger får besked om ny post — tryk på \"Opret ny notifikationsmodtager\"."
     }
   }
 }
