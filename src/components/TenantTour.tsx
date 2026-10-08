@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Joyride, { CallBackProps, STATUS, Step } from "react-joyride";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTour } from "@/hooks/useTour";
@@ -41,6 +41,7 @@ export function TenantTour() {
   const { running, start, stop } = useTour();
   const { selectedTenant, tenants, isLoading } = useTenants();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
   const [stepIndex, setStepIndex] = useState(0);
   const [ready, setReady] = useState(false);
@@ -70,7 +71,7 @@ export function TenantTour() {
       disableBeacon: true,
       title: t(`tour.${s.key}.title`),
       content: t(`tour.${s.key}.body`),
-      data: { menu: !!s.menu, dialog: !!s.card },
+      data: { menu: !!s.menu, dialog: !!s.card, page: s.page },
     })), [t, previewCards, tenants.length]);
 
   const dialogOpen = running && !!steps[stepIndex]?.data?.dialog;
@@ -91,9 +92,11 @@ export function TenantTour() {
     if (d.type === "step:after" || d.type === "error:target_not_found") {
       const next = d.index + (d.action === "prev" ? -1 : 1);
       const nextStep = steps[next];
-      if (isMobile) setOpenMobile(!!(nextStep?.data as any)?.menu);
+      const nextData = nextStep?.data as any;
+      if (isMobile) setOpenMobile(!!nextData?.menu);
+      if (nextData?.page && pathname !== nextData.page) navigate(nextData.page);
       setReady(false);
-      setTimeout(() => setStepIndex(next), isMobile ? 300 : 0);
+      setTimeout(() => setStepIndex(next), isMobile || nextData?.page ? 400 : 0);
     }
   };
 
