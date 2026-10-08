@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { TenantProvider } from "@/hooks/useTenants";
+import { TourProvider } from "@/hooks/useTour";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 
@@ -132,7 +133,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <TenantProvider>
-            <AppRoutes />
+            <TourProvider>
+              <AppRoutes />
+            </TourProvider>
           </TenantProvider>
         </AuthProvider>
       </BrowserRouter>

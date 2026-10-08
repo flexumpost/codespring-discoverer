@@ -74,7 +74,8 @@
     "automation": "Automatisering",
     "signOut": "Log ud",
     "flexumPost": "Flexum Post",
-    "partnerAddresses": "Forsendelsesadresse"
+    "partnerAddresses": "Forsendelsesadresse",
+    "showFeatures": "Vis funktioner"
   },
   "greeting": {
     "morning": "Godmorgen",
@@ -944,5 +945,63 @@
     "save": "Gem adresse",
     "saved": "Adressen for {{name}} er gemt",
     "notAvailable": "Denne side er ikke tilgængelig for din konto."
+  },
+  "tour": {
+    "back": "Tilbage",
+    "next": "Næste",
+    "finish": "Afslut",
+    "skip": "Spring over",
+    "demoBadge": "Eksempel",
+    "demoSender": "Eksempel – Skattestyrelsen",
+    "demoStatus": "Ulæst",
+    "demoChoose": "Vælg handling",
+    "welcome": {
+      "title": "Velkommen til din digitale postkasse",
+      "body": "Vi viser dig kort de vigtigste funktioner. Du kan altid springe over."
+    },
+    "mail": {
+      "title": "Din post",
+      "body": "Her ser du alle nye breve og pakker med foto, dato og status."
+    },
+    "action": {
+      "title": "Vælg handling",
+      "body": "Tryk på et brev eller en pakke for at vælge forsendelse, scanning, afhentning eller destruering. Gratis dage er markeret."
+    },
+    "pickup": {
+      "title": "Book afhentning",
+      "body": "Vælg dag og tidsrum for afhentning. Du får en bekræftelse på e-mail, og tidspunktet kan ændres her."
+    },
+    "scan": {
+      "title": "Scannede breve",
+      "body": "Scannede breve kan åbnes og downloades her. De gemmes i 30 dage."
+    },
+    "archive": {
+      "title": "Oversigt og arkiv",
+      "body": "Tryk på kortene for at filtrere. Behandlede forsendelser kan arkiveres og gendannes igen."
+    },
+    "company": {
+      "title": "Vælg virksomhed",
+      "body": "Har du flere virksomheder, skifter du mellem dem her."
+    },
+    "notifications": {
+      "title": "Notifikationer",
+      "body": "Klokken viser nye beskeder om din post."
+    },
+    "address": {
+      "title": "Forsendelsesadresse",
+      "body": "Her retter du din forsendelsesadresse. Du får en e-mail, når den er ændret."
+    },
+    "automation": {
+      "title": "Automatisering",
+      "body": "Vælg hvad der automatisk skal ske med nye breve og pakker."
+    },
+    "information": {
+      "title": "Information",
+      "body": "Se priser, betingelser og notifikationsmodtagere."
+    },
+    "done": {
+      "title": "Det var det!",
+      "body": "Du kan altid se rundvisningen igen under \"Vis funktioner\"."
+    }
   }
 }
