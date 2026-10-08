@@ -149,7 +149,12 @@ Deno.serve(async (req) => {
           if (!invoiceId) continue;
           seen.push(invoiceId);
           // Billed tenants never take ownership of the payer's invoices.
-          if (isBilled) continue;
+          if (isBilled) {
+            await supabase.from("officernd_invoices")
+              .update({ status: normalizeInvoiceStatus(inv.status), due_date: inv.dueDate ? String(inv.dueDate).slice(0, 10) : null, raw: inv, updated_at: new Date().toISOString() })
+              .eq("invoice_id", invoiceId).eq("tenant_id", tenant.id);
+            continue;
+          }
           await upsertInvoice(supabase, {
             invoiceId,
             tenantId: tenant.id,
