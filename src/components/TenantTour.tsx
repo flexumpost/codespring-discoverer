@@ -11,7 +11,7 @@ import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards } from "@/lib/mailActions";
 import { baseTier, lettersPortoIncluded } from "@/lib/tiers";
 
-const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string }[] = [
+const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string; page?: string }[] = [
   { key: "welcome", target: "body" },
   { key: "mail", target: '[data-tour="mail-list"]' },
   { key: "action", target: '[data-tour="mail-action"]' },
@@ -29,8 +29,10 @@ const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string }[
   { key: "notifications", target: '[data-tour="notifications"]' },
   { key: "address", target: '[data-tour="nav-address"]', menu: true },
   { key: "automation", target: '[data-tour="nav-automation"]', menu: true },
+  { key: "automationPage", target: '[data-tour="automation-page"]', page: "/automation" },
   { key: "information", target: '[data-tour="nav-information"]', menu: true },
-  { key: "done", target: '[data-tour="nav-tour"]', menu: true },
+  { key: "informationPage", target: '[data-tour="recipients"]', page: "/settings" },
+  { key: "done", target: '[data-tour="nav-tour"]', menu: true, page: "/" },
 ];
 
 export function TenantTour() {
