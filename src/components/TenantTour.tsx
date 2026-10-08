@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Joyride, { CallBackProps, STATUS, Step } from "react-joyride";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTour } from "@/hooks/useTour";
@@ -11,7 +11,7 @@ import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards } from "@/lib/mailActions";
 import { baseTier, lettersPortoIncluded } from "@/lib/tiers";
 
-const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string }[] = [
+const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string; page?: string }[] = [
   { key: "welcome", target: "body" },
   { key: "mail", target: '[data-tour="mail-list"]' },
   { key: "action", target: '[data-tour="mail-action"]' },
@@ -29,8 +29,10 @@ const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string }[
   { key: "notifications", target: '[data-tour="notifications"]' },
   { key: "address", target: '[data-tour="nav-address"]', menu: true },
   { key: "automation", target: '[data-tour="nav-automation"]', menu: true },
+  { key: "automationPage", target: '[data-tour="automation-page"]', page: "/automation" },
   { key: "information", target: '[data-tour="nav-information"]', menu: true },
-  { key: "done", target: '[data-tour="nav-tour"]', menu: true },
+  { key: "informationPage", target: '[data-tour="recipients"]', page: "/settings" },
+  { key: "done", target: '[data-tour="nav-tour"]', menu: true, page: "/" },
 ];
 
 export function TenantTour() {
@@ -39,6 +41,7 @@ export function TenantTour() {
   const { running, start, stop } = useTour();
   const { selectedTenant, tenants, isLoading } = useTenants();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
   const [stepIndex, setStepIndex] = useState(0);
   const [ready, setReady] = useState(false);
@@ -68,7 +71,7 @@ export function TenantTour() {
       disableBeacon: true,
       title: t(`tour.${s.key}.title`),
       content: t(`tour.${s.key}.body`),
-      data: { menu: !!s.menu, dialog: !!s.card },
+      data: { menu: !!s.menu, dialog: !!s.card, page: s.page },
     })), [t, previewCards, tenants.length]);
 
   const dialogOpen = running && !!steps[stepIndex]?.data?.dialog;
@@ -80,6 +83,7 @@ export function TenantTour() {
 
   const finish = async () => {
     stop();
+    if (pathname !== "/") navigate("/");
     if (isMobile) setOpenMobile(false);
     if (user) await supabase.from("profiles").update({ tour_completed_at: new Date().toISOString() } as any).eq("id", user.id);
   };
@@ -89,9 +93,11 @@ export function TenantTour() {
     if (d.type === "step:after" || d.type === "error:target_not_found") {
       const next = d.index + (d.action === "prev" ? -1 : 1);
       const nextStep = steps[next];
-      if (isMobile) setOpenMobile(!!(nextStep?.data as any)?.menu);
+      const nextData = nextStep?.data as any;
+      if (isMobile) setOpenMobile(!!nextData?.menu);
+      if (nextData?.page && pathname !== nextData.page) navigate(nextData.page);
       setReady(false);
-      setTimeout(() => setStepIndex(next), isMobile ? 300 : 0);
+      setTimeout(() => setStepIndex(next), isMobile || nextData?.page ? 400 : 0);
     }
   };
 

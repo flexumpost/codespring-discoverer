@@ -1031,6 +1031,14 @@
     "cancel": {
       "title": "Cancel choice",
       "body": "If you have already chosen an action, you can remove it and choose again while the shipment is not yet handled or locked."
+    },
+    "automationPage": {
+      "title": "Automation for letters and packages",
+      "body": "Here you choose the default action for new letters and packages: shipment, scanning or pickup. If you choose pickup, set a fixed day and time slot — new items are booked automatically, and you receive an email with the day and time."
+    },
+    "informationPage": {
+      "title": "Information and notification recipients",
+      "body": "Here you can see prices and terms for your plan. You can also add more notification recipients so colleagues are notified about new mail — click \"Create new notification recipient\"."
     }
   }
 }
