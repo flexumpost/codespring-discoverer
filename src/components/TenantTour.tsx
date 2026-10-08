@@ -9,7 +9,7 @@ import { useTenants } from "@/hooks/useTenants";
 import { useSidebar } from "@/components/ui/sidebar";
 import { ChooseActionDialog } from "@/components/ChooseActionDialog";
 import { buildActionCards } from "@/lib/mailActions";
-import { baseTier } from "@/lib/tiers";
+import { baseTier, lettersPortoIncluded } from "@/lib/tiers";
 
 const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string }[] = [
   { key: "welcome", target: "body" },
@@ -46,7 +46,7 @@ export function TenantTour() {
   const previewCards = useMemo(() => buildActionCards({
     item: { mail_type: "brev", status: "ny", chosen_action: "tour_preview", scan_url: null },
     tier: baseTier(rawTier), rawTier, t,
-  }), [rawTier, t]);
+  }).map((card) => lettersPortoIncluded(rawTier) ? { ...card, price: card.price.replace(" + porto", "") } : card), [rawTier, t]);
 
   const guardBlocking = !selectedTenant || (selectedTenant as any).shipping_confirmed !== true;
 
