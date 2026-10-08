@@ -47,8 +47,8 @@ function usePricingData() {
       const mail: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(MAIL_PRICING_DEFAULTS));
       const pkg: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(PACKAGE_PRICING_DEFAULTS));
       (data ?? []).forEach((row: any) => {
-        if (row.category === "mail") (mail[row.tier] ??= {})[row.tier][row.field_key] = row.field_value;
-        else if (row.category === "package") (pkg[row.tier] ??= {})[row.tier][row.field_key] = row.field_value;
+        if (row.category === "mail") (mail[row.tier] ??= {})[row.field_key] = row.field_value;
+        else if (row.category === "package") (pkg[row.tier] ??= {})[row.field_key] = row.field_value;
       });
       return { mail, pkg };
     },
@@ -108,7 +108,6 @@ export function MailPricingCard({ tenantTypeName, tenant }: PricingCardProps) {
 
 export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps) {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
   const packageAction = "send";
   const { data: pricing } = usePricingData();
 
