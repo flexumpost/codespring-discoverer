@@ -26,6 +26,7 @@ interface ChooseActionDialogProps {
   cards: ActionCard[];
   onSelect: (card: ActionCard) => void;
   disabled?: boolean;
+  tourPreview?: boolean;
 }
 
 export function ChooseActionDialog({
@@ -36,11 +37,12 @@ export function ChooseActionDialog({
   cards,
   onSelect,
   disabled,
+  tourPreview = false,
 }: ChooseActionDialogProps) {
   const { t } = useTranslation();
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+    <Dialog open={open} onOpenChange={onOpenChange} modal={!tourPreview}>
+      <DialogContent className="max-w-3xl" data-tour="action-dialog" onInteractOutside={tourPreview ? (event) => event.preventDefault() : undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -52,6 +54,7 @@ export function ChooseActionDialog({
               <button
                 type="button"
                 key={card.key}
+                 data-tour={`action-${card.key}`}
                 disabled={disabled}
                 onClick={() => onSelect(card)}
                 className={cn(
