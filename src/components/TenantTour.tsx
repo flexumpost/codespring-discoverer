@@ -37,7 +37,7 @@ export function TenantTour() {
   const { t } = useTranslation();
   const { user, role } = useAuth();
   const { running, start, stop } = useTour();
-  const { selectedTenant, isLoading } = useTenants();
+  const { selectedTenant, tenants, isLoading } = useTenants();
   const { pathname } = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
   const [stepIndex, setStepIndex] = useState(0);
@@ -61,7 +61,7 @@ export function TenantTour() {
   useEffect(() => { if (running) setStepIndex(0); }, [running]);
 
   const steps: Step[] = useMemo(() => STEP_KEYS
-    .filter((s) => s.card ? s.card === "dialog" || previewCards.some((card) => card.key === s.card) : s.target === "body" || s.menu || document.querySelector(s.target))
+    .filter((s) => s.card ? s.card === "dialog" || previewCards.some((card) => card.key === s.card) : s.key !== "company" || tenants.length > 1)
     .map((s) => ({
       target: s.target,
       placement: s.target === "body" ? "center" : "auto",
@@ -69,7 +69,7 @@ export function TenantTour() {
       title: t(`tour.${s.key}.title`),
       content: t(`tour.${s.key}.body`),
       data: { menu: !!s.menu, dialog: !!s.card },
-    })), [running, t, previewCards]);
+    })), [t, previewCards, tenants.length]);
 
   const dialogOpen = running && !!steps[stepIndex]?.data?.dialog;
   useEffect(() => {
