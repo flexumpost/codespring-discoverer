@@ -1032,9 +1032,13 @@
       "title": "Cancel choice",
       "body": "If you have already chosen an action, you can remove it and choose again while the shipment is not yet handled or locked."
     },
-    "automationPage": {
-      "title": "Automation for letters and packages",
-      "body": "The two boxes show what happens by default to new letters and packages: shipment, scanning or pickup. If you choose pickup, set a fixed day and time slot — new items are booked automatically, and you receive an email with the day and time. You can change the two boxes at any time, and choose a different action on an individual shipment."
+    "automationMail": {
+      "title": "Default action for letters",
+      "body": "In this box you choose what happens by default to new letters: shipment, scanning or pickup. If you choose pickup, set a fixed day and time slot — new letters are booked automatically, and you receive an email with the day and time."
+    },
+    "automationPackages": {
+      "title": "Default action for packages",
+      "body": "Here you choose what happens by default to new packages: shipment or pickup. If you choose pickup, your fixed time slot also applies to packages. You can change the box at any time and choose a different action on an individual shipment."
     },
     "informationPage": {
       "title": "Information and notification recipients",

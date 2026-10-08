@@ -1032,9 +1032,13 @@
       "title": "Annullér valg",
       "body": "Har du allerede valgt en handling, kan du fjerne valget og vælge igen, så længe forsendelsen ikke er behandlet eller låst."
     },
-    "automationPage": {
-      "title": "Automatisering af breve og pakker",
-      "body": "De to bokse viser, hvad der som standard sker med nye breve og pakker: forsendelse, scanning eller afhentning. Vælger du afhentning, sætter du en fast dag og et fast tidsrum — nye forsendelser bookes automatisk, og du får en e-mail med dag og tidspunkt. Du kan altid ændre de to bokse, og vælge en anden handling på den enkelte forsendelse."
+    "automationMail": {
+      "title": "Standard handling for breve",
+      "body": "I denne boks vælger du, hvad der som standard sker med nye breve: forsendelse, scanning eller afhentning. Vælger du afhentning, sætter du en fast dag og et fast tidsrum — nye breve bookes automatisk, og du får en e-mail med dag og tidspunkt."
+    },
+    "automationPackages": {
+      "title": "Standard handling for pakker",
+      "body": "Her vælger du, hvad der som standard sker med nye pakker: forsendelse eller afhentning. Vælger du afhentning, gælder dit faste tidsrum også for pakker. Du kan altid ændre boksen og vælge en anden handling på den enkelte forsendelse."
     },
     "informationPage": {
       "title": "Information og notifikationsmodtagere",
