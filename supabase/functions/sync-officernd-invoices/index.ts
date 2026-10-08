@@ -75,13 +75,13 @@ Deno.serve(async (req) => {
 
     let q = supabase
       .from("tenants")
-      .select("id, company_name, contact_email, billed_by_email, has_unpaid_invoice")
+      .select("id, company_name, contact_email, billed_by_email, billed_by_company, has_unpaid_invoice")
       .eq("is_active", true)
       .order("updated_at", { ascending: true })
       .limit(BATCH_SIZE);
     if (onlyTenantId) q = supabase
       .from("tenants")
-      .select("id, company_name, contact_email, billed_by_email, has_unpaid_invoice")
+      .select("id, company_name, contact_email, billed_by_email, billed_by_company, has_unpaid_invoice")
       .eq("id", onlyTenantId);
 
     const { data: tenants, error: tErr } = await q;
@@ -92,23 +92,17 @@ Deno.serve(async (req) => {
     let unresolved = 0;
 
     for (const tenant of (tenants ?? []) as any[]) {
-      // Tenants billed by another company follow the payer's invoices.
-      if (tenant.billed_by_email || tenant.billed_by_company) {
-        const before = !!tenant.has_unpaid_invoice;
-        const after = await recomputeTenantFlag(supabase, tenant.id, {
-          source: "reconcile",
-          note: "Følger betalende virksomhed",
-        }, 1);
-        checked++;
-        if (before !== after) changed++;
-        continue;
-      }
-      const email: string | null = tenant.contact_email || null;
-      if (!email) {
+      // Tenants billed by another company: refresh/clean their own stored rows
+      // (looked up via the payer e-mail), then follow the payer's flag.
+      const isBilled = !!(tenant.billed_by_email || tenant.billed_by_company);
+      const email: string | null = isBilled ? (tenant.billed_by_email || null) : (tenant.contact_email || null);
+      if (!email && !isBilled) {
         unresolved++;
         continue;
       }
 
+      const seen: string[] = [];
+      if (email) {
       let members: any[] = [];
       try {
         members = await findMembersByEmail(apiBase, token, email);
@@ -123,15 +117,14 @@ Deno.serve(async (req) => {
         }
         console.warn(`Member lookup failed for ${email}: ${msg}`);
         unresolved++;
-        continue;
+        continue; // keep stored rows when lookup failed
       }
 
-      if (members.length === 0) {
+      if (members.length === 0 && !isBilled) {
         unresolved++;
         continue;
       }
 
-      const seen: string[] = [];
       for (const member of members) {
         const memberId = member._id ?? member.id;
         if (!memberId) continue;
@@ -168,6 +161,7 @@ Deno.serve(async (req) => {
           });
         }
       }
+      }
 
       // Drop stored invoices that no longer exist in OfficeRnD for this tenant.
       const { data: stored } = await supabase
@@ -185,8 +179,8 @@ Deno.serve(async (req) => {
       const before = !!tenant.has_unpaid_invoice;
       const after = await recomputeTenantFlag(supabase, tenant.id, {
         source: "reconcile",
-        note: `Afstemt ${seen.length} faktura(er)`,
-      });
+        note: isBilled ? "Følger betalende virksomhed" : `Afstemt ${seen.length} faktura(er)`,
+      }, isBilled ? 1 : 0);
       checked++;
       if (before !== after) changed++;
     }
