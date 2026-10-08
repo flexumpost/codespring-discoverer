@@ -1034,7 +1034,7 @@
     },
     "automationPage": {
       "title": "Automatisering af breve og pakker",
-      "body": "Her vælger du standard handling for nye breve og pakker: forsendelse, scanning eller afhentning. Vælger du afhentning, sætter du en fast dag og et fast tidsrum — nye forsendelser bookes automatisk, og du får en e-mail med dag og tidspunkt."
+      "body": "De to bokse viser, hvad der som standard sker med nye breve og pakker: forsendelse, scanning eller afhentning. Vælger du afhentning, sætter du en fast dag og et fast tidsrum — nye forsendelser bookes automatisk, og du får en e-mail med dag og tidspunkt. Du kan altid ændre de to bokse, og vælge en anden handling på den enkelte forsendelse."
     },
     "informationPage": {
       "title": "Information og notifikationsmodtagere",
