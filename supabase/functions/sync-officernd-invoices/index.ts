@@ -148,6 +148,8 @@ Deno.serve(async (req) => {
           const invoiceId = invoiceRefId(inv);
           if (!invoiceId) continue;
           seen.push(invoiceId);
+          // Billed tenants never take ownership of the payer's invoices.
+          if (isBilled) continue;
           await upsertInvoice(supabase, {
             invoiceId,
             tenantId: tenant.id,
