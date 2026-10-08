@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
       .eq("role", "operator")
       .maybeSingle();
 
+    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers, mail_item_id } = await req.json();
     let isOperator = !!roleCheck;
     if (!isOperator) {
       // Tenant callers may only trigger notifications for their own tenant
@@ -94,7 +95,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id, mail_type, stamp_number, template_slug, tracking_number, is_new_tenant, test_recipient_email, stamp_numbers, tracking_numbers, mail_item_id } = await req.json();
     if (!tenant_id) {
       return new Response(
         JSON.stringify({ error: "tenant_id required" }),

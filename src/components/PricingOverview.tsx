@@ -47,8 +47,8 @@ function usePricingData() {
       const mail: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(MAIL_PRICING_DEFAULTS));
       const pkg: Record<string, Record<string, string>> = JSON.parse(JSON.stringify(PACKAGE_PRICING_DEFAULTS));
       (data ?? []).forEach((row: any) => {
-        if (row.category === "mail" && mail[row.tier]) mail[row.tier][row.field_key] = row.field_value;
-        else if (row.category === "package" && pkg[row.tier]) pkg[row.tier][row.field_key] = row.field_value;
+        if (row.category === "mail") (mail[row.tier] ??= {})[row.tier][row.field_key] = row.field_value;
+        else if (row.category === "package") (pkg[row.tier] ??= {})[row.tier][row.field_key] = row.field_value;
       });
       return { mail, pkg };
     },
@@ -112,14 +112,6 @@ export function PackagePricingCard({ tenantTypeName, tenant }: PricingCardProps)
   const packageAction = "send";
   const { data: pricing } = usePricingData();
 
-  useEffect(() => {
-    // Auto-fix if tenant currently has "afhentning" as default package action
-    if (tenant?.default_package_action === "afhentning") {
-      supabase.from("tenants").update({ default_package_action: "send" } as any).eq("id", tenant.id).then(() => {
-        queryClient.invalidateQueries({ queryKey: ["my-tenants"] });
-      });
-    }
-  }, [tenant?.id, tenant?.default_package_action]);
 
   if (!tenantTypeName || !["Lite", "Standard", "Plus", ...NEW_TIERS].includes(tenantTypeName as any)) return null;
 
