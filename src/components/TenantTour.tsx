@@ -38,12 +38,11 @@ const STEP_KEYS: { key: string; target: string; menu?: boolean; card?: string; p
 export function TenantTour() {
   const { t } = useTranslation();
   const { user, role } = useAuth();
-  const { running, start, stop } = useTour();
+  const { running, start, stop, stepIndex, setStepIndex } = useTour();
   const { selectedTenant, tenants, isLoading } = useTenants();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
-  const [stepIndex, setStepIndex] = useState(0);
   const [ready, setReady] = useState(false);
   const rawTier = selectedTenant?.tenant_types?.name;
   const previewCards = useMemo(() => buildActionCards({
@@ -55,13 +54,12 @@ export function TenantTour() {
 
   // Auto-start once for new tenants
   useEffect(() => {
-    if (role !== "tenant" || !user || pathname !== "/" || isLoading || guardBlocking) return;
+    if (running || role !== "tenant" || !user || pathname !== "/" || isLoading || guardBlocking) return;
     supabase.from("profiles").select("tour_completed_at").eq("id", user.id).maybeSingle().then(({ data }) => {
       if (data && !(data as any).tour_completed_at) setTimeout(start, 800);
     });
   }, [role, user?.id, pathname, isLoading, guardBlocking]);
 
-  useEffect(() => { if (running) setStepIndex(0); }, [running]);
 
   const steps: Step[] = useMemo(() => STEP_KEYS
     .filter((s) => s.card ? s.card === "dialog" || previewCards.some((card) => card.key === s.card) : s.key !== "company" || tenants.length > 1)
