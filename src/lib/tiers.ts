@@ -36,6 +36,12 @@ export function lettersPortoIncluded(name: string | undefined | null): boolean {
   return name === "Plus" || name === "Standard" || name === "Professional" || name === "Executive";
 }
 
+/** Letters are printed as PLUS letters ("P" on the envelope). Standard/Professional
+ *  have porto included too, but are sent as ordinary letters without the "P". */
+export function plusLetterMarking(name: string | undefined | null): boolean {
+  return name === "Plus" || name === "Executive";
+}
+
 /** Address must be written "c/o Flexum Coworking". */
 export function requiresCo(name: string | undefined | null): boolean {
   return name === "Essential";
