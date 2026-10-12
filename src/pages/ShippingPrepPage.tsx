@@ -663,13 +663,13 @@ export default function ShippingPrepPage() {
                                       <SelectItem value="plus_0_100">PLUS-brev 0-100g (28,00 kr.) – opkræves ikke</SelectItem>
                                       <SelectItem value="plus_100_250">PLUS-brev 100-250g (46,00 kr.) – opkræves ikke</SelectItem>
                                     </>
-                                  ) : isDk ? (
-                                    <>
-                                       <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.)</SelectItem>
-                                      <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.)</SelectItem>
-                                      <SelectItem value="dk_250_500">DK 250-500g (54,00 kr.)</SelectItem>
-                                      <SelectItem value="dk_500_1500">DK 500-1500g (72,00 kr.)</SelectItem>
-                                    </>
+                                   ) : isDk ? (
+                                     <>
+                                        <SelectItem value="dk_0_100">DK 0-100g (18,40 kr.){allIncluded ? " – opkræves ikke" : ""}</SelectItem>
+                                       <SelectItem value="dk_100_250">DK 100-250g (36,80 kr.){allIncluded ? " – opkræves ikke" : ""}</SelectItem>
+                                       <SelectItem value="dk_250_500">DK 250-500g (54,00 kr.){allIncluded ? " – opkræves ikke" : ""}</SelectItem>
+                                       <SelectItem value="dk_500_1500">DK 500-1500g (72,00 kr.){allIncluded ? " – opkræves ikke" : ""}</SelectItem>
+                                     </>
                                   ) : (
                                     <>
                                       <SelectItem value="udland_0_100">Udland 0-100g (46,00 kr.)</SelectItem>
