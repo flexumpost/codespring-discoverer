@@ -152,6 +152,12 @@ export async function upsertInvoice(
   };
 
   if (existing) {
+    // Webhooks can arrive out of order: never let a stale "pending/awaiting"
+    // event downgrade an invoice that is already paid.
+    const PENDING = ["pending", "unpaid", "open", "awaiting_payment", "draft"];
+    if (String(existing.status).toLowerCase() === "paid" && PENDING.includes(String(payload.status).toLowerCase())) {
+      payload.status = existing.status;
+    }
     await supabase.from("officernd_invoices").update(payload).eq("id", existing.id);
     return existing.status ?? null;
   }
