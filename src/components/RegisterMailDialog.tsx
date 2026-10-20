@@ -369,9 +369,32 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
     setShowCamera(false);
   }, []);
 
+  const cameraStartingRef = useRef(false);
+
+  // Release the camera if the component unmounts while it is active
+  useEffect(() => () => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
+
   const handleTakePhoto = async () => {
+    if (cameraStartingRef.current) return;
+    cameraStartingRef.current = true;
+    // Release any stream we still hold, so we never lock the camera ourselves
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch (firstErr: any) {
+        if (firstErr?.name === "NotAllowedError") throw firstErr;
+        // Short wait for the device to be released, then retry with any camera
+        await new Promise((r) => setTimeout(r, 500));
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       streamRef.current = stream;
       setShowCamera(true);
       setTimeout(() => {
@@ -379,8 +402,17 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
           videoRef.current.srcObject = stream;
         }
       }, 100);
-    } catch (err) {
-      toast.error(t("registerMail.couldNotActivateCamera"));
+    } catch (err: any) {
+      console.error("Camera error:", err?.name, err?.message);
+      if (err?.name === "NotReadableError" || err?.name === "AbortError") {
+        toast.error("Kameraet er i brug af et andet program eller en anden fane. Luk det (fx Teams, Zoom eller en anden fane med postkassen) og prøv igen.");
+      } else if (err?.name === "NotFoundError" || err?.name === "OverconstrainedError") {
+        toast.error("Der blev ikke fundet noget kamera på enheden.");
+      } else {
+        toast.error(t("registerMail.couldNotActivateCamera"));
+      }
+    } finally {
+      cameraStartingRef.current = false;
     }
   };
 
