@@ -230,7 +230,10 @@ Deno.serve(async (req) => {
     const stampLabel = stampList.length ? escapeHtml(stampList.join(", ")) : "";
     const trackingLabel = trackingList.length ? escapeHtml(trackingList[0]) : "";
 
+    const dateLabel = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+
     const subject = template.subject
+      .replace(/\{\{date\}\}/g, dateLabel)
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
@@ -239,6 +242,7 @@ Deno.serve(async (req) => {
       .replace(/\{\{pickup_date\}\}/g, pickupLabel);
 
     const bodyRaw = template.body
+      .replace(/\{\{date\}\}/g, dateLabel)
       .replace(/\{\{company_name\}\}/g, companyNameEscaped)
       .replace(/\{\{name\}\}/g, name)
       .replace(/\{\{stamp_number\}\}/g, stampLabel)
