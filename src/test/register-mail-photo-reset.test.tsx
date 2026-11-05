@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RegisterMailDialog } from "@/components/RegisterMailDialog";
 
@@ -16,7 +16,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), info: vi.fn(), warning: vi
 vi.mock("@/lib/validateStampNumber", () => ({ validateStampNumber: () => ({ valid: true }) }));
 
 function upload(container: HTMLElement) {
-  const input = container.querySelector('input[type="file"]');
+  const input = document.querySelector('input[type="file"]');
   if (!input) throw new Error("Missing photo input");
   fireEvent.change(input, { target: { files: [new File(["photo"], "letter.jpg", { type: "image/jpeg" })] } });
 }
@@ -60,7 +60,9 @@ describe("New registration photo", () => {
     invoke.mockResolvedValueOnce({ data: { stamp_number: "3956", sender_name: "New sender" } });
     upload(container);
     await screen.findByDisplayValue("New sender");
-    resolveOld({ data: { stamp_number: "3955", sender_name: "Old sender", recipient_name: "Firma A", is_registered: true } });
+    await act(async () => {
+      resolveOld({ data: { stamp_number: "3955", sender_name: "Old sender", recipient_name: "Firma A", is_registered: true } });
+    });
     await waitFor(() => expect(screen.getByDisplayValue("3956")).toBeInTheDocument());
     expect(screen.queryByDisplayValue("Old sender")).not.toBeInTheDocument();
     expect(screen.queryByText("Firma A")).not.toBeInTheDocument();
