@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
       }
 
       const seen: string[] = [];
+      let memberListsComplete = true;
       if (email) {
       let members: any[] = [];
       try {
@@ -167,6 +168,7 @@ Deno.serve(async (req) => {
             );
           }
           console.warn(`Invoice list failed for member ${memberId}: ${msg}`);
+          memberListsComplete = false;
           continue;
         }
 
@@ -205,7 +207,7 @@ Deno.serve(async (req) => {
       const stale = ((stored ?? []) as any[])
         .filter((r) => !seen.includes(r.invoice_id))
         .map((r) => r.id);
-      if (stale.length > 0) {
+      if (memberListsComplete && stale.length > 0) {
         await supabase.from("officernd_invoices").delete().in("id", stale);
       }
 
@@ -306,7 +308,7 @@ Deno.serve(async (req) => {
     console.log(`Relinked ${relinked} orphan invoice(s)`);
     console.log(`Invoice reconciliation done: checked=${checked}, changed=${changed}, unresolved=${unresolved}`);
     return new Response(
-      JSON.stringify({ success: true, checked, changed, unresolved, relinked, teamInvoices }),
+      JSON.stringify({ success: teamInvoices.failed === 0, checked, changed, unresolved, relinked, teamInvoices }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
