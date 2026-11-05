@@ -1,4 +1,4 @@
-import { getInvoice, invoiceMemberId, invoiceTeamId, normalizeInvoiceStatus } from "./officernd.ts";
+import { getInvoicePayment, invoiceMemberId, invoiceTeamId, normalizeInvoiceStatus } from "./officernd.ts";
 import { recomputeTenantFlag, upsertInvoice } from "./invoice-flag.ts";
 
 /** Refresh company invoices by their own IDs, even without a matching member. */
@@ -25,7 +25,7 @@ export async function reconcileTeamInvoices(
     for (let start = 0; start < invoices.length; start += 5) {
       await Promise.all(invoices.slice(start, start + 5).map(async (row: any) => {
         try {
-          const inv = await getInvoice(apiBase, token, row.invoice_id);
+          const inv = await getInvoicePayment(apiBase, token, row.invoice_id);
           if (!inv) {
             failed++;
             return; // Never clear debt on an unsuccessful lookup.

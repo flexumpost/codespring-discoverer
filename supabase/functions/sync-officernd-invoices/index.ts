@@ -9,6 +9,7 @@ import {
   getOfficeRndToken,
   findMembersByEmail,
   INVOICE_SCOPE,
+  PAYMENT_SCOPE,
   listInvoices,
   invoiceRefId,
   invoiceMemberId,
@@ -97,7 +98,8 @@ Deno.serve(async (req) => {
 
     // Team-only invoices have no member and are absent from member-filtered lists.
     // Refresh these independently, including tenants outside the member batch.
-    const teamInvoices = await reconcileTeamInvoices(supabase, apiBase, token, onlyTenantId);
+    const paymentToken = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [PAYMENT_SCOPE]);
+    const teamInvoices = await reconcileTeamInvoices(supabase, apiBase, paymentToken, onlyTenantId);
 
     let q = supabase
       .from("tenants")
