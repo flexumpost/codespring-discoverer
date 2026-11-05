@@ -2,10 +2,14 @@
 // Runs bounded work per invocation and halts on billing/permission errors.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3";
+import { reconcileTeamInvoices } from "../_shared/reconcile-team-invoices.ts";
 import {
   getOfficeRndToken,
   findMembersByEmail,
   INVOICE_SCOPE,
+  PAYMENT_SCOPE,
   listInvoices,
   invoiceRefId,
   invoiceMemberId,
@@ -20,11 +24,7 @@ import {
   upsertInvoice,
 } from "../_shared/invoice-flag.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const BodySchema = z.object({ tenant_id: z.string().uuid().optional() });
 
 const BATCH_SIZE = 60; // tenants per invocation
 
@@ -33,14 +33,37 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const url = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) {
+    return new Response(JSON.stringify({ error: "Missing configuration" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const supabase = createClient(url, serviceKey);
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const onlyTenantId: string | null = body?.tenant_id ?? null;
+    const authHeader = req.headers.get("Authorization");
+    const callerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+    if (!callerToken) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+    }
+    if (callerToken !== serviceKey) {
+      const { data, error } = await supabase.auth.getClaims(callerToken);
+      if (error || !data?.claims?.sub) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
+      }
+      const { data: role } = await supabase.from("user_roles").select("id")
+        .eq("user_id", data.claims.sub).eq("role", "operator").maybeSingle();
+      if (!role) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: corsHeaders });
+      }
+    }
+    const parsed = BodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Invalid request" }), { status: 400, headers: corsHeaders });
+    }
+    const onlyTenantId = parsed.data.tenant_id ?? null;
 
     const { data: settings } = await supabase
       .from("officernd_settings")
@@ -71,7 +94,12 @@ Deno.serve(async (req) => {
       token = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [INVOICE_SCOPE]);
     }
     const apiBase = v2Base(orgSlug);
-    const teamToken = (await getOfficeRndToken({ clientId: clientId!, clientSecret: clientSecret!, orgSlug }, [TEAM_SCOPE]).catch(() => null));
+    const teamToken = (await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [TEAM_SCOPE]).catch(() => null));
+
+    // Team-only invoices have no member and are absent from member-filtered lists.
+    // Refresh these independently, including tenants outside the member batch.
+    const paymentToken = await getOfficeRndToken({ clientId, clientSecret, orgSlug }, [PAYMENT_SCOPE]);
+    const teamInvoices = await reconcileTeamInvoices(supabase, apiBase, paymentToken, onlyTenantId);
 
     let q = supabase
       .from("tenants")
@@ -102,6 +130,7 @@ Deno.serve(async (req) => {
       }
 
       const seen: string[] = [];
+      let memberListsComplete = true;
       if (email) {
       let members: any[] = [];
       try {
@@ -141,6 +170,7 @@ Deno.serve(async (req) => {
             );
           }
           console.warn(`Invoice list failed for member ${memberId}: ${msg}`);
+          memberListsComplete = false;
           continue;
         }
 
@@ -179,7 +209,7 @@ Deno.serve(async (req) => {
       const stale = ((stored ?? []) as any[])
         .filter((r) => !seen.includes(r.invoice_id))
         .map((r) => r.id);
-      if (stale.length > 0) {
+      if (memberListsComplete && stale.length > 0) {
         await supabase.from("officernd_invoices").delete().in("id", stale);
       }
 
@@ -193,11 +223,14 @@ Deno.serve(async (req) => {
     }
 
     // --- Re-resolve invoices that could not be linked to a tenant earlier ----
-    const { data: orphans } = await supabase
+    let orphanQuery = supabase
       .from("officernd_invoices")
       .select("id, invoice_id, member_email, team_id, status, raw")
       .is("tenant_id", null)
       .limit(200);
+    // A targeted operator check must not relink other tenants' invoices.
+    if (onlyTenantId) orphanQuery = orphanQuery.eq("tenant_id", onlyTenantId);
+    const { data: orphans } = await orphanQuery;
 
     let relinked = 0;
     const touchedTenants = new Set<string>();
@@ -277,7 +310,7 @@ Deno.serve(async (req) => {
     console.log(`Relinked ${relinked} orphan invoice(s)`);
     console.log(`Invoice reconciliation done: checked=${checked}, changed=${changed}, unresolved=${unresolved}`);
     return new Response(
-      JSON.stringify({ success: true, checked, changed, unresolved, relinked }),
+      JSON.stringify({ success: teamInvoices.failed === 0, checked, changed, unresolved, relinked, teamInvoices }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {

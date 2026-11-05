@@ -48,6 +48,7 @@ const TOKEN_SCOPES = [
 
 /** Extra scope needed for the invoice automation only. */
 export const INVOICE_SCOPE = "flex.billing.invoices.read";
+export const PAYMENT_SCOPE = "flex.billing.payments.read";
 
 export function v1Base(orgSlug: string): string {
   return `https://app.officernd.com/api/v1/organizations/${orgSlug}`;
@@ -324,6 +325,22 @@ export async function getInvoice(
   const list = extractList(json);
   if (list.length > 0 && !json?._id && !json?.id) return list[0] as OfficeRndInvoice;
   return json as OfficeRndInvoice;
+}
+
+/** v2 exposes invoices as payment documents, using their existing invoice IDs. */
+export async function getInvoicePayment(
+  apiBase: string,
+  token: string,
+  invoiceId: string,
+): Promise<OfficeRndInvoice | null> {
+  const res = await fetch(`${apiBase}/payments/${encodeURIComponent(invoiceId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    await res.text();
+    throw new Error(`OfficeRnD payment lookup failed [${res.status}]`);
+  }
+  return await res.json() as OfficeRndInvoice;
 }
 
 /** List invoices, optionally filtered by member id. Follows cursor pagination. */
