@@ -66,6 +66,30 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const cropImageRef = useRef<HTMLImageElement>(null);
   const cropContainerRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const photoGenerationRef = useRef(0);
+
+  const clearPhotoData = () => {
+    photoGenerationRef.current += 1;
+    setSenderName("");
+    setStampNumber("");
+    setTenantSearch("");
+    setSelectedTenantId(null);
+    setSelectedTenantName("");
+    setNotes("");
+    setIsRegistered(false);
+    setOcrRecipient(null);
+    setNoAutoMatch(false);
+    setShowTenantList(false);
+    setShowCreateTenant(false);
+    setPhoto(null);
+    setPhotoPreview(null);
+    setShowZoom(false);
+    setCropTarget(null);
+    setCropRect(null);
+    setIsCropping(false);
+    setOcrLoading(false);
+    setCropLoading(false);
+  };
 
   const { data: tenants } = useQuery({
     queryKey: ["tenants-active"],
@@ -172,6 +196,8 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   }, [tenants, t]);
 
   const runOcr = async (file: File) => {
+    const generation = photoGenerationRef.current;
+    const isCurrent = () => generation === photoGenerationRef.current;
     setOcrLoading(true);
     try {
       const reader = new FileReader();
@@ -181,13 +207,16 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         reader.readAsDataURL(file);
       });
 
+      if (!isCurrent()) return;
+
       const { data, error } = await supabase.functions.invoke("ocr-stamp", {
         body: { image_base64: base64 },
       });
 
+      if (!isCurrent()) return;
       if (error) throw error;
 
-      if (data?.stamp_number && !stampNumber) {
+      if (data?.stamp_number) {
         const validation = validateStampNumber(String(data.stamp_number), recentStampNumbers);
         if (validation.valid) {
           setStampNumber(data.stamp_number);
@@ -212,7 +241,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         }
       }
 
-      if (detectedSender && !senderName) {
+      if (detectedSender) {
         setSenderName(detectedSender);
         toast.success(t("registerMail.senderFound") + ": " + detectedSender);
       }
@@ -230,15 +259,18 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         setNoAutoMatch(true);
       }
     } catch (err: any) {
+      if (!isCurrent()) return;
       console.error("OCR error:", err);
       toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
-      setOcrLoading(false);
+      if (isCurrent()) setOcrLoading(false);
     }
   };
 
   const handleCropOcr = async () => {
     if (!cropRect || !photoPreview || !cropImageRef.current) return;
+    const generation = photoGenerationRef.current;
+    const isCurrent = () => generation === photoGenerationRef.current;
     setCropLoading(true);
 
     try {
@@ -275,6 +307,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
         body: { crop_base64: cropBase64 },
       });
 
+      if (!isCurrent()) return;
       if (error) throw error;
 
       const ocrText = data?.ocr_text;
@@ -313,10 +346,11 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
       setCropTarget(null);
       setCropRect(null);
     } catch (err: any) {
+      if (!isCurrent()) return;
       console.error("Crop OCR error:", err);
       toast.error(t("registerMail.ocrFailed") + ": " + (err.message || t("common.unknown")));
     } finally {
-      setCropLoading(false);
+      if (isCurrent()) setCropLoading(false);
     }
   };
 
@@ -351,6 +385,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      clearPhotoData();
       setPhoto(file);
       setPhotoPreview(URL.createObjectURL(file));
       setCropTarget(null);
@@ -373,6 +408,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   // Release the camera if the component unmounts while it is active
   useEffect(() => () => {
+    photoGenerationRef.current += 1;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
   }, []);
@@ -380,6 +416,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   const handleTakePhoto = async () => {
     if (cameraStartingRef.current) return;
     cameraStartingRef.current = true;
+    clearPhotoData();
     // Release any stream we still hold, so we never lock the camera ourselves
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -417,6 +454,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   };
 
   const capturePhoto = () => {
+    const generation = photoGenerationRef.current;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -428,7 +466,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
     ctx.drawImage(video, 0, 0);
     canvas.toBlob((blob) => {
-      if (blob) {
+      if (blob && generation === photoGenerationRef.current) {
         const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
         setPhoto(file);
         setPhotoPreview(URL.createObjectURL(file));
@@ -444,6 +482,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
   useEffect(() => {
     if (!open) {
+      photoGenerationRef.current += 1;
       stopCamera();
       if (pendingNewTenant) {
         supabase.functions.invoke("create-tenant-user", {
@@ -461,6 +500,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
   }, [open, stopCamera]);
 
   const resetForm = () => {
+    clearPhotoData();
     setMailType("brev");
     setSenderName("");
     setStampNumber("");
@@ -623,7 +663,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
               variant="destructive"
               size="icon"
               className="absolute top-1 right-1 h-6 w-6"
-              onClick={(e) => { e.stopPropagation(); setPhoto(null); setPhotoPreview(null); setCropTarget(null); setCropRect(null); }}
+              onClick={(e) => { e.stopPropagation(); clearPhotoData(); }}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -669,13 +709,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => {
-                      setPhoto(null);
-                      setPhotoPreview(null);
-                      setCropTarget(null);
-                      setCropRect(null);
-                      handleTakePhoto();
-                    }}
+                    onClick={handleTakePhoto}
                   >
                     <Camera className="h-4 w-4 mr-2" />
                     {t("registerMail.takeNewPhoto")}
