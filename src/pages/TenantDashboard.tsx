@@ -384,7 +384,7 @@ function getStatusDisplay(
   if (item.chosen_action === "scan" && !item.scan_url) {
     return [t("statusDisplay.awaitingScan"), t("statusDisplay.scannedWithin24h")];
   }
-  if (item.chosen_action === "scan" && item.scan_url) {
+  if ((item.chosen_action === "scan" || item.chosen_action === "standard_scan") && item.scan_url) {
     const daysLeft = getDaysLeftForScan(item.scanned_at ?? null);
     if (daysLeft !== null && daysLeft <= 0) {
       return [t("statusDisplay.letterDestroyed")];
