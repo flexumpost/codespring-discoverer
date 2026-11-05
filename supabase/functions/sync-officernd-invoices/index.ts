@@ -219,11 +219,14 @@ Deno.serve(async (req) => {
     }
 
     // --- Re-resolve invoices that could not be linked to a tenant earlier ----
-    const { data: orphans } = await supabase
+    let orphanQuery = supabase
       .from("officernd_invoices")
       .select("id, invoice_id, member_email, team_id, status, raw")
       .is("tenant_id", null)
       .limit(200);
+    // A targeted operator check must not relink other tenants' invoices.
+    if (onlyTenantId) orphanQuery = orphanQuery.eq("tenant_id", onlyTenantId);
+    const { data: orphans } = await orphanQuery;
 
     let relinked = 0;
     const touchedTenants = new Set<string>();
