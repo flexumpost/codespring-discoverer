@@ -31,10 +31,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 function getDefaultShippingDate(): Date {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysUntil = (4 - dayOfWeek + 7) % 7;
-  return startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil));
+  return startOfDay(new Date());
 }
 
 function getFirstThursdayOfMonth(refDate: Date): Date {
