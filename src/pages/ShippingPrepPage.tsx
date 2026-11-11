@@ -439,6 +439,11 @@ export default function ShippingPrepPage() {
 
   const filteredItems = useMemo(() => {
     const selDay = startOfDay(selectedDate).getTime();
+    const today = startOfDay(new Date()).getTime();
+    // When viewing today, show everything due today or earlier so the list
+    // is not empty on non-shipping days; other dates keep exact matching.
+    const matchesDate = (shipDate: Date) =>
+      selDay === today ? shipDate.getTime() <= selDay : shipDate.getTime() === selDay;
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
 
@@ -448,7 +453,7 @@ export default function ShippingPrepPage() {
 
       if (item.chosen_action === "standard_forsendelse") {
         const shipDate = getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
-        return shipDate.getTime() === selDay;
+        return matchesDate(shipDate);
       }
       const isExtraShipment =
         item.chosen_action === "send" &&
@@ -457,7 +462,7 @@ export default function ShippingPrepPage() {
       const shipDate = isExtraShipment
         ? (isThursday(startOfDay(new Date())) ? startOfDay(new Date()) : startOfDay(nextThursday(new Date())))
         : getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
-      return shipDate.getTime() === selDay;
+      return matchesDate(shipDate);
     });
   }, [items, selectedDate, tab]);
 
