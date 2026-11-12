@@ -47,6 +47,6 @@ export function ReturnedLettersList({ operator = false, tenantId }: { operator?:
       </div>
       {operator && item.status === 'draft' && <details><summary>{t('returns.review')}</summary><strong>{item.email_subject}</strong><p className="whitespace-pre-line text-sm mt-2">{item.email_body}</p></details>}
     </div>)}
-    <Dialog open={!!photo} onOpenChange={() => setPhoto(null)}><DialogContent><DialogTitle>{t('returns.photo')}</DialogTitle>{photo && <img src={photo} alt={t('returns.photo')} className="max-h-[70vh] w-full object-contain" />}</DialogContent></Dialog>
+    <Dialog open={!!photo} onOpenChange={() => setPhoto(null)}><DialogContent className="w-[97vw] max-w-[97vw] max-h-[96vh] gap-2 p-3 sm:p-4"><DialogTitle className="text-base">{t('returns.photo')}</DialogTitle>{photo && <img src={photo} alt={t('returns.photo')} className="max-h-[86vh] w-full object-contain" />}</DialogContent></Dialog>
   </section>;
 }
