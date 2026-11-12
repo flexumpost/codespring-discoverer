@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenants } from "@/hooks/useTenants";
 import { TenantSelector } from "@/components/TenantSelector";
+import { ReturnedLettersList } from '@/components/ReturnedLettersList';
 import { useTour } from "@/hooks/useTour";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -978,6 +979,7 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
 
   return (
     <div>
+      <ReturnedLettersList tenantId={selectedTenantId || undefined} />
 
       {tenants.length > 1 && (
         <div className="mb-6" data-tour="tenant-selector">

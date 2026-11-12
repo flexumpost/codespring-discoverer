@@ -1,4 +1,5 @@
-import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info, Compass } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info, Compass, MailWarning } from "lucide-react";
+import '@/i18n/returns';
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +21,7 @@ export function AppSidebar() {
   const operatorItems = [
     { title: t("nav.dashboard"), url: "/", icon: LayoutDashboard },
     { title: t("nav.shippingPrep"), url: "/shipping-prep", icon: Package },
+    { title: t("returns.title"), url: "/returned-letters", icon: MailWarning },
     { title: t("nav.tenants"), url: "/tenants", icon: Users },
     { title: t("nav.settings"), url: "/settings", icon: Settings },
   ];

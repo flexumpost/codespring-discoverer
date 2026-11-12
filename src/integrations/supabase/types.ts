@@ -581,6 +581,59 @@ export type Database = {
         }
         Relationships: []
       }
+      returned_letters: {
+        Row: {
+          created_at: string
+          email_body: string
+          email_sent_at: string | null
+          email_subject: string
+          id: string
+          operator_id: string
+          photo_path: string
+          recipient_name: string
+          responded_at: string | null
+          sent_address: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_body: string
+          email_sent_at?: string | null
+          email_subject: string
+          id?: string
+          operator_id: string
+          photo_path: string
+          recipient_name?: string
+          responded_at?: string | null
+          sent_address: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          email_body?: string
+          email_sent_at?: string | null
+          email_subject?: string
+          id?: string
+          operator_id?: string
+          photo_path?: string
+          recipient_name?: string
+          responded_at?: string | null
+          sent_address?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returned_letters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_type_changes: {
         Row: {
           created_at: string

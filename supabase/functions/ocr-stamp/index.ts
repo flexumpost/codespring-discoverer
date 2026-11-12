@@ -151,6 +151,10 @@ serve(async (req) => {
                     type: "string",
                     description: "Modtagerens fulde navn som står på forsendelsen. Returner tom streng hvis ikke fundet.",
                   },
+                  recipient_address: {
+                    type: "string",
+                    description: "Modtagerens komplette adresseblok på kuverten, inkl. navn, c/o, gade, postnummer, by og land. Bevar linjeskift. Ikke afsenderens returadresse.",
+                  },
                   sender_name: {
                     type: "string",
                     description: "Afsenderens navn eller firmanavn (inkl. logo-genkendelse, f.eks. PostNord, DHL, GLS). Returner tom streng hvis ikke fundet.",
@@ -160,7 +164,7 @@ serve(async (req) => {
                     description: "Sæt til true hvis forsendelsen er markeret som 'Rekommanderet' eller 'Registered'. Ellers false.",
                   },
                 },
-                required: ["stamp_number", "recipient_name", "sender_name", "is_registered"],
+                required: ["stamp_number", "recipient_name", "recipient_address", "sender_name", "is_registered"],
                 additionalProperties: false,
               },
             },
@@ -171,21 +175,11 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit - prøv igen om lidt" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI-kredit opbrugt" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const text = await response.text();
-      console.error("AI gateway error:", response.status, text);
-      throw new Error(`AI gateway error: ${response.status}`);
+      const failure = await response.json().catch(() => ({}));
+      const message = failure.message || failure.error?.message || "Billedgenkendelsen kunne ikke gennemføres.";
+      return new Response(JSON.stringify({ error: message }), {
+        status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await response.json();
@@ -193,16 +187,23 @@ serve(async (req) => {
     // Parse tool call result
     let stamp_number: string | null = null;
     let recipient_name: string | null = null;
+    let recipient_address: string | null = null;
     let sender_name: string | null = null;
     let is_registered = false;
 
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (data.choices?.[0]?.message?.refusal || (!toolCall && !data.choices?.[0]?.message?.content?.trim())) {
+      return new Response(JSON.stringify({ error: data.choices?.[0]?.message?.refusal || "Billedgenkendelsen returnerede intet resultat." }), {
+        status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (toolCall?.function?.arguments) {
       try {
         const args = JSON.parse(toolCall.function.arguments);
         const digits = (args.stamp_number || "").replace(/\D/g, "");
         stamp_number = digits.length > 0 ? digits : null;
         recipient_name = args.recipient_name?.trim() || null;
+        recipient_address = args.recipient_address?.trim() || null;
         sender_name = args.sender_name?.trim() || null;
         is_registered = args.is_registered === true;
       } catch (parseErr) {
@@ -220,7 +221,7 @@ serve(async (req) => {
     console.log("OCR result -> stamp_number:", stamp_number, "recipient_name:", recipient_name, "sender_name:", sender_name, "is_registered:", is_registered);
 
     return new Response(
-      JSON.stringify({ stamp_number, recipient_name, sender_name, is_registered }),
+      JSON.stringify({ stamp_number, recipient_name, recipient_address, sender_name, is_registered }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {

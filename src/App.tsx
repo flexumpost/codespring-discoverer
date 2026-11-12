@@ -20,6 +20,7 @@ import ShippingPrepPage from "./pages/ShippingPrepPage";
 import TenantViewPage from "./pages/TenantViewPage";
 import SetPasswordPage from "./pages/SetPasswordPage";
 import NotFound from "./pages/NotFound";
+import ReturnedLettersPage from './pages/ReturnedLettersPage';
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
+    <Route path="/returned-letters" element={<ProtectedRoute requiredRole="operator"><ReturnedLettersPage /></ProtectedRoute>} />
     <Route
       path="/"
       element={
