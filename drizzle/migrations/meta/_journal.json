@@ -22,6 +22,13 @@
       "when": 1794492792137,
       "tag": "0002_returned_letter_shipments_and_dispatch_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794495906019,
+      "tag": "0003_tighten_reference_and_return_photo_policies",
+      "breakpoints": true
     }
   ]
 }
