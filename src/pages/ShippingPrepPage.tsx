@@ -29,6 +29,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import '@/i18n/returns';
+import { returnBlocksLetters } from '@/lib/returnedLetters';
 
 function getDefaultShippingDate(): Date {
   return startOfDay(new Date());
@@ -222,6 +224,16 @@ export default function ShippingPrepPage() {
     toast({ title: t("common.copied"), description: text });
   };
   const queryClient = useQueryClient();
+  const { data: returns = [], isLoading: returnsLoading, error: returnsError } = useQuery({
+    queryKey: ['returned-letters', 'shipping'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('returned_letters').select('tenant_id,status,mail_item_ids,tenants(company_name)');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const pausedTenants = new Set(returns.filter(item => returnBlocksLetters(item.status)).map(item => item.tenant_id));
+  const approvedReturnIds = new Set(returns.filter(item => item.status === 'resend_requested').flatMap(item => item.mail_item_ids));
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["shipping-prep-items"],
@@ -446,6 +458,8 @@ export default function ShippingPrepPage() {
       selDay === today ? shipDate.getTime() <= selDay : shipDate.getTime() === selDay;
     return items.filter((item) => {
       if (item.mail_type !== tab) return false;
+      if (item.mail_type === 'brev' && (returnsLoading || returnsError || pausedTenants.has(item.tenant_id))) return false;
+      if (approvedReturnIds.has(item.id)) return true;
 
       const effectiveAction = item.chosen_action
         ?? (item.mail_type === "pakke" ? item.default_package_action : item.default_mail_action);
@@ -464,7 +478,7 @@ export default function ShippingPrepPage() {
         : getNextShippingDateForItem(item.tenant_type_name, item.mail_type);
       return matchesDate(shipDate);
     });
-  }, [items, selectedDate, tab]);
+  }, [items, selectedDate, tab, returns, returnsLoading, returnsError]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, { addressKey: string; companies: { name: string; typeName: string; hasUnpaidInvoice: boolean }[]; shippingRecipient: string | null; shippingCo: string | null; shippingAddress: string | null; shippingAddress2: string | null; shippingZip: string | null; shippingCity: string | null; shippingState: string | null; shippingCountry: string | null; contactEmail: string | null; contactPhone: string | null; items: MailItemWithTenant[] }>();
@@ -576,6 +590,8 @@ export default function ShippingPrepPage() {
           </TabsList>
 
           <TabsContent value={tab} className="mt-4 space-y-4">
+            {tab === 'brev' && returnsError && <p role="alert" className="text-destructive">{returnsError.message}</p>}
+            {tab === 'brev' && returns.filter(item => returnBlocksLetters(item.status)).map(item => <p key={item.tenant_id + item.status} className="text-destructive text-sm"><strong>{item.tenants?.company_name}</strong> · {t('returns.paused')}</p>)}
             {!isLoading && grouped.length > 0 && (
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -780,8 +796,9 @@ export default function ShippingPrepPage() {
                               onCheckedChange={() => toggleCheck(item.id)}
                             />
                             <PhotoHoverPreview photoUrl={item.photo_url} />
-                            <span className="text-sm font-medium shrink-0">
+                            <span className="text-sm font-medium min-w-0">
                               Nr. {item.stamp_number ?? "—"} — {item.company_name} — {t("common.fee")}: {getShippingFee(item)}
+                              {approvedReturnIds.has(item.id) && <Badge variant="secondary" className="ml-2">{t('returns.approved')}</Badge>}
                             </span>
                             {tab === "pakke" && (
                               <Select

@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { returnAction } from '@/lib/returnedLetters';
+import { returnAction, returnBlocksLetters } from '@/lib/returnedLetters';
 import { toast } from 'sonner';
 export function ReturnedLettersList({ operator = false, tenantId }: { operator?: boolean; tenantId?: string }) {
   const { t } = useTranslation();
@@ -22,7 +22,7 @@ export function ReturnedLettersList({ operator = false, tenantId }: { operator?:
   }});
   async function act(id: string, action: string, response?: string) {
     setBusy(id);
-    try { await returnAction({ id, action, response }); await qc.invalidateQueries({ queryKey: ['returned-letters'] }); toast.success(t(action === 'send' ? 'returns.sent' : 'returns.saved')); }
+    try { await returnAction({ id, action, response }); await Promise.all(['returned-letters', 'tenant-mail', 'tenant-stats', 'shipping-prep-items'].map(key => qc.invalidateQueries({ queryKey: [key] }))); toast.success(t(action === 'send' ? 'returns.sent' : 'returns.saved')); }
     catch (err) { toast.error(err instanceof Error ? err.message : String(err)); }
     finally { setBusy(null); }
   }
@@ -37,10 +37,13 @@ export function ReturnedLettersList({ operator = false, tenantId }: { operator?:
     {items?.map(item => <div key={item.id} id={`return-${item.id}`} className="border-b border-border py-4 space-y-3">
       <div className="flex flex-wrap gap-3 items-center"><strong>{item.tenants?.company_name}</strong><Badge variant="secondary">{t(`returns.${item.status}`)}</Badge><span className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</span></div>
       <p className="whitespace-pre-line text-sm">{item.sent_address}</p>
+      {!!item.shipment_numbers?.length && <p className="font-semibold">{t('returns.originalLetters', { numbers: item.shipment_numbers.join(', ') })}</p>}
+      {returnBlocksLetters(item.status) && <p className="text-destructive font-medium">{t('returns.paused')}</p>}
+      {item.status === 'resend_requested' && <p className="text-sm font-medium">{t('returns.approved')}</p>}
       <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => showPhoto(item.photo_path)}>{t('returns.photo')}</Button>
         {!operator && item.status === 'notified' && <><Button disabled={busy === item.id} onClick={() => act(item.id, 'respond', 'resend_requested')}>{t('returns.yes')}</Button><Button variant="outline" disabled={busy === item.id} onClick={() => act(item.id, 'respond', 'declined')}>{t('returns.no')}</Button></>}
         {operator && item.status === 'draft' && <Button disabled={busy === item.id} onClick={() => act(item.id, 'send')}>{t('returns.send')}</Button>}
-        {operator && item.status === 'resend_requested' && <Button disabled={busy === item.id} onClick={() => act(item.id, 'resent')}>{t('returns.markResent')}</Button>}
+        {operator && item.status === 'resend_requested' && !item.mail_item_ids?.length && <Button disabled={busy === item.id} onClick={() => act(item.id, 'resent')}>{t('returns.markResent')}</Button>}
       </div>
       {operator && item.status === 'draft' && <details><summary>{t('returns.review')}</summary><strong>{item.email_subject}</strong><p className="whitespace-pre-line text-sm mt-2">{item.email_body}</p></details>}
     </div>)}

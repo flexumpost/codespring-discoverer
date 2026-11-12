@@ -1,10 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { z } from 'npm:zod@3';
-import { canRespondToReturn, canMarkReturnResent, escapeReturnHtml } from '../_shared/returned-letter-rules.ts';
+import { canRespondToReturn, canMarkReturnResent, escapeReturnHtml, validReturnedShipment, returnDispatchNotice } from '../_shared/returned-letter-rules.ts';
 
 const schema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('prepare'), id: z.string().uuid(), tenant_id: z.string().uuid(), image: z.string().min(1).max(7_000_000), recipient_name: z.string().max(255), sent_address: z.string().trim().min(5).max(2000), subject: z.string().trim().min(1).max(255), body: z.string().trim().min(1).max(10000) }),
+  z.object({ action: z.literal('prepare'), id: z.string().uuid(), tenant_id: z.string().uuid(), shipment_numbers: z.array(z.number().int().positive()).min(1).max(100), image: z.string().min(1).max(7_000_000), recipient_name: z.string().max(255), sent_address: z.string().trim().min(5).max(2000), subject: z.string().trim().min(1).max(255), body: z.string().trim().min(1).max(10000) }),
   z.object({ action: z.literal('send'), id: z.string().uuid() }),
   z.object({ action: z.literal('respond'), id: z.string().uuid(), response: z.enum(['resend_requested', 'declined']) }),
   z.object({ action: z.literal('resent'), id: z.string().uuid() }),
@@ -33,6 +33,10 @@ Deno.serve(async req => {
     if (input.action === 'prepare') {
       const { data: tenant } = await admin.from('tenants').select('id').eq('id', input.tenant_id).maybeSingle();
       if (!tenant) return reply({ error: 'Lejeren findes ikke.' }, 404);
+      const numbers = [...new Set(input.shipment_numbers)];
+      const { data: shipments, error: shipmentError } = await admin.from('mail_items').select('id,stamp_number,tenant_id,mail_type,status').in('stamp_number', numbers);
+      if (shipmentError) throw shipmentError;
+      if (!shipments || shipments.length !== numbers.length || shipments.some(s => !validReturnedShipment(s, input.tenant_id))) return reply({ error: 'Alle numre skal være sendte breve til den valgte lejer.' }, 400);
       const match = input.image.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
       if (!match) return reply({ error: 'Vælg et JPEG-, PNG- eller WebP-billede.' }, 400);
       const binary = atob(match[2]);
@@ -43,7 +47,7 @@ Deno.serve(async req => {
       if (existing) return reply({ id: existing.id });
       const { error: uploadError } = await admin.storage.from('returned-letters').upload(path, bytes, { contentType: `image/${match[1]}`, upsert: false });
       if (uploadError) throw uploadError;
-      const { error } = await admin.from('returned_letters').insert({ id: input.id, tenant_id: input.tenant_id, operator_id: claims.claims.sub, photo_path: path, recipient_name: input.recipient_name, sent_address: input.sent_address, email_subject: input.subject, email_body: input.body });
+      const { error } = await admin.from('returned_letters').insert({ id: input.id, tenant_id: input.tenant_id, mail_item_ids: shipments.map(s => s.id), operator_id: claims.claims.sub, photo_path: path, recipient_name: input.recipient_name, sent_address: input.sent_address, email_subject: input.subject, email_body: input.body });
       if (error) { await admin.storage.from('returned-letters').remove([path]); throw error; }
       return reply({ id: input.id });
     }
@@ -64,6 +68,11 @@ Deno.serve(async req => {
     }
     if (input.action === 'resent') {
       if (!canMarkReturnResent(item.status)) return reply({ error: 'Lejeren har ikke anmodet om genforsendelse.' }, 409);
+      if (item.mail_item_ids?.length) {
+        const { data: shipments, error } = await admin.from('mail_items').select('status').in('id', item.mail_item_ids);
+        if (error) throw error;
+        if (!shipments || shipments.length !== item.mail_item_ids.length || shipments.some(s => !['sendt_med_dao','sendt_med_postnord'].includes(s.status))) return reply({ error: 'Markér først de tilknyttede breve som sendt på forsendelsessiden.' }, 409);
+      }
       const { error } = await admin.from('returned_letters').update({ status: 'resent' }).eq('id', item.id).eq('status', 'resend_requested');
       if (error) throw error;
       return reply({ success: true });
@@ -76,6 +85,8 @@ Deno.serve(async req => {
       email = data.user?.email || email;
     }
     if (!email) return reply({ error: 'Lejeren mangler en e-mailadresse.' }, 400);
+    const requiredNotice = returnDispatchNotice(item.shipment_numbers || []);
+    const emailBody = `${item.email_body}\n\n${requiredNotice}`;
     const key = Deno.env.get('RESEND_API_KEY');
     if (!key) return reply({ error: 'E-mailforbindelsen mangler.' }, 500);
     const { data: photo, error: photoError } = await admin.storage.from('returned-letters').download(item.photo_path);
@@ -87,8 +98,8 @@ Deno.serve(async req => {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', 'Idempotency-Key': `returned-letter-${item.id}` },
       body: JSON.stringify({ from: 'Flexum Coworking <kontakt@flexum.dk>', to: [email], reply_to: 'kontakt@flexum.dk', subject: item.email_subject,
-        text: `${item.email_body}\n\nVælg om brevene skal sendes igen i din digitale postkasse: ${link}`,
-        html: `<div style="font-family:Arial,sans-serif"><h2>Flexum · Returbrev</h2><p>${escapeReturnHtml(item.email_body).replace(/\n/g, '<br>')}</p><p><a href="${escapeReturnHtml(link)}">Vælg i den digitale postkasse</a></p></div>`,
+        text: `${emailBody}\n\nVælg om brevene skal sendes igen i din digitale postkasse: ${link}`,
+        html: `<div style="font-family:Arial,sans-serif"><h2>Flexum · Returbrev</h2><p>${escapeReturnHtml(emailBody).replace(/\n/g, '<br>')}</p><p><a href="${escapeReturnHtml(link)}">Vælg i den digitale postkasse</a></p></div>`,
         attachments: [{ filename: item.photo_path.split('/').pop(), content: btoa(binary) }] }),
     });
     const result = await res.json();

@@ -588,11 +588,14 @@ export type Database = {
           email_sent_at: string | null
           email_subject: string
           id: string
+          mail_item_ids: string[]
           operator_id: string
           photo_path: string
           recipient_name: string
           responded_at: string | null
           sent_address: string
+          shipment_numbers: number[]
+          shipment_snapshot: Json
           status: string
           tenant_id: string
         }
@@ -602,11 +605,14 @@ export type Database = {
           email_sent_at?: string | null
           email_subject: string
           id?: string
+          mail_item_ids?: string[]
           operator_id: string
           photo_path: string
           recipient_name?: string
           responded_at?: string | null
           sent_address: string
+          shipment_numbers?: number[]
+          shipment_snapshot?: Json
           status?: string
           tenant_id: string
         }
@@ -616,11 +622,14 @@ export type Database = {
           email_sent_at?: string | null
           email_subject?: string
           id?: string
+          mail_item_ids?: string[]
           operator_id?: string
           photo_path?: string
           recipient_name?: string
           responded_at?: string | null
           sent_address?: string
+          shipment_numbers?: number[]
+          shipment_snapshot?: Json
           status?: string
           tenant_id?: string
         }
