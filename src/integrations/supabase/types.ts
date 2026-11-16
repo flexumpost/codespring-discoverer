@@ -799,6 +799,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
           welcome_email_sent_at: string | null
+          zoho_account_id: string | null
         }
         Insert: {
           address?: string | null
@@ -833,6 +834,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           welcome_email_sent_at?: string | null
+          zoho_account_id?: string | null
         }
         Update: {
           address?: string | null
@@ -867,6 +869,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           welcome_email_sent_at?: string | null
+          zoho_account_id?: string | null
         }
         Relationships: [
           {

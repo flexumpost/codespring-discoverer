@@ -1,0 +1,4 @@
+ALTER TABLE public.tenants ADD COLUMN zoho_account_id text;
+CREATE UNIQUE INDEX tenants_zoho_account_id_unique ON public.tenants (zoho_account_id) WHERE zoho_account_id IS NOT NULL;
+CREATE FUNCTION public.protect_tenant_zoho_identity() RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$ BEGIN IF NEW.zoho_account_id IS DISTINCT FROM OLD.zoho_account_id AND auth.role() IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Zoho identity is managed by the integration'; END IF; RETURN NEW; END; $$;
+CREATE TRIGGER protect_tenant_zoho_identity BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION public.protect_tenant_zoho_identity();

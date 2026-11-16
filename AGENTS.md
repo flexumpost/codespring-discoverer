@@ -1,4 +1,5 @@
 # Architecture Rules
+- Zoho onboarding uses unique account IDs, a shared field mapper, and authenticated polling through the existing webhook; reconcile only missing accounts and unfinished invitations, preserving existing mailbox settings and manual closures.
 
 - Returned envelopes link original mail IDs and shipment snapshots in returned_letters; database triggers validate ownership, block letter dispatch until every return is approved, and requeue approved letters without erasing shipment logs. Tenant responses never dispatch mail automatically.
 

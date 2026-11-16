@@ -2,11 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { WelcomeEmail } from "../_shared/email-templates/welcome.tsx";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3";
+import { matchZohoTenant } from "../_shared/zoho-onboarding.ts";
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -64,14 +62,13 @@ async function ensureTenantUser(
 
     // Look for an existing auth user with this email
     let userId: string | null = null;
-    const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({
-      page: 1,
-      perPage: 1000,
-    });
-    if (listError) throw listError;
-    const existing = listData?.users?.find(
-      (u: { email?: string | null }) => (u.email ?? "").toLowerCase() === normalized,
-    );
+    let existing: { id: string; email?: string } | undefined;
+    for (let page = 1; ; page++) {
+      const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listError) throw listError;
+      existing = listData.users.find(u => (u.email ?? "").toLowerCase() === normalized);
+      if (existing || listData.users.length < 1000) break;
+    }
 
     if (existing) {
       userId = existing.id;
@@ -89,7 +86,7 @@ async function ensureTenantUser(
       const { error: roleError } = await adminClient
         .from("user_roles")
         .insert({ user_id: userId, role: "tenant" });
-      if (roleError) console.error("Failed to assign tenant role:", roleError);
+      if (roleError) throw roleError;
     }
 
     if (userId) {
@@ -100,7 +97,8 @@ async function ensureTenantUser(
         .eq("user_id", userId)
         .maybeSingle();
       if (!link) {
-        await adminClient.from("tenant_users").insert({ tenant_id: tenantId, user_id: userId });
+        const { error } = await adminClient.from("tenant_users").upsert({ tenant_id: tenantId, user_id: userId }, { onConflict: "tenant_id,user_id" });
+        if (error) throw error;
       }
       await adminClient
         .from("tenants")
@@ -118,7 +116,7 @@ async function ensureTenantUser(
       .select("token")
       .single();
     if (tokenError || !tokenRow?.token) {
-      console.error("Failed to create onboarding token:", tokenError);
+      throw tokenError ?? new Error("Failed to create onboarding token");
     } else {
       onboardingUrl = `https://post.flexum.dk/set-password?onboarding_token=${tokenRow.token}`;
     }
@@ -192,6 +190,7 @@ async function sendWelcomeEmail(
       headers: {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
         "Content-Type": "application/json",
+        "Idempotency-Key": `zoho-welcome/${tenantId}`,
       },
       body: JSON.stringify({
         from: "Flexum Coworking <kontakt@flexum.dk>",
@@ -227,6 +226,16 @@ async function sendWelcomeEmail(
     return { ok: true, error: null as string | null };
   } catch (e) {
     console.error("Failed to send welcome email:", e);
+
+    // A concurrent reconciliation may already have completed the same welcome.
+    // Resend rejects a second body with a new token; verify the successful send
+    // rather than reporting a delivery failure or sending another invitation.
+    if (String(e).includes("409")) {
+      const { data: delivered } = await adminClient.from("email_send_log")
+        .select("id").eq("template_name", "welcome").eq("status", "sent")
+        .contains("metadata", { tenant_id: tenantId }).limit(1);
+      if (delivered?.length) return { ok: true, error: null };
+    }
 
     await adminClient.from("email_send_log").insert({
       template_name: "welcome",
@@ -270,7 +279,13 @@ Deno.serve(async (req) => {
 
     // --- Parse body ---
     const body = await req.json();
-    console.log("Zoho webhook payload:", JSON.stringify(body));
+    const validation = z.object({
+      zoho_account_id: z.string().regex(/^\d{1,30}$/).optional(),
+      account_name: z.string().trim().min(1).max(500).optional(),
+      contact_email: z.string().trim().email().nullable().optional(),
+    }).passthrough().safeParse(body);
+    if (!validation.success) return new Response(JSON.stringify({ error: validation.error.flatten() }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const zohoAccountId = validation.data.zoho_account_id ?? null;
 
     const companyName =
       body.account_name ||
@@ -336,6 +351,7 @@ Deno.serve(async (req) => {
       body.kunde_status ??
       body.Kunde_status ??
       body.Kunde_Status ??
+      body.Kundeemne_Status ??
       body.customer_status ??
       body.Customer_Status ??
       body.status ??
@@ -352,8 +368,9 @@ Deno.serve(async (req) => {
 
     console.log("Zoho customer status:", { rawStatus, normalizedStatus, isActiveStatus, isEndedStatus });
 
-    const supabaseUrlEarly = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrlEarly = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKeyEarly = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrlEarly || !serviceRoleKeyEarly) throw new Error("Server configuration error");
     const logClient = createClient(supabaseUrlEarly, serviceRoleKeyEarly);
 
     if (!companyName) {
@@ -378,13 +395,20 @@ Deno.serve(async (req) => {
 
     const adminClient = logClient;
 
-    // Find existing tenant by company name (case-insensitive)
-    const { data: existingTenants } = await adminClient
-      .from("tenants")
-      .select("id, contact_email, welcome_email_sent_at, is_active")
-      .ilike("company_name", companyName)
-      .limit(1);
-    const existingTenant = existingTenants?.[0] ?? null;
+    // Stable IDs take priority; legacy name matches must be unique and unbound.
+    const candidates = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await adminClient.from("tenants")
+        .select("id, company_name, contact_email, welcome_email_sent_at, is_active, zoho_account_id")
+        .order("id").range(offset, offset + 999);
+      if (error) throw error;
+      candidates.push(...(data ?? []));
+      if ((data?.length ?? 0) < 1000) break;
+    }
+    const identity = zohoAccountId ? matchZohoTenant(candidates, zohoAccountId, companyName) : null;
+    const legacy = !zohoAccountId ? candidates.filter(t => t.company_name.toLowerCase() === companyName.toLowerCase()) : [];
+    if (legacy.length > 1) throw new Error("Ambiguous company name");
+    const existingTenant = identity ? candidates.find(t => t.id === identity.id) : legacy[0];
 
     // --- Ended cooperation: switch to "Retur til afsender" and deactivate ---
     if (isEndedStatus) {
@@ -474,6 +498,7 @@ Deno.serve(async (req) => {
     let tenantTypeId: string | null = null;
     let resolvedTypeName: string | null = null;
     const solutionName = solutionShort || packageSolution;
+    if (zohoAccountId && !solutionName) throw new Error("Løsning mangler i Zoho");
 
     if (solutionName) {
       const { data: matchedType } = await adminClient
@@ -487,6 +512,7 @@ Deno.serve(async (req) => {
         resolvedTypeName = solutionName;
         console.log(`Matched tenant type '${solutionName}':`, tenantTypeId);
       } else {
+        if (zohoAccountId) throw new Error(`Ukendt løsning: ${solutionName}`);
         console.log(`No tenant type matching '${solutionName}', falling back to Lite`);
       }
     }
@@ -526,6 +552,7 @@ Deno.serve(async (req) => {
       shippingCountry?.trim();
 
     const tenantFields: Record<string, unknown> = {
+      ...(zohoAccountId ? { zoho_account_id: zohoAccountId } : {}),
       company_name: companyName,
       contact_email: contactEmail || null,
       contact_first_name: contactFirstName || null,
@@ -627,7 +654,7 @@ Deno.serve(async (req) => {
     let onboardingUrl: string | null = null;
     let userError: string | null = null;
 
-    if (emailForWelcome) {
+    if (emailForWelcome && !welcomeAlreadySent) {
       const userRes = await ensureTenantUser(
         adminClient,
         tenantId,
@@ -639,7 +666,7 @@ Deno.serve(async (req) => {
       userError = userRes.error;
     }
 
-    if (emailForWelcome && !welcomeAlreadySent) {
+    if (emailForWelcome && !welcomeAlreadySent && !userError) {
       const contactName = [contactFirstName, contactLastName].filter(Boolean).join(" ");
       const res = await sendWelcomeEmail(
         adminClient, tenantId, emailForWelcome, contactName, companyName, onboardingUrl,
@@ -675,7 +702,8 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: welcomeStatus !== "fejlet",
+        error: welcomeError,
         tenant_id: tenantId,
         company_name: companyName,
         action: existingTenant ? "updated" : "created",
