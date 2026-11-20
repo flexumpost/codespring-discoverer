@@ -9,9 +9,9 @@ export function mailSummary(items: SummaryItem[]) {
   const letters = items.filter(i => i.mail_type === 'brev').length;
   const packages = items.filter(i => i.mail_type === 'pakke').length;
   const count = [letters ? `${letters} ${letters === 1 ? 'brev' : 'breve'}` : '', packages ? `${packages} ${packages === 1 ? 'pakke' : 'pakker'}` : ''].filter(Boolean).join(' og ');
-  const senders = [...new Set(items.map(i => i.sender_name?.trim() || 'Ukendt afsender'))].join(', ');
+  const senders = [...new Set(items.map(i => i.sender_name?.trim() || 'Ukendt afsender'))].join('\n');
   const lines = items.map(i => `${i.mail_type === 'pakke' ? 'Pakke' : 'Brev'} ${i.stamp_number === null ? 'uden nr.' : '#' + i.stamp_number} — fra ${i.sender_name?.trim() || 'Ukendt afsender'}`);
-  return { count, lines, sms: `Flexum: Du har modtaget ${count}. Fra: ${senders}.` };
+  return { count, lines, sms: `Flexum Coworking\nDu har modtaget ${count} i din digitale postkasse\nFra:\n${senders}` };
 }
 export function escapeMailHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
