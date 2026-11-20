@@ -1174,6 +1174,7 @@ export type Database = {
             Returns: string
           }
       owned_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
+      pause_idle_new_mail_worker: { Args: never; Returns: undefined }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

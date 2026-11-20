@@ -43,6 +43,13 @@
       "when": 1795163406719,
       "tag": "0005_sms_preferences_and_new_mail_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795163624386,
+      "tag": "0006_wake_and_pause_new_mail_worker",
+      "breakpoints": true
     }
   ]
 }
