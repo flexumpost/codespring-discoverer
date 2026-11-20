@@ -581,16 +581,7 @@ export function RegisterMailDialog({ open, onOpenChange }: RegisterMailDialogPro
 
       if (error) throw error;
 
-      if (selectedTenantId) {
-        supabase.functions.invoke("send-new-mail-email", {
-          body: {
-            tenant_id: selectedTenantId,
-            mail_type: mailType,
-            stamp_number: stampNumber ? parseInt(stampNumber, 10) : null,
-            is_new_tenant: !!isNewTenantFlow,
-          },
-        }).catch((err) => console.error("send-new-mail-email failed:", err));
-      }
+      // The database batches newly registered mail, including SMS, across operators.
 
       setPendingNewTenant(null);
 

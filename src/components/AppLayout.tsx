@@ -7,6 +7,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { EmailFailureAlert } from "@/components/EmailFailureAlert";
 import { useAuth } from "@/hooks/useAuth";
 import { TenantTour } from "@/components/TenantTour";
+import { SmsPreferences } from "@/components/SmsPreferences";
 import flexumLogo from "@/assets/flexum-logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <TenantTour />
+        <SmsPreferences prompt />
         <main className="flex-1 min-w-0 flex flex-col">
           <header className="h-14 flex items-center border-b border-border px-3 sm:px-4 gap-2 sm:gap-0">
             <SidebarTrigger />

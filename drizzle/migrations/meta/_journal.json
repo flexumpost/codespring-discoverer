@@ -36,6 +36,13 @@
       "when": 1794833809412,
       "tag": "0004_tenant_zoho_account_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795163406719,
+      "tag": "0005_sms_preferences_and_new_mail_batches",
+      "breakpoints": true
     }
   ]
 }

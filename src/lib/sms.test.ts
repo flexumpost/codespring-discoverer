@@ -1,0 +1,20 @@
+import { describe, it, expect } from 'vitest';
+import { mailSummary, normalizeSmsPhone, escapeMailHtml } from '../../supabase/functions/_shared/new-mail-summary';
+describe('new mail notifications', () => {
+  it('groups multiple letters with their numbers and senders', () => {
+    const summary = mailSummary([{ mail_type: 'brev', stamp_number: 4107, sender_name: 'SKAT' }, { mail_type: 'brev', stamp_number: 4126, sender_name: 'Bank' }]);
+    expect(summary.count).toBe('2 breve');
+    expect(summary.lines).toEqual(['Brev #4107 — fra SKAT', 'Brev #4126 — fra Bank']);
+    expect(summary.sms).toBe('Flexum: Du har modtaget 2 breve. Fra: SKAT, Bank.');
+  });
+  it('distinguishes packages from letters', () => {
+    expect(mailSummary([{ mail_type: 'brev', stamp_number: 1, sender_name: 'A' }, { mail_type: 'pakke', stamp_number: 2, sender_name: 'B' }]).count).toBe('1 brev og 1 pakke');
+  });
+  it('validates and normalizes international and Danish numbers', () => {
+    expect(normalizeSmsPhone('12 34 56 78')).toBe('+4512345678');
+    expect(normalizeSmsPhone('0044 7700 900123')).toBe('+447700900123');
+    expect(normalizeSmsPhone('wrong')).toBeNull();
+    expect(normalizeSmsPhone('')).toBeNull();
+  });
+  it('escapes sender names in email', () => expect(escapeMailHtml('<A&B>')).toBe('&lt;A&amp;B&gt;'));
+});

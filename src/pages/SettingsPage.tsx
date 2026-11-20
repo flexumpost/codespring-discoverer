@@ -17,6 +17,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { MailPricingCard, PackagePricingCard } from "@/components/PricingOverview";
 import { OperatorSettingsTabs } from "@/components/OperatorSettingsTabs";
 import { AutomationCard } from "@/components/AutomationCard";
+import { SmsPreferences } from "@/components/SmsPreferences";
 import {
   Dialog,
   DialogContent,
@@ -283,6 +284,7 @@ const SettingsPage = () => {
             </Card>
 
             {/* Notifikationsmodtagere */}
+            <SmsPreferences />
             {tuError && (
               <p className="text-sm text-destructive">{t("settings.couldNotFetchRecipients")}</p>
             )}

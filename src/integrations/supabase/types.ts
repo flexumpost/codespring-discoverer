@@ -294,6 +294,88 @@ export type Database = {
           },
         ]
       }
+      new_mail_batches: {
+        Row: {
+          created_at: string
+          due_at: string
+          error_message: string | null
+          id: string
+          locked_at: string | null
+          mail_item_ids: string[]
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_at?: string
+          error_message?: string | null
+          id?: string
+          locked_at?: string | null
+          mail_item_ids?: string[]
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          due_at?: string
+          error_message?: string | null
+          id?: string
+          locked_at?: string | null
+          mail_item_ids?: string[]
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_mail_batches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      new_mail_deliveries: {
+        Row: {
+          batch_id: string
+          channel: string
+          error_message: string | null
+          id: string
+          provider_id: string | null
+          recipient: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          channel: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string | null
+          recipient: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          channel?: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string | null
+          recipient?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "new_mail_deliveries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "new_mail_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -688,6 +770,38 @@ export type Database = {
           },
         ]
       }
+      sms_preferences: {
+        Row: {
+          enabled: boolean
+          phone_number: string | null
+          prompted_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          phone_number?: string | null
+          prompted_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          enabled?: boolean
+          phone_number?: string | null
+          prompted_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -964,6 +1078,25 @@ export type Database = {
     }
     Functions: {
       archive_mail_item: { Args: { _id: string }; Returns: string }
+      claim_new_mail_batches: {
+        Args: never
+        Returns: {
+          created_at: string
+          due_at: string
+          error_message: string | null
+          id: string
+          locked_at: string | null
+          mail_item_ids: string[]
+          status: string
+          tenant_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "new_mail_batches"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
