@@ -1,5 +1,5 @@
 # Tasks
-- [ ] Update SMS wording with requested line breaks and send another test SMS to 60101011.
+- [x] Update SMS wording with requested line breaks; deployed and ClickSend accepted one new test SMS to 60101011.
 - [x] Add personal SMS consent popup and editable number/preferences in tenant settings; authenticated save/reload/opt-out and mobile checked.
 - [x] Send one batch test SMS to the user's approved number 60101011; ClickSend accepted one message for two test letters. Test records removed.
 - [x] Batch new-post notifications with counts, shipment numbers and senders; ClickSend connected, real SMS and authenticated mailbox summary verified. Email code deployed; email delivery not exercised.
