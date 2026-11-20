@@ -85,7 +85,7 @@ Deno.serve(async request => {
             await new Promise(resolve => setTimeout(resolve, 250));
           } else {
             const gatewayKey = Deno.env.get('LOVABLE_API_KEY');
-            const connectionKey = Deno.env.get('CLICKSEND_API_KEY');
+            const connectionKey = Deno.env.get('UDC_CLICKSEND_API_KEY');
             if (!gatewayKey || !connectionKey) throw new Error('ClickSend connection not configured');
             const response = await fetch('https://connector-gateway.lovable.dev/udc_clicksend/v3/sms/send', { method: 'POST', headers: { Authorization: `Bearer ${gatewayKey}`, 'X-Connection-Api-Key': connectionKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ to: delivery.recipient, body: summary.sms, source: 'sdk', custom_string: delivery.id }] }) });
             const body = await response.text();
