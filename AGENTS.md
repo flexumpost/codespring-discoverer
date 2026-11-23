@@ -1,4 +1,5 @@
 # Architecture Rules
+- Standalone C4 printing uses the shared EnvelopePrint renderer with an explicit optional P override and client-only editable address drafts, so it never alters tenants or dispatches mail.
 - New-mail notices use database batches with a two-minute quiet period and per-recipient delivery records; SMS consent belongs to each user, and the managed worker schedule runs only while the queue is nonempty to avoid idle polling.
 - Zoho onboarding uses unique account IDs, a shared field mapper, and authenticated polling through the existing webhook; reconcile only missing accounts and unfinished invitations, preserving existing mailbox settings and manual closures.
 

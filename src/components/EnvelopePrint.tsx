@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import flexumLogo from "@/assets/flexum-logo-print.png";
 import daoPorto from "@/assets/dao-porto.png";
 import { plusLetterMarking } from "@/lib/tiers";
+import { envelopePrintP } from "@/lib/singleEnvelope";
 
 type EnvelopeGroup = {
   addressKey: string;
@@ -15,6 +16,7 @@ type EnvelopeGroup = {
   shippingCity: string | null;
   shippingState: string | null;
   shippingCountry: string | null;
+  printP?: boolean;
 };
 
 const COUNTRY_CODES: Record<string, string> = {
@@ -153,7 +155,7 @@ export function EnvelopePrint({ groups, onAfterPrint }: EnvelopePrintProps) {
       {groups.map((group, idx) => {
         const cc = getCountryCode(group.shippingCountry);
         const isPlus = group.companies.some((c) => plusLetterMarking(c.typeName));
-        const showP = isDanmark(group.shippingCountry) && isPlus;
+        const showP = envelopePrintP(group, isDanmark(group.shippingCountry) && isPlus);
 
         return (
           <div key={idx} className="envelope-page" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>

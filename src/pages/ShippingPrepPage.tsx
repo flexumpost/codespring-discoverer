@@ -7,6 +7,7 @@ import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { EnvelopePrint, type EnvelopeGroup } from "@/components/EnvelopePrint";
+import { SingleEnvelopeDialog } from "@/components/SingleEnvelopeDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 
@@ -554,7 +555,10 @@ export default function ShippingPrepPage() {
     <AppLayout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-foreground">{t("shippingPrep.title")}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">{t("shippingPrep.title")}</h1>
+            <SingleEnvelopeDialog />
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{t("shippingPrep.shippingDay")}:</span>
             <Popover>
