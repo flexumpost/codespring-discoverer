@@ -1,5 +1,6 @@
-import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info, Compass, MailWarning } from "lucide-react";
+import { Users, Settings, LayoutDashboard, LogOut, Package, Zap, Building2, Info, Compass, MailWarning, MessageSquare } from "lucide-react";
 import '@/i18n/returns';
+import '@/i18n/smsOverview';
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,6 +24,7 @@ export function AppSidebar() {
     { title: t("nav.shippingPrep"), url: "/shipping-prep", icon: Package },
     { title: t("returns.title"), url: "/returned-letters", icon: MailWarning },
     { title: t("nav.tenants"), url: "/tenants", icon: Users },
+    { title: t("smsOverview.title"), url: "/sms-overview", icon: MessageSquare },
     { title: t("nav.settings"), url: "/settings", icon: Settings },
   ];
 

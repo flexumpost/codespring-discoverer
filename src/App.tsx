@@ -21,6 +21,7 @@ import TenantViewPage from "./pages/TenantViewPage";
 import SetPasswordPage from "./pages/SetPasswordPage";
 import NotFound from "./pages/NotFound";
 import ReturnedLettersPage from './pages/ReturnedLettersPage';
+import SmsOverviewPage from './pages/SmsOverviewPage';
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 
 const AppRoutes = () => (
   <Routes>
+    <Route path="/sms-overview" element={<ProtectedRoute requiredRole="operator"><SmsOverviewPage /></ProtectedRoute>} />
     <Route path="/login" element={<Login />} />
     <Route path="/returned-letters" element={<ProtectedRoute requiredRole="operator"><ReturnedLettersPage /></ProtectedRoute>} />
     <Route

@@ -1,4 +1,5 @@
 # Tasks
+- [x] Add a read-only operator SMS overview with tenant/contact search and consent status; three tests and live operator search/filter/refresh checks passed, desktop/mobile verified.
 - [x] Add standalone C4 envelope printing with all-tenant search, editable recipient/address and optional P marking; five tests and authenticated tenant/manual printing checks passed, mobile dialog verified.
 - [x] Update SMS wording with requested line breaks; deployed and ClickSend accepted one new test SMS to 60101011.
 - [x] Add personal SMS consent popup and editable number/preferences in tenant settings; authenticated save/reload/opt-out and mobile checked.
