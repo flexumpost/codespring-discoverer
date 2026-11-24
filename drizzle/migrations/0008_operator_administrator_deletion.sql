@@ -1,0 +1,10 @@
+CREATE TABLE public.operator_administrators (user_id uuid PRIMARY KEY REFERENCES public.profiles(id), created_at timestamptz NOT NULL DEFAULT now());
+GRANT SELECT ON public.operator_administrators TO authenticated;
+GRANT ALL ON public.operator_administrators TO service_role;
+ALTER TABLE public.operator_administrators ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Read own administrator permission" ON public.operator_administrators FOR SELECT TO authenticated USING (user_id = auth.uid());
+CREATE OR REPLACE FUNCTION public.is_operator_administrator() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$ SELECT EXISTS (SELECT 1 FROM public.operator_administrators a JOIN public.user_roles r ON r.user_id=a.user_id AND r.role='operator' WHERE a.user_id=auth.uid()) $$;
+REVOKE ALL ON FUNCTION public.is_operator_administrator() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_operator_administrator() TO authenticated, service_role;
+DROP POLICY "Operators can delete roles" ON public.user_roles;
+CREATE POLICY "Authorized role deletion" ON public.user_roles FOR DELETE TO authenticated USING (public.is_operator() AND ((role='tenant' AND NOT public.has_role(user_id,'operator')) OR (public.is_operator_administrator() AND user_id<>auth.uid() AND NOT EXISTS (SELECT 1 FROM public.operator_administrators a WHERE a.user_id=user_roles.user_id))));

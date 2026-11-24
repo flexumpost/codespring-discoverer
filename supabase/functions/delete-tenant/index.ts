@@ -115,6 +115,10 @@ Deno.serve(async (req) => {
 
     // 7. For each user, check if they still have other tenants; if not, delete them
     for (const uid of userIdsToDelete) {
+      // Never delete operator identities through tenant cleanup.
+      const { data: operatorRole, error: operatorRoleError } = await admin.from("user_roles")
+        .select("id").eq("user_id", uid).eq("role", "operator").limit(1);
+      if (operatorRoleError || operatorRole?.length) continue;
       // Check if user owns other tenants
       const { data: otherTenants } = await admin
         .from("tenants")

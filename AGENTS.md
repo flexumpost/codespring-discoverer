@@ -1,4 +1,5 @@
 # Architecture Rules
+- Operator deletion uses a separate protected administrator-permission table and a claims-authenticated edge function; ban login and remove the operator role while retaining identity for shipment history, and block deletion through tenant-user management.
 - Operator SMS reporting is read-only, joins owners and tenant memberships per user, and uses an operator-only SELECT policy; consent remains user-controlled.
 - Standalone C4 printing uses the shared EnvelopePrint renderer with an explicit optional P override and client-only editable address drafts, so it never alters tenants or dispatches mail.
 - New-mail notices use database batches with a two-minute quiet period and per-recipient delivery records; SMS consent belongs to each user, and the managed worker schedule runs only while the queue is nonempty to avoid idle polling.

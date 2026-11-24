@@ -97,6 +97,14 @@ Deno.serve(async (req) => {
     }
 
     // Delete tenant_users row
+    // Operator deletion must use the dedicated administrator-only flow.
+    const { data: operatorRole, error: operatorRoleError } = await admin.from("user_roles")
+      .select("id").eq("user_id", targetUserId).eq("role", "operator").limit(1);
+    if (operatorRoleError || operatorRole?.length) {
+      return new Response(JSON.stringify({ error: "Operatører kan kun slettes af administratoren under Operatører" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     await admin.from("tenant_users").delete().eq("id", tenant_user_id);
 
     // Only delete auth user and roles if they have no other tenant associations

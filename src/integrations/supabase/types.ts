@@ -606,6 +606,29 @@ export type Database = {
         }
         Relationships: []
       }
+      operator_administrators: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operator_administrators_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_settings: {
         Row: {
           category: string
@@ -1130,6 +1153,7 @@ export type Database = {
         Returns: boolean
       }
       is_operator: { Args: never; Returns: boolean }
+      is_operator_administrator: { Args: never; Returns: boolean }
       mail_item_operator_fields_unchanged: {
         Args: {
           _id: string

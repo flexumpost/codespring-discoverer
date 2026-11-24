@@ -57,6 +57,13 @@
       "when": 1795501651348,
       "tag": "0007_operator_read_sms_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795509656255,
+      "tag": "0008_operator_administrator_deletion",
+      "breakpoints": true
     }
   ]
 }
