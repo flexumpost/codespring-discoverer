@@ -3,6 +3,7 @@ import { renderAsync } from "npm:@react-email/components@0.0.22";
 import { NewShipmentEmail } from "../_shared/email-templates/new-shipment.tsx";
 import { ShipmentDispatchedEmail } from "../_shared/email-templates/shipment-dispatched.tsx";
 import { WelcomeShipmentEmail } from "../_shared/email-templates/welcome-shipment.tsx";
+import { formatDanishDate, renderEmailTemplate } from "../_shared/render-email-template.ts";
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -230,25 +231,15 @@ Deno.serve(async (req) => {
     const stampLabel = stampList.length ? escapeHtml(stampList.join(", ")) : "";
     const trackingLabel = trackingList.length ? escapeHtml(trackingList[0]) : "";
 
-    const dateLabel = new Intl.DateTimeFormat("da-DK", { timeZone: "Europe/Copenhagen", day: "numeric", month: "long", year: "numeric" }).format(new Date());
-
-    const subject = template.subject
-      .replace(/\{\{date\}\}/g, dateLabel)
-      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
-      .replace(/\{\{name\}\}/g, name)
-      .replace(/\{\{stamp_number\}\}/g, stampLabel)
-      .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
-      .replace(/\{\{tracking_number\}\}/g, trackingLabel)
-      .replace(/\{\{pickup_date\}\}/g, pickupLabel);
-
-    const bodyRaw = template.body
-      .replace(/\{\{date\}\}/g, dateLabel)
-      .replace(/\{\{company_name\}\}/g, companyNameEscaped)
-      .replace(/\{\{name\}\}/g, name)
-      .replace(/\{\{stamp_number\}\}/g, stampLabel)
-      .replace(/\{\{mail_type\}\}/g, mailTypeLabel)
-      .replace(/\{\{tracking_number\}\}/g, trackingLabel)
-      .replace(/\{\{pickup_date\}\}/g, pickupLabel);
+    const { subject, body: bodyRaw } = renderEmailTemplate(template, {
+      date: formatDanishDate(new Date()),
+      company_name: companyNameEscaped,
+      name,
+      stamp_number: stampLabel,
+      mail_type: mailTypeLabel,
+      tracking_number: trackingLabel,
+      pickup_date: pickupLabel,
+    });
 
     const slug_is_list_eligible = slug === "new_shipment" || slug === "welcome_shipment";
 

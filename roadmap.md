@@ -1,4 +1,5 @@
 # Tasks
+- [x] Ensure dispatch emails replace {{date}} with the Danish dispatch date; deployed and regression-tested with shipment 3925.
 - [x] Add administrator-only operator deletion for Rico; five tests passed, live test operator deleted with login blocked, ordinary operator and direct role deletion denied, own access protected and shipment history retained.
 - [x] Add a read-only operator SMS overview with tenant/contact search and consent status; three tests and live operator search/filter/refresh checks passed, desktop/mobile verified.
 - [x] Add standalone C4 envelope printing with all-tenant search, editable recipient/address and optional P marking; five tests and authenticated tenant/manual printing checks passed, mobile dialog verified.
