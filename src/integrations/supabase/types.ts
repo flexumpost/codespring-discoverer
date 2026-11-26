@@ -300,6 +300,7 @@ export type Database = {
           due_at: string
           error_message: string | null
           id: string
+          kind: string
           locked_at: string | null
           mail_item_ids: string[]
           status: string
@@ -310,6 +311,7 @@ export type Database = {
           due_at?: string
           error_message?: string | null
           id?: string
+          kind?: string
           locked_at?: string | null
           mail_item_ids?: string[]
           status?: string
@@ -320,6 +322,7 @@ export type Database = {
           due_at?: string
           error_message?: string | null
           id?: string
+          kind?: string
           locked_at?: string | null
           mail_item_ids?: string[]
           status?: string
@@ -1108,6 +1111,7 @@ export type Database = {
           due_at: string
           error_message: string | null
           id: string
+          kind: string
           locked_at: string | null
           mail_item_ids: string[]
           status: string

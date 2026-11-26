@@ -13,6 +13,17 @@ export function mailSummary(items: SummaryItem[]) {
   const lines = items.map(i => `${i.mail_type === 'pakke' ? 'Pakke' : 'Brev'} ${i.stamp_number === null ? 'uden nr.' : '#' + i.stamp_number} — fra ${i.sender_name?.trim() || 'Ukendt afsender'}`);
   return { count, lines, sms: `Flexum Coworking\nDu har modtaget ${count} i din digitale postkasse\nFra:\n${senders}` };
 }
+export type NotificationKind = 'new_mail' | 'scan_ready';
+export function scanSummary(items: SummaryItem[]) {
+  const wording = items.length === 1 ? 'Dit brev' : 'Dine breve';
+  return { sms: `Flexum Coworking\n${wording} er scannet og klar i din digitale postkasse` };
+}
+export function notificationRecipients(kind: NotificationKind, emails: string[], phones: string[]) {
+  return [
+    ...(kind === 'new_mail' ? emails.map(recipient => ({ channel: 'email', recipient })) : []),
+    ...phones.map(recipient => ({ channel: 'sms', recipient })),
+  ];
+}
 export function escapeMailHtml(value: string) {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

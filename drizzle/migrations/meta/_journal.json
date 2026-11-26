@@ -64,6 +64,13 @@
       "when": 1795509656255,
       "tag": "0008_operator_administrator_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795676091217,
+      "tag": "0009_scan_ready_sms_notifications",
+      "breakpoints": true
     }
   ]
 }

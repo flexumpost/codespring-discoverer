@@ -3,7 +3,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { renderAsync } from 'npm:@react-email/components@0.0.22';
 import { z } from 'npm:zod@3';
 import { authenticateCronRequest } from '../_shared/cron-auth.ts';
-import { mailSummary, escapeMailHtml } from '../_shared/new-mail-summary.ts';
+import { mailSummary, scanSummary, notificationRecipients, escapeMailHtml } from '../_shared/new-mail-summary.ts';
 import { NewShipmentEmail } from '../_shared/email-templates/new-shipment.tsx';
 import { WelcomeShipmentEmail } from '../_shared/email-templates/welcome-shipment.tsx';
 
@@ -27,7 +27,9 @@ Deno.serve(async request => {
       const { data: items, error: ie } = await db.from('mail_items').select('stamp_number,sender_name,mail_type').in('id', batch.mail_item_ids).eq('tenant_id', batch.tenant_id);
       if (ie) throw ie;
       if (!items?.length) { await db.from('new_mail_batches').update({ status: 'sent' }).eq('id', batch.id); continue; }
+      const kind = batch.kind === 'scan_ready' ? 'scan_ready' : 'new_mail';
       const summary = mailSummary(items);
+      if (kind === 'scan_ready') summary.sms = scanSummary(items).sms;
       const { data: members, error: me } = await db.from('tenant_users').select('user_id').eq('tenant_id', tenant.id);
       if (me) throw me;
       const users = [...new Set([tenant.user_id, ...(members ?? []).map(m => m.user_id)].filter((u): u is string => !!u))];
@@ -37,7 +39,7 @@ Deno.serve(async request => {
       const { data: preferences, error: se } = users.length ? await db.from('sms_preferences').select('user_id,phone_number').in('user_id', users).eq('enabled', true) : { data: [], error: null };
       if (se) throw se;
       const phones = [...new Set((preferences ?? []).map(p => p.phone_number).filter((p): p is string => !!p))];
-      const recipients = [...emails.map(recipient => ({ batch_id: batch.id, channel: 'email', recipient })), ...phones.map(recipient => ({ batch_id: batch.id, channel: 'sms', recipient }))];
+      const recipients = notificationRecipients(kind, emails, phones).map(delivery => ({ ...delivery, batch_id: batch.id }));
       if (recipients.length) {
         const { error: de } = await db.from('new_mail_deliveries').upsert(recipients, { onConflict: 'batch_id,channel,recipient', ignoreDuplicates: true });
         if (de) throw de;

@@ -1,5 +1,5 @@
 # Tasks
-- [ ] Send SMS when a letter scan is first uploaded, only to opted-in tenant users; verify the queue and send one approved test SMS to 60101011.
+- [x] Send SMS when a letter scan is first uploaded, only to opted-in tenant users; eight tests passed, live queue sent exactly one ClickSend SMS and no email to 60101011, and all temporary test records were removed.
 - [x] Ensure dispatch emails replace {{date}} with the Danish dispatch date; deployed and regression-tested with shipment 3925.
 - [x] Add administrator-only operator deletion for Rico; five tests passed, live test operator deleted with login blocked, ordinary operator and direct role deletion denied, own access protected and shipment history retained.
 - [x] Add a read-only operator SMS overview with tenant/contact search and consent status; three tests and live operator search/filter/refresh checks passed, desktop/mobile verified.
