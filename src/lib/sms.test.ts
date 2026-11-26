@@ -16,13 +16,21 @@ describe('new mail notifications', () => {
     expect(normalizeSmsPhone('')).toBeNull();
   });
   it('escapes sender names in email', () => expect(escapeMailHtml('<A&B>')).toBe('&lt;A&amp;B&gt;'));
-  it('tells the tenant when one scanned letter is ready', () => {
+  it('names the sender when one scanned letter is ready', () => {
     expect(scanSummary([{ mail_type: 'brev', stamp_number: 4107, sender_name: 'SKAT' }]).sms)
-      .toBe('Flexum Coworking\nDit brev er scannet og klar i din digitale postkasse');
+      .toBe('Flexum Coworking\nDit brev fra SKAT er scannet og klar i din digitale postkasse');
   });
-  it('uses plural wording when several scanned letters are ready', () => {
+  it('names every sender when several scanned letters are ready', () => {
     expect(scanSummary([{ mail_type: 'brev', stamp_number: 1, sender_name: 'A' }, { mail_type: 'brev', stamp_number: 2, sender_name: 'B' }]).sms)
-      .toBe('Flexum Coworking\nDine breve er scannet og klar i din digitale postkasse');
+      .toBe('Flexum Coworking\nDine breve fra A og B er scannet og klar i din digitale postkasse');
+  });
+  it('names three senders with danish list punctuation', () => {
+    expect(scanSummary([{ mail_type: 'brev', stamp_number: 1, sender_name: 'A' }, { mail_type: 'brev', stamp_number: 2, sender_name: 'B' }, { mail_type: 'brev', stamp_number: 3, sender_name: 'C' }]).sms)
+      .toBe('Flexum Coworking\nDine breve fra A, B og C er scannet og klar i din digitale postkasse');
+  });
+  it('falls back to unknown sender when the scanned letter has no sender', () => {
+    expect(scanSummary([{ mail_type: 'brev', stamp_number: null, sender_name: null }]).sms)
+      .toBe('Flexum Coworking\nDit brev fra Ukendt afsender er scannet og klar i din digitale postkasse');
   });
   it('creates only SMS deliveries for scan notifications', () => {
     expect(notificationRecipients('scan_ready', ['tenant@example.com'], ['+4560101011']))

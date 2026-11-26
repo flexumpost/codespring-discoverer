@@ -14,8 +14,13 @@ export function mailSummary(items: SummaryItem[]) {
   return { count, lines, sms: `Flexum Coworking\nDu har modtaget ${count} i din digitale postkasse\nFra:\n${senders}` };
 }
 export type NotificationKind = 'new_mail' | 'scan_ready';
+function joinDanishList(values: string[]) {
+  if (values.length <= 1) return values[0] ?? '';
+  return `${values.slice(0, -1).join(', ')} og ${values[values.length - 1]}`;
+}
 export function scanSummary(items: SummaryItem[]) {
-  const wording = items.length === 1 ? 'Dit brev' : 'Dine breve';
+  const senders = joinDanishList([...new Set(items.map(i => i.sender_name?.trim() || 'Ukendt afsender'))]);
+  const wording = items.length === 1 ? `Dit brev fra ${senders}` : `Dine breve fra ${senders}`;
   return { sms: `Flexum Coworking\n${wording} er scannet og klar i din digitale postkasse` };
 }
 export function notificationRecipients(kind: NotificationKind, emails: string[], phones: string[]) {
