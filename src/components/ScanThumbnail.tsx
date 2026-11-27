@@ -1,59 +1,42 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { FileText } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RetryImg } from "@/components/RetryImg";
+import { useInViewOnce, useSignedStorageUrl } from "@/lib/signedMedia";
 
 interface ScanThumbnailProps {
   scanUrl: string;
 }
 
+const MAIL_SCANS_BUCKET = "mail-scans";
+
 export function ScanThumbnail({ scanUrl }: ScanThumbnailProps) {
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
+  const [ref, inView] = useInViewOnce<HTMLSpanElement>();
   const isPdf = scanUrl.toLowerCase().endsWith(".pdf");
+  const { url, loading } = useSignedStorageUrl(MAIL_SCANS_BUCKET, scanUrl, {
+    enabled: inView && !isPdf,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
+  const pending = !isPdf && !url && (!inView || loading);
 
-    const fetchUrl = async () => {
-      const { data, error } = await supabase.storage
-        .from("mail-scans")
-        .createSignedUrl(scanUrl, 300);
-
-      if (!cancelled) {
-        if (!error && data?.signedUrl) {
-          setSignedUrl(data.signedUrl);
-        }
-        setLoading(false);
-      }
-    };
-
-    fetchUrl();
-    return () => { cancelled = true; };
-  }, [scanUrl]);
-
-  if (loading) {
-    return <Skeleton className="h-10 w-10 rounded" />;
-  }
-
-  if (isPdf) {
-    return (
-      <div className="flex h-10 w-10 items-center justify-center rounded bg-primary/10">
-        <FileText className="h-5 w-5 text-primary" />
-      </div>
-    );
-  }
-
-  return signedUrl ? (
-    <img
-      src={signedUrl}
-      alt="Scan"
-      className="h-10 w-10 rounded object-cover border border-border"
-    />
-  ) : (
-    <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
-      <FileText className="h-5 w-5 text-muted-foreground" />
-    </div>
+  return (
+    <span ref={ref} className="inline-block">
+      {isPdf ? (
+        <span className="flex h-10 w-10 items-center justify-center rounded bg-primary/10">
+          <FileText className="h-5 w-5 text-primary" />
+        </span>
+      ) : pending ? (
+        <Skeleton className="h-10 w-10 rounded" />
+      ) : url ? (
+        <RetryImg
+          src={url}
+          alt="Scan"
+          className="h-10 w-10 rounded object-cover border border-border"
+        />
+      ) : (
+        <span className="flex h-10 w-10 items-center justify-center rounded bg-muted">
+          <FileText className="h-5 w-5 text-muted-foreground" />
+        </span>
+      )}
+    </span>
   );
 }

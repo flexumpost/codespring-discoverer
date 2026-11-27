@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { getMailRowColor } from "@/lib/mailRowColor";
 import { ScanThumbnail } from "@/components/ScanThumbnail";
 import { PhotoHoverPreview } from "@/components/PhotoHoverPreview";
+import { useSignedStorageUrl } from "@/lib/signedMedia";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -660,26 +661,12 @@ const TenantDashboard = ({ overrideTenantId }: TenantDashboardProps = {}) => {
   const [pickupHour, setPickupHour] = useState<string | undefined>();
   const [pickupDateLocked, setPickupDateLocked] = useState(false);
   const [pickupAction, setPickupAction] = useState<string>("afhentning");
-  const [scanSignedUrl, setScanSignedUrl] = useState<string | null>(null);
   const [logMailItemId, setLogMailItemId] = useState<string | null>(null);
   const [mailTypeFilter, setMailTypeFilter] = useState<"all" | "brev" | "pakke">("all");
   const [archiveBlockedOpen, setArchiveBlockedOpen] = useState(false);
   const [actionDialogItem, setActionDialogItem] = useState<MailItem | null>(null);
 
-  useEffect(() => {
-    setScanSignedUrl(null);
-    if (!selectedItem?.scan_url) return;
-    let cancelled = false;
-    supabase.storage
-      .from("mail-scans")
-      .createSignedUrl(selectedItem.scan_url, 300)
-      .then(({ data, error }) => {
-        if (!cancelled && !error && data?.signedUrl) {
-          setScanSignedUrl(data.signedUrl);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [selectedItem?.scan_url]);
+  const { url: scanSignedUrl } = useSignedStorageUrl("mail-scans", selectedItem?.scan_url ?? null);
 
   const hasMultipleTenants = tenants.length > 1;
 
